@@ -196,6 +196,17 @@ h1 {
   color: #cf4d45;
 }
 
+.metric.endurance-metric.low-endurance {
+  color: #fff;
+  background: #c92828;
+  border-color: rgba(255, 255, 255, 0.44);
+}
+
+.metric.endurance-metric.low-endurance strong,
+.metric.endurance-metric.low-endurance span {
+  color: #fff;
+}
+
 .metric.power-metric {
   background: #fff3df;
   border-color: rgba(255, 202, 139, 0.85);
@@ -203,6 +214,15 @@ h1 {
 
 .metric.power-metric strong {
   color: #9a5d18;
+}
+
+.metric.power-metric.leading-power {
+  background: #d8f3dc;
+  border-color: rgba(15, 141, 104, 0.5);
+}
+
+.metric.power-metric.leading-power strong {
+  color: #0f6b4f;
 }
 
 .metric strong {
@@ -286,6 +306,15 @@ h1 {
 .player-header h2 {
   margin: 0;
   font-size: 1.6rem;
+}
+
+.player-header h2.turn-name {
+  display: inline-block;
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: #06281f;
+  background: #90f0b8;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
 }
 
 .badges {

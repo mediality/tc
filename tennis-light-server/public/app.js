@@ -351,6 +351,7 @@ const state = {
   pendingEffectChoice: null,
   pendingCoachChoice: null,
   effectNotice: null,
+  resultInfo: null,
   turnSnapshot: null,
   turnDirty: false,
 };
@@ -399,6 +400,7 @@ function createPlayer(name, characterId) {
     name,
     characterId,
     characterSide: 0,
+    roseEnduranceAwarded: false,
     endurance: STARTING_ENDURANCE,
     power: 0,
     hand: [],
@@ -444,6 +446,7 @@ function newGame() {
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
   state.effectNotice = null;
+  state.resultInfo = null;
   state.turnDirty = false;
   state.log = [`${playerName(state.server)} sert. L'échange commence.`];
   captureTurnSnapshot();
@@ -477,6 +480,7 @@ const SNAPSHOT_KEYS = [
   "pendingEffectChoice",
   "pendingCoachChoice",
   "effectNotice",
+  "resultInfo",
 ];
 
 const SYNC_STATE_KEYS = [
@@ -972,6 +976,8 @@ function openEffectChoice(playerIndex, sourceCard) {
 function resolveEffectChoice(chosenPlayedUid) {
   if (!state.pendingEffectChoice) return;
   const { playerIndex, sourcePlayedUid } = state.pendingEffectChoice;
+  if (!canUseSeat(playerIndex)) return;
+  markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
@@ -1012,6 +1018,11 @@ function currentCharacterEffect(player) {
 
 function flipCharacter(player) {
   player.characterSide = player.characterSide === 0 ? 1 : 0;
+  if (player.characterSide === 1 && !player.roseEnduranceAwarded) {
+    player.roseEnduranceAwarded = true;
+    player.endurance += 1;
+    state.log.unshift(`${player.name} retourne sa carte personnage pour la première fois : +1 endurance.`);
+  }
 }
 
 function applyCharacterEffect(playerIndex, playedCard) {
@@ -1063,6 +1074,8 @@ function applyCharacterEffect(playerIndex, playedCard) {
 function resolveCoachChoice(cardUid) {
   if (!state.pendingCoachChoice) return;
   const { playerIndex, sourcePlayedUid } = state.pendingCoachChoice;
+  if (!canUseSeat(playerIndex)) return;
+  markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const chosen = state.deck.find((card) => card.uid === cardUid);
@@ -1123,14 +1136,27 @@ function finishGame({ forcedWinner = null, ignoreScore = false, reason }) {
   const p1 = state.players[0];
   const p2 = state.players[1];
   state.log.unshift(reason);
+  state.resultInfo = {
+    winner,
+    ignoreScore,
+    reason,
+    scoreText: ignoreScore ? "Victoire automatique : les points ne sont pas comptés." : `Score final : ${p1.name} ${p1.power} - ${p2.power} ${p2.name}${p1.power === p2.power ? `. Égalité : le serveur (${playerName(state.server)}) gagne.` : "."}`,
+  };
+  render();
+}
+
+function renderResultPanel() {
+  if (!state.resultInfo) {
+    els.resultPanel.classList.add("hidden");
+    return;
+  }
   els.resultPanel.innerHTML = `
     <p class="eyebrow">Fin de l'échange</p>
-    <h2>${state.players[winner].name} gagne l'échange</h2>
-    <p>${reason}</p>
-    <p>${ignoreScore ? "Victoire automatique : les points ne sont pas comptés." : `Score final : ${p1.name} ${p1.power} - ${p2.power} ${p2.name}${p1.power === p2.power ? `. Égalité : le serveur (${playerName(state.server)}) gagne.` : "."}`}</p>
+    <h2>${state.players[state.resultInfo.winner].name} gagne l'échange</h2>
+    <p>${state.resultInfo.reason}</p>
+    <p>${state.resultInfo.scoreText}</p>
   `;
   els.resultPanel.classList.remove("hidden");
-  render();
 }
 
 function applyEndBonuses() {
@@ -1176,6 +1202,7 @@ function closeBoostModal() {
 }
 
 function render() {
+  renderResultPanel();
   renderSummary(0, els.player1Summary);
   renderSummary(1, els.player2Summary);
   renderRallyState();
@@ -1224,15 +1251,26 @@ function renderServerSyncPanel() {
 
 function renderSummary(playerIndex, root) {
   const player = state.players[playerIndex];
+  const leader = leadingPlayerIndex();
+  const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
+  const powerClass = leader === playerIndex ? " leading-power" : "";
   root.innerHTML = `
     <p class="label">${player.name}${state.server === playerIndex ? " · serveur" : ""}</p>
     <div class="summary-grid">
-      <div class="metric endurance-metric"><strong>${player.endurance}</strong><span>Endurance</span></div>
-      <div class="metric power-metric"><strong>${player.power}</strong><span>Puissance</span></div>
+      <div class="metric endurance-metric${enduranceClass}"><strong>${player.endurance}</strong><span>Endurance</span></div>
+      <div class="metric power-metric${powerClass}"><strong>${player.power}</strong><span>Puissance</span></div>
       <div class="metric"><strong>${player.hand.length}</strong><span>Main</span></div>
       <div class="metric"><strong>${player.played.filter((card) => !card.removed).length}</strong><span>Engagées</span></div>
     </div>
   `;
+}
+
+function leadingPlayerIndex() {
+  const [p1, p2] = state.players;
+  if (!p1 || !p2) return null;
+  if (p1.power > p2.power) return 0;
+  if (p2.power > p1.power) return 1;
+  return state.server;
 }
 
 function renderRallyState() {
@@ -1353,7 +1391,7 @@ function renderPlayerPanel(playerIndex, root) {
   root.innerHTML = `
     <header class="player-header">
       <div>
-        <h2>${player.name}</h2>
+        <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${player.name}</h2>
         <div class="turn-buttons">
           <button class="pass-button" type="button" data-pass="${playerIndex}" ${playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) ? "disabled" : ""}>Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">Terminer le tour</button>` : ""}
@@ -1516,7 +1554,8 @@ function renderBoostModal() {
 function renderEffectChoiceModal() {
   document.querySelector(".effect-choice-backdrop")?.remove();
   if (!state.pendingEffectChoice) return;
-  const { sourcePlayedUid } = state.pendingEffectChoice;
+  const { playerIndex, sourcePlayedUid } = state.pendingEffectChoice;
+  if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
   const choices = effectChoicesFor(sourcePlayedUid);
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop effect-choice-backdrop";
@@ -1544,6 +1583,7 @@ function renderCoachChoiceModal() {
   document.querySelector(".coach-choice-backdrop")?.remove();
   if (!state.pendingCoachChoice) return;
   const { playerIndex } = state.pendingCoachChoice;
+  if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
   const player = state.players[playerIndex];
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop coach-choice-backdrop";
