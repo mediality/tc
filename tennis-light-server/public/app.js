@@ -10,6 +10,7 @@ const SERVER_SYNC = {
   ready: false,
   initializing: false,
   applyingRemote: false,
+  localDirty: false,
   lastSent: "",
   timer: null,
   pollTimer: null,
@@ -511,6 +512,7 @@ function captureTurnSnapshot() {
 function restoreTurnSnapshot() {
   if (!state.turnSnapshot || !state.turnDirty || state.gameOver) return;
   const activeName = playerName(state.activePlayer);
+  markLocalServerDirty(state.activePlayer);
   for (const key of SNAPSHOT_KEYS) {
     state[key] = cloneData(state.turnSnapshot[key]);
   }
@@ -535,8 +537,18 @@ function opponentOf(playerIndex) {
   return playerIndex === 0 ? 1 : 0;
 }
 
+function markLocalServerDirty(playerIndex) {
+  if (SERVER_SYNC.enabled && !SERVER_SYNC.applyingRemote && playerIndex === SERVER_SYNC.seat) {
+    SERVER_SYNC.localDirty = true;
+  }
+}
+
 function activePlayer() {
   return state.players[state.activePlayer];
+}
+
+function canUseSeat(playerIndex) {
+  return !SERVER_SYNC.enabled || (SERVER_SYNC.ready && playerIndex === SERVER_SYNC.seat);
 }
 
 function effectiveCost(player, card) {
@@ -590,6 +602,7 @@ function hasPlacementForPrevious(playerIndex, card, boosted = false) {
 
 function canPlayNormal(playerIndex, card) {
   if (state.gameOver || playerIndex !== state.activePlayer) return false;
+  if (!canUseSeat(playerIndex)) return false;
   const player = state.players[playerIndex];
   if (!canAfford(player, card) || !satisfiesFamilyLimit(player, card)) return false;
   if (isRemise(card)) return true;
@@ -599,11 +612,12 @@ function canPlayNormal(playerIndex, card) {
 }
 
 function canEndTurn(playerIndex) {
-  return !state.gameOver && playerIndex === state.activePlayer && state.turnHasEffect[playerIndex] && !state.mandatoryPlacement;
+  return !state.gameOver && playerIndex === state.activePlayer && canUseSeat(playerIndex) && state.turnHasEffect[playerIndex] && !state.mandatoryPlacement;
 }
 
 function canPlayBoost(playerIndex, card) {
   if (state.gameOver || playerIndex !== state.activePlayer) return false;
+  if (!canUseSeat(playerIndex)) return false;
   if (isRemise(card)) return false;
   const player = state.players[playerIndex];
   const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid);
@@ -639,6 +653,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   if (boosted && !canPlayBoost(playerIndex, card)) return;
   if (!boosted && !canPlayNormal(playerIndex, card)) return;
   state.turnDirty = true;
+  markLocalServerDirty(playerIndex);
 
   const opponentIndex = opponentOf(playerIndex);
   const endsTurn = !isRemise(card);
@@ -771,6 +786,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
 
 function endTurn(playerIndex) {
   if (!canEndTurn(playerIndex)) return;
+  markLocalServerDirty(playerIndex);
   const opponentIndex = opponentOf(playerIndex);
   const player = state.players[playerIndex];
   const opponent = state.players[opponentIndex];
@@ -1077,6 +1093,8 @@ function resolveCoachChoice(cardUid) {
 
 function pass(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer) return;
+  if (!canUseSeat(playerIndex)) return;
+  markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const opponent = state.players[opponentIndex];
@@ -1188,9 +1206,20 @@ function renderServerSyncPanel() {
   const inviteUrl = SERVER_SYNC.inviteUrl ?? "";
   panel.innerHTML = `
     <p><strong>Partie en ligne</strong> Salon ${SERVER_SYNC.roomId} · ${SERVER_SYNC.seat === 0 ? "Coach Ju" : "Coach Max"}</p>
-    ${inviteUrl ? `<label>Lien adversaire<input readonly value="${inviteUrl}" /></label>` : ""}
+    ${inviteUrl ? `<label>Lien adversaire<input id="inviteLinkInput" readonly value="${inviteUrl}" /></label><button class="small-button copy-link-button" type="button" data-copy-invite>Copier le lien</button>` : ""}
     <span>${SERVER_SYNC.ready ? "Synchronisé" : "Connexion..."}</span>
   `;
+  panel.querySelector("[data-copy-invite]")?.addEventListener("click", async () => {
+    const input = panel.querySelector("#inviteLinkInput");
+    if (!input) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+    } catch (error) {
+      input.select();
+      document.execCommand("copy");
+    }
+    panel.querySelector("[data-copy-invite]").textContent = "Lien copié";
+  });
 }
 
 function renderSummary(playerIndex, root) {
@@ -1326,7 +1355,7 @@ function renderPlayerPanel(playerIndex, root) {
       <div>
         <h2>${player.name}</h2>
         <div class="turn-buttons">
-          <button class="pass-button" type="button" data-pass="${playerIndex}" ${playerIndex !== state.activePlayer || state.gameOver ? "disabled" : ""}>Passer</button>
+          <button class="pass-button" type="button" data-pass="${playerIndex}" ${playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) ? "disabled" : ""}>Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">Terminer le tour</button>` : ""}
           ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
         </div>
@@ -1371,7 +1400,7 @@ function renderPlayerPanel(playerIndex, root) {
 
 function renderCard(playerIndex, card) {
   const player = state.players[playerIndex];
-  const isHidden = playerIndex !== state.activePlayer && !state.gameOver;
+  const isHidden = SERVER_SYNC.enabled ? playerIndex !== SERVER_SYNC.seat : playerIndex !== state.activePlayer && !state.gameOver;
   const normalAllowed = canPlayNormal(playerIndex, card);
   const boostAllowed = canPlayBoost(playerIndex, card);
   const cost = effectiveCost(player, card);
@@ -1541,7 +1570,7 @@ function renderCoachChoiceModal() {
 function shouldPushServerState() {
   if (!SERVER_SYNC.enabled || SERVER_SYNC.applyingRemote) return false;
   if (SERVER_SYNC.initializing) return true;
-  return SERVER_SYNC.ready && state.activePlayer === SERVER_SYNC.seat;
+  return SERVER_SYNC.ready && SERVER_SYNC.localDirty;
 }
 
 function scheduleServerSync() {
@@ -1565,6 +1594,7 @@ async function pushServerState() {
     const data = await response.json();
     SERVER_SYNC.ready = true;
     SERVER_SYNC.initializing = false;
+    SERVER_SYNC.localDirty = false;
     SERVER_SYNC.revision = data.revision ?? SERVER_SYNC.revision;
     SERVER_SYNC.inviteUrl = data.inviteUrl ?? SERVER_SYNC.inviteUrl;
     renderServerSyncPanel();
@@ -1602,7 +1632,7 @@ function initServerSync() {
   SERVER_SYNC.token = params.token;
   SERVER_SYNC.seat = params.seat;
   SERVER_SYNC.initializing = SERVER_SYNC.seat === 0;
-  renderServerSyncPanel();
+  render();
   if (SERVER_SYNC.initializing) {
     scheduleServerSync();
   }
