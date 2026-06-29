@@ -25,7 +25,7 @@ body {
   color: var(--ink);
   background:
     linear-gradient(180deg, rgba(2, 8, 23, 0.28), rgba(2, 8, 23, 0.62)),
-    url("./assets/fond-jeu-TENNIS.jpg") center / cover fixed;
+    url("./assets/fond-jeu-TENNIS.jpg") center bottom / cover fixed;
 }
 
 button {
@@ -123,6 +123,39 @@ h1 {
   min-height: 32px;
   padding: 0 10px;
   font-size: 0.82rem;
+}
+
+.top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.solo-button {
+  color: #07221d;
+  background: #90f0b8;
+}
+
+.solo-button.active,
+.online-button.active {
+  color: #fff;
+  background: #0f8d68;
+}
+
+.online-button {
+  color: #17212b;
+  background: #dbeafe;
+}
+
+.reveal-button {
+  color: #17212b;
+  background: #f8d7e5;
+}
+
+.reveal-button.active {
+  color: #fff;
+  background: #8a2d58;
 }
 
 .pass-button {
@@ -367,14 +400,56 @@ h1 {
   gap: 12px;
 }
 
+.character-zone {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 12px;
+}
+
 .character-card {
   width: min(150px, 38vw);
-  margin: 0 0 12px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.86);
   border-radius: 8px;
   background: rgba(255, 253, 248, 0.95);
   box-shadow: 0 10px 22px rgba(9, 71, 74, 0.16);
+}
+
+.character-power-reminder {
+  display: grid;
+  place-items: center;
+  min-width: 104px;
+  min-height: 104px;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  border-radius: 8px;
+  padding: 12px;
+  color: #17212b;
+  text-align: center;
+  background: #fff3df;
+  box-shadow: 0 10px 22px rgba(9, 71, 74, 0.16);
+}
+
+.character-power-reminder strong {
+  color: #9a5d18;
+  font-size: 2.8rem;
+  line-height: 0.95;
+}
+
+.character-power-reminder.leading-power {
+  background: #d8f3dc;
+  border-color: rgba(15, 141, 104, 0.5);
+}
+
+.character-power-reminder.leading-power strong {
+  color: #0f6b4f;
+}
+
+.character-power-reminder span {
+  color: #5c3b17;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .character-card img,
@@ -630,10 +705,39 @@ h1 {
 
 .previous-turn {
   width: calc(100% - 18px);
-  min-height: 134px;
+  min-height: 210px;
   border-radius: 8px;
   padding: 8px;
   background: rgba(255, 253, 248, 0.86);
+}
+
+.center-endurance {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  margin: 0 auto 8px;
+  border: 1px solid rgba(240, 154, 145, 0.7);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #cf4d45;
+  background: #fff0ee;
+}
+
+.center-endurance.low-endurance {
+  border-color: rgba(255, 255, 255, 0.44);
+  color: #fff;
+  background: #c92828;
+}
+
+.center-endurance strong {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.center-endurance span {
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .previous-title {
@@ -666,6 +770,8 @@ h1 {
 
 .center-card-wrap {
   align-items: center;
+  min-height: 126px;
+  margin-top: 18px;
 }
 
 .played-visual {
@@ -791,22 +897,45 @@ h1 {
 
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 12px;
   margin-top: 14px;
 }
 
 .choice-card {
-  min-height: 94px;
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px;
-  text-align: left;
+  padding: 8px;
+  text-align: center;
   background: #f7faf8;
+}
+
+.choice-card-visual {
+  overflow: hidden;
+  border-radius: 8px;
+  background: #e8f3ef;
+}
+
+.choice-card-visual img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 731 / 1039;
+  object-fit: cover;
 }
 
 .choice-card strong {
   display: block;
+  margin-top: 7px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.choice-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 @media (max-width: 1100px) {
