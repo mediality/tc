@@ -386,6 +386,7 @@ const state = {
   setMatch: {
     enabled: false,
     score: [0, 0],
+    completedScores: [],
     previousServer: null,
     exchangeNumber: 0,
     decisiveExchange: false,
@@ -463,6 +464,7 @@ function resetSetMatch() {
   state.setMatch = {
     enabled: false,
     score: [0, 0],
+    completedScores: [],
     previousServer: null,
     exchangeNumber: 0,
     decisiveExchange: false,
@@ -722,6 +724,10 @@ function canPlayNormal(playerIndex, card) {
 
 function canEndTurn(playerIndex) {
   return !state.gameOver && playerIndex === state.activePlayer && canUseSeat(playerIndex) && state.turnHasEffect[playerIndex] && !state.mandatoryPlacement;
+}
+
+function hasPlayedThisTurn(playerIndex) {
+  return state.turnHasEffect[playerIndex] || state.turnPlacement[playerIndex] > 0 || state.turnPlayedCards[playerIndex].length > 0;
 }
 
 function canPlayBoost(playerIndex, card) {
@@ -1047,6 +1053,7 @@ function canSoloFinishWithCoup(playerIndex) {
 
 function canSoloPassAndWin(playerIndex) {
   if (state.mandatoryPlacement) return false;
+  if (hasPlayedThisTurn(playerIndex)) return false;
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const projectedPowers = state.players.map((candidate, index) => {
@@ -1866,6 +1873,15 @@ function closeImpossibleCoachChoice(playerIndex) {
 function pass(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer) return;
   if (!canUseSeat(playerIndex)) return;
+  if (hasPlayedThisTurn(playerIndex)) {
+    if (canEndTurn(playerIndex)) {
+      endTurn(playerIndex);
+    } else {
+      state.log.unshift(`${playerName(playerIndex)} a déjà joué une carte ce tour-ci : il ne peut pas passer.`);
+      render();
+    }
+    return;
+  }
   markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
@@ -1953,9 +1969,13 @@ function applySetMatchScore(winner, exchangeScore) {
   state.setMatch.score = next;
   state.setMatch.setOver = isSetOver(next);
   state.setMatch.winner = state.setMatch.setOver ? leadingSetPlayer(next) : null;
+  if (state.setMatch.setOver) {
+    state.setMatch.completedScores.push([...next]);
+  }
   state.resultInfo.setMatch = {
     previousScore: previous,
     score: [...next],
+    completedScores: state.setMatch.completedScores.map((score) => [...score]),
     setOver: state.setMatch.setOver,
     winner: state.setMatch.winner,
     decisiveExchange: state.setMatch.decisiveExchange,
@@ -2018,6 +2038,25 @@ function nextSetExchange() {
   newGame({ preserveSet: true, serverOverride: server });
 }
 
+function nextFullSet() {
+  if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver) return;
+  const completedScores = state.setMatch.completedScores.map((score) => [...score]);
+  state.setMatch = {
+    enabled: true,
+    score: [0, 0],
+    completedScores,
+    previousServer: null,
+    exchangeNumber: 0,
+    decisiveExchange: false,
+    setOver: false,
+    winner: null,
+  };
+  const server = Math.random() < 0.5 ? 0 : 1;
+  newGame({ preserveSet: true, serverOverride: server });
+  state.log.unshift("Nouveau set lancé.");
+  render();
+}
+
 function storeMatchLog(winner, reason) {
   try {
     const existing = JSON.parse(localStorage.getItem(MATCH_LOG_STORAGE_KEY) || "[]");
@@ -2029,7 +2068,11 @@ function storeMatchLog(winner, reason) {
       winner,
       winType: state.resultInfo?.winType ?? null,
       setScore: state.resultInfo?.setScore ?? null,
-      setMatch: state.setMatch.enabled ? { ...state.setMatch, score: [...state.setMatch.score] } : null,
+      setMatch: state.setMatch.enabled ? {
+        ...state.setMatch,
+        score: [...state.setMatch.score],
+        completedScores: state.setMatch.completedScores.map((score) => [...score]),
+      } : null,
       reason,
       players: state.players.map((player) => ({
         name: player.name,
@@ -2370,8 +2413,12 @@ function renderDigitImage(value) {
 function renderCenterSetScore() {
   let games = null;
   let label = "Score de l'échange";
+  let completedScores = [];
+  let showCurrentScore = true;
   if (state.setMatch.enabled) {
     games = state.setMatch.score;
+    completedScores = state.setMatch.completedScores ?? [];
+    showCurrentScore = !state.setMatch.setOver;
     label = "Score du set";
   } else if (state.gameOver && state.resultInfo?.setScore) {
     games = [0, 0];
@@ -2380,10 +2427,19 @@ function renderCenterSetScore() {
   }
   if (!games) return "";
   return `
-    <div class="center-set-score${state.setMatch.enabled ? " live-set-score" : ""}" aria-label="${label}">
-      ${renderDigitImage(games[0])}
-      <strong>/</strong>
-      ${renderDigitImage(games[1])}
+    <div class="center-set-stack" aria-label="${label}">
+      ${completedScores.map((score) => `
+        <div class="center-set-score completed-set-score">
+          ${renderDigitImage(score[0])}
+          <strong>/</strong>
+          ${renderDigitImage(score[1])}
+        </div>
+      `).join("")}
+      ${showCurrentScore ? `<div class="center-set-score${state.setMatch.enabled ? " live-set-score" : ""}">
+        ${renderDigitImage(games[0])}
+        <strong>/</strong>
+        ${renderDigitImage(games[1])}
+      </div>` : ""}
     </div>
   `;
 }
@@ -2393,6 +2449,16 @@ function renderCenterNextExchangeButton() {
   return '<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>';
 }
 
+function renderCenterNextSetButton() {
+  if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver) return "";
+  return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
+}
+
+function bindCenterButtons() {
+  els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
+  els.centerPlayedCard.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
+}
+
 function renderCenterPlayedCard() {
   if (!state.latestPlayedCard) {
     els.centerPlayedCard.innerHTML = `
@@ -2400,8 +2466,9 @@ function renderCenterPlayedCard() {
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
       ${renderCenterNextExchangeButton()}
+      ${renderCenterNextSetButton()}
     `;
-    els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
+    bindCenterButtons();
     return;
   }
   els.centerPlayedCard.innerHTML = `
@@ -2411,8 +2478,9 @@ function renderCenterPlayedCard() {
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
     ${renderCenterNextExchangeButton()}
+    ${renderCenterNextSetButton()}
   `;
-  els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
+  bindCenterButtons();
 }
 
 function activeEffectBadges(playerIndex) {
@@ -2787,6 +2855,6 @@ document.addEventListener("click", (event) => {
   }
 });
 window.forceSoloAITurn = forceSoloAITurn;
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, nextSetExchange, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, render, state };
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, render, state };
 newGame();
 initServerSync();
