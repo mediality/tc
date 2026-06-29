@@ -1,6 +1,17 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const CARD_BACK_IMAGE = "assets/cards/Demo-TC-_0000_VERSO-CARTES.png";
+const CROWN_IMAGE = "assets/crown_9418806.png";
+const SCORE_DIGIT_IMAGES = {
+  0: "assets/0.jpg",
+  1: "assets/1.jpg",
+  2: "assets/2.jpg",
+  3: "assets/3.jpg",
+  4: "assets/4.jpg",
+  5: "assets/5.jpg",
+  6: "assets/6.jpg",
+  7: "assets/7.jpg",
+};
 
 const SERVER_SYNC = {
   enabled: false,
@@ -24,6 +35,11 @@ const SOLO_AI = {
   thinking: false,
   executing: false,
   timer: null,
+  nudgeTimer: null,
+  nudgeAutoTimer: null,
+  watchdogTimer: null,
+  nudgeVisible: false,
+  nudgeWatchedTurn: null,
 };
 
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
@@ -366,12 +382,22 @@ const state = {
   turnSnapshot: null,
   turnDirty: false,
   revealAiCards: false,
+  setMatch: {
+    enabled: false,
+    score: [0, 0],
+    previousServer: null,
+    exchangeNumber: 0,
+    decisiveExchange: false,
+    setOver: false,
+    winner: null,
+  },
 };
 
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
   revealAiButton: document.querySelector("#revealAiButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
+  setModeButton: document.querySelector("#setModeButton"),
   onlineModeButton: document.querySelector("#onlineModeButton"),
   resultPanel: document.querySelector("#resultPanel"),
   player1Summary: document.querySelector("#player1Summary"),
@@ -432,21 +458,42 @@ function createPlayer(name, characterId) {
   };
 }
 
-function newGame() {
+function resetSetMatch() {
+  state.setMatch = {
+    enabled: false,
+    score: [0, 0],
+    previousServer: null,
+    exchangeNumber: 0,
+    decisiveExchange: false,
+    setOver: false,
+    winner: null,
+  };
+}
+
+function newGame(options = {}) {
+  const { preserveSet = false, serverOverride = null } = options;
   if (SERVER_SYNC.enabled && SERVER_SYNC.ready && SERVER_SYNC.seat !== 0) {
     state.log.unshift("Seul Coach Ju peut relancer un échange en ligne pour le moment.");
     render();
     return;
   }
+  if (!preserveSet) {
+    resetSetMatch();
+  }
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
   window.clearTimeout(SOLO_AI.timer);
+  window.clearTimeout(SOLO_AI.nudgeTimer);
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  window.clearTimeout(SOLO_AI.watchdogTimer);
+  SOLO_AI.nudgeVisible = false;
+  SOLO_AI.nudgeWatchedTurn = null;
   const deck = shuffle(CARD_LIBRARY.map(cloneCard));
   state.players = [createPlayer("Coach Ju", "coachJu"), createPlayer("Coach Max", "coachMax")];
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
-  state.server = Math.random() < 0.5 ? 0 : 1;
+  state.server = serverOverride ?? (Math.random() < 0.5 ? 0 : 1);
   state.activePlayer = state.server;
   state.lastCard = null;
   state.boostAvailableFor = null;
@@ -467,7 +514,17 @@ function newGame() {
   state.resultInfo = null;
   state.turnDirty = false;
   state.revealAiCards = false;
-  state.log = [`${playerName(state.server)} sert. L'échange commence.`];
+  if (state.setMatch.enabled) {
+    state.setMatch.exchangeNumber += 1;
+    state.setMatch.previousServer = state.server;
+    state.setMatch.decisiveExchange = isDecisiveSetScore(state.setMatch.score);
+  }
+  const setText = state.setMatch.enabled ? ` Set ${state.setMatch.score[0]}/${state.setMatch.score[1]}.` : "";
+  const decisiveText = state.setMatch.decisiveExchange ? " Échange décisif." : "";
+  state.log = [`${playerName(state.server)} sert. L'échange commence.${setText}${decisiveText}`];
+  if (SOLO_AI.enabled) {
+    SOLO_AI.style = chooseSoloAIStyle();
+  }
   captureTurnSnapshot();
   els.resultPanel.classList.add("hidden");
   if (SERVER_SYNC.enabled && SERVER_SYNC.seat === 0) {
@@ -475,6 +532,17 @@ function newGame() {
     SERVER_SYNC.ready = true;
   }
   render();
+  if (SOLO_AI.enabled) {
+    window.clearTimeout(SOLO_AI.timer);
+    window.clearTimeout(SOLO_AI.nudgeTimer);
+    window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+    window.clearTimeout(SOLO_AI.watchdogTimer);
+    SOLO_AI.thinking = false;
+    SOLO_AI.executing = false;
+    SOLO_AI.nudgeVisible = false;
+    SOLO_AI.nudgeWatchedTurn = null;
+    window.setTimeout(maybeRunSoloAI, 80);
+  }
 }
 
 const SNAPSHOT_KEYS = [
@@ -501,6 +569,7 @@ const SNAPSHOT_KEYS = [
   "effectNotice",
   "resultInfo",
   "revealAiCards",
+  "setMatch",
 ];
 
 const SYNC_STATE_KEYS = [
@@ -669,8 +738,12 @@ function startSoloGame() {
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
   window.clearTimeout(SOLO_AI.timer);
+  window.clearTimeout(SOLO_AI.nudgeTimer);
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  window.clearTimeout(SOLO_AI.watchdogTimer);
+  SOLO_AI.nudgeVisible = false;
+  SOLO_AI.nudgeWatchedTurn = null;
   newGame();
-  SOLO_AI.style = chooseSoloAIStyle();
   const styleLabel = SOLO_AI.style === "aggressive" ? "agressif" : SOLO_AI.style === "cautious" ? "prudent" : "équilibré";
   state.log.unshift(`Mode IA : vous jouez Coach Ju, Coach Max joue ${styleLabel}.`);
   render();
@@ -704,86 +777,232 @@ function maybeRunSoloAI() {
   if (state.activePlayer !== SOLO_AI.playerIndex) return;
   if (SOLO_AI.thinking || SOLO_AI.executing) return;
   SOLO_AI.thinking = true;
+  SOLO_AI.nudgeVisible = false;
   window.clearTimeout(SOLO_AI.timer);
   SOLO_AI.timer = window.setTimeout(runSoloAITurn, 2000);
+  scheduleSoloAINudge();
+  scheduleSoloAIWatchdog();
 }
 
 function runSoloAITurn() {
   SOLO_AI.thinking = false;
+  SOLO_AI.nudgeVisible = false;
   if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
   SOLO_AI.executing = true;
+  const beforeSignature = soloTurnSignature();
   try {
-    if (resolveSoloPendingChoice()) return;
+    if (resolveSoloPendingChoice()) {
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
 
     const playerIndex = SOLO_AI.playerIndex;
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex]) {
       endTurn(playerIndex);
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     if (canSoloPassAndWin(playerIndex)) {
       pass(playerIndex);
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     const strategicEffect = chooseSoloStrategicEffect(playerIndex);
     if (strategicEffect) {
       playCard(playerIndex, strategicEffect.uid, false, null, "effect");
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     const boostPlay = chooseSoloBoostPlay(playerIndex);
     if (boostPlay) {
       playCard(playerIndex, boostPlay.card.uid, true, boostPlay.sacrifice.uid);
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     const remiseForPlacement = chooseSoloRemiseForPlacement(playerIndex);
     if (remiseForPlacement) {
       playCard(playerIndex, remiseForPlacement.uid, false, null, "placement");
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     const normalCoup = chooseSoloNormalCoup(playerIndex);
     if (normalCoup) {
       playCard(playerIndex, normalCoup.uid);
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     const usefulEffect = chooseSoloEffectCard(playerIndex);
     if (usefulEffect) {
       playCard(playerIndex, usefulEffect.uid, false, null, "effect");
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     if (canEndTurn(playerIndex)) {
       endTurn(playerIndex);
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     if (state.turnDirty && state.turnSnapshot) {
       restoreTurnSnapshot();
+      ensureSoloProgress(beforeSignature);
       return;
     }
 
     pass(playerIndex);
+  } catch (error) {
+    state.log.unshift(`IA Coach Max : décision impossible, plan de secours activé.`);
+    soloEmergencyFallback(SOLO_AI.playerIndex);
   } finally {
     SOLO_AI.executing = false;
     maybeRunSoloAI();
   }
 }
 
-function resolveSoloPendingChoice() {
+function soloTurnSignature() {
+  const player = state.players[SOLO_AI.playerIndex];
+  return JSON.stringify({
+    activePlayer: state.activePlayer,
+    gameOver: state.gameOver,
+    hand: player?.hand.length,
+    played: player?.played.length,
+    endurance: player?.endurance,
+    power: player?.power,
+    log: state.log.length,
+    pendingEffect: state.pendingEffectChoice,
+    pendingCoach: state.pendingCoachChoice,
+    turnHasEffect: state.turnHasEffect[SOLO_AI.playerIndex],
+    turnPlacement: state.turnPlacement[SOLO_AI.playerIndex],
+  });
+}
+
+function ensureSoloProgress(beforeSignature) {
+  if (state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+  if (soloTurnSignature() !== beforeSignature) return;
+  state.log.unshift("IA Coach Max : aucune progression détectée, action de secours.");
+  soloEmergencyFallback(SOLO_AI.playerIndex);
+}
+
+function soloEmergencyFallback(playerIndex) {
+  if (state.gameOver || state.activePlayer !== playerIndex) return;
+  if (resolveSoloPendingChoice(true)) return;
+  if (canEndTurn(playerIndex)) {
+    endTurn(playerIndex);
+    return;
+  }
+  const player = state.players[playerIndex];
+  const forcedBoost = chooseSoloBoostPlay(playerIndex);
+  if (forcedBoost) {
+    playCard(playerIndex, forcedBoost.card.uid, true, forcedBoost.sacrifice.uid);
+    return;
+  }
+  const forcedCoup = player.hand.find((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  if (forcedCoup) {
+    playCard(playerIndex, forcedCoup.uid);
+    return;
+  }
+  const forcedRemise = player.hand.find((card) => isRemise(card) && canPlayNormal(playerIndex, card));
+  if (forcedRemise && !state.mandatoryPlacement) {
+    playCard(playerIndex, forcedRemise.uid, false, null, "effect");
+    return;
+  }
+  pass(playerIndex);
+}
+
+function currentAITurnKey() {
+  return `${state.setMatch.exchangeNumber ?? 0}:${state.activePlayer}:${state.players[SOLO_AI.playerIndex]?.played.length ?? 0}:${state.players[SOLO_AI.playerIndex]?.hand.length ?? 0}:${state.log.length}`;
+}
+
+function scheduleSoloAINudge() {
+  if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) {
+    window.clearTimeout(SOLO_AI.nudgeTimer);
+    window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+    window.clearTimeout(SOLO_AI.watchdogTimer);
+    SOLO_AI.nudgeVisible = false;
+    SOLO_AI.nudgeWatchedTurn = null;
+    return;
+  }
+  const turnKey = currentAITurnKey();
+  if (SOLO_AI.nudgeWatchedTurn === turnKey) return;
+  SOLO_AI.nudgeWatchedTurn = turnKey;
+  SOLO_AI.nudgeVisible = false;
+  window.clearTimeout(SOLO_AI.nudgeTimer);
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  SOLO_AI.nudgeTimer = window.setTimeout(showSoloAINudge, 5000);
+  scheduleSoloAIWatchdog();
+}
+
+function scheduleSoloAIWatchdog() {
+  if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+  const watchedSignature = soloTurnSignature();
+  window.clearTimeout(SOLO_AI.watchdogTimer);
+  SOLO_AI.watchdogTimer = window.setTimeout(() => {
+    if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+    if (soloTurnSignature() !== watchedSignature) return;
+    state.log.unshift("Surveillance IA : Coach Max est relancé automatiquement.");
+    forceSoloAITurn();
+  }, 6500);
+}
+
+function showSoloAINudge() {
+  if (SERVER_SYNC.enabled || state.gameOver) return;
+  if (state.activePlayer !== SOLO_AI.playerIndex) return;
+  if (SOLO_AI.executing) return;
+  SOLO_AI.nudgeVisible = true;
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  if (SOLO_AI.enabled || state.setMatch.enabled) {
+    SOLO_AI.nudgeAutoTimer = window.setTimeout(() => {
+      if (state.activePlayer === SOLO_AI.playerIndex && !state.gameOver && !SOLO_AI.executing) {
+        state.log.unshift("Relance automatique de Coach Max après attente.");
+        forceSoloAITurn();
+      }
+    }, 3000);
+  }
+  render();
+}
+
+function forceSoloAITurn() {
+  if (SERVER_SYNC.enabled || state.gameOver) return;
+  if (state.activePlayer !== SOLO_AI.playerIndex) return;
+  SOLO_AI.enabled = true;
+  window.clearTimeout(SOLO_AI.timer);
+  window.clearTimeout(SOLO_AI.nudgeTimer);
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  window.clearTimeout(SOLO_AI.watchdogTimer);
+  SOLO_AI.thinking = false;
+  SOLO_AI.executing = false;
+  SOLO_AI.nudgeVisible = false;
+  SOLO_AI.nudgeWatchedTurn = null;
+  state.log.unshift("Relance de Coach Max.");
+  runSoloAITurn();
+}
+
+function resolveSoloPendingChoice(forceClose = false) {
   const playerIndex = SOLO_AI.playerIndex;
   if (state.pendingCoachChoice?.playerIndex === playerIndex) {
     const chosenCard = [...state.deck].sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
-    if (chosenCard) resolveCoachChoice(chosenCard.uid);
+    if (chosenCard) {
+      resolveCoachChoice(chosenCard.uid);
+    } else if (forceClose) {
+      closeImpossibleCoachChoice(playerIndex);
+    }
     return true;
   }
   if (state.pendingEffectChoice?.playerIndex === playerIndex) {
     const choices = effectChoicesFor(state.pendingEffectChoice.sourcePlayedUid);
     const chosenEffect = choices.sort((a, b) => soloEffectScore(b) - soloEffectScore(a))[0];
-    if (chosenEffect) resolveEffectChoice(chosenEffect.playedUid);
+    if (chosenEffect) {
+      resolveEffectChoice(chosenEffect.playedUid);
+    } else if (forceClose) {
+      closeImpossibleEffectChoice(playerIndex);
+    }
     return true;
   }
   return false;
@@ -1383,6 +1602,29 @@ function resolveEffectChoice(chosenPlayedUid) {
   );
 }
 
+function closeImpossibleEffectChoice(playerIndex) {
+  if (!state.pendingEffectChoice || state.pendingEffectChoice.playerIndex !== playerIndex) return;
+  const { sourcePlayedUid } = state.pendingEffectChoice;
+  const player = state.players[playerIndex];
+  const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
+  state.pendingEffectChoice = null;
+  state.log.unshift(`${player.name} ne peut choisir aucun effet valide.`);
+  if (!sourceCard) {
+    render();
+    return;
+  }
+  completePlayedCardResolution(
+    playerIndex,
+    opponentOf(playerIndex),
+    sourceCard,
+    sourceCard,
+    sourceCard.isServiceTurn,
+    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]),
+    sourceCard.boosted,
+    "effect",
+  );
+}
+
 function characterOf(player) {
   return CHARACTERS[player.characterId];
 }
@@ -1479,6 +1721,29 @@ function resolveCoachChoice(cardUid) {
   );
 }
 
+function closeImpossibleCoachChoice(playerIndex) {
+  if (!state.pendingCoachChoice || state.pendingCoachChoice.playerIndex !== playerIndex) return;
+  const { sourcePlayedUid } = state.pendingCoachChoice;
+  const player = state.players[playerIndex];
+  const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
+  state.pendingCoachChoice = null;
+  state.log.unshift(`${player.name} ne peut récupérer aucune carte non distribuée.`);
+  if (!sourceCard) {
+    render();
+    return;
+  }
+  completePlayedCardResolution(
+    playerIndex,
+    opponentOf(playerIndex),
+    sourceCard,
+    sourceCard,
+    sourceCard.isServiceTurn,
+    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]),
+    sourceCard.boosted,
+    "effect",
+  );
+}
+
 function pass(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer) return;
   if (!canUseSeat(playerIndex)) return;
@@ -1493,6 +1758,7 @@ function pass(playerIndex) {
     finishGame({
       forcedWinner: opponentIndex,
       ignoreScore: true,
+      winType: state.mandatoryPlacementReason === "boost" ? "boost" : "automatic",
       reason: `${player.name} passe sur ${reasonLabel}. ${opponent.name} gagne automatiquement l'échange.`,
     });
     return;
@@ -1504,21 +1770,133 @@ function pass(playerIndex) {
   finishGame({ reason: `${player.name} passe. ${opponent.name} gagne ${bonus} puissance. L'échange s'arrête immédiatement.` });
 }
 
-function finishGame({ forcedWinner = null, ignoreScore = false, reason }) {
+function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power", reason }) {
   if (!ignoreScore) applyEndBonuses();
   state.gameOver = true;
   const winner = forcedWinner ?? getWinner();
   const p1 = state.players[0];
   const p2 = state.players[1];
+  const setScore = getExchangeSetScore(winner, winType);
   state.log.unshift(reason);
   state.resultInfo = {
     winner,
     ignoreScore,
+    winType,
     reason,
     scoreText: ignoreScore ? "Victoire automatique : les points ne sont pas comptés." : `Score final : ${p1.name} ${p1.power} - ${p2.power} ${p2.name}${p1.power === p2.power ? `. Égalité : le serveur (${playerName(state.server)}) gagne.` : "."}`,
+    setScore,
   };
+  if (state.setMatch.enabled) {
+    applySetMatchScore(winner, setScore);
+  }
   storeMatchLog(winner, reason);
   render();
+}
+
+function getExchangeSetScore(winner, winType) {
+  const loser = opponentOf(winner);
+  if (winType === "boost") {
+    return { winnerGames: 3, loserGames: 0, winner, loser, label: "Victoire par BOOST" };
+  }
+  const gap = Math.abs(state.players[0].power - state.players[1].power);
+  return {
+    winnerGames: 2,
+    loserGames: gap < 5 ? 1 : 0,
+    winner,
+    loser,
+    label: "Victoire aux points de puissance",
+  };
+}
+
+function isDecisiveSetScore(score = state.setMatch.score) {
+  const [p1, p2] = score;
+  return (p1 === 5 && p2 === 5) || (p1 === 6 && p2 === 6) || (p1 === 6 && p2 === 5) || (p1 === 5 && p2 === 6);
+}
+
+function applySetMatchScore(winner, exchangeScore) {
+  const loser = opponentOf(winner);
+  const previous = [...state.setMatch.score];
+  const next = [...previous];
+
+  if (Math.max(...previous) === 6 && Math.min(...previous) === 5) {
+    next[winner] = 7;
+    next[loser] = previous[winner] > previous[loser] ? 5 : 6;
+  } else if (state.setMatch.decisiveExchange || isDecisiveSetScore(previous)) {
+    next[winner] = 7;
+    next[loser] = 6;
+  } else {
+    next[winner] = computeWinnerSetGames(previous[winner], previous[loser], exchangeScore.winnerGames);
+    next[loser] = Math.min(7, previous[loser] + exchangeScore.loserGames);
+    if (next[winner] === 7 && next[loser] < 5) next[winner] = 6;
+    if (next[loser] > 6 && next[winner] < 7) next[loser] = 6;
+  }
+
+  state.setMatch.score = next;
+  state.setMatch.setOver = isSetOver(next);
+  state.setMatch.winner = state.setMatch.setOver ? leadingSetPlayer(next) : null;
+  state.resultInfo.setMatch = {
+    previousScore: previous,
+    score: [...next],
+    setOver: state.setMatch.setOver,
+    winner: state.setMatch.winner,
+    decisiveExchange: state.setMatch.decisiveExchange,
+  };
+  state.log.unshift(`Score du set : ${state.players[0].name} ${next[0]} / ${next[1]} ${state.players[1].name}.`);
+}
+
+function computeWinnerSetGames(currentWinnerGames, currentLoserGames, gainedGames) {
+  let target = currentWinnerGames + gainedGames;
+  if (target <= 6) return target;
+  if (gainedGames === 3) {
+    if (currentWinnerGames === 4 && currentLoserGames === 5) return 7;
+    if (currentWinnerGames === 5 && currentLoserGames >= 5) return 7;
+    return 6;
+  }
+  if (currentWinnerGames === 5 && currentLoserGames >= 4) return 7;
+  if (currentLoserGames >= 5) return 7;
+  return 6;
+}
+
+function isSetOver(score = state.setMatch.score) {
+  const leader = Math.max(score[0], score[1]);
+  const gap = Math.abs(score[0] - score[1]);
+  return (leader === 6 && gap >= 2) || leader === 7;
+}
+
+function leadingSetPlayer(score = state.setMatch.score) {
+  if (score[0] > score[1]) return 0;
+  if (score[1] > score[0]) return 1;
+  return null;
+}
+
+function nextSetServer() {
+  const [p1, p2] = state.setMatch.score;
+  if (Math.max(p1, p2) === 6 && Math.abs(p1 - p2) === 1) {
+    return p1 > p2 ? 0 : 1;
+  }
+  return opponentOf(state.setMatch.previousServer ?? state.server);
+}
+
+function startSetAiGame() {
+  if (SERVER_SYNC.enabled) {
+    state.log.unshift("Le set IA est disponible hors partie en ligne.");
+    render();
+    return;
+  }
+  SOLO_AI.enabled = true;
+  resetSetMatch();
+  state.setMatch.enabled = true;
+  const server = Math.random() < 0.5 ? 0 : 1;
+  newGame({ preserveSet: true, serverOverride: server });
+  const styleLabel = SOLO_AI.style === "aggressive" ? "agressif" : SOLO_AI.style === "cautious" ? "prudent" : "équilibré";
+  state.log.unshift(`Mode Set IA : set complet contre Coach Max (${styleLabel}).`);
+  render();
+}
+
+function nextSetExchange() {
+  if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver) return;
+  const server = nextSetServer();
+  newGame({ preserveSet: true, serverOverride: server });
 }
 
 function storeMatchLog(winner, reason) {
@@ -1530,6 +1908,9 @@ function storeMatchLog(winner, reason) {
       aiStyle: SOLO_AI.enabled ? SOLO_AI.style : null,
       server: state.server,
       winner,
+      winType: state.resultInfo?.winType ?? null,
+      setScore: state.resultInfo?.setScore ?? null,
+      setMatch: state.setMatch.enabled ? { ...state.setMatch, score: [...state.setMatch.score] } : null,
       reason,
       players: state.players.map((player) => ({
         name: player.name,
@@ -1569,11 +1950,26 @@ function renderResultPanel() {
     els.resultPanel.classList.add("hidden");
     return;
   }
+  const setScore = state.resultInfo.setScore;
+  const setMatch = state.resultInfo.setMatch;
   els.resultPanel.innerHTML = `
     <p class="eyebrow">Fin de l'échange</p>
-    <h2>${state.players[state.resultInfo.winner].name} gagne l'échange</h2>
+    <div class="winner-dialog">${state.players[state.resultInfo.winner].name} gagne l'échange</div>
     <p>${state.resultInfo.reason}</p>
     <p>${state.resultInfo.scoreText}</p>
+    ${setScore ? `
+      <div class="set-score-box">
+        <strong>Jeux gagnés sur cet échange · ${setScore.label}</strong>
+        <span>${state.players[setScore.winner].name} - ${setScore.winnerGames} jeu${setScore.winnerGames > 1 ? "x" : ""}</span>
+        <span>${state.players[setScore.loser].name} - ${setScore.loserGames} jeu${setScore.loserGames > 1 ? "x" : ""}</span>
+      </div>
+    ` : ""}
+    ${setMatch ? `
+      <div class="set-score-box set-match-box">
+        <strong>Score du set : ${setMatch.score[0]} / ${setMatch.score[1]}</strong>
+        ${setMatch.setOver ? `<span>Set gagné par ${state.players[setMatch.winner].name}</span>` : "<span>Le set continue.</span>"}
+      </div>
+    ` : ""}
   `;
   els.resultPanel.classList.remove("hidden");
 }
@@ -1621,6 +2017,7 @@ function closeBoostModal() {
 }
 
 function render() {
+  ensureSoloAIForSet();
   renderModeButtons();
   renderResultPanel();
   renderSummary(0, els.player1Summary);
@@ -1636,14 +2033,35 @@ function render() {
   renderEffectChoiceModal();
   renderCoachChoiceModal();
   scheduleServerSync();
+  scheduleSoloAINudge();
   maybeRunSoloAI();
+}
+
+function ensureSoloAIForSet() {
+  if (SERVER_SYNC.enabled || state.gameOver || !state.setMatch.enabled) return;
+  if (!SOLO_AI.enabled) {
+    SOLO_AI.enabled = true;
+    SOLO_AI.thinking = false;
+    SOLO_AI.executing = false;
+    SOLO_AI.nudgeVisible = false;
+    window.clearTimeout(SOLO_AI.timer);
+    window.clearTimeout(SOLO_AI.nudgeTimer);
+    window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+    window.clearTimeout(SOLO_AI.watchdogTimer);
+    state.log.unshift("Mode Set IA : Coach Max est repris par l'IA.");
+  }
 }
 
 function renderModeButtons() {
   if (els.soloModeButton) {
-    els.soloModeButton.classList.toggle("active", SOLO_AI.enabled);
-    els.soloModeButton.textContent = SOLO_AI.enabled ? "IA active" : "Mode IA";
+    els.soloModeButton.classList.toggle("active", SOLO_AI.enabled && !state.setMatch.enabled);
+    els.soloModeButton.textContent = SOLO_AI.enabled && !state.setMatch.enabled ? "IA active" : "Mode IA";
     els.soloModeButton.disabled = SERVER_SYNC.enabled;
+  }
+  if (els.setModeButton) {
+    els.setModeButton.classList.toggle("active", state.setMatch.enabled);
+    els.setModeButton.textContent = state.setMatch.enabled ? "Set IA actif" : "Set IA";
+    els.setModeButton.disabled = SERVER_SYNC.enabled;
   }
   if (els.onlineModeButton) {
     els.onlineModeButton.classList.toggle("active", SERVER_SYNC.enabled);
@@ -1749,6 +2167,7 @@ function renderCardVisualOnly(card, className = "") {
   }
   return `
     <div class="played-visual ${className} ${card.removed ? "removed" : ""}">
+      ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -1783,14 +2202,29 @@ function renderCharacterCard(player, playerIndex) {
   const imageUrl = CHARACTER_IMAGES[player.characterId]?.[player.characterSide] ?? CHARACTER_IMAGES[player.characterId]?.[0];
   const leader = leadingPlayerIndex();
   const leaderClass = leader === playerIndex ? " leading-power" : "";
+  const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
+  const crown = state.gameOver && state.resultInfo?.winner === playerIndex
+    ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
+    : "";
+  const aiNudge = playerIndex === SOLO_AI.playerIndex && state.activePlayer === playerIndex && !state.gameOver && !SERVER_SYNC.enabled && SOLO_AI.nudgeVisible
+    ? '<button class="ai-nudge-button" type="button" data-force-ai-turn onclick="window.forceSoloAITurn?.()" onpointerdown="window.forceSoloAITurn?.()">Coach Max à jouer</button>'
+    : "";
   return `
     <div class="character-zone">
       <div class="character-card">
         <img src="${imageUrl}" alt="${character.name}" />
+        ${aiNudge}
       </div>
-      <div class="character-power-reminder${leaderClass}">
-        <strong>${player.power}</strong>
-        <span>Puissance</span>
+      <div class="character-stats">
+        <div class="character-power-reminder${leaderClass}">
+          ${crown}
+          <strong>${player.power}</strong>
+          <span>Puissance</span>
+        </div>
+        <div class="character-endurance-reminder${enduranceClass}">
+          <strong>${player.endurance}</strong>
+          <span>Endurance</span>
+        </div>
       </div>
     </div>
   `;
@@ -1807,30 +2241,58 @@ function renderPlayedHistory(player) {
   `;
 }
 
+function renderDigitImage(value) {
+  const imageUrl = SCORE_DIGIT_IMAGES[value];
+  if (!imageUrl) return `<span class="score-digit-fallback">${value}</span>`;
+  return `<img class="score-digit-image" src="${imageUrl}" alt="${value}" />`;
+}
+
+function renderCenterSetScore() {
+  let games = null;
+  let label = "Score de l'échange";
+  if (state.setMatch.enabled) {
+    games = state.setMatch.score;
+    label = "Score du set";
+  } else if (state.gameOver && state.resultInfo?.setScore) {
+    games = [0, 0];
+    games[state.resultInfo.setScore.winner] = state.resultInfo.setScore.winnerGames;
+    games[state.resultInfo.setScore.loser] = state.resultInfo.setScore.loserGames;
+  }
+  if (!games) return "";
+  return `
+    <div class="center-set-score${state.setMatch.enabled ? " live-set-score" : ""}" aria-label="${label}">
+      ${renderDigitImage(games[0])}
+      <strong>/</strong>
+      ${renderDigitImage(games[1])}
+    </div>
+  `;
+}
+
+function renderCenterNextExchangeButton() {
+  if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver) return "";
+  return '<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>';
+}
+
 function renderCenterPlayedCard() {
-  const enduranceScore = state.players.length === 2 ? `${state.players[0].endurance} / ${state.players[1].endurance}` : "- / -";
-  const enduranceClass = state.players.some((player) => player.endurance <= 2) ? " low-endurance" : "";
   if (!state.latestPlayedCard) {
     els.centerPlayedCard.innerHTML = `
-      <div class="center-endurance${enduranceClass}">
-        <span>Endurance</span>
-        <strong>${enduranceScore}</strong>
-      </div>
+      ${renderCenterSetScore()}
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
+      ${renderCenterNextExchangeButton()}
     `;
+    els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
     return;
   }
   els.centerPlayedCard.innerHTML = `
-    <div class="center-endurance${enduranceClass}">
-      <span>Endurance</span>
-      <strong>${enduranceScore}</strong>
-    </div>
+    ${renderCenterSetScore()}
     <p class="previous-title">Dernière carte jouée</p>
     <div class="center-card-wrap">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
+    ${renderCenterNextExchangeButton()}
   `;
+  els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
 }
 
 function activeEffectBadges(playerIndex) {
@@ -2143,7 +2605,15 @@ function initServerSync() {
   const params = serverSyncParams();
   if (!params) return;
   SOLO_AI.enabled = false;
+  resetSetMatch();
   window.clearTimeout(SOLO_AI.timer);
+  window.clearTimeout(SOLO_AI.nudgeTimer);
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  window.clearTimeout(SOLO_AI.watchdogTimer);
+  SOLO_AI.thinking = false;
+  SOLO_AI.executing = false;
+  SOLO_AI.nudgeVisible = false;
+  SOLO_AI.nudgeWatchedTurn = null;
   SERVER_SYNC.enabled = true;
   SERVER_SYNC.roomId = params.roomId;
   SERVER_SYNC.token = params.token;
@@ -2160,7 +2630,15 @@ function initServerSync() {
 els.newGameButton.addEventListener("click", newGame);
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.soloModeButton?.addEventListener("click", startSoloGame);
+els.setModeButton?.addEventListener("click", startSetAiGame);
 els.onlineModeButton?.addEventListener("click", startOnlineGame);
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, render, state };
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+  if (target?.closest("[data-force-ai-turn]")) {
+    forceSoloAITurn();
+  }
+});
+window.forceSoloAITurn = forceSoloAITurn;
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, nextSetExchange, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, render, state };
 newGame();
 initServerSync();
