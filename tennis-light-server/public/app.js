@@ -377,6 +377,7 @@ const state = {
   pendingBoost: null,
   pendingEffectChoice: null,
   pendingCoachChoice: null,
+  pendingRemoveChoice: null,
   effectNotice: null,
   resultInfo: null,
   turnSnapshot: null,
@@ -510,6 +511,7 @@ function newGame(options = {}) {
   state.pendingBoost = null;
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
+  state.pendingRemoveChoice = null;
   state.effectNotice = null;
   state.resultInfo = null;
   state.turnDirty = false;
@@ -566,6 +568,7 @@ const SNAPSHOT_KEYS = [
   "pendingBoost",
   "pendingEffectChoice",
   "pendingCoachChoice",
+  "pendingRemoveChoice",
   "effectNotice",
   "resultInfo",
   "revealAiCards",
@@ -613,6 +616,7 @@ function restoreTurnSnapshot() {
   state.pendingBoost = null;
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
+  state.pendingRemoveChoice = null;
   state.log.unshift(`${activeName} annule son tour et revient au début de ses choix.`);
   captureTurnSnapshot();
   render();
@@ -681,6 +685,15 @@ const COLOR_BOOST_RULES = {
 
 function satisfiesColorBoostCondition(card) {
   return Boolean(state.lastCard && COLOR_BOOST_RULES[card.family]?.includes(state.lastCard.family));
+}
+
+function isFreeBoostNextWindow(playerIndex) {
+  if (!state.lastCard?.boosted) return false;
+  if (state.lastCard.isServiceTurn && playerIndex === opponentOf(state.server)) return true;
+  const serverShots = state.players[state.server].played.filter((card) => !card.removed && isShot(card)).length;
+  const receiverIndex = opponentOf(state.server);
+  const receiverShots = state.players[receiverIndex].played.filter((card) => !card.removed && isShot(card)).length;
+  return playerIndex === state.server && state.lastCard.owner === receiverIndex && serverShots === 1 && receiverShots === 1;
 }
 
 function isRemise(card) {
@@ -797,7 +810,7 @@ function runSoloAITurn() {
     }
 
     const playerIndex = SOLO_AI.playerIndex;
-    if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex]) {
+    if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
       endTurn(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
@@ -1005,6 +1018,15 @@ function resolveSoloPendingChoice(forceClose = false) {
     }
     return true;
   }
+  if (state.pendingRemoveChoice?.playerIndex === playerIndex) {
+    const target = bestRemovalTargetFor(playerIndex);
+    if (target) {
+      resolveRemoveChoice(target.playedUid);
+    } else if (forceClose) {
+      closeImpossibleRemoveChoice(playerIndex);
+    }
+    return true;
+  }
   return false;
 }
 
@@ -1090,16 +1112,11 @@ function soloImmediateEffectValue(playerIndex, card) {
   const opponent = state.players[opponentIndex];
   const lastOpponentCard = [...opponent.played].reverse().find((played) => !played.removed);
   if (card.effectType === "removeOpponentLast") {
-    if (!lastOpponentCard) return 0;
-    let score = (lastOpponentCard.cardPowerGained ?? lastOpponentCard.powerGained ?? 0) + 3;
-    if (state.lastCard?.playedUid === lastOpponentCard.playedUid) score += 5;
-    if (state.mandatoryPlacementSourceUid === lastOpponentCard.playedUid) score += 6;
-    if (opponent.limitedFamiliesSourceUid === lastOpponentCard.playedUid) score += 4;
-    if (lastOpponentCard.boosted) score += 3;
-    return score;
+    const target = bestRemovalTargetFor(playerIndex);
+    return target ? Math.max(6, removalTargetScore(target) / 2) : 0;
   }
-  if (card.effectType === "jokerResponse" && (state.mandatoryPlacementReason === "boost" || state.lastCard?.boosted)) return 10;
-  if (card.effectType === "freeBoostNext" && player.hand.some((candidate) => !isRemise(candidate))) return 6;
+  if (card.effectType === "jokerResponse" && (state.mandatoryPlacementReason === "boost" || state.lastCard?.boosted)) return 14;
+  if (card.effectType === "freeBoostNext" && isFreeBoostNextWindow(playerIndex) && player.hand.some((candidate) => !isRemise(candidate))) return 6;
   if (card.effectType === "doubleLastShot" && player.played.some((played) => !played.removed && isShot(played))) return 6;
   return 0;
 }
@@ -1208,6 +1225,7 @@ function soloEffectScore(card) {
     discardOpponent: 3,
     boostedBonusAtEnd: 3,
     doubleLastShot: 2,
+    freeBoostNext: 2,
   };
   return effectScores[card.effectType] ?? 1;
 }
@@ -1300,13 +1318,16 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     setEffectNotice("annulé", card, `${card.effect} Annulé par l'effet adverse.`);
     state.log.unshift(`L'effet de ${card.name} est annulé.`);
   } else {
+    const freeBoostWindow = card.effectType !== "freeBoostNext" || isFreeBoostNextWindow(playerIndex);
     applyEffect(playerIndex, playedCard);
-    setEffectNotice("appliqué", card, card.effect);
+    if (freeBoostWindow) {
+      setEffectNotice("appliqué", card, card.effect);
+    }
   }
 
   if (state.gameOver) return;
 
-  if (state.pendingEffectChoice) {
+  if (state.pendingEffectChoice || state.pendingRemoveChoice) {
     render();
     return;
   }
@@ -1463,7 +1484,7 @@ function applyEffect(playerIndex, card) {
       }
       break;
     case "removeOpponentLast":
-      removeOpponentLastPlayed(opponentIndex);
+      openRemoveChoice(playerIndex, card);
       break;
     case "doubleLastShot":
       player.endBonuses.push({ type: "doubleLastShot", sourceUid: card.playedUid });
@@ -1474,8 +1495,13 @@ function applyEffect(playerIndex, card) {
       state.log.unshift(`${player.name} marquera +${card.effectValue} par carte boostée à la fin.`);
       break;
     case "freeBoostNext":
-      player.freeBoostNext = true;
-      state.log.unshift(`${player.name} pourra booster son prochain coup.`);
+      if (isFreeBoostNextWindow(playerIndex)) {
+        player.freeBoostNext = true;
+        state.log.unshift(`${player.name} pourra booster son prochain coup grâce au Retour de service.`);
+      } else {
+        state.log.unshift(`Retour de service est joué hors fenêtre : son bonus de boost ne s'applique pas.`);
+        setEffectNotice("sans effet", card, "Le bonus ne s'applique que juste après un service boosté ou un retour de service boosté.");
+      }
       break;
     case "jokerResponse":
       state.turnIgnoresPlacement[playerIndex] = true;
@@ -1496,9 +1522,102 @@ function applyEffect(playerIndex, card) {
   }
 }
 
+function openRemoveChoice(playerIndex, sourceCard) {
+  const opponentIndex = opponentOf(playerIndex);
+  const targets = removableOpponentCards(opponentIndex);
+  if (!targets.length) {
+    state.log.unshift("Aucune carte adverse à supprimer.");
+    return;
+  }
+  state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: sourceCard.playedUid };
+  state.log.unshift(`${state.players[playerIndex].name} doit choisir une carte adverse à supprimer.`);
+}
+
+function removableOpponentCards(opponentIndex) {
+  return state.players[opponentIndex].played.filter((card) => !card.removed);
+}
+
+function removalTargetScore(card) {
+  let score = (card.cardPowerGained ?? card.powerGained ?? 0) * 3 + card.precision + card.placement;
+  if (card.boosted) score += 12;
+  if (state.lastCard?.playedUid === card.playedUid) score += 8;
+  if (state.mandatoryPlacementSourceUid === card.playedUid) score += 10;
+  if (state.boostAvailableFor != null && state.lastCard?.playedUid === card.playedUid) score += 5;
+  for (const player of state.players) {
+    if (player.limitedFamiliesSourceUid === card.playedUid) score += 8;
+  }
+  if (["smashThreat", "limitOpponentFamilies", "boostedBonusAtEnd", "doubleLastShot"].includes(card.effectType)) score += 5;
+  return score;
+}
+
+function bestRemovalTargetFor(playerIndex) {
+  return removableOpponentCards(opponentOf(playerIndex))
+    .sort((a, b) => removalTargetScore(b) - removalTargetScore(a))[0] ?? null;
+}
+
+function resolveRemoveChoice(targetPlayedUid) {
+  if (!state.pendingRemoveChoice) return;
+  const { playerIndex, opponentIndex, sourcePlayedUid } = state.pendingRemoveChoice;
+  if (!canUseSeat(playerIndex)) return;
+  markLocalServerDirty(playerIndex);
+  const player = state.players[playerIndex];
+  const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
+  const target = removableOpponentCards(opponentIndex).find((card) => card.playedUid === targetPlayedUid);
+  state.pendingRemoveChoice = null;
+  if (!sourceCard || !target) {
+    state.log.unshift("Choix de suppression impossible.");
+    render();
+    return;
+  }
+  removeOpponentPlayed(opponentIndex, target.playedUid);
+  completePlayedCardResolution(
+    playerIndex,
+    opponentIndex,
+    sourceCard,
+    sourceCard,
+    sourceCard.isServiceTurn,
+    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]),
+    sourceCard.boosted,
+    "effect",
+  );
+}
+
+function closeImpossibleRemoveChoice(playerIndex) {
+  if (!state.pendingRemoveChoice || state.pendingRemoveChoice.playerIndex !== playerIndex) return;
+  const { sourcePlayedUid } = state.pendingRemoveChoice;
+  const player = state.players[playerIndex];
+  const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
+  state.pendingRemoveChoice = null;
+  state.log.unshift(`${player.name} ne peut supprimer aucune carte adverse.`);
+  if (!sourceCard) {
+    render();
+    return;
+  }
+  completePlayedCardResolution(
+    playerIndex,
+    opponentOf(playerIndex),
+    sourceCard,
+    sourceCard,
+    sourceCard.isServiceTurn,
+    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]),
+    sourceCard.boosted,
+    "effect",
+  );
+}
+
 function removeOpponentLastPlayed(opponentIndex) {
   const opponent = state.players[opponentIndex];
   const target = [...opponent.played].reverse().find((card) => !card.removed);
+  if (!target) {
+    state.log.unshift("Aucune carte adverse à supprimer.");
+    return;
+  }
+  removeOpponentPlayed(opponentIndex, target.playedUid);
+}
+
+function removeOpponentPlayed(opponentIndex, targetPlayedUid) {
+  const opponent = state.players[opponentIndex];
+  const target = opponent.played.find((card) => card.playedUid === targetPlayedUid && !card.removed);
   if (!target) {
     state.log.unshift("Aucune carte adverse à supprimer.");
     return;
@@ -2032,6 +2151,7 @@ function render() {
   renderBoostModal();
   renderEffectChoiceModal();
   renderCoachChoiceModal();
+  renderRemoveChoiceModal();
   scheduleServerSync();
   scheduleSoloAINudge();
   maybeRunSoloAI();
@@ -2541,6 +2661,34 @@ function renderCoachChoiceModal() {
   document.body.append(backdrop);
   backdrop.querySelectorAll("[data-coach-choice]").forEach((button) => {
     button.addEventListener("click", () => resolveCoachChoice(button.dataset.coachChoice));
+  });
+}
+
+function renderRemoveChoiceModal() {
+  document.querySelector(".remove-choice-backdrop")?.remove();
+  if (!state.pendingRemoveChoice) return;
+  const { playerIndex, opponentIndex } = state.pendingRemoveChoice;
+  if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
+  if (SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex) return;
+  const choices = removableOpponentCards(opponentIndex);
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop remove-choice-backdrop";
+  backdrop.innerHTML = `
+    <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte adverse à supprimer">
+      <h2>Supprimer une carte adverse</h2>
+      <p>Choisis une carte engagée par ${state.players[opponentIndex].name} à retirer de l'échange.</p>
+      <div class="choice-grid">
+        ${choices.map((choice) => `
+          <button class="choice-card" type="button" data-remove-choice="${choice.playedUid}">
+            ${renderChoiceCardVisual(choice)}
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+  document.body.append(backdrop);
+  backdrop.querySelectorAll("[data-remove-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolveRemoveChoice(button.dataset.removeChoice));
   });
 }
 
