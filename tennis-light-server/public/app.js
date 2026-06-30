@@ -43,6 +43,7 @@ const SOLO_AI = {
 };
 
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
+const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
 
 const CHARACTERS = {
   coachJu: {
@@ -383,6 +384,7 @@ const state = {
   turnSnapshot: null,
   turnDirty: false,
   revealAiCards: false,
+  actionLog: [],
   setMatch: {
     enabled: false,
     score: [0, 0],
@@ -398,6 +400,7 @@ const state = {
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
   revealAiButton: document.querySelector("#revealAiButton"),
+  exportLogsButton: document.querySelector("#exportLogsButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
   setModeButton: document.querySelector("#setModeButton"),
   onlineModeButton: document.querySelector("#onlineModeButton"),
@@ -460,6 +463,119 @@ function createPlayer(name, characterId) {
   };
 }
 
+function readStoredJson(key, fallback = []) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function writeStoredJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Les logs sont utiles pour l'analyse, mais ne doivent jamais bloquer la partie.
+  }
+}
+
+function cardLogInfo(card) {
+  if (!card) return null;
+  return {
+    id: card.id,
+    uid: card.uid,
+    playedUid: card.playedUid,
+    name: card.name,
+    subtitle: card.subtitle,
+    family: card.family,
+    cost: card.cost,
+    power: card.power,
+    precision: card.precision,
+    placement: card.placement,
+    boostPower: card.boostPower,
+    boostPrecision: card.boostPrecision,
+    effectType: card.effectType,
+    boosted: Boolean(card.boosted),
+    removed: Boolean(card.removed),
+  };
+}
+
+function playerLogInfo(player) {
+  return {
+    name: player.name,
+    characterId: player.characterId,
+    endurance: player.endurance,
+    power: player.power,
+    handCount: player.hand.length,
+    playedCount: player.played.filter((card) => !card.removed).length,
+    hand: player.hand.map(cardLogInfo),
+  };
+}
+
+function constraintsLogInfo() {
+  return {
+    activePlayer: state.activePlayer,
+    server: state.server,
+    lastCard: cardLogInfo(state.lastCard),
+    boostAvailableFor: state.boostAvailableFor,
+    mandatoryPlacement: state.mandatoryPlacement,
+    mandatoryPlacementReason: state.mandatoryPlacementReason,
+    mandatoryPlacementSourceUid: state.mandatoryPlacementSourceUid,
+    returnServiceRestrictionFor: state.returnServiceRestrictionFor,
+    turnPlacement: [...state.turnPlacement],
+    turnHasEffect: [...state.turnHasEffect],
+    turnIgnoresPlacement: [...state.turnIgnoresPlacement],
+    limitedFamilies: state.players.map((player) => player.limitedFamilies ? [...player.limitedFamilies] : null),
+  };
+}
+
+function recordAction(kind, payload = {}) {
+  const entry = {
+    createdAt: new Date().toISOString(),
+    kind,
+    mode: state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : SERVER_SYNC.enabled ? "online" : "local",
+    exchangeNumber: state.setMatch.exchangeNumber,
+    setScore: state.setMatch.enabled ? [...state.setMatch.score] : null,
+    server: state.server,
+    activePlayer: state.activePlayer,
+    coachJuFocus: payload.playerIndex === 0 || payload.opponentIndex === 0,
+    ...payload,
+  };
+  state.actionLog.push(entry);
+  const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
+  stored.push(entry);
+  writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-2500));
+}
+
+function exportLogsFile() {
+  const detailedActions = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
+  const exchangeResults = getStoredMatchLogs();
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    game: "Tennis Courts Academy",
+    version: "v55",
+    description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
+    summary: {
+      detailedActionCount: detailedActions.length,
+      exchangeResultCount: exchangeResults.length,
+      coachJuActionCount: detailedActions.filter((entry) => entry.playerIndex === 0 || entry.coachJuFocus).length,
+    },
+    coachJuActions: detailedActions.filter((entry) => entry.playerIndex === 0 || entry.coachJuFocus),
+    detailedActions,
+    exchangeResults,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  link.href = url;
+  link.download = `tennis-courts-academy-logs-${stamp}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function resetSetMatch() {
   state.setMatch = {
     enabled: false,
@@ -518,6 +634,7 @@ function newGame(options = {}) {
   state.resultInfo = null;
   state.turnDirty = false;
   state.revealAiCards = false;
+  state.actionLog = [];
   if (state.setMatch.enabled) {
     state.setMatch.exchangeNumber += 1;
     state.setMatch.previousServer = state.server;
@@ -526,6 +643,13 @@ function newGame(options = {}) {
   const setText = state.setMatch.enabled ? ` Set ${state.setMatch.score[0]}/${state.setMatch.score[1]}.` : "";
   const decisiveText = state.setMatch.decisiveExchange ? " Échange décisif." : "";
   state.log = [`${playerName(state.server)} sert. L'échange commence.${setText}${decisiveText}`];
+  recordAction("exchange_start", {
+    playerIndex: state.server,
+    playerName: playerName(state.server),
+    players: state.players.map(playerLogInfo),
+    deckCount: state.deck.length,
+    constraints: constraintsLogInfo(),
+  });
   if (SOLO_AI.enabled) {
     SOLO_AI.style = chooseSoloAIStyle();
   }
@@ -620,6 +744,12 @@ function restoreTurnSnapshot() {
   state.pendingCoachChoice = null;
   state.pendingRemoveChoice = null;
   state.log.unshift(`${activeName} annule son tour et revient au début de ses choix.`);
+  recordAction("undo_turn", {
+    playerIndex: state.activePlayer,
+    playerName: activeName,
+    constraints: constraintsLogInfo(),
+    players: state.players.map(playerLogInfo),
+  });
   captureTurnSnapshot();
   render();
 }
@@ -638,6 +768,12 @@ function opponentOf(playerIndex) {
 
 function markLocalServerDirty(playerIndex) {
   if (SERVER_SYNC.enabled && !SERVER_SYNC.applyingRemote && playerIndex === SERVER_SYNC.seat) {
+    SERVER_SYNC.localDirty = true;
+  }
+}
+
+function markServerDirtyForHostAction() {
+  if (SERVER_SYNC.enabled && !SERVER_SYNC.applyingRemote && SERVER_SYNC.seat === 0) {
     SERVER_SYNC.localDirty = true;
   }
 }
@@ -698,6 +834,13 @@ function isFreeBoostNextWindow(playerIndex) {
   return playerIndex === state.server && state.lastCard.owner === receiverIndex && serverShots === 1 && receiverShots === 1;
 }
 
+function isServiceBoostHintWindow(playerIndex) {
+  if (!state.lastCard?.isServiceTurn || state.lastCard.boosted) return false;
+  if (playerIndex !== opponentOf(state.server)) return false;
+  const receiverShots = state.players[playerIndex].played.filter((card) => !card.removed && isShot(card)).length;
+  return receiverShots === 0;
+}
+
 function isRemise(card) {
   return card.family === "Remise";
 }
@@ -723,7 +866,11 @@ function canPlayNormal(playerIndex, card) {
 }
 
 function canEndTurn(playerIndex) {
-  return !state.gameOver && playerIndex === state.activePlayer && canUseSeat(playerIndex) && state.turnHasEffect[playerIndex] && !state.mandatoryPlacement;
+  if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return false;
+  if (state.mandatoryPlacement) {
+    return hasPlayedThisTurn(playerIndex) && state.lastCard && state.turnPlacement[playerIndex] >= state.lastCard.precision;
+  }
+  return state.turnHasEffect[playerIndex] || state.turnPlacement[playerIndex] > 0;
 }
 
 function hasPlayedThisTurn(playerIndex) {
@@ -737,7 +884,7 @@ function canPlayBoost(playerIndex, card) {
   const player = state.players[playerIndex];
   const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid);
   const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && state.lastCard == null;
-  const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && state.lastCard?.isServiceTurn && !state.lastCard.boosted;
+  const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex);
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
   const boostWindow = state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || colorBoost;
@@ -828,6 +975,15 @@ function runSoloAITurn() {
       return;
     }
 
+    if (state.mandatoryPlacement) {
+      const defenseAction = chooseSoloPlacementDefenseAction(playerIndex);
+      if (defenseAction) {
+        performSoloDefenseAction(playerIndex, defenseAction);
+        ensureSoloProgress(beforeSignature);
+        return;
+      }
+    }
+
     const strategicEffect = chooseSoloStrategicEffect(playerIndex);
     if (strategicEffect) {
       playCard(playerIndex, strategicEffect.uid, false, null, "effect");
@@ -842,9 +998,9 @@ function runSoloAITurn() {
       return;
     }
 
-    const remiseForPlacement = chooseSoloRemiseForPlacement(playerIndex);
-    if (remiseForPlacement) {
-      playCard(playerIndex, remiseForPlacement.uid, false, null, "placement");
+    const urgentPlacementRemise = chooseSoloRemiseForPlacement(playerIndex);
+    if (urgentPlacementRemise) {
+      playCard(playerIndex, urgentPlacementRemise.uid, false, null, "placement");
       ensureSoloProgress(beforeSignature);
       return;
     }
@@ -912,6 +1068,16 @@ function ensureSoloProgress(beforeSignature) {
 function soloEmergencyFallback(playerIndex) {
   if (state.gameOver || state.activePlayer !== playerIndex) return;
   if (resolveSoloPendingChoice(true)) return;
+  const defenseAction = chooseSoloPlacementDefenseAction(playerIndex);
+  if (defenseAction) {
+    performSoloDefenseAction(playerIndex, defenseAction);
+    return;
+  }
+  const forcedPlacementRemise = chooseSoloRemiseForPlacement(playerIndex);
+  if (forcedPlacementRemise) {
+    playCard(playerIndex, forcedPlacementRemise.uid, false, null, "placement");
+    return;
+  }
   if (canEndTurn(playerIndex)) {
     endTurn(playerIndex);
     return;
@@ -933,6 +1099,93 @@ function soloEmergencyFallback(playerIndex) {
     return;
   }
   pass(playerIndex);
+}
+
+function chooseSoloPlacementDefenseAction(playerIndex) {
+  if (!state.mandatoryPlacement || !state.lastCard) return null;
+  if (canEndTurn(playerIndex)) return { type: "end" };
+
+  const escapeEffect = chooseSoloBoostEscapeEffect(playerIndex);
+  const directCoup = chooseSoloNormalCoup(playerIndex);
+  const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
+
+  if (escapeEffect && shouldUseSoloBoostEscapeEffect(playerIndex, escapeEffect, directCoup, defensePlan)) {
+    return { type: "effect", card: escapeEffect };
+  }
+
+  if (directCoup) return { type: "normal", card: directCoup };
+
+  const counterBoost = chooseSoloBoostPlay(playerIndex);
+  if (counterBoost) return { type: "boost", card: counterBoost.card, sacrifice: counterBoost.sacrifice };
+
+  if (defensePlan?.remises.length) {
+    return { type: "remise", card: defensePlan.remises[0] };
+  }
+  if (defensePlan?.coup && canPlayNormal(playerIndex, defensePlan.coup)) {
+    return { type: "normal", card: defensePlan.coup };
+  }
+  return null;
+}
+
+function performSoloDefenseAction(playerIndex, action) {
+  if (action.type === "end") {
+    endTurn(playerIndex);
+    return;
+  }
+  if (action.type === "boost") {
+    playCard(playerIndex, action.card.uid, true, action.sacrifice.uid);
+    return;
+  }
+  if (action.type === "remise") {
+    playCard(playerIndex, action.card.uid, false, null, "placement");
+    return;
+  }
+  if (action.type === "effect") {
+    playCard(playerIndex, action.card.uid, false, null, "effect");
+    return;
+  }
+  if (action.type === "normal") {
+    playCard(playerIndex, action.card.uid);
+  }
+}
+
+function chooseSoloBoostEscapeEffect(playerIndex) {
+  if (state.mandatoryPlacementReason !== "boost") return null;
+  const player = state.players[playerIndex];
+  const effects = player.hand
+    .filter((card) => isRemise(card) && canPlayNormal(playerIndex, card))
+    .filter((card) => card.effectType === "jokerResponse" || card.effectType === "removeOpponentLast")
+    .map((card) => ({ card, score: soloBoostEscapeEffectScore(playerIndex, card) }))
+    .filter((choice) => choice.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return effects[0]?.card ?? null;
+}
+
+function soloBoostEscapeEffectScore(playerIndex, card) {
+  const player = state.players[playerIndex];
+  const remainingEndurance = player.endurance - effectiveCost(player, card);
+  if (remainingEndurance < 0) return 0;
+  const followUpCoups = player.hand
+    .filter((candidate) => candidate.uid !== card.uid && !isRemise(candidate))
+    .filter((candidate) => effectiveCost(player, candidate) <= remainingEndurance)
+    .filter((candidate) => satisfiesFamilyLimit(player, candidate) && satisfiesReturnServiceRestriction(candidate));
+  const bestFollowUp = followUpCoups.sort((a, b) => soloPlayableCoupScore(playerIndex, b) - soloPlayableCoupScore(playerIndex, a))[0];
+  const followUpValue = bestFollowUp ? 18 + soloPlayableCoupScore(playerIndex, bestFollowUp) : 0;
+  if (card.effectType === "jokerResponse") return 20 + followUpValue - effectiveCost(player, card) * 4;
+  if (card.effectType === "removeOpponentLast") {
+    const target = bestRemovalTargetFor(playerIndex);
+    if (!target) return 0;
+    return 24 + removalTargetScore(target) + followUpValue - effectiveCost(player, card) * 4;
+  }
+  return 0;
+}
+
+function shouldUseSoloBoostEscapeEffect(playerIndex, escapeEffect, directCoup, defensePlan) {
+  if (!directCoup && !defensePlan?.coup) return true;
+  const escapeScore = soloBoostEscapeEffectScore(playerIndex, escapeEffect);
+  const directScore = directCoup ? soloPlayableCoupScore(playerIndex, directCoup) + 18 : -Infinity;
+  const defenseScore = defensePlan?.score ?? -Infinity;
+  return escapeScore >= Math.max(directScore, defenseScore - 4);
 }
 
 function currentAITurnKey() {
@@ -1060,9 +1313,59 @@ function canSoloPassAndWin(playerIndex) {
     const passBonus = index === opponentIndex ? Math.max(2, player.endurance) : 0;
     return candidate.power + passBonus + projectedEndBonuses(candidate);
   });
-  if (projectedPowers[playerIndex] > projectedPowers[opponentIndex]) return true;
-  if (projectedPowers[playerIndex] < projectedPowers[opponentIndex]) return false;
-  return state.server === playerIndex;
+  const exchangeWinner = projectedPowers[playerIndex] > projectedPowers[opponentIndex]
+    ? playerIndex
+    : projectedPowers[playerIndex] < projectedPowers[opponentIndex]
+      ? opponentIndex
+      : state.server;
+  if (!isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, "power")) return false;
+  if (state.setMatch.enabled) {
+    const projectedSetScore = previewSetMatchScore(exchangeWinner, getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers));
+    if (isSetOver(projectedSetScore) && leadingSetPlayer(projectedSetScore) === playerIndex) return true;
+  }
+  return exchangeWinner === playerIndex;
+}
+
+function isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, winType) {
+  if (!state.setMatch.enabled || state.setMatch.setOver) return true;
+  const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, winType, projectedPowers);
+  const projectedSetScore = previewSetMatchScore(exchangeWinner, exchangeScore);
+  if (!isSetOver(projectedSetScore)) return true;
+  return leadingSetPlayer(projectedSetScore) === playerIndex;
+}
+
+function getProjectedExchangeSetScore(winner, winType, projectedPowers) {
+  const loser = opponentOf(winner);
+  if (winType === "boost") {
+    return { winnerGames: 3, loserGames: 0, winner, loser, label: "Victoire par BOOST" };
+  }
+  const gap = Math.abs(projectedPowers[0] - projectedPowers[1]);
+  return {
+    winnerGames: 2,
+    loserGames: gap < 5 ? 1 : 0,
+    winner,
+    loser,
+    label: "Victoire aux points de puissance",
+  };
+}
+
+function previewSetMatchScore(winner, exchangeScore) {
+  const loser = opponentOf(winner);
+  const previous = [...state.setMatch.score];
+  const next = [...previous];
+  if (Math.max(...previous) === 6 && Math.min(...previous) === 5) {
+    next[winner] = 7;
+    next[loser] = previous[winner] > previous[loser] ? 5 : 6;
+  } else if (state.setMatch.decisiveExchange || isDecisiveSetScore(previous)) {
+    next[winner] = 7;
+    next[loser] = 6;
+  } else {
+    next[winner] = computeWinnerSetGames(previous[winner], previous[loser], exchangeScore.winnerGames);
+    next[loser] = Math.min(7, previous[loser] + exchangeScore.loserGames);
+    if (next[winner] === 7 && next[loser] < 5) next[winner] = 6;
+    if (next[loser] > 6 && next[winner] < 7) next[loser] = 6;
+  }
+  return next;
 }
 
 function projectedEndBonuses(player) {
@@ -1088,19 +1391,56 @@ function chooseSoloRemiseForPlacement(playerIndex) {
   const playableCoups = player.hand.filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
   const bestCoupPlacement = playableCoups.reduce((best, card) => Math.max(best, totalTurnPlacement(playerIndex, card)), state.turnPlacement[playerIndex]);
   if (bestCoupPlacement >= state.lastCard.precision) return null;
-  const remise = player.hand
-    .filter((card) => isRemise(card) && canPlayNormal(playerIndex, card))
-    .sort((a, b) => getCardStats(player, b, false).placement - getCardStats(player, a, false).placement)[0] ?? null;
-  if (!remise) return null;
-  const placementAfterRemise = state.turnPlacement[playerIndex] + getCardStats(player, remise, false).placement;
-  const enduranceAfterRemise = player.endurance - effectiveCost(player, remise);
-  const canPlayCoupAfter = player.hand.some((card) => {
-    if (card.uid === remise.uid || isRemise(card)) return false;
-    if (enduranceAfterRemise < effectiveCost(player, card) || !satisfiesFamilyLimit(player, card) || !satisfiesReturnServiceRestriction(card)) return false;
-    if (!state.mandatoryPlacement) return true;
-    return placementAfterRemise + getCardStats(player, card, false).placement >= state.lastCard.precision;
-  });
-  return canPlayCoupAfter ? remise : null;
+  const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
+  return defensePlan?.remises[0] ?? null;
+}
+
+function chooseSoloRemiseDefensePlan(playerIndex) {
+  if (!state.lastCard || state.turnIgnoresPlacement[playerIndex]) return null;
+  const player = state.players[playerIndex];
+  const targetPlacement = state.lastCard.precision;
+  const remises = player.hand.filter((card) => isRemise(card) && canPlayNormal(playerIndex, card));
+  const options = [];
+
+  for (const subset of remiseSubsets(playerIndex, remises)) {
+    const remiseCost = subset.reduce((sum, card) => sum + effectiveCost(player, card), 0);
+    if (remiseCost > player.endurance) continue;
+    const remisePlacement = subset.reduce((sum, card) => sum + getCardStats(player, card, false).placement, state.turnPlacement[playerIndex]);
+    if (remisePlacement >= targetPlacement) {
+      const overPlacement = Math.max(0, remisePlacement - targetPlacement);
+      options.push({
+        remises: subset,
+        coup: null,
+        score: 42 + remisePlacement - overPlacement * 2 - remiseCost * 8,
+      });
+    }
+    for (const coup of player.hand.filter((card) => !isRemise(card) && !subset.some((remise) => remise.uid === card.uid))) {
+      if (remiseCost + effectiveCost(player, coup) > player.endurance) continue;
+      if (!satisfiesFamilyLimit(player, coup) || !satisfiesReturnServiceRestriction(coup)) continue;
+      const totalPlacement = remisePlacement + getCardStats(player, coup, false).placement;
+      if (totalPlacement < targetPlacement) continue;
+      const overPlacement = Math.max(0, totalPlacement - targetPlacement);
+      options.push({
+        remises: subset,
+        coup,
+        score: 50 + soloPlayableCoupScore(playerIndex, coup) + totalPlacement - overPlacement * 2 - remiseCost * 8,
+      });
+    }
+  }
+  options.sort((a, b) => b.score - a.score);
+  return options[0] ?? null;
+}
+
+function remiseSubsets(playerIndex, remises) {
+  const player = state.players[playerIndex];
+  const subsets = [];
+  const maxMask = 1 << remises.length;
+  for (let mask = 1; mask < maxMask; mask += 1) {
+    const subset = remises.filter((_, index) => mask & (1 << index));
+    subset.sort((a, b) => effectiveCost(player, a) - effectiveCost(player, b) || getCardStats(player, b, false).placement - getCardStats(player, a, false).placement);
+    subsets.push(subset);
+  }
+  return subsets;
 }
 
 function chooseSoloStrategicEffect(playerIndex) {
@@ -1130,6 +1470,7 @@ function soloImmediateEffectValue(playerIndex, card) {
 
 function chooseSoloBoostPlay(playerIndex) {
   const player = state.players[playerIndex];
+  if (shouldAvoidOptionalBoostForSet(playerIndex)) return null;
   const cards = player.hand.filter((card) => canPlayBoost(playerIndex, card));
   if (!cards.length) return null;
   const options = cards
@@ -1146,8 +1487,22 @@ function chooseSoloBoostPlay(playerIndex) {
   const best = options[0];
   if (!best) return null;
   const styleBoostMargin = SOLO_AI.style === "aggressive" ? 2 : SOLO_AI.style === "cautious" ? 7 : 5;
-  const shouldBoost = state.mandatoryPlacement || state.boostAvailableFor === playerIndex || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin;
+  const shouldBoost = state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin;
   return shouldBoost ? { card: best.card, sacrifice: best.sacrifice } : null;
+}
+
+function shouldAvoidOptionalBoostForSet(playerIndex) {
+  if (!state.setMatch.enabled || state.mandatoryPlacement || state.boostAvailableFor === playerIndex) return false;
+  const playerGames = state.setMatch.score[playerIndex];
+  const opponentGames = state.setMatch.score[opponentOf(playerIndex)];
+  return playerGames === 5 && opponentGames <= 2;
+}
+
+function isSetDangerForPlayer(playerIndex) {
+  if (!state.setMatch.enabled) return false;
+  const playerGames = state.setMatch.score[playerIndex];
+  const opponentGames = state.setMatch.score[opponentOf(playerIndex)];
+  return opponentGames === 5 && playerGames <= 2;
 }
 
 function chooseSoloSacrifice(playerIndex, boostedCard) {
@@ -1161,7 +1516,17 @@ function chooseSoloNormalCoup(playerIndex) {
   const player = state.players[playerIndex];
   return player.hand
     .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
-    .sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0] ?? null;
+    .sort((a, b) => soloPlayableCoupScore(playerIndex, b) - soloPlayableCoupScore(playerIndex, a))[0] ?? null;
+}
+
+function soloPlayableCoupScore(playerIndex, card) {
+  let score = soloCardScore(playerIndex, card);
+  if (state.lastCard) {
+    const totalPlacement = totalTurnPlacement(playerIndex, card);
+    if (totalPlacement >= state.lastCard.precision) score += 12 + totalPlacement;
+  }
+  if (state.mandatoryPlacement && hasPlacementForPrevious(playerIndex, card)) score += 20;
+  return score;
 }
 
 function chooseSoloEffectCard(playerIndex) {
@@ -1261,6 +1626,11 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   markLocalServerDirty(playerIndex);
 
   const opponentIndex = opponentOf(playerIndex);
+  const beforeContext = {
+    player: playerLogInfo(player),
+    opponent: playerLogInfo(state.players[opponentIndex]),
+    constraints: constraintsLogInfo(),
+  };
   const endsTurn = !isRemise(card);
   const isOpeningServe = endsTurn && playerIndex === state.server && state.lastCard == null;
   const countsPlacement = !isRemise(card) || remiseMode === "placement";
@@ -1312,6 +1682,31 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   state.turnPlayedCards[playerIndex].push(playedCard);
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
+
+  recordAction("play_card", {
+    playerIndex,
+    opponentIndex,
+    playerName: player.name,
+    card: cardLogInfo(playedCard),
+    sacrifice: cardLogInfo(sacrificedCard),
+    mode: boosted ? "boost" : isRemise(card) ? remiseMode : "normal",
+    boosted,
+    remiseMode: isRemise(card) ? remiseMode : null,
+    endsTurn,
+    costPaid: cost,
+    powerGained: stats.power,
+    cardPowerGained: rawStats.power,
+    precision: stats.precision,
+    placement: stats.placement,
+    turnPlacement: combinedPlacement,
+    placementWasInsufficient,
+    before: beforeContext,
+    after: {
+      player: playerLogInfo(player),
+      opponent: playerLogInfo(state.players[opponentIndex]),
+      constraints: constraintsLogInfo(),
+    },
+  });
 
   const boostText = boosted ? " en BOOST" : "";
   const remiseText = isRemise(card) ? (remiseMode === "placement" ? " en REMISE" : " pour l'EFFET") : "";
@@ -1402,6 +1797,16 @@ function endTurn(playerIndex) {
   const opponent = state.players[opponentIndex];
   const preparedPlacement = state.turnPlacement[playerIndex];
   const opensBoost = Boolean(state.lastCard && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
+  recordAction("end_turn", {
+    playerIndex,
+    opponentIndex,
+    playerName: player.name,
+    preparedPlacement,
+    opensBoost,
+    constraintsBefore: constraintsLogInfo(),
+    player: playerLogInfo(player),
+    opponent: playerLogInfo(opponent),
+  });
 
   if (playerIndex === state.server && state.lastCard == null) {
     const drawn = drawCards(opponent, 1);
@@ -1409,6 +1814,9 @@ function endTurn(playerIndex) {
   }
 
   state.boostAvailableFor = opensBoost ? opponentIndex : null;
+  state.mandatoryPlacement = false;
+  state.mandatoryPlacementReason = null;
+  state.mandatoryPlacementSourceUid = null;
   state.turnPlacement[playerIndex] = 0;
   state.turnHasEffect[playerIndex] = false;
   state.turnIgnoresPlacement[playerIndex] = false;
@@ -1886,6 +2294,18 @@ function pass(playerIndex) {
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const opponent = state.players[opponentIndex];
+  recordAction("pass", {
+    playerIndex,
+    opponentIndex,
+    playerName: player.name,
+    opponentName: opponent.name,
+    mandatoryPlacement: state.mandatoryPlacement,
+    mandatoryPlacementReason: state.mandatoryPlacementReason,
+    penaltyPowerGiven: state.mandatoryPlacement ? 0 : Math.max(2, player.endurance),
+    constraintsBefore: constraintsLogInfo(),
+    player: playerLogInfo(player),
+    opponent: playerLogInfo(opponent),
+  });
   if (state.mandatoryPlacement) {
     player.passed = true;
     const reasonLabel = state.mandatoryPlacementReason === "smash" ? "un Smash" : "un BOOST";
@@ -1924,6 +2344,23 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
+  recordAction("exchange_end", {
+    winner,
+    winnerName: playerName(winner),
+    winType,
+    ignoreScore,
+    reason,
+    finalPower: state.players.map((player) => player.power),
+    finalEndurance: state.players.map((player) => player.endurance),
+    exchangeSetScore: setScore,
+    setMatch: state.setMatch.enabled ? {
+      score: [...state.setMatch.score],
+      completedScores: state.setMatch.completedScores.map((score) => [...score]),
+      setOver: state.setMatch.setOver,
+      winner: state.setMatch.winner,
+    } : null,
+    players: state.players.map(playerLogInfo),
+  });
   storeMatchLog(winner, reason);
   render();
 }
@@ -2034,12 +2471,23 @@ function startSetAiGame() {
 
 function nextSetExchange() {
   if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver) return;
+  if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
+    state.log.unshift("Seul Coach Ju peut lancer l'échange suivant en ligne.");
+    render();
+    return;
+  }
   const server = nextSetServer();
   newGame({ preserveSet: true, serverOverride: server });
+  markServerDirtyForHostAction();
 }
 
 function nextFullSet() {
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver) return;
+  if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
+    state.log.unshift("Seul Coach Ju peut lancer le set suivant en ligne.");
+    render();
+    return;
+  }
   const completedScores = state.setMatch.completedScores.map((score) => [...score]);
   state.setMatch = {
     enabled: true,
@@ -2054,6 +2502,7 @@ function nextFullSet() {
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
   state.log.unshift("Nouveau set lancé.");
+  markServerDirtyForHostAction();
   render();
 }
 
@@ -2073,6 +2522,7 @@ function storeMatchLog(winner, reason) {
         score: [...state.setMatch.score],
         completedScores: state.setMatch.completedScores.map((score) => [...score]),
       } : null,
+      actionLog: [...state.actionLog],
       reason,
       players: state.players.map((player) => ({
         name: player.name,
@@ -2105,6 +2555,10 @@ function getStoredMatchLogs() {
   } catch (error) {
     return [];
   }
+}
+
+function getStoredActionLogs() {
+  return readStoredJson(ACTION_LOG_STORAGE_KEY, []);
 }
 
 function renderResultPanel() {
@@ -2182,8 +2636,6 @@ function render() {
   ensureSoloAIForSet();
   renderModeButtons();
   renderResultPanel();
-  renderSummary(0, els.player1Summary);
-  renderSummary(1, els.player2Summary);
   renderRallyState();
   renderEffectNotice();
   renderPlayerPanel(0, els.player1Panel);
@@ -2835,6 +3287,9 @@ function initServerSync() {
   SERVER_SYNC.token = params.token;
   SERVER_SYNC.seat = params.seat;
   SERVER_SYNC.initializing = SERVER_SYNC.seat === 0;
+  if (SERVER_SYNC.seat === 0) {
+    state.setMatch.enabled = true;
+  }
   render();
   if (SERVER_SYNC.initializing) {
     scheduleServerSync();
@@ -2845,6 +3300,7 @@ function initServerSync() {
 
 els.newGameButton.addEventListener("click", newGame);
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
+els.exportLogsButton?.addEventListener("click", exportLogsFile);
 els.soloModeButton?.addEventListener("click", startSoloGame);
 els.setModeButton?.addEventListener("click", startSetAiGame);
 els.onlineModeButton?.addEventListener("click", startOnlineGame);
@@ -2855,6 +3311,6 @@ document.addEventListener("click", (event) => {
   }
 });
 window.forceSoloAITurn = forceSoloAITurn;
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, render, state };
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
 newGame();
 initServerSync();

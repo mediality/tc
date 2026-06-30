@@ -3,18 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tennis Courts - École de tennis</title>
-    <link rel="stylesheet" href="./styles.css?v=48" />
+    <title>Tennis Courts Academy</title>
+    <link rel="stylesheet" href="./styles.css?v=55" />
   </head>
   <body>
     <main class="app">
       <section class="topbar">
         <div>
-          <p class="eyebrow">École de tennis <span>v48</span></p>
-          <img class="brand-logo" src="./assets/logo-tennis-courts-blanc.png" alt="Tennis Courts" />
+          <p class="eyebrow">Tennis Courts Academy <span>v55</span></p>
+          <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
           <button id="newGameButton" class="primary-button" type="button">Nouvel échange</button>
+          <button id="exportLogsButton" class="small-button" type="button">Exporter logs</button>
           <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler les cartes</button>
           <button id="soloModeButton" class="small-button solo-button" type="button">Mode IA</button>
           <button id="setModeButton" class="small-button set-button" type="button">Set IA</button>
@@ -24,14 +25,12 @@
 
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
 
-      <section class="scoreboard" aria-label="Résumé de l'échange">
-        <article id="player1Summary" class="summary-card"></article>
+      <section class="scoreboard" aria-label="État de l'échange">
         <article class="rally-card">
           <p class="label">État du rallye</p>
           <div id="rallyState" class="rally-state"></div>
           <div id="effectNotice" class="effect-notice"></div>
         </article>
-        <article id="player2Summary" class="summary-card"></article>
       </section>
 
       <section class="court">
@@ -45,6 +44,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=48"></script>
+    <script src="./app.js?v=55"></script>
   </body>
 </html>
