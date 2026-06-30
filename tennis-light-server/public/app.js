@@ -394,6 +394,10 @@ const state = {
     decisiveExchange: false,
     setOver: false,
     winner: null,
+    targetSets: null,
+    setsWon: [0, 0],
+    matchOver: false,
+    matchWinner: null,
   },
 };
 
@@ -403,6 +407,8 @@ const els = {
   exportLogsButton: document.querySelector("#exportLogsButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
   setModeButton: document.querySelector("#setModeButton"),
+  matchTwoButton: document.querySelector("#matchTwoButton"),
+  matchThreeButton: document.querySelector("#matchThreeButton"),
   onlineModeButton: document.querySelector("#onlineModeButton"),
   resultPanel: document.querySelector("#resultPanel"),
   player1Summary: document.querySelector("#player1Summary"),
@@ -533,7 +539,7 @@ function recordAction(kind, payload = {}) {
   const entry = {
     createdAt: new Date().toISOString(),
     kind,
-    mode: state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : SERVER_SYNC.enabled ? "online" : "local",
+    mode: SERVER_SYNC.enabled ? "online" : state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : "local",
     exchangeNumber: state.setMatch.exchangeNumber,
     setScore: state.setMatch.enabled ? [...state.setMatch.score] : null,
     server: state.server,
@@ -553,7 +559,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v55",
+    version: "v56",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -586,6 +592,10 @@ function resetSetMatch() {
     decisiveExchange: false,
     setOver: false,
     winner: null,
+    targetSets: null,
+    setsWon: [0, 0],
+    matchOver: false,
+    matchWinner: null,
   };
 }
 
@@ -975,6 +985,12 @@ function runSoloAITurn() {
       return;
     }
 
+    if (shouldSoloPassToLimitBoostDamage(playerIndex)) {
+      pass(playerIndex);
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
+
     if (state.mandatoryPlacement) {
       const defenseAction = chooseSoloPlacementDefenseAction(playerIndex);
       if (defenseAction) {
@@ -1295,6 +1311,8 @@ function chooseSoloAIStyle() {
   const boostable = shots.filter((card) => card.boostPower >= 4).length;
   const averagePower = shots.reduce((sum, card) => sum + card.power, 0) / Math.max(1, shots.length);
   const averageCost = player.hand.reduce((sum, card) => sum + card.cost, 0) / Math.max(1, player.hand.length);
+  if (isMatchDangerForPlayer(SOLO_AI.playerIndex) || isSetDangerForPlayer(SOLO_AI.playerIndex)) return "aggressive";
+  if (isMatchComfortForPlayer(SOLO_AI.playerIndex) && averageCost >= 2) return "cautious";
   if (boostable >= 2 || averagePower >= 3.5) return "aggressive";
   if (shots.length <= 2 || averageCost >= 2.3) return "cautious";
   return "balanced";
@@ -1326,12 +1344,38 @@ function canSoloPassAndWin(playerIndex) {
   return exchangeWinner === playerIndex;
 }
 
+function shouldSoloPassToLimitBoostDamage(playerIndex) {
+  if (state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return false;
+  if (!isVulnerableToJuBoostPressure(playerIndex)) return false;
+  if (isMatchDangerForPlayer(playerIndex) || isSetDangerForPlayer(playerIndex)) return false;
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const projectedPowers = state.players.map((candidate, index) => {
+    const passBonus = index === opponentIndex ? Math.max(2, player.endurance) : 0;
+    return candidate.power + passBonus + projectedEndBonuses(candidate);
+  });
+  const exchangeWinner = projectedPowers[playerIndex] > projectedPowers[opponentIndex]
+    ? playerIndex
+    : projectedPowers[playerIndex] < projectedPowers[opponentIndex]
+      ? opponentIndex
+      : state.server;
+  if (exchangeWinner === playerIndex) return false;
+  if (!isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, "power")) return false;
+  const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers);
+  return exchangeScore.loserGames > 0 || !state.setMatch.enabled;
+}
+
 function isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, winType) {
   if (!state.setMatch.enabled || state.setMatch.setOver) return true;
   const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, winType, projectedPowers);
   const projectedSetScore = previewSetMatchScore(exchangeWinner, exchangeScore);
   if (!isSetOver(projectedSetScore)) return true;
-  return leadingSetPlayer(projectedSetScore) === playerIndex;
+  const setWinner = leadingSetPlayer(projectedSetScore);
+  if (!state.setMatch.targetSets) return setWinner === playerIndex;
+  const projectedSetsWon = [...state.setMatch.setsWon];
+  projectedSetsWon[setWinner] += 1;
+  const matchWinner = projectedSetsWon[setWinner] >= state.setMatch.targetSets ? setWinner : null;
+  return matchWinner == null || matchWinner === playerIndex;
 }
 
 function getProjectedExchangeSetScore(winner, winType, projectedPowers) {
@@ -1495,6 +1539,7 @@ function shouldAvoidOptionalBoostForSet(playerIndex) {
   if (!state.setMatch.enabled || state.mandatoryPlacement || state.boostAvailableFor === playerIndex) return false;
   const playerGames = state.setMatch.score[playerIndex];
   const opponentGames = state.setMatch.score[opponentOf(playerIndex)];
+  if (isMatchComfortForPlayer(playerIndex) && playerGames >= opponentGames) return true;
   return playerGames === 5 && opponentGames <= 2;
 }
 
@@ -1503,6 +1548,27 @@ function isSetDangerForPlayer(playerIndex) {
   const playerGames = state.setMatch.score[playerIndex];
   const opponentGames = state.setMatch.score[opponentOf(playerIndex)];
   return opponentGames === 5 && playerGames <= 2;
+}
+
+function isMatchDangerForPlayer(playerIndex) {
+  if (!state.setMatch.targetSets) return false;
+  return state.setMatch.setsWon[opponentOf(playerIndex)] >= state.setMatch.targetSets - 1 && state.setMatch.setsWon[playerIndex] < state.setMatch.setsWon[opponentOf(playerIndex)];
+}
+
+function isMatchComfortForPlayer(playerIndex) {
+  if (!state.setMatch.targetSets) return false;
+  return state.setMatch.setsWon[playerIndex] >= state.setMatch.targetSets - 1 && state.setMatch.setsWon[playerIndex] > state.setMatch.setsWon[opponentOf(playerIndex)];
+}
+
+function isVulnerableToJuBoostPressure(playerIndex) {
+  if (playerIndex !== SOLO_AI.playerIndex || state.activePlayer !== playerIndex) return false;
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (player.endurance > 1 || !state.lastCard || state.boostAvailableFor === playerIndex || state.mandatoryPlacement) return false;
+  const canDefendFutureBoost = player.hand.some((card) => isRemise(card) && ["jokerResponse", "removeOpponentLast"].includes(card.effectType))
+    || player.hand.some((card) => isRemise(card) && getCardStats(player, card, false).placement >= 2);
+  const opponentCanPressure = opponent.hand.length >= 2 || opponent.power >= player.power;
+  return opponentCanPressure && !canDefendFutureBoost;
 }
 
 function chooseSoloSacrifice(playerIndex, boostedCard) {
@@ -2408,6 +2474,9 @@ function applySetMatchScore(winner, exchangeScore) {
   state.setMatch.winner = state.setMatch.setOver ? leadingSetPlayer(next) : null;
   if (state.setMatch.setOver) {
     state.setMatch.completedScores.push([...next]);
+    state.setMatch.setsWon[state.setMatch.winner] += 1;
+    state.setMatch.matchOver = Boolean(state.setMatch.targetSets && state.setMatch.setsWon[state.setMatch.winner] >= state.setMatch.targetSets);
+    state.setMatch.matchWinner = state.setMatch.matchOver ? state.setMatch.winner : null;
   }
   state.resultInfo.setMatch = {
     previousScore: previous,
@@ -2416,8 +2485,18 @@ function applySetMatchScore(winner, exchangeScore) {
     setOver: state.setMatch.setOver,
     winner: state.setMatch.winner,
     decisiveExchange: state.setMatch.decisiveExchange,
+    targetSets: state.setMatch.targetSets,
+    setsWon: [...state.setMatch.setsWon],
+    matchOver: state.setMatch.matchOver,
+    matchWinner: state.setMatch.matchWinner,
   };
   state.log.unshift(`Score du set : ${state.players[0].name} ${next[0]} / ${next[1]} ${state.players[1].name}.`);
+  if (state.setMatch.setOver) {
+    state.log.unshift(`Score du match : ${state.players[0].name} ${state.setMatch.setsWon[0]} / ${state.setMatch.setsWon[1]} ${state.players[1].name}.`);
+  }
+  if (state.setMatch.matchOver) {
+    state.log.unshift(`${state.players[state.setMatch.matchWinner].name} gagne le match.`);
+  }
 }
 
 function computeWinnerSetGames(currentWinnerGames, currentLoserGames, gainedGames) {
@@ -2454,23 +2533,36 @@ function nextSetServer() {
 }
 
 function startSetAiGame() {
-  if (SERVER_SYNC.enabled) {
-    state.log.unshift("Le set IA est disponible hors partie en ligne.");
+  startMatchMode(null);
+}
+
+function startMatchMode(targetSets = null) {
+  if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
+    state.log.unshift("Seul Coach Ju peut lancer un set ou un match en ligne.");
     render();
     return;
   }
-  SOLO_AI.enabled = true;
+  if (!SERVER_SYNC.enabled) {
+    SOLO_AI.enabled = true;
+  }
   resetSetMatch();
   state.setMatch.enabled = true;
+  state.setMatch.targetSets = targetSets;
+  state.setMatch.setsWon = [0, 0];
+  state.setMatch.matchOver = false;
+  state.setMatch.matchWinner = null;
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
   const styleLabel = SOLO_AI.style === "aggressive" ? "agressif" : SOLO_AI.style === "cautious" ? "prudent" : "équilibré";
-  state.log.unshift(`Mode Set IA : set complet contre Coach Max (${styleLabel}).`);
+  const formatLabel = targetSets ? `match en ${targetSets} sets gagnants` : "set complet";
+  const opponentLabel = SERVER_SYNC.enabled ? "en ligne" : `contre Coach Max (${styleLabel})`;
+  state.log.unshift(`Mode ${formatLabel} : ${opponentLabel}.`);
+  markServerDirtyForHostAction();
   render();
 }
 
 function nextSetExchange() {
-  if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver) return;
+  if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return;
   if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
     state.log.unshift("Seul Coach Ju peut lancer l'échange suivant en ligne.");
     render();
@@ -2482,13 +2574,15 @@ function nextSetExchange() {
 }
 
 function nextFullSet() {
-  if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver) return;
+  if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return;
   if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
     state.log.unshift("Seul Coach Ju peut lancer le set suivant en ligne.");
     render();
     return;
   }
   const completedScores = state.setMatch.completedScores.map((score) => [...score]);
+  const targetSets = state.setMatch.targetSets;
+  const setsWon = [...state.setMatch.setsWon];
   state.setMatch = {
     enabled: true,
     score: [0, 0],
@@ -2498,6 +2592,10 @@ function nextFullSet() {
     decisiveExchange: false,
     setOver: false,
     winner: null,
+    targetSets,
+    setsWon,
+    matchOver: false,
+    matchWinner: null,
   };
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
@@ -2584,6 +2682,8 @@ function renderResultPanel() {
       <div class="set-score-box set-match-box">
         <strong>Score du set : ${setMatch.score[0]} / ${setMatch.score[1]}</strong>
         ${setMatch.setOver ? `<span>Set gagné par ${state.players[setMatch.winner].name}</span>` : "<span>Le set continue.</span>"}
+        ${setMatch.targetSets ? `<span>Match : ${setMatch.setsWon[0]} / ${setMatch.setsWon[1]} set(s)</span>` : ""}
+        ${setMatch.matchOver ? `<span>Match gagné par ${state.players[setMatch.matchWinner].name}</span>` : ""}
       </div>
     ` : ""}
   `;
@@ -2674,9 +2774,19 @@ function renderModeButtons() {
     els.soloModeButton.disabled = SERVER_SYNC.enabled;
   }
   if (els.setModeButton) {
-    els.setModeButton.classList.toggle("active", state.setMatch.enabled);
-    els.setModeButton.textContent = state.setMatch.enabled ? "Set IA actif" : "Set IA";
-    els.setModeButton.disabled = SERVER_SYNC.enabled;
+    els.setModeButton.classList.toggle("active", state.setMatch.enabled && !state.setMatch.targetSets);
+    els.setModeButton.textContent = state.setMatch.enabled && !state.setMatch.targetSets ? "Set actif" : "Set IA";
+    els.setModeButton.disabled = SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0;
+  }
+  if (els.matchTwoButton) {
+    els.matchTwoButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 2);
+    els.matchTwoButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 2 ? "Match 2 actif" : "Match 2 sets";
+    els.matchTwoButton.disabled = SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0;
+  }
+  if (els.matchThreeButton) {
+    els.matchThreeButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 3);
+    els.matchThreeButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 3 ? "Match 3 actif" : "Match 3 sets";
+    els.matchThreeButton.disabled = SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0;
   }
   if (els.onlineModeButton) {
     els.onlineModeButton.classList.toggle("active", SERVER_SYNC.enabled);
@@ -2867,11 +2977,15 @@ function renderCenterSetScore() {
   let label = "Score de l'échange";
   let completedScores = [];
   let showCurrentScore = true;
+  let matchLine = "";
   if (state.setMatch.enabled) {
     games = state.setMatch.score;
     completedScores = state.setMatch.completedScores ?? [];
     showCurrentScore = !state.setMatch.setOver;
     label = "Score du set";
+    if (state.setMatch.targetSets) {
+      matchLine = `<div class="center-match-score">Match ${state.setMatch.setsWon[0]} / ${state.setMatch.setsWon[1]} · ${state.setMatch.targetSets} sets gagnants</div>`;
+    }
   } else if (state.gameOver && state.resultInfo?.setScore) {
     games = [0, 0];
     games[state.resultInfo.setScore.winner] = state.resultInfo.setScore.winnerGames;
@@ -2880,6 +2994,7 @@ function renderCenterSetScore() {
   if (!games) return "";
   return `
     <div class="center-set-stack" aria-label="${label}">
+      ${matchLine}
       ${completedScores.map((score) => `
         <div class="center-set-score completed-set-score">
           ${renderDigitImage(score[0])}
@@ -2897,12 +3012,12 @@ function renderCenterSetScore() {
 }
 
 function renderCenterNextExchangeButton() {
-  if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver) return "";
+  if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return "";
   return '<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>';
 }
 
 function renderCenterNextSetButton() {
-  if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver) return "";
+  if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
   return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
 }
 
@@ -3303,6 +3418,8 @@ els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
 els.soloModeButton?.addEventListener("click", startSoloGame);
 els.setModeButton?.addEventListener("click", startSetAiGame);
+els.matchTwoButton?.addEventListener("click", () => startMatchMode(2));
+els.matchThreeButton?.addEventListener("click", () => startMatchMode(3));
 els.onlineModeButton?.addEventListener("click", startOnlineGame);
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;
@@ -3311,6 +3428,6 @@ document.addEventListener("click", (event) => {
   }
 });
 window.forceSoloAITurn = forceSoloAITurn;
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, startMatchMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
 newGame();
 initServerSync();

@@ -892,6 +892,16 @@ h1 {
   transform: scale(0.88);
 }
 
+.center-match-score {
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #123047;
+  background: rgba(216, 243, 220, 0.92);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-align: center;
+}
+
 .center-set-score span {
   min-width: 0;
   color: #f7ffe1;
