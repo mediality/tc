@@ -80,9 +80,10 @@ function createRoom(req, options = {}) {
     updatedAt: Date.now(),
     status: options.status ?? "direct",
     targetSets: options.targetSets ?? null,
+    hostSeat,
     players: [
-      hostSeat === 0 ? { nickname: options.nickname ?? "Coach Ju", characterId: "coachJu", joinedAt: Date.now() } : null,
-      hostSeat === 1 ? { nickname: options.nickname ?? "Coach Max", characterId: "coachMax", joinedAt: Date.now() } : null,
+      hostSeat === 0 ? { nickname: options.nickname ?? "Coach Ju", characterId: options.characterId ?? "coachJu", joinedAt: Date.now(), isHost: true } : null,
+      hostSeat === 1 ? { nickname: options.nickname ?? "Coach Max", characterId: options.characterId ?? "coachMax", joinedAt: Date.now(), isHost: true } : null,
     ],
   };
   rooms.set(roomId, room);
@@ -158,6 +159,7 @@ async function handleApi(req, res) {
       targetSets,
       hostSeat,
       nickname,
+      characterId: payload.characterId === "coachMax" ? "coachMax" : "coachJu",
     });
     sendJson(res, 201, { room: publicRoomInfo(req, room), playerUrl: `${hostUrl}&targetSets=${targetSets}` });
     return;
@@ -176,10 +178,12 @@ async function handleApi(req, res) {
       return;
     }
     const payload = await readJson(req);
+    const characterId = payload.characterId === "coachMax" ? "coachMax" : "coachJu";
     room.players[openSeat] = {
       nickname: String(payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
-      characterId: openSeat === 0 ? "coachJu" : "coachMax",
+      characterId,
       joinedAt: Date.now(),
+      isHost: false,
     };
     room.status = "playing";
     room.updatedAt = Date.now();
@@ -190,6 +194,32 @@ async function handleApi(req, res) {
   if (req.method === "POST" && url.pathname === "/api/rooms") {
     const { room, coachJuUrl, coachMaxUrl } = createRoom(req);
     sendJson(res, 201, { roomId: room.id, coachJuUrl, coachMaxUrl });
+    return;
+  }
+
+  const leaveMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/leave$/);
+  if (req.method === "POST" && leaveMatch) {
+    const room = rooms.get(leaveMatch[1]);
+    if (!room) {
+      sendJson(res, 200, { ok: true, closed: true });
+      return;
+    }
+    const payload = await readJson(req);
+    const seat = seatForToken(room, payload.token);
+    if (seat == null) {
+      sendJson(res, 403, { error: "Token invalide." });
+      return;
+    }
+    if (seat === room.hostSeat) {
+      rooms.delete(room.id);
+      sendJson(res, 200, { ok: true, closed: true });
+      return;
+    }
+    room.players[seat] = null;
+    room.status = "waiting";
+    room.updatedAt = Date.now();
+    room.revision += 1;
+    sendJson(res, 200, { ok: true, closed: false, room: publicRoomInfo(req, room), revision: room.revision });
     return;
   }
 
