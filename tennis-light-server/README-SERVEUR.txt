@@ -3,10 +3,15 @@ Tennis Courts Light - version serveur
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
 2. Lancer : npm start
-3. Ouvrir : http://localhost:3000/new-room
+3. Ouvrir : http://localhost:3000/
 
-Le serveur cree un salon et redirige vers le lien Coach Ju.
-Dans le panneau "Partie en ligne", copier le lien adversaire et l'envoyer a Coach Max.
+Le serveur affiche un menu/lobby commun :
+- choisir un pseudo et un coach
+- creer une partie en ligne en match 2 sets ou match 3 sets
+- les autres joueurs avec le meme lien voient les parties ouvertes et peuvent rejoindre
+
+L'ancien lien direct reste disponible :
+http://localhost:3000/new-room
 
 Deployer :
 - Uploader tout ce dossier sur un hebergeur Node.js.

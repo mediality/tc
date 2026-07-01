@@ -32,8 +32,8 @@ function publicBaseUrl(req) {
   return `${proto}://${host}`;
 }
 
-function playerUrl(req, roomId, seat, token) {
-  return `${publicBaseUrl(req)}/?room=${encodeURIComponent(roomId)}&seat=${seat}&token=${encodeURIComponent(token)}`;
+function playerUrl(req, roomId, seat, token, isHost = false) {
+  return `${publicBaseUrl(req)}/?room=${encodeURIComponent(roomId)}&seat=${seat}&token=${encodeURIComponent(token)}${isHost ? "&host=1" : ""}`;
 }
 
 function sendJson(res, status, payload) {
@@ -65,10 +65,12 @@ function readJson(req) {
   });
 }
 
-function createRoom(req) {
+function createRoom(req, options = {}) {
   let roomId = makeId(3);
   while (rooms.has(roomId)) roomId = makeId(3);
   const tokens = [makeToken(), makeToken()];
+  const hostSeat = options.hostSeat ?? 0;
+  const guestSeat = hostSeat === 0 ? 1 : 0;
   const room = {
     id: roomId,
     tokens,
@@ -76,12 +78,20 @@ function createRoom(req) {
     revision: 0,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    status: options.status ?? "direct",
+    targetSets: options.targetSets ?? null,
+    players: [
+      hostSeat === 0 ? { nickname: options.nickname ?? "Coach Ju", characterId: "coachJu", joinedAt: Date.now() } : null,
+      hostSeat === 1 ? { nickname: options.nickname ?? "Coach Max", characterId: "coachMax", joinedAt: Date.now() } : null,
+    ],
   };
   rooms.set(roomId, room);
   return {
     room,
-    coachJuUrl: playerUrl(req, roomId, 0, tokens[0]),
+    coachJuUrl: playerUrl(req, roomId, 0, tokens[0], hostSeat === 0),
     coachMaxUrl: playerUrl(req, roomId, 1, tokens[1]),
+    hostUrl: playerUrl(req, roomId, hostSeat, tokens[hostSeat], true),
+    guestUrl: playerUrl(req, roomId, guestSeat, tokens[guestSeat]),
   };
 }
 
@@ -114,8 +124,68 @@ function serveStatic(req, res) {
   });
 }
 
+function publicRoomInfo(req, room) {
+  return {
+    id: room.id,
+    status: room.status,
+    targetSets: room.targetSets,
+    createdAt: room.createdAt,
+    updatedAt: room.updatedAt,
+    players: room.players.map((player, seat) => player ? { seat, nickname: player.nickname, characterId: player.characterId } : null),
+    openSeat: room.players.findIndex((player) => player == null),
+  };
+}
+
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  if (req.method === "GET" && url.pathname === "/api/lobby") {
+    const openRooms = [...rooms.values()]
+      .filter((room) => room.status === "waiting")
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((room) => publicRoomInfo(req, room));
+    sendJson(res, 200, { rooms: openRooms });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/lobby/rooms") {
+    const payload = await readJson(req);
+    const targetSets = Number(payload.targetSets) === 3 ? 3 : 2;
+    const hostSeat = payload.characterId === "coachMax" ? 1 : 0;
+    const nickname = String(payload.nickname || (hostSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24);
+    const { room, hostUrl } = createRoom(req, {
+      status: "waiting",
+      targetSets,
+      hostSeat,
+      nickname,
+    });
+    sendJson(res, 201, { room: publicRoomInfo(req, room), playerUrl: `${hostUrl}&targetSets=${targetSets}` });
+    return;
+  }
+
+  const joinMatch = url.pathname.match(/^\/api\/lobby\/rooms\/([^/]+)\/join$/);
+  if (req.method === "POST" && joinMatch) {
+    const room = rooms.get(joinMatch[1]);
+    if (!room || room.status !== "waiting") {
+      sendJson(res, 404, { error: "Partie indisponible." });
+      return;
+    }
+    const openSeat = room.players.findIndex((player) => player == null);
+    if (openSeat === -1) {
+      sendJson(res, 409, { error: "Partie complète." });
+      return;
+    }
+    const payload = await readJson(req);
+    room.players[openSeat] = {
+      nickname: String(payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
+      characterId: openSeat === 0 ? "coachJu" : "coachMax",
+      joinedAt: Date.now(),
+    };
+    room.status = "playing";
+    room.updatedAt = Date.now();
+    sendJson(res, 200, { room: publicRoomInfo(req, room), playerUrl: playerUrl(req, room.id, openSeat, room.tokens[openSeat]) });
+    return;
+  }
 
   if (req.method === "POST" && url.pathname === "/api/rooms") {
     const { room, coachJuUrl, coachMaxUrl } = createRoom(req);
@@ -154,6 +224,9 @@ async function handleApi(req, res) {
       seat,
       revision: room.revision,
       state: room.state,
+      targetSets: room.targetSets,
+      status: room.status,
+      players: room.players,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
     return;
@@ -169,11 +242,14 @@ async function handleApi(req, res) {
     room.state = payload.state;
     room.revision += 1;
     room.updatedAt = Date.now();
+    if (room.status === "direct") room.status = "playing";
     sendJson(res, 200, {
       ok: true,
       roomId: room.id,
       seat,
       revision: room.revision,
+      targetSets: room.targetSets,
+      status: room.status,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
     return;

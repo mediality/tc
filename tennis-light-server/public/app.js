@@ -22,6 +22,8 @@ const SERVER_SYNC = {
   initializing: false,
   applyingRemote: false,
   localDirty: false,
+  isHost: false,
+  targetSets: null,
   lastSent: "",
   timer: null,
   pollTimer: null,
@@ -40,6 +42,12 @@ const SOLO_AI = {
   watchdogTimer: null,
   nudgeVisible: false,
   nudgeWatchedTurn: null,
+};
+
+const MENU_STATE = {
+  selectedPlayerIndex: Number(localStorage.getItem("tennisLightSelectedPlayer") || 0),
+  nickname: localStorage.getItem("tennisLightNickname") || "",
+  lobbyTimer: null,
 };
 
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
@@ -403,6 +411,15 @@ const state = {
 
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
+  returnLobbyButton: document.querySelector("#returnLobbyButton"),
+  menuScreen: document.querySelector("#menuScreen"),
+  gameApp: document.querySelector(".game-app"),
+  nicknameInput: document.querySelector("#nicknameInput"),
+  coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
+  refreshLobbyButton: document.querySelector("#refreshLobbyButton"),
+  createLobbyRoomButton: document.querySelector("#createLobbyRoomButton"),
+  onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
+  lobbyRooms: document.querySelector("#lobbyRooms"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
@@ -428,7 +445,202 @@ function serverSyncParams() {
     roomId: params.get("room"),
     token: params.get("token"),
     seat: Number(params.get("seat")),
+    isHost: params.get("host") === "1",
+    targetSets: params.has("targetSets") ? Number(params.get("targetSets")) : null,
   };
+}
+
+function selectedCharacterId() {
+  return MENU_STATE.selectedPlayerIndex === 0 ? "coachJu" : "coachMax";
+}
+
+function selectedPlayerName() {
+  return MENU_STATE.selectedPlayerIndex === 0 ? "Coach Ju" : "Coach Max";
+}
+
+function nicknameValue() {
+  const value = els.nicknameInput?.value?.trim() || MENU_STATE.nickname || "";
+  return value || selectedPlayerName();
+}
+
+function updateMenuSelection() {
+  if (els.nicknameInput) els.nicknameInput.value = MENU_STATE.nickname;
+  els.coachChoiceButtons?.forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.menuCoach) === MENU_STATE.selectedPlayerIndex);
+  });
+}
+
+function showGameScreen() {
+  els.menuScreen?.classList.add("hidden");
+  els.gameApp?.classList.remove("hidden");
+}
+
+function showMenuScreen() {
+  els.gameApp?.classList.add("hidden");
+  els.menuScreen?.classList.remove("hidden");
+}
+
+function stopSoloTimers() {
+  window.clearTimeout(SOLO_AI.timer);
+  window.clearTimeout(SOLO_AI.nudgeTimer);
+  window.clearTimeout(SOLO_AI.nudgeAutoTimer);
+  window.clearTimeout(SOLO_AI.watchdogTimer);
+  SOLO_AI.thinking = false;
+  SOLO_AI.executing = false;
+  SOLO_AI.nudgeVisible = false;
+  SOLO_AI.nudgeWatchedTurn = null;
+}
+
+function leaveOnlineRoom() {
+  window.clearInterval(SERVER_SYNC.pollTimer);
+  window.clearTimeout(SERVER_SYNC.timer);
+  SERVER_SYNC.enabled = false;
+  SERVER_SYNC.roomId = null;
+  SERVER_SYNC.token = null;
+  SERVER_SYNC.seat = null;
+  SERVER_SYNC.ready = false;
+  SERVER_SYNC.initializing = false;
+  SERVER_SYNC.applyingRemote = false;
+  SERVER_SYNC.localDirty = false;
+  SERVER_SYNC.isHost = false;
+  SERVER_SYNC.targetSets = null;
+  SERVER_SYNC.lastSent = "";
+  SERVER_SYNC.revision = 0;
+}
+
+function clearOnlineUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  ["room", "token", "seat", "host", "targetSets"].forEach((key) => params.delete(key));
+  const nextQuery = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+}
+
+function closeReturnLobbyDialog() {
+  document.querySelector(".return-lobby-dialog")?.remove();
+}
+
+function confirmReturnToLobby() {
+  closeReturnLobbyDialog();
+  SOLO_AI.enabled = false;
+  stopSoloTimers();
+  leaveOnlineRoom();
+  clearOnlineUrlParams();
+  showMenuScreen();
+  refreshLobbyRooms();
+  render();
+}
+
+function openReturnLobbyDialog() {
+  closeReturnLobbyDialog();
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop return-lobby-dialog";
+  backdrop.innerHTML = `
+    <div class="modal return-lobby-modal" role="dialog" aria-modal="true" aria-labelledby="returnLobbyTitle">
+      <h2 id="returnLobbyTitle">Voulez-vous retourner au lobby ?</h2>
+      <p>La partie en cours restera affichée seulement si vous choisissez Non.</p>
+      <div class="dialog-actions">
+        <button class="primary-button" type="button" data-confirm-return-lobby>OUI</button>
+        <button class="small-button" type="button" data-cancel-return-lobby>NON</button>
+      </div>
+    </div>
+  `;
+  backdrop.querySelector("[data-confirm-return-lobby]")?.addEventListener("click", confirmReturnToLobby);
+  backdrop.querySelector("[data-cancel-return-lobby]")?.addEventListener("click", closeReturnLobbyDialog);
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) closeReturnLobbyDialog();
+  });
+  document.body.appendChild(backdrop);
+}
+
+function configureSoloOpponent() {
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = opponentOf(MENU_STATE.selectedPlayerIndex);
+}
+
+function startSoloFromMenu(mode) {
+  configureSoloOpponent();
+  showGameScreen();
+  if (mode === "exchange") {
+    startSoloGame();
+  } else if (mode === "set") {
+    startMatchMode(null);
+  } else if (mode === "match2") {
+    startMatchMode(2);
+  } else if (mode === "match3") {
+    startMatchMode(3);
+  }
+}
+
+function renderLobbyRooms(rooms = []) {
+  if (!els.lobbyRooms) return;
+  if (!rooms.length) {
+    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Aucune partie ouverte pour le moment.</div>';
+    return;
+  }
+  els.lobbyRooms.innerHTML = rooms.map((room) => {
+    const host = room.players.find(Boolean);
+    const format = room.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
+    const coach = host?.characterId === "coachMax" ? "Coach Max" : "Coach Ju";
+    return `
+      <article class="lobby-room">
+        <div>
+          <strong>${host?.nickname ?? "Joueur"} · ${format}</strong>
+          <span>${coach} · Salon ${room.id}</span>
+        </div>
+        <button class="small-button" type="button" data-join-room="${room.id}">Rejoindre</button>
+      </article>
+    `;
+  }).join("");
+  els.lobbyRooms.querySelectorAll("[data-join-room]").forEach((button) => {
+    button.addEventListener("click", () => joinLobbyRoom(button.dataset.joinRoom));
+  });
+}
+
+async function refreshLobbyRooms() {
+  if (!els.lobbyRooms) return;
+  try {
+    const response = await fetch("/api/lobby");
+    if (!response.ok) throw new Error("lobby unavailable");
+    const data = await response.json();
+    renderLobbyRooms(data.rooms ?? []);
+  } catch (error) {
+    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Lobby indisponible sur cette version locale.</div>';
+  }
+}
+
+async function createLobbyRoom() {
+  const targetSets = Number(els.onlineFormatSelect?.value || 2);
+  try {
+    const response = await fetch("/api/lobby/rooms", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        nickname: nicknameValue(),
+        characterId: selectedCharacterId(),
+        targetSets,
+      }),
+    });
+    if (!response.ok) throw new Error("create failed");
+    const data = await response.json();
+    window.location.href = data.playerUrl;
+  } catch (error) {
+    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Impossible de créer une partie depuis cette version. Lancez la version serveur.</div>';
+  }
+}
+
+async function joinLobbyRoom(roomId) {
+  try {
+    const response = await fetch(`/api/lobby/rooms/${encodeURIComponent(roomId)}/join`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nickname: nicknameValue() }),
+    });
+    if (!response.ok) throw new Error("join failed");
+    const data = await response.json();
+    window.location.href = data.playerUrl;
+  } catch (error) {
+    await refreshLobbyRooms();
+  }
 }
 
 function cloneCard(card, copyIndex) {
@@ -559,7 +771,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v56",
+    version: "v58",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -601,8 +813,8 @@ function resetSetMatch() {
 
 function newGame(options = {}) {
   const { preserveSet = false, serverOverride = null } = options;
-  if (SERVER_SYNC.enabled && SERVER_SYNC.ready && SERVER_SYNC.seat !== 0) {
-    state.log.unshift("Seul Coach Ju peut relancer un échange en ligne pour le moment.");
+  if (SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
+    state.log.unshift("Seul l'hôte peut relancer un échange en ligne pour le moment.");
     render();
     return;
   }
@@ -665,7 +877,7 @@ function newGame(options = {}) {
   }
   captureTurnSnapshot();
   els.resultPanel.classList.add("hidden");
-  if (SERVER_SYNC.enabled && SERVER_SYNC.seat === 0) {
+  if (SERVER_SYNC.enabled && SERVER_SYNC.isHost) {
     SERVER_SYNC.initializing = true;
     SERVER_SYNC.ready = true;
   }
@@ -783,7 +995,7 @@ function markLocalServerDirty(playerIndex) {
 }
 
 function markServerDirtyForHostAction() {
-  if (SERVER_SYNC.enabled && !SERVER_SYNC.applyingRemote && SERVER_SYNC.seat === 0) {
+  if (SERVER_SYNC.enabled && !SERVER_SYNC.applyingRemote && SERVER_SYNC.isHost) {
     SERVER_SYNC.localDirty = true;
   }
 }
@@ -794,7 +1006,7 @@ function activePlayer() {
 
 function canUseSeat(playerIndex) {
   if (SERVER_SYNC.enabled) return SERVER_SYNC.ready && playerIndex === SERVER_SYNC.seat;
-  if (SOLO_AI.enabled) return playerIndex === 0 || (playerIndex === SOLO_AI.playerIndex && SOLO_AI.executing);
+  if (SOLO_AI.enabled) return playerIndex !== SOLO_AI.playerIndex || (playerIndex === SOLO_AI.playerIndex && SOLO_AI.executing);
   return true;
 }
 
@@ -911,6 +1123,7 @@ function startSoloGame() {
     return;
   }
   SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = opponentOf(MENU_STATE.selectedPlayerIndex);
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
   window.clearTimeout(SOLO_AI.timer);
@@ -921,25 +1134,13 @@ function startSoloGame() {
   SOLO_AI.nudgeWatchedTurn = null;
   newGame();
   const styleLabel = SOLO_AI.style === "aggressive" ? "agressif" : SOLO_AI.style === "cautious" ? "prudent" : "équilibré";
-  state.log.unshift(`Mode IA : vous jouez Coach Ju, Coach Max joue ${styleLabel}.`);
+  state.log.unshift(`Mode IA : vous jouez ${selectedPlayerName()}, l'autre coach joue ${styleLabel}.`);
   render();
 }
 
 async function startOnlineGame() {
-  if (SOLO_AI.enabled) {
-    state.log.unshift("Relancez une partie normale avant de créer une partie en ligne.");
-    render();
-    return;
-  }
-  try {
-    const response = await fetch("/api/rooms", { method: "POST" });
-    if (!response.ok) throw new Error("online unavailable");
-    const room = await response.json();
-    window.location.href = room.coachJuUrl;
-  } catch (error) {
-    state.log.unshift("Mode en ligne : lancez cette version depuis le serveur Render pour créer un lien adversaire.");
-    render();
-  }
+  showMenuScreen();
+  await refreshLobbyRooms();
 }
 
 function toggleRevealAiCards() {
@@ -1399,7 +1600,7 @@ function previewSetMatchScore(winner, exchangeScore) {
   const next = [...previous];
   if (Math.max(...previous) === 6 && Math.min(...previous) === 5) {
     next[winner] = 7;
-    next[loser] = previous[winner] > previous[loser] ? 5 : 6;
+    next[loser] = Math.min(6, previous[loser] + exchangeScore.loserGames);
   } else if (state.setMatch.decisiveExchange || isDecisiveSetScore(previous)) {
     next[winner] = 7;
     next[loser] = 6;
@@ -2458,7 +2659,7 @@ function applySetMatchScore(winner, exchangeScore) {
 
   if (Math.max(...previous) === 6 && Math.min(...previous) === 5) {
     next[winner] = 7;
-    next[loser] = previous[winner] > previous[loser] ? 5 : 6;
+    next[loser] = Math.min(6, previous[loser] + exchangeScore.loserGames);
   } else if (state.setMatch.decisiveExchange || isDecisiveSetScore(previous)) {
     next[winner] = 7;
     next[loser] = 6;
@@ -2537,13 +2738,13 @@ function startSetAiGame() {
 }
 
 function startMatchMode(targetSets = null) {
-  if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
-    state.log.unshift("Seul Coach Ju peut lancer un set ou un match en ligne.");
+  if (SERVER_SYNC.enabled && !SERVER_SYNC.isHost) {
+    state.log.unshift("Seul l'hôte peut lancer un set ou un match en ligne.");
     render();
     return;
   }
   if (!SERVER_SYNC.enabled) {
-    SOLO_AI.enabled = true;
+    configureSoloOpponent();
   }
   resetSetMatch();
   state.setMatch.enabled = true;
@@ -2563,8 +2764,8 @@ function startMatchMode(targetSets = null) {
 
 function nextSetExchange() {
   if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return;
-  if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
-    state.log.unshift("Seul Coach Ju peut lancer l'échange suivant en ligne.");
+  if (SERVER_SYNC.enabled && !SERVER_SYNC.isHost) {
+    state.log.unshift("Seul l'hôte peut lancer l'échange suivant en ligne.");
     render();
     return;
   }
@@ -2575,8 +2776,8 @@ function nextSetExchange() {
 
 function nextFullSet() {
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return;
-  if (SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0) {
-    state.log.unshift("Seul Coach Ju peut lancer le set suivant en ligne.");
+  if (SERVER_SYNC.enabled && !SERVER_SYNC.isHost) {
+    state.log.unshift("Seul l'hôte peut lancer le set suivant en ligne.");
     render();
     return;
   }
@@ -2776,17 +2977,17 @@ function renderModeButtons() {
   if (els.setModeButton) {
     els.setModeButton.classList.toggle("active", state.setMatch.enabled && !state.setMatch.targetSets);
     els.setModeButton.textContent = state.setMatch.enabled && !state.setMatch.targetSets ? "Set actif" : "Set IA";
-    els.setModeButton.disabled = SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0;
+    els.setModeButton.disabled = SERVER_SYNC.enabled && !SERVER_SYNC.isHost;
   }
   if (els.matchTwoButton) {
     els.matchTwoButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 2);
     els.matchTwoButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 2 ? "Match 2 actif" : "Match 2 sets";
-    els.matchTwoButton.disabled = SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0;
+    els.matchTwoButton.disabled = SERVER_SYNC.enabled && !SERVER_SYNC.isHost;
   }
   if (els.matchThreeButton) {
     els.matchThreeButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 3);
     els.matchThreeButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 3 ? "Match 3 actif" : "Match 3 sets";
-    els.matchThreeButton.disabled = SERVER_SYNC.enabled && SERVER_SYNC.seat !== 0;
+    els.matchThreeButton.disabled = SERVER_SYNC.enabled && !SERVER_SYNC.isHost;
   }
   if (els.onlineModeButton) {
     els.onlineModeButton.classList.toggle("active", SERVER_SYNC.enabled);
@@ -3371,6 +3572,7 @@ async function pollServerState() {
     if (!response.ok) throw new Error("poll failed");
     const data = await response.json();
     SERVER_SYNC.inviteUrl = data.inviteUrl ?? SERVER_SYNC.inviteUrl;
+    SERVER_SYNC.targetSets = data.targetSets ?? SERVER_SYNC.targetSets;
     if (data.state && data.revision !== SERVER_SYNC.revision) {
       SERVER_SYNC.revision = data.revision;
       SERVER_SYNC.ready = true;
@@ -3401,19 +3603,49 @@ function initServerSync() {
   SERVER_SYNC.roomId = params.roomId;
   SERVER_SYNC.token = params.token;
   SERVER_SYNC.seat = params.seat;
-  SERVER_SYNC.initializing = SERVER_SYNC.seat === 0;
-  if (SERVER_SYNC.seat === 0) {
-    state.setMatch.enabled = true;
+  SERVER_SYNC.isHost = params.isHost;
+  SERVER_SYNC.targetSets = params.targetSets;
+  SERVER_SYNC.initializing = SERVER_SYNC.isHost;
+  showGameScreen();
+  if (SERVER_SYNC.isHost) {
+    startMatchMode(SERVER_SYNC.targetSets ?? 2);
+    pollServerState();
+    SERVER_SYNC.pollTimer = window.setInterval(pollServerState, 1000);
+    return;
   }
   render();
-  if (SERVER_SYNC.initializing) {
-    scheduleServerSync();
-  }
   pollServerState();
   SERVER_SYNC.pollTimer = window.setInterval(pollServerState, 1000);
 }
 
+function initMenu() {
+  MENU_STATE.selectedPlayerIndex = MENU_STATE.selectedPlayerIndex === 1 ? 1 : 0;
+  updateMenuSelection();
+  els.nicknameInput?.addEventListener("input", () => {
+    MENU_STATE.nickname = els.nicknameInput.value.trim();
+    localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);
+  });
+  els.coachChoiceButtons?.forEach((button) => {
+    button.addEventListener("click", () => {
+      MENU_STATE.selectedPlayerIndex = Number(button.dataset.menuCoach) === 1 ? 1 : 0;
+      localStorage.setItem("tennisLightSelectedPlayer", String(MENU_STATE.selectedPlayerIndex));
+      updateMenuSelection();
+    });
+  });
+  document.querySelectorAll("[data-start-solo]").forEach((button) => {
+    button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
+  });
+  els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
+  els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
+  refreshLobbyRooms();
+  window.clearInterval(MENU_STATE.lobbyTimer);
+  MENU_STATE.lobbyTimer = window.setInterval(() => {
+    if (!els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
+  }, 3500);
+}
+
 els.newGameButton.addEventListener("click", newGame);
+els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
 els.soloModeButton?.addEventListener("click", startSoloGame);
@@ -3430,4 +3662,5 @@ document.addEventListener("click", (event) => {
 window.forceSoloAITurn = forceSoloAITurn;
 window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, startMatchMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
 newGame();
+initMenu();
 initServerSync();

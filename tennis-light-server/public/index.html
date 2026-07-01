@@ -4,17 +4,69 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=56" />
+    <link rel="stylesheet" href="./styles.css?v=58" />
   </head>
   <body>
-    <main class="app">
+    <section id="menuScreen" class="menu-screen">
+      <div class="menu-shell">
+        <p class="eyebrow">Tennis Courts Academy <span>v58</span></p>
+        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+
+        <div class="menu-grid">
+          <section class="menu-panel player-select-panel">
+            <p class="label">Profil</p>
+            <label class="menu-field">Pseudo
+              <input id="nicknameInput" type="text" maxlength="24" placeholder="Votre pseudo" />
+            </label>
+            <div class="coach-choice-row" aria-label="Choisir son coach">
+              <button class="coach-choice active" type="button" data-menu-coach="0">
+                <img src="./assets/cards/Demo-TC-_0004_Coach-JU-RECTO.png" alt="Coach Ju" />
+                <span>Coach Ju</span>
+              </button>
+              <button class="coach-choice" type="button" data-menu-coach="1">
+                <img src="./assets/cards/Demo-TC-_0002_Coach-MAX-VERSO.png" alt="Coach Max" />
+                <span>Coach Max</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="menu-panel">
+            <p class="label">Contre l'IA</p>
+            <div class="menu-actions">
+              <button class="primary-button" type="button" data-start-solo="exchange">Échange</button>
+              <button class="small-button" type="button" data-start-solo="set">Set</button>
+              <button class="small-button" type="button" data-start-solo="match2">Match 2 sets</button>
+              <button class="small-button" type="button" data-start-solo="match3">Match 3 sets</button>
+            </div>
+          </section>
+
+          <section class="menu-panel online-lobby-panel">
+            <div class="lobby-header">
+              <p class="label">Lobby en ligne</p>
+              <button id="refreshLobbyButton" class="small-button" type="button">Actualiser</button>
+            </div>
+            <div class="create-online-row">
+              <select id="onlineFormatSelect" aria-label="Format de partie en ligne">
+                <option value="2">Match 2 sets</option>
+                <option value="3">Match 3 sets</option>
+              </select>
+              <button id="createLobbyRoomButton" class="primary-button" type="button">Créer une partie en ligne</button>
+            </div>
+            <div id="lobbyRooms" class="lobby-rooms" aria-live="polite"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v56</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v58</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
           <button id="newGameButton" class="primary-button" type="button">Nouvel échange</button>
+          <button id="returnLobbyButton" class="small-button" type="button">Retour lobby</button>
           <button id="exportLogsButton" class="small-button" type="button">Exporter logs</button>
           <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler les cartes</button>
           <button id="soloModeButton" class="small-button solo-button" type="button">Mode IA</button>
@@ -46,6 +98,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=56"></script>
+    <script src="./app.js?v=58"></script>
   </body>
 </html>
