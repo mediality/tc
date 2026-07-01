@@ -24,6 +24,8 @@ const SERVER_SYNC = {
   localDirty: false,
   isHost: false,
   targetSets: null,
+  status: null,
+  players: [null, null],
   lastSent: "",
   timer: null,
   pollTimer: null,
@@ -458,6 +460,49 @@ function selectedPlayerName() {
   return MENU_STATE.selectedPlayerIndex === 0 ? "Coach Ju" : "Coach Max";
 }
 
+function characterNameFromId(characterId) {
+  return CHARACTERS[characterId]?.name ?? (characterId === "coachMax" ? "Coach Max" : "Coach Ju");
+}
+
+function onlineProfileForSeat(seat) {
+  const remotePlayer = SERVER_SYNC.players?.[seat];
+  const fallbackCharacterId = seat === 0 ? "coachJu" : "coachMax";
+  const characterId = remotePlayer?.characterId === "coachMax" ? "coachMax" : remotePlayer?.characterId === "coachJu" ? "coachJu" : fallbackCharacterId;
+  const name = characterNameFromId(characterId);
+  return {
+    name,
+    characterId,
+    nickname: remotePlayer?.nickname ?? name,
+  };
+}
+
+function applyOnlinePlayersFromRoom(players = []) {
+  SERVER_SYNC.players = [players[0] ?? null, players[1] ?? null];
+  if (!state.players.length) return false;
+  let changed = false;
+  state.players.forEach((player, seat) => {
+    const remotePlayer = SERVER_SYNC.players[seat];
+    if (!remotePlayer) return;
+    const characterId = remotePlayer.characterId === "coachMax" ? "coachMax" : "coachJu";
+    const name = characterNameFromId(characterId);
+    const nickname = remotePlayer.nickname || name;
+    if (player.characterId !== characterId) {
+      player.characterId = characterId;
+      player.characterSide = 0;
+      changed = true;
+    }
+    if (player.name !== name) {
+      player.name = name;
+      changed = true;
+    }
+    if (player.nickname !== nickname) {
+      player.nickname = nickname;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 function nicknameValue() {
   const value = els.nicknameInput?.value?.trim() || MENU_STATE.nickname || "";
   return value || selectedPlayerName();
@@ -504,8 +549,23 @@ function leaveOnlineRoom() {
   SERVER_SYNC.localDirty = false;
   SERVER_SYNC.isHost = false;
   SERVER_SYNC.targetSets = null;
+  SERVER_SYNC.status = null;
+  SERVER_SYNC.players = [null, null];
   SERVER_SYNC.lastSent = "";
   SERVER_SYNC.revision = 0;
+}
+
+async function notifyServerLeaveRoom() {
+  if (!SERVER_SYNC.enabled || !SERVER_SYNC.roomId || !SERVER_SYNC.token) return;
+  try {
+    await fetch(`/api/rooms/${SERVER_SYNC.roomId}/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: SERVER_SYNC.token }),
+    });
+  } catch (error) {
+    // Le retour au lobby ne doit pas être bloqué par une réponse réseau absente.
+  }
 }
 
 function clearOnlineUrlParams() {
@@ -515,12 +575,24 @@ function clearOnlineUrlParams() {
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
 
+function handleRemoteRoomClosed() {
+  closeReturnLobbyDialog();
+  SOLO_AI.enabled = false;
+  stopSoloTimers();
+  leaveOnlineRoom();
+  clearOnlineUrlParams();
+  showMenuScreen();
+  refreshLobbyRooms();
+  render();
+}
+
 function closeReturnLobbyDialog() {
   document.querySelector(".return-lobby-dialog")?.remove();
 }
 
-function confirmReturnToLobby() {
+async function confirmReturnToLobby() {
   closeReturnLobbyDialog();
+  await notifyServerLeaveRoom();
   SOLO_AI.enabled = false;
   stopSoloTimers();
   leaveOnlineRoom();
@@ -633,7 +705,7 @@ async function joinLobbyRoom(roomId) {
     const response = await fetch(`/api/lobby/rooms/${encodeURIComponent(roomId)}/join`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ nickname: nicknameValue() }),
+      body: JSON.stringify({ nickname: nicknameValue(), characterId: selectedCharacterId() }),
     });
     if (!response.ok) throw new Error("join failed");
     const data = await response.json();
@@ -659,9 +731,10 @@ function shuffle(items) {
   return copy;
 }
 
-function createPlayer(name, characterId) {
+function createPlayer(name, characterId, nickname = name) {
   return {
     name,
+    nickname,
     characterId,
     characterSide: 0,
     roseEnduranceAwarded: false,
@@ -771,7 +844,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v58",
+    version: "v59",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -830,7 +903,12 @@ function newGame(options = {}) {
   SOLO_AI.nudgeVisible = false;
   SOLO_AI.nudgeWatchedTurn = null;
   const deck = shuffle(CARD_LIBRARY.map(cloneCard));
-  state.players = [createPlayer("Coach Ju", "coachJu"), createPlayer("Coach Max", "coachMax")];
+  const profiles = SERVER_SYNC.enabled
+    ? [onlineProfileForSeat(0), onlineProfileForSeat(1)]
+    : [null, null];
+  state.players = SERVER_SYNC.enabled
+    ? profiles.map((profile) => createPlayer(profile.name, profile.characterId, profile.nickname))
+    : [createPlayer("Coach Ju", "coachJu"), createPlayer("Coach Max", "coachMax")];
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
@@ -3015,8 +3093,10 @@ function renderServerSyncPanel() {
     document.querySelector(".topbar")?.append(panel);
   }
   const inviteUrl = SERVER_SYNC.inviteUrl ?? "";
+  const localPlayer = state.players[SERVER_SYNC.seat];
+  const localLabel = localPlayer ? `${localPlayer.nickname ?? localPlayer.name} · ${localPlayer.name}` : `Siège ${SERVER_SYNC.seat + 1}`;
   panel.innerHTML = `
-    <p><strong>Partie en ligne</strong> Salon ${SERVER_SYNC.roomId} · ${SERVER_SYNC.seat === 0 ? "Coach Ju" : "Coach Max"}</p>
+    <p><strong>Partie en ligne</strong> Salon ${SERVER_SYNC.roomId} · ${localLabel}</p>
     ${inviteUrl ? `<label>Lien adversaire<input id="inviteLinkInput" readonly value="${inviteUrl}" /></label><button class="small-button copy-link-button" type="button" data-copy-invite>Copier le lien</button>` : ""}
     <span>${SERVER_SYNC.ready ? "Synchronisé" : "Connexion..."}</span>
   `;
@@ -3282,6 +3362,7 @@ function renderPlayerPanel(playerIndex, root) {
     <header class="player-header">
       <div>
         <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${player.name}</h2>
+        <div class="player-nickname">${player.nickname ?? player.name}</div>
         <div class="turn-buttons">
           <button class="pass-button" type="button" data-pass="${playerIndex}" ${playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) ? "disabled" : ""}>Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">Terminer le tour</button>` : ""}
@@ -3569,17 +3650,27 @@ async function pollServerState() {
   if (!SERVER_SYNC.enabled) return;
   try {
     const response = await fetch(`/api/rooms/${SERVER_SYNC.roomId}/state?token=${encodeURIComponent(SERVER_SYNC.token)}&revision=${SERVER_SYNC.revision}`);
+    if (response.status === 404) {
+      handleRemoteRoomClosed();
+      return;
+    }
     if (!response.ok) throw new Error("poll failed");
     const data = await response.json();
     SERVER_SYNC.inviteUrl = data.inviteUrl ?? SERVER_SYNC.inviteUrl;
     SERVER_SYNC.targetSets = data.targetSets ?? SERVER_SYNC.targetSets;
+    SERVER_SYNC.status = data.status ?? SERVER_SYNC.status;
+    const playersChanged = applyOnlinePlayersFromRoom(data.players ?? SERVER_SYNC.players);
     if (data.state && data.revision !== SERVER_SYNC.revision) {
       SERVER_SYNC.revision = data.revision;
       SERVER_SYNC.ready = true;
       SERVER_SYNC.lastSent = JSON.stringify(data.state);
       importSyncState(data.state);
+      applyOnlinePlayersFromRoom(data.players ?? SERVER_SYNC.players);
     } else {
       renderServerSyncPanel();
+    }
+    if (SERVER_SYNC.isHost && playersChanged) {
+      markServerDirtyForHostAction();
     }
   } catch (error) {
     renderServerSyncPanel();
@@ -3605,6 +3696,8 @@ function initServerSync() {
   SERVER_SYNC.seat = params.seat;
   SERVER_SYNC.isHost = params.isHost;
   SERVER_SYNC.targetSets = params.targetSets;
+  SERVER_SYNC.status = null;
+  SERVER_SYNC.players = [null, null];
   SERVER_SYNC.initializing = SERVER_SYNC.isHost;
   showGameScreen();
   if (SERVER_SYNC.isHost) {
