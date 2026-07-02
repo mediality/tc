@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const rooms = new Map();
+const COACH_IDS = new Set(["coachJu", "coachMax", "coachCarla", "coachClem"]);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -24,6 +25,10 @@ function makeId(size = 4) {
 
 function makeToken() {
   return crypto.randomBytes(18).toString("base64url");
+}
+
+function normalizeCharacterId(characterId, fallback = "coachJu") {
+  return COACH_IDS.has(characterId) ? characterId : fallback;
 }
 
 function publicBaseUrl(req) {
@@ -152,14 +157,15 @@ async function handleApi(req, res) {
   if (req.method === "POST" && url.pathname === "/api/lobby/rooms") {
     const payload = await readJson(req);
     const targetSets = Number(payload.targetSets) === 3 ? 3 : 2;
-    const hostSeat = payload.characterId === "coachMax" ? 1 : 0;
+    const characterId = normalizeCharacterId(payload.characterId);
+    const hostSeat = characterId === "coachMax" ? 1 : 0;
     const nickname = String(payload.nickname || (hostSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24);
     const { room, hostUrl } = createRoom(req, {
       status: "waiting",
       targetSets,
       hostSeat,
       nickname,
-      characterId: payload.characterId === "coachMax" ? "coachMax" : "coachJu",
+      characterId,
     });
     sendJson(res, 201, { room: publicRoomInfo(req, room), playerUrl: `${hostUrl}&targetSets=${targetSets}` });
     return;
@@ -178,7 +184,7 @@ async function handleApi(req, res) {
       return;
     }
     const payload = await readJson(req);
-    const characterId = payload.characterId === "coachMax" ? "coachMax" : "coachJu";
+    const characterId = normalizeCharacterId(payload.characterId, "coachJu");
     room.players[openSeat] = {
       nickname: String(payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
       characterId,

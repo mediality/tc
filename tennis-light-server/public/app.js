@@ -35,6 +35,7 @@ const SERVER_SYNC = {
 const SOLO_AI = {
   enabled: false,
   playerIndex: 1,
+  characterId: "coachMax",
   style: "balanced",
   thinking: false,
   executing: false,
@@ -55,7 +56,13 @@ const MENU_STATE = {
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
 
+const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+
 const CHARACTERS = {
+  coachUnknown: {
+    name: "Coach",
+    effects: [],
+  },
   coachJu: {
     name: "Coach Ju",
     effects: [
@@ -70,9 +77,27 @@ const CHARACTERS = {
       { side: "Rose", label: "+2 puissance", type: "gainPower" },
     ],
   },
+  coachCarla: {
+    name: "Coach Carla",
+    effects: [
+      { side: "Bleu", label: "Votre prochain coup coûte 1 endurance en moins", type: "nextDiscount", value: 1 },
+      { side: "Rose", label: "+1 puissance et pioche 1 carte", type: "gainPowerAndDraw", value: 1, draw: 1 },
+    ],
+  },
+  coachClem: {
+    name: "Coach Clem",
+    effects: [
+      { side: "Bleu", label: "+1 puissance", type: "gainPower", value: 1 },
+      { side: "Rose", label: "Récupère autant d'endurance que de coups visibles", type: "recoverEnduranceByShots" },
+    ],
+  },
 };
 
 const CHARACTER_IMAGES = {
+  coachUnknown: [
+    "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
+    "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
+  ],
   coachJu: [
     "assets/cards/Demo-TC-_0004_Coach-JU-RECTO.png",
     "assets/cards/Demo-TC-_0003_Coach-JU-VERSO-.png",
@@ -80,6 +105,14 @@ const CHARACTER_IMAGES = {
   coachMax: [
     "assets/cards/Demo-TC-_0002_Coach-MAX-VERSO.png",
     "assets/cards/Demo-TC-_0001_Coach-MAX-VERSO.png",
+  ],
+  coachCarla: [
+    "assets/cards/Demo-TC-_0025_Coach-CARLA-RECTO.png",
+    "assets/cards/Demo-TC-_0026_Coach-CARLA-VERSO.png",
+  ],
+  coachClem: [
+    "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.png",
+    "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.png",
   ],
 };
 
@@ -453,21 +486,25 @@ function serverSyncParams() {
 }
 
 function selectedCharacterId() {
-  return MENU_STATE.selectedPlayerIndex === 0 ? "coachJu" : "coachMax";
+  return COACH_OPTIONS[MENU_STATE.selectedPlayerIndex] ?? "coachJu";
 }
 
 function selectedPlayerName() {
-  return MENU_STATE.selectedPlayerIndex === 0 ? "Coach Ju" : "Coach Max";
+  return characterNameFromId(selectedCharacterId());
 }
 
 function characterNameFromId(characterId) {
-  return CHARACTERS[characterId]?.name ?? (characterId === "coachMax" ? "Coach Max" : "Coach Ju");
+  return CHARACTERS[characterId]?.name ?? "Coach";
+}
+
+function normalizeCharacterId(characterId, fallback = "coachJu") {
+  return COACH_OPTIONS.includes(characterId) ? characterId : fallback;
 }
 
 function onlineProfileForSeat(seat) {
   const remotePlayer = SERVER_SYNC.players?.[seat];
-  const fallbackCharacterId = seat === 0 ? "coachJu" : "coachMax";
-  const characterId = remotePlayer?.characterId === "coachMax" ? "coachMax" : remotePlayer?.characterId === "coachJu" ? "coachJu" : fallbackCharacterId;
+  const fallbackCharacterId = SERVER_SYNC.enabled ? "coachUnknown" : seat === 0 ? "coachJu" : "coachMax";
+  const characterId = remotePlayer ? normalizeCharacterId(remotePlayer.characterId, fallbackCharacterId) : fallbackCharacterId;
   const name = characterNameFromId(characterId);
   return {
     name,
@@ -483,7 +520,7 @@ function applyOnlinePlayersFromRoom(players = []) {
   state.players.forEach((player, seat) => {
     const remotePlayer = SERVER_SYNC.players[seat];
     if (!remotePlayer) return;
-    const characterId = remotePlayer.characterId === "coachMax" ? "coachMax" : "coachJu";
+    const characterId = normalizeCharacterId(remotePlayer.characterId, player.characterId);
     const name = characterNameFromId(characterId);
     const nickname = remotePlayer.nickname || name;
     if (player.characterId !== characterId) {
@@ -626,7 +663,13 @@ function openReturnLobbyDialog() {
 
 function configureSoloOpponent() {
   SOLO_AI.enabled = true;
-  SOLO_AI.playerIndex = opponentOf(MENU_STATE.selectedPlayerIndex);
+  SOLO_AI.playerIndex = 1;
+  SOLO_AI.characterId = randomAiCharacterId();
+}
+
+function randomAiCharacterId() {
+  const available = COACH_OPTIONS.filter((characterId) => characterId !== selectedCharacterId());
+  return available[Math.floor(Math.random() * available.length)] ?? "coachMax";
 }
 
 function startSoloFromMenu(mode) {
@@ -652,7 +695,7 @@ function renderLobbyRooms(rooms = []) {
   els.lobbyRooms.innerHTML = rooms.map((room) => {
     const host = room.players.find(Boolean);
     const format = room.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
-    const coach = host?.characterId === "coachMax" ? "Coach Max" : "Coach Ju";
+    const coach = characterNameFromId(normalizeCharacterId(host?.characterId, "coachJu"));
     return `
       <article class="lobby-room">
         <div>
@@ -844,7 +887,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v59",
+    version: "v60",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -906,9 +949,14 @@ function newGame(options = {}) {
   const profiles = SERVER_SYNC.enabled
     ? [onlineProfileForSeat(0), onlineProfileForSeat(1)]
     : [null, null];
+  const humanCharacterId = selectedCharacterId();
+  const aiCharacterId = SOLO_AI.characterId ?? randomAiCharacterId();
   state.players = SERVER_SYNC.enabled
     ? profiles.map((profile) => createPlayer(profile.name, profile.characterId, profile.nickname))
-    : [createPlayer("Coach Ju", "coachJu"), createPlayer("Coach Max", "coachMax")];
+    : [
+      createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, nicknameValue()),
+      createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
+    ];
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
@@ -2545,10 +2593,39 @@ function applyCharacterEffect(playerIndex, playedCard) {
   }
 
   if (effect.type === "gainPower") {
-    player.power += 2;
-    playedCard.effectPowerGained += 2;
-    state.log.unshift(`${character.name} (${effect.side}) : +2 puissance.`);
+    const value = effect.value ?? 2;
+    player.power += value;
+    playedCard.effectPowerGained += value;
+    state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "gainPowerAndDraw") {
+    const value = effect.value ?? 1;
+    const drawCount = effect.draw ?? 1;
+    player.power += value;
+    playedCard.effectPowerGained += value;
+    const drawn = drawCards(player, drawCount);
+    const drawMessage = drawn > 0 ? `pioche ${drawn} carte.` : "ne pioche aucune carte, le deck est vide.";
+    state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance et ${drawMessage}`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}. +${value} puissance et ${drawMessage}`);
+    return false;
+  }
+
+  if (effect.type === "nextDiscount") {
+    const value = effect.value ?? 1;
+    player.nextDiscount += value;
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${player.name} coûte ${value} endurance en moins.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "recoverEnduranceByShots") {
+    const visibleShots = player.played.filter((card) => !card.removed && isShot(card)).length;
+    player.endurance += visibleShots;
+    state.log.unshift(`${character.name} (${effect.side}) : récupère ${visibleShots} endurance.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}. ${visibleShots} coup(s) visible(s).`);
     return false;
   }
 
@@ -3671,6 +3748,8 @@ async function pollServerState() {
     }
     if (SERVER_SYNC.isHost && playersChanged) {
       markServerDirtyForHostAction();
+      render();
+      scheduleServerSync();
     }
   } catch (error) {
     renderServerSyncPanel();
@@ -3698,6 +3777,10 @@ function initServerSync() {
   SERVER_SYNC.targetSets = params.targetSets;
   SERVER_SYNC.status = null;
   SERVER_SYNC.players = [null, null];
+  SERVER_SYNC.players[SERVER_SYNC.seat] = {
+    nickname: nicknameValue(),
+    characterId: selectedCharacterId(),
+  };
   SERVER_SYNC.initializing = SERVER_SYNC.isHost;
   showGameScreen();
   if (SERVER_SYNC.isHost) {
@@ -3712,7 +3795,7 @@ function initServerSync() {
 }
 
 function initMenu() {
-  MENU_STATE.selectedPlayerIndex = MENU_STATE.selectedPlayerIndex === 1 ? 1 : 0;
+  MENU_STATE.selectedPlayerIndex = COACH_OPTIONS[MENU_STATE.selectedPlayerIndex] ? MENU_STATE.selectedPlayerIndex : 0;
   updateMenuSelection();
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
@@ -3720,7 +3803,8 @@ function initMenu() {
   });
   els.coachChoiceButtons?.forEach((button) => {
     button.addEventListener("click", () => {
-      MENU_STATE.selectedPlayerIndex = Number(button.dataset.menuCoach) === 1 ? 1 : 0;
+      const nextIndex = Number(button.dataset.menuCoach);
+      MENU_STATE.selectedPlayerIndex = COACH_OPTIONS[nextIndex] ? nextIndex : 0;
       localStorage.setItem("tennisLightSelectedPlayer", String(MENU_STATE.selectedPlayerIndex));
       updateMenuSelection();
     });
