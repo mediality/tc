@@ -82,7 +82,7 @@ const CHARACTERS = {
     name: "Coach Carla",
     effects: [
       { side: "Bleu", label: "Votre prochain coup coûte 1 endurance en moins", type: "nextDiscount", value: 1 },
-      { side: "Rose", label: "+1 puissance et pioche 1 carte", type: "gainPowerAndDraw", value: 1, draw: 1 },
+      { side: "Rose", label: "+1 puissance et duplique un effet déjà engagé", type: "gainPowerAndChooseAnyPlayedEffect", value: 1 },
     ],
   },
   coachClem: {
@@ -366,7 +366,7 @@ const CARD_LIBRARY = [
     placement: 0,
     boostPower: 5,
     boostPrecision: 4,
-    effect: "Si l'adversaire ne rattrape pas avec le placement, il perd immédiatement.",
+    effect: "Si l'adversaire ne rattrape pas avec le placement, il perd immédiatement et ne marque pas de jeu.",
     effectType: "smashThreat",
   },
   {
@@ -888,7 +888,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v61",
+    version: "v62",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1616,7 +1616,7 @@ function resolveSoloPendingChoice(forceClose = false) {
     return true;
   }
   if (state.pendingEffectChoice?.playerIndex === playerIndex) {
-    const choices = effectChoicesFor(state.pendingEffectChoice.sourcePlayedUid);
+    const choices = effectChoicesFor(state.pendingEffectChoice.sourcePlayedUid, { shotsOnly: state.pendingEffectChoice.shotsOnly ?? true });
     const chosenEffect = choices.sort((a, b) => soloEffectScore(b) - soloEffectScore(a))[0];
     if (chosenEffect) {
       resolveEffectChoice(chosenEffect.playedUid);
@@ -1714,6 +1714,9 @@ function getProjectedExchangeSetScore(winner, winType, projectedPowers) {
   const loser = opponentOf(winner);
   if (winType === "boost") {
     return { winnerGames: 3, loserGames: 0, winner, loser, label: "Victoire par BOOST" };
+  }
+  if (winType === "smash") {
+    return { winnerGames: 2, loserGames: 0, winner, loser, label: "Victoire par SMASH" };
   }
   const gap = Math.abs(projectedPowers[0] - projectedPowers[1]);
   return {
@@ -2482,14 +2485,19 @@ function clearActiveEffectsFromRemovedCard(card) {
   }
 }
 
-function effectChoicesFor(sourcePlayedUid) {
+function effectChoicesFor(sourcePlayedUid, options = {}) {
+  const { shotsOnly = true } = options;
   return state.players
     .flatMap((player) => player.played)
-    .filter((card) => !card.removed && isShot(card) && card.playedUid !== sourcePlayedUid && card.effectType !== "choosePlayedEffect");
+    .filter((card) => !card.removed
+      && (!shotsOnly || isShot(card))
+      && card.playedUid !== sourcePlayedUid
+      && card.effectType
+      && card.effectType !== "choosePlayedEffect");
 }
 
 function openEffectChoice(playerIndex, sourceCard) {
-  const choices = effectChoicesFor(sourceCard.playedUid);
+  const choices = effectChoicesFor(sourceCard.playedUid, { shotsOnly: true });
   if (choices.length === 0) {
     state.log.unshift("Aucun effet déjà joué à choisir.");
     setEffectNotice("sans choix", sourceCard, "Aucun effet déjà joué ne peut être choisi.");
@@ -2501,13 +2509,13 @@ function openEffectChoice(playerIndex, sourceCard) {
 
 function resolveEffectChoice(chosenPlayedUid) {
   if (!state.pendingEffectChoice) return;
-  const { playerIndex, sourcePlayedUid } = state.pendingEffectChoice;
+  const { playerIndex, sourcePlayedUid, shotsOnly = true } = state.pendingEffectChoice;
   if (!canUseSeat(playerIndex)) return;
   markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
-  const chosen = effectChoicesFor(sourcePlayedUid).find((card) => card.playedUid === chosenPlayedUid);
+  const chosen = effectChoicesFor(sourcePlayedUid, { shotsOnly }).find((card) => card.playedUid === chosenPlayedUid);
   state.pendingEffectChoice = null;
   if (!sourceCard || !chosen) {
     state.log.unshift("Choix d'effet impossible.");
@@ -2616,6 +2624,22 @@ function applyCharacterEffect(playerIndex, playedCard) {
     state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance et ${drawMessage}`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}. +${value} puissance et ${drawMessage}`);
     return false;
+  }
+
+  if (effect.type === "gainPowerAndChooseAnyPlayedEffect") {
+    const value = effect.value ?? 1;
+    player.power += value;
+    playedCard.effectPowerGained += value;
+    const choices = effectChoicesFor(playedCard.playedUid, { shotsOnly: false });
+    if (choices.length === 0) {
+      state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance. Aucun effet engagé à dupliquer.`);
+      setEffectNotice("coach", { name: character.name }, `${effect.label}. Aucun effet engagé ne peut être dupliqué.`);
+      return false;
+    }
+    state.pendingEffectChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid, shotsOnly: false };
+    state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance, puis ${player.name} choisit un effet engagé à dupliquer.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return true;
   }
 
   if (effect.type === "nextDiscount") {
@@ -2740,7 +2764,7 @@ function pass(playerIndex) {
     finishGame({
       forcedWinner: opponentIndex,
       ignoreScore: true,
-      winType: state.mandatoryPlacementReason === "boost" ? "boost" : "automatic",
+      winType: state.mandatoryPlacementReason === "boost" ? "boost" : "smash",
       reason: `${player.name} passe sur ${reasonLabel}. ${opponent.name} gagne automatiquement l'échange.`,
     });
     return;
@@ -2796,6 +2820,9 @@ function getExchangeSetScore(winner, winType) {
   const loser = opponentOf(winner);
   if (winType === "boost") {
     return { winnerGames: 3, loserGames: 0, winner, loser, label: "Victoire par BOOST" };
+  }
+  if (winType === "smash") {
+    return { winnerGames: 2, loserGames: 0, winner, loser, label: "Victoire par SMASH" };
   }
   const gap = Math.abs(state.players[0].power - state.players[1].power);
   return {
@@ -3635,10 +3662,10 @@ function renderBoostModal() {
 function renderEffectChoiceModal() {
   document.querySelector(".effect-choice-backdrop")?.remove();
   if (!state.pendingEffectChoice) return;
-  const { playerIndex, sourcePlayedUid } = state.pendingEffectChoice;
+  const { playerIndex, sourcePlayedUid, shotsOnly = true } = state.pendingEffectChoice;
   if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
   if (SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex) return;
-  const choices = effectChoicesFor(sourcePlayedUid);
+  const choices = effectChoicesFor(sourcePlayedUid, { shotsOnly });
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop effect-choice-backdrop";
   backdrop.innerHTML = `
