@@ -1321,6 +1321,20 @@ h1 {
   width: min(440px, 100%);
 }
 
+.waiting-room-modal {
+  width: min(460px, 100%);
+  text-align: center;
+}
+
+.waiting-room-modal h2 {
+  color: #075985;
+  letter-spacing: 0;
+}
+
+.waiting-room-modal .dialog-actions {
+  justify-content: center;
+}
+
 .choice-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));

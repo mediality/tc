@@ -25,6 +25,7 @@ const SERVER_SYNC = {
   isHost: false,
   targetSets: null,
   status: null,
+  hostSeat: null,
   players: [null, null],
   lastSent: "",
   timer: null,
@@ -519,10 +520,9 @@ function applyOnlinePlayersFromRoom(players = []) {
   let changed = false;
   state.players.forEach((player, seat) => {
     const remotePlayer = SERVER_SYNC.players[seat];
-    if (!remotePlayer) return;
-    const characterId = normalizeCharacterId(remotePlayer.characterId, player.characterId);
+    const characterId = remotePlayer ? normalizeCharacterId(remotePlayer.characterId, player.characterId) : "coachUnknown";
     const name = characterNameFromId(characterId);
-    const nickname = remotePlayer.nickname || name;
+    const nickname = remotePlayer?.nickname || name;
     if (player.characterId !== characterId) {
       player.characterId = characterId;
       player.characterSide = 0;
@@ -587,6 +587,7 @@ function leaveOnlineRoom() {
   SERVER_SYNC.isHost = false;
   SERVER_SYNC.targetSets = null;
   SERVER_SYNC.status = null;
+  SERVER_SYNC.hostSeat = null;
   SERVER_SYNC.players = [null, null];
   SERVER_SYNC.lastSent = "";
   SERVER_SYNC.revision = 0;
@@ -887,7 +888,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v60",
+    version: "v61",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1114,6 +1115,10 @@ function opponentOf(playerIndex) {
   return playerIndex === 0 ? 1 : 0;
 }
 
+function onlineRoomReady() {
+  return !SERVER_SYNC.enabled || SERVER_SYNC.players.filter(Boolean).length === 2;
+}
+
 function markLocalServerDirty(playerIndex) {
   if (SERVER_SYNC.enabled && !SERVER_SYNC.applyingRemote && playerIndex === SERVER_SYNC.seat) {
     SERVER_SYNC.localDirty = true;
@@ -1131,7 +1136,7 @@ function activePlayer() {
 }
 
 function canUseSeat(playerIndex) {
-  if (SERVER_SYNC.enabled) return SERVER_SYNC.ready && playerIndex === SERVER_SYNC.seat;
+  if (SERVER_SYNC.enabled) return SERVER_SYNC.ready && onlineRoomReady() && playerIndex === SERVER_SYNC.seat;
   if (SOLO_AI.enabled) return playerIndex !== SOLO_AI.playerIndex || (playerIndex === SOLO_AI.playerIndex && SOLO_AI.executing);
   return true;
 }
@@ -3103,6 +3108,7 @@ function render() {
   renderEffectChoiceModal();
   renderCoachChoiceModal();
   renderRemoveChoiceModal();
+  renderWaitingRoomModal();
   scheduleServerSync();
   scheduleSoloAINudge();
   maybeRunSoloAI();
@@ -3132,17 +3138,17 @@ function renderModeButtons() {
   if (els.setModeButton) {
     els.setModeButton.classList.toggle("active", state.setMatch.enabled && !state.setMatch.targetSets);
     els.setModeButton.textContent = state.setMatch.enabled && !state.setMatch.targetSets ? "Set actif" : "Set IA";
-    els.setModeButton.disabled = SERVER_SYNC.enabled && !SERVER_SYNC.isHost;
+    els.setModeButton.disabled = SERVER_SYNC.enabled && (!SERVER_SYNC.isHost || !onlineRoomReady());
   }
   if (els.matchTwoButton) {
     els.matchTwoButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 2);
     els.matchTwoButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 2 ? "Match 2 actif" : "Match 2 sets";
-    els.matchTwoButton.disabled = SERVER_SYNC.enabled && !SERVER_SYNC.isHost;
+    els.matchTwoButton.disabled = SERVER_SYNC.enabled && (!SERVER_SYNC.isHost || !onlineRoomReady());
   }
   if (els.matchThreeButton) {
     els.matchThreeButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 3);
     els.matchThreeButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 3 ? "Match 3 actif" : "Match 3 sets";
-    els.matchThreeButton.disabled = SERVER_SYNC.enabled && !SERVER_SYNC.isHost;
+    els.matchThreeButton.disabled = SERVER_SYNC.enabled && (!SERVER_SYNC.isHost || !onlineRoomReady());
   }
   if (els.onlineModeButton) {
     els.onlineModeButton.classList.toggle("active", SERVER_SYNC.enabled);
@@ -3188,6 +3194,30 @@ function renderServerSyncPanel() {
     }
     panel.querySelector("[data-copy-invite]").textContent = "Lien copié";
   });
+}
+
+function renderWaitingRoomModal() {
+  let backdrop = document.querySelector(".waiting-room-backdrop");
+  if (!SERVER_SYNC.enabled || onlineRoomReady()) {
+    backdrop?.remove();
+    return;
+  }
+  if (!backdrop) {
+    backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop waiting-room-backdrop";
+    document.body.append(backdrop);
+  }
+  const missingSeat = SERVER_SYNC.players[0] ? 1 : 0;
+  backdrop.innerHTML = `
+    <div class="modal waiting-room-modal" role="dialog" aria-modal="true" aria-labelledby="waitingRoomTitle">
+      <h2 id="waitingRoomTitle">EN ATTENTE DE JOUEUR</h2>
+      <p>Salon ${SERVER_SYNC.roomId}. En attente d'un adversaire pour ${missingSeat === 0 ? "la zone gauche" : "la zone droite"}.</p>
+      <div class="dialog-actions">
+        <button class="primary-button" type="button" data-waiting-return-lobby>RETOUR LOBBY</button>
+      </div>
+    </div>
+  `;
+  backdrop.querySelector("[data-waiting-return-lobby]")?.addEventListener("click", confirmReturnToLobby);
 }
 
 function renderSummary(playerIndex, root) {
@@ -3716,6 +3746,9 @@ async function pushServerState() {
     SERVER_SYNC.localDirty = false;
     SERVER_SYNC.revision = data.revision ?? SERVER_SYNC.revision;
     SERVER_SYNC.inviteUrl = data.inviteUrl ?? SERVER_SYNC.inviteUrl;
+    SERVER_SYNC.status = data.status ?? SERVER_SYNC.status;
+    SERVER_SYNC.hostSeat = data.hostSeat ?? SERVER_SYNC.hostSeat;
+    SERVER_SYNC.isHost = data.isHost ?? SERVER_SYNC.isHost;
     renderServerSyncPanel();
   } catch (error) {
     state.log.unshift("Synchronisation serveur impossible pour le moment.");
@@ -3736,6 +3769,8 @@ async function pollServerState() {
     SERVER_SYNC.inviteUrl = data.inviteUrl ?? SERVER_SYNC.inviteUrl;
     SERVER_SYNC.targetSets = data.targetSets ?? SERVER_SYNC.targetSets;
     SERVER_SYNC.status = data.status ?? SERVER_SYNC.status;
+    SERVER_SYNC.hostSeat = data.hostSeat ?? SERVER_SYNC.hostSeat;
+    SERVER_SYNC.isHost = data.isHost ?? SERVER_SYNC.isHost;
     const playersChanged = applyOnlinePlayersFromRoom(data.players ?? SERVER_SYNC.players);
     if (data.state && data.revision !== SERVER_SYNC.revision) {
       SERVER_SYNC.revision = data.revision;
@@ -3776,6 +3811,7 @@ function initServerSync() {
   SERVER_SYNC.isHost = params.isHost;
   SERVER_SYNC.targetSets = params.targetSets;
   SERVER_SYNC.status = null;
+  SERVER_SYNC.hostSeat = params.isHost ? params.seat : null;
   SERVER_SYNC.players = [null, null];
   SERVER_SYNC.players[SERVER_SYNC.seat] = {
     nickname: nicknameValue(),

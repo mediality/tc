@@ -135,9 +135,10 @@ function publicRoomInfo(req, room) {
     id: room.id,
     status: room.status,
     targetSets: room.targetSets,
+    hostSeat: room.hostSeat,
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
-    players: room.players.map((player, seat) => player ? { seat, nickname: player.nickname, characterId: player.characterId } : null),
+    players: room.players.map((player, seat) => player ? { seat, nickname: player.nickname, characterId: player.characterId, isHost: seat === room.hostSeat } : null),
     openSeat: room.players.findIndex((player) => player == null),
   };
 }
@@ -216,12 +217,15 @@ async function handleApi(req, res) {
       sendJson(res, 403, { error: "Token invalide." });
       return;
     }
-    if (seat === room.hostSeat) {
+    const remainingSeat = room.players.findIndex((player, index) => index !== seat && player);
+    if (remainingSeat === -1) {
       rooms.delete(room.id);
       sendJson(res, 200, { ok: true, closed: true });
       return;
     }
     room.players[seat] = null;
+    room.hostSeat = remainingSeat;
+    room.players[remainingSeat].isHost = true;
     room.status = "waiting";
     room.updatedAt = Date.now();
     room.revision += 1;
@@ -262,6 +266,8 @@ async function handleApi(req, res) {
       state: room.state,
       targetSets: room.targetSets,
       status: room.status,
+      hostSeat: room.hostSeat,
+      isHost: seat === room.hostSeat,
       players: room.players,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
@@ -286,6 +292,8 @@ async function handleApi(req, res) {
       revision: room.revision,
       targetSets: room.targetSets,
       status: room.status,
+      hostSeat: room.hostSeat,
+      isHost: seat === room.hostSeat,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
     return;
