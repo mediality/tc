@@ -55,7 +55,7 @@ function readJson(req) {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 2_000_000) {
+      if (body.length > 10_000_000) {
         reject(new Error("payload too large"));
         req.destroy();
       }
@@ -83,6 +83,7 @@ function createRoom(req, options = {}) {
     revision: 0,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    logs: [],
     status: options.status ?? "direct",
     targetSets: options.targetSets ?? null,
     hostSeat,
@@ -99,6 +100,19 @@ function createRoom(req, options = {}) {
     hostUrl: playerUrl(req, roomId, hostSeat, tokens[hostSeat], true),
     guestUrl: playerUrl(req, roomId, guestSeat, tokens[guestSeat]),
   };
+}
+
+function logKey(entry) {
+  return `${entry.createdAt || entry.completedAt || ""}:${entry.kind || entry.winType || ""}:${entry.exchangeNumber ?? ""}:${entry.playerIndex ?? ""}`;
+}
+
+function mergeRoomLogs(room, incomingLogs = []) {
+  if (!Array.isArray(incomingLogs)) return;
+  const map = new Map(room.logs.map((entry) => [logKey(entry), entry]));
+  for (const entry of incomingLogs.filter(Boolean)) {
+    map.set(logKey(entry), entry);
+  }
+  room.logs = [...map.values()].slice(-5000);
 }
 
 function seatForToken(room, token) {
@@ -269,6 +283,7 @@ async function handleApi(req, res) {
       hostSeat: room.hostSeat,
       isHost: seat === room.hostSeat,
       players: room.players,
+      logs: room.logs,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
     return;
@@ -282,6 +297,7 @@ async function handleApi(req, res) {
       return;
     }
     room.state = payload.state;
+    mergeRoomLogs(room, payload.state?.actionLog);
     room.revision += 1;
     room.updatedAt = Date.now();
     if (room.status === "direct") room.status = "playing";
@@ -294,6 +310,7 @@ async function handleApi(req, res) {
       status: room.status,
       hostSeat: room.hostSeat,
       isHost: seat === room.hostSeat,
+      logs: room.logs,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
     return;

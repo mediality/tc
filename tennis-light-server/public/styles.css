@@ -697,6 +697,15 @@ h1 {
   background: #c92828;
 }
 
+.opponent-inline {
+  display: none;
+  margin-left: 5px;
+  font-size: 0.42em;
+  font-weight: 900;
+  vertical-align: middle;
+  opacity: 0.78;
+}
+
 .character-endurance-reminder.low-endurance strong,
 .character-endurance-reminder.low-endurance span {
   color: #fff;
@@ -1145,6 +1154,10 @@ h1 {
   margin: 12px auto 0;
 }
 
+.center-card-wrap.boosted-center-wrap + .next-exchange-button {
+  margin-top: 82px;
+}
+
 .next-set-button {
   margin-top: 10px;
   background: #90f0b8;
@@ -1410,6 +1423,18 @@ h1 {
   .summary-grid,
   .hand {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .opponent-inline {
+    display: inline;
+  }
+
+  .character-power-reminder strong {
+    font-size: 2.35rem;
+  }
+
+  .character-endurance-reminder strong {
+    font-size: 1.6rem;
   }
 
   .player-panel {

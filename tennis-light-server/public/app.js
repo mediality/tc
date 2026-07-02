@@ -865,16 +865,18 @@ function constraintsLogInfo() {
 }
 
 function recordAction(kind, payload = {}) {
+  const playMode = payload.mode ?? null;
   const entry = {
     createdAt: new Date().toISOString(),
     kind,
+    ...payload,
     mode: SERVER_SYNC.enabled ? "online" : state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : "local",
+    playMode,
     exchangeNumber: state.setMatch.exchangeNumber,
     setScore: state.setMatch.enabled ? [...state.setMatch.score] : null,
     server: state.server,
     activePlayer: state.activePlayer,
     coachJuFocus: payload.playerIndex === 0 || payload.opponentIndex === 0,
-    ...payload,
   };
   state.actionLog.push(entry);
   const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
@@ -882,13 +884,31 @@ function recordAction(kind, payload = {}) {
   writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-2500));
 }
 
+function logKey(entry) {
+  return `${entry.createdAt ?? entry.completedAt ?? ""}:${entry.kind ?? entry.winType ?? ""}:${entry.exchangeNumber ?? ""}:${entry.playerIndex ?? ""}`;
+}
+
+function mergeLogEntries(...groups) {
+  const map = new Map();
+  for (const entry of groups.flat().filter(Boolean)) {
+    map.set(logKey(entry), entry);
+  }
+  return [...map.values()];
+}
+
+function absorbServerLogs(logs = []) {
+  if (!Array.isArray(logs) || logs.length === 0) return;
+  const merged = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), logs);
+  writeStoredJson(ACTION_LOG_STORAGE_KEY, merged.slice(-5000));
+}
+
 function exportLogsFile() {
-  const detailedActions = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
+  const detailedActions = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
   const exchangeResults = getStoredMatchLogs();
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v62",
+    version: "v63",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -2530,6 +2550,10 @@ function resolveEffectChoice(chosenPlayedUid) {
   state.log.unshift(`${player.name} choisit l'effet de ${chosen.name}.`);
   applyEffect(playerIndex, effectCard);
   setEffectNotice("appliqué", chosen, `Effet choisi via ${sourceCard.name}: ${chosen.effect}`);
+  if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
+    render();
+    return;
+  }
   completePlayedCardResolution(
     playerIndex,
     opponentIndex,
@@ -3339,6 +3363,7 @@ function renderCardBack(className = "") {
 
 function renderCharacterCard(player, playerIndex) {
   const character = characterOf(player);
+  const opponent = state.players[opponentOf(playerIndex)];
   const imageUrl = CHARACTER_IMAGES[player.characterId]?.[player.characterSide] ?? CHARACTER_IMAGES[player.characterId]?.[0];
   const leader = leadingPlayerIndex();
   const leaderClass = leader === playerIndex ? " leading-power" : "";
@@ -3358,11 +3383,11 @@ function renderCharacterCard(player, playerIndex) {
       <div class="character-stats">
         <div class="character-power-reminder${leaderClass}">
           ${crown}
-          <strong>${player.power}</strong>
+          <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
           <span>Puissance</span>
         </div>
         <div class="character-endurance-reminder${enduranceClass}">
-          <strong>${player.endurance}</strong>
+          <strong>${player.endurance}<span class="opponent-inline">(${opponent?.endurance ?? 0})</span></strong>
           <span>Endurance</span>
         </div>
       </div>
@@ -3456,7 +3481,7 @@ function renderCenterPlayedCard() {
   els.centerPlayedCard.innerHTML = `
     ${renderCenterSetScore()}
     <p class="previous-title">Dernière carte jouée</p>
-    <div class="center-card-wrap">
+    <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
     ${renderCenterNextExchangeButton()}
@@ -3672,6 +3697,7 @@ function renderEffectChoiceModal() {
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir un effet">
       <h2>Choisir un effet</h2>
       <p>Sélectionne l'effet d'une carte déjà jouée dans cet échange.</p>
+      <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
         ${choices.map((choice) => `
           <button class="choice-card" type="button" data-effect-choice="${choice.playedUid}">
@@ -3682,6 +3708,7 @@ function renderEffectChoiceModal() {
     </section>
   `;
   document.body.append(backdrop);
+  backdrop.querySelector("[data-cancel-choice]")?.addEventListener("click", restoreTurnSnapshot);
   backdrop.querySelectorAll("[data-effect-choice]").forEach((button) => {
     button.addEventListener("click", () => resolveEffectChoice(button.dataset.effectChoice));
   });
@@ -3700,6 +3727,7 @@ function renderCoachChoiceModal() {
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte non distribuée">
       <h2>${characterOf(player).name}</h2>
       <p>Choisis une carte non distribuée à ajouter à la main de ${player.name}.</p>
+      <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
         ${state.deck.map((choice) => `
           <button class="choice-card" type="button" data-coach-choice="${choice.uid}">
@@ -3710,6 +3738,7 @@ function renderCoachChoiceModal() {
     </section>
   `;
   document.body.append(backdrop);
+  backdrop.querySelector("[data-cancel-choice]")?.addEventListener("click", restoreTurnSnapshot);
   backdrop.querySelectorAll("[data-coach-choice]").forEach((button) => {
     button.addEventListener("click", () => resolveCoachChoice(button.dataset.coachChoice));
   });
@@ -3728,6 +3757,7 @@ function renderRemoveChoiceModal() {
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte adverse à supprimer">
       <h2>Supprimer une carte adverse</h2>
       <p>Choisis une carte engagée par ${state.players[opponentIndex].name} à retirer de l'échange.</p>
+      <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
         ${choices.map((choice) => `
           <button class="choice-card" type="button" data-remove-choice="${choice.playedUid}">
@@ -3738,6 +3768,7 @@ function renderRemoveChoiceModal() {
     </section>
   `;
   document.body.append(backdrop);
+  backdrop.querySelector("[data-cancel-choice]")?.addEventListener("click", restoreTurnSnapshot);
   backdrop.querySelectorAll("[data-remove-choice]").forEach((button) => {
     button.addEventListener("click", () => resolveRemoveChoice(button.dataset.removeChoice));
   });
@@ -3776,6 +3807,7 @@ async function pushServerState() {
     SERVER_SYNC.status = data.status ?? SERVER_SYNC.status;
     SERVER_SYNC.hostSeat = data.hostSeat ?? SERVER_SYNC.hostSeat;
     SERVER_SYNC.isHost = data.isHost ?? SERVER_SYNC.isHost;
+    absorbServerLogs(data.logs);
     renderServerSyncPanel();
   } catch (error) {
     state.log.unshift("Synchronisation serveur impossible pour le moment.");
@@ -3798,6 +3830,7 @@ async function pollServerState() {
     SERVER_SYNC.status = data.status ?? SERVER_SYNC.status;
     SERVER_SYNC.hostSeat = data.hostSeat ?? SERVER_SYNC.hostSeat;
     SERVER_SYNC.isHost = data.isHost ?? SERVER_SYNC.isHost;
+    absorbServerLogs(data.logs);
     const playersChanged = applyOnlinePlayersFromRoom(data.players ?? SERVER_SYNC.players);
     if (data.state && data.revision !== SERVER_SYNC.revision) {
       SERVER_SYNC.revision = data.revision;
