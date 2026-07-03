@@ -1190,14 +1190,18 @@ h1 {
   transform: scale(0.88);
 }
 
-.center-match-score {
-  border-radius: 8px;
-  padding: 6px 10px;
-  color: #123047;
-  background: rgba(216, 243, 220, 0.92);
-  font-size: 0.72rem;
-  font-weight: 900;
-  text-align: center;
+.center-match-markers {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.set-marker-image {
+  width: 36px;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 8px 14px rgba(10, 32, 44, 0.22);
 }
 
 .center-set-score span {

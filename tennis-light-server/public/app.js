@@ -12,6 +12,19 @@ const SCORE_DIGIT_IMAGES = {
   6: "assets/6.jpg",
   7: "assets/7.jpg",
 };
+const MATCH_SET_IMAGES = {
+  2: {
+    0: "assets/2set0.png",
+    1: "assets/2set1.png",
+    2: "assets/2set2.png",
+  },
+  3: {
+    0: "assets/3set0.png",
+    1: "assets/3set1.png",
+    2: "assets/3set2.png",
+    3: "assets/3set3.png",
+  },
+};
 
 const SERVER_SYNC = {
   enabled: false,
@@ -691,7 +704,7 @@ function randomAiCharacterId() {
 }
 
 function startSoloFromMenu(mode) {
-  if (mode !== "tournament") resetTournament();
+  if (!mode.startsWith("tournament")) resetTournament();
   configureSoloOpponent();
   showGameScreen();
   if (mode === "exchange") {
@@ -702,8 +715,10 @@ function startSoloFromMenu(mode) {
     startMatchMode(2);
   } else if (mode === "match3") {
     startMatchMode(3);
-  } else if (mode === "tournament") {
-    startTournamentMode();
+  } else if (mode === "tournament2") {
+    startTournamentMode(2);
+  } else if (mode === "tournament3") {
+    startTournamentMode(3);
   }
 }
 
@@ -935,7 +950,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v69",
+    version: "v70",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3202,7 +3217,7 @@ function startMatchMode(targetSets = null, options = {}) {
   render();
 }
 
-function startTournamentMode() {
+function startTournamentMode(targetSets = 2) {
   if (SERVER_SYNC.enabled) {
     state.log.unshift("Le tournoi IA est disponible hors partie en ligne.");
     render();
@@ -3220,6 +3235,7 @@ function startTournamentMode() {
   state.tournament = {
     active: true,
     stage: "semi",
+    targetSets,
     humanCharacterId,
     aiFinalistCharacterId: aiSemiResult.winner,
     currentMatch: "semiHuman",
@@ -3257,7 +3273,7 @@ function startTournamentMode() {
     ],
   };
   SOLO_AI.characterId = semiOpponent;
-  startMatchMode(2, { keepSoloOpponent: true });
+  startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = "semiHuman";
   state.tournament.stage = "semi";
   state.log.unshift(`Tournoi IA : demi-finale contre ${characterNameFromId(semiOpponent)}.`);
@@ -3266,19 +3282,26 @@ function startTournamentMode() {
 
 function simulateAiTournamentMatch(playerA, playerB) {
   const winner = Math.random() < 0.5 ? playerA : playerB;
-  const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1);
+  const targetSets = state.tournament.targetSets ?? 2;
+  const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
 }
 
-function randomMatchSetScoresForWinner(winnerIndex) {
-  const loserTakesSet = Math.random() < 0.34;
-  const winnerSetScores = loserTakesSet
-    ? [[4, 6], [6, 3], [7, 5]]
-    : (Math.random() < 0.5 ? [[6, 4], [7, 5]] : [[6, 2], [6, 4]]);
-  return winnerSetScores.map((score) => {
+function randomMatchSetScoresForWinner(winnerIndex, targetSets = 2) {
+  const setScores = [];
+  let winnerSets = 0;
+  let loserSets = 0;
+  while (winnerSets < targetSets) {
+    const winnerLosesSet = loserSets < targetSets - 1 && winnerSets < targetSets - 1 && Math.random() < 0.28;
+    const score = winnerLosesSet
+      ? (Math.random() < 0.5 ? [4, 6] : [5, 7])
+      : (Math.random() < 0.35 ? [6, 2] : Math.random() < 0.7 ? [6, 4] : [7, 5]);
+    if (winnerLosesSet) loserSets += 1;
+    else winnerSets += 1;
     const oriented = winnerIndex === 0 ? score : [score[1], score[0]];
-    return [oriented[0], oriented[1]];
-  });
+    setScores.push([oriented[0], oriented[1]]);
+  }
+  return setScores;
 }
 
 function formatSetScores(setScores = []) {
@@ -3337,7 +3360,7 @@ function startTournamentFinal() {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.characterId = state.tournament.aiFinalistCharacterId;
-  startMatchMode(2, { keepSoloOpponent: true });
+  startMatchMode(state.tournament.targetSets ?? 2, { keepSoloOpponent: true });
   state.tournament.stage = "final";
   state.tournament.currentMatch = "final";
   state.log.unshift(`Finale du tournoi : ${selectedPlayerName()} contre ${characterNameFromId(SOLO_AI.characterId)}.`);
@@ -3603,7 +3626,7 @@ function currentModeLabel() {
     const format = SERVER_SYNC.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     return `Mode en ligne · ${format}`;
   }
-  if (state.tournament.active) return `Tournoi IA · ${tournamentStageLabel()}`;
+  if (state.tournament.active) return `Tournoi IA · ${state.tournament.targetSets} sets · ${tournamentStageLabel()}`;
   if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
   if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
   if (SOLO_AI.enabled) return `Contre l'IA · Échange · IA ${aiStyleLabel()}`;
@@ -3659,16 +3682,17 @@ function renderTournamentMatch(match, isFinal = false) {
   const playerA = match.playerA ? characterNameFromId(match.playerA) : "Vainqueur demi-finale";
   const playerB = match.playerB ? characterNameFromId(match.playerB) : "Vainqueur demi-finale";
   const scoreText = match.score || match.liveScore || "";
+  const revealedWinner = match.score && match.winner ? match.winner : null;
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
-      <div class="tournament-player-row ${match.winner === match.playerA ? "winner" : ""}">
+      <div class="tournament-player-row ${revealedWinner === match.playerA ? "winner" : ""}">
         <span>${playerA}</span>
-        ${match.winner === match.playerA ? "<strong>✓</strong>" : ""}
+        ${revealedWinner === match.playerA ? "<strong>✓</strong>" : ""}
       </div>
-      <div class="tournament-player-row ${match.winner === match.playerB ? "winner" : ""}">
+      <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""}">
         <span>${playerB}</span>
-        ${match.winner === match.playerB ? "<strong>✓</strong>" : ""}
+        ${revealedWinner === match.playerB ? "<strong>✓</strong>" : ""}
       </div>
       ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
@@ -3873,6 +3897,13 @@ function renderDigitImage(value) {
   return `<img class="score-digit-image" src="${imageUrl}" alt="${value}" />`;
 }
 
+function renderSetMarkerImage(targetSets, wonSets, playerIndex) {
+  const clamped = Math.max(0, Math.min(targetSets, wonSets ?? 0));
+  const imageUrl = MATCH_SET_IMAGES[targetSets]?.[clamped];
+  if (!imageUrl) return "";
+  return `<img class="set-marker-image player-${playerIndex + 1}" src="${imageUrl}" alt="${clamped} set${clamped > 1 ? "s" : ""} gagné${clamped > 1 ? "s" : ""}" />`;
+}
+
 function renderCenterSetScore() {
   let games = null;
   let label = "Score de l'échange";
@@ -3885,7 +3916,10 @@ function renderCenterSetScore() {
     showCurrentScore = !state.setMatch.setOver;
     label = "Score du set";
     if (state.setMatch.targetSets) {
-      matchLine = `<div class="center-match-score">Match ${state.setMatch.setsWon[0]} / ${state.setMatch.setsWon[1]} · ${state.setMatch.targetSets} sets gagnants</div>`;
+      matchLine = `<div class="center-match-markers" aria-label="Sets gagnés">
+        ${renderSetMarkerImage(state.setMatch.targetSets, state.setMatch.setsWon[0], 0)}
+        ${renderSetMarkerImage(state.setMatch.targetSets, state.setMatch.setsWon[1], 1)}
+      </div>`;
     }
   } else if (state.gameOver && state.resultInfo?.setScore) {
     games = [0, 0];
