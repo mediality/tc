@@ -140,6 +140,25 @@ const CHARACTER_IMAGES = {
   ],
 };
 
+const MATCH_RESULT_IMAGES = {
+  coachJu: {
+    win: "assets/cards/CoachJuWin.png",
+    lose: "assets/cards/CoachJuLoose.png",
+  },
+  coachMax: {
+    win: "assets/cards/CoachMaxWin.png",
+    lose: "assets/cards/CoachMaxLoose.png",
+  },
+  coachCarla: {
+    win: "assets/cards/CoachClaraWin.png",
+    lose: "assets/cards/CoachClaraLoose.png",
+  },
+  coachClem: {
+    win: "assets/cards/CoachClemWin.png",
+    lose: "assets/cards/CoachClemLoose.png",
+  },
+};
+
 const CARD_IMAGES = {
   double: "assets/cards/Demo-TC-_0005_DOUBLE-x2.png",
   joker: "assets/cards/Demo-TC-_0006_JOKER-x2.png",
@@ -950,7 +969,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v70",
+    version: "v71",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3231,7 +3250,7 @@ function startTournamentMode(targetSets = 2) {
   const semiOpponent = opponents[0];
   const aiSemiA = opponents[1];
   const aiSemiB = opponents[2];
-  const aiSemiResult = simulateAiTournamentMatch(aiSemiA, aiSemiB);
+  const aiSemiResult = simulateAiTournamentMatch(aiSemiA, aiSemiB, targetSets);
   state.tournament = {
     active: true,
     stage: "semi",
@@ -3266,7 +3285,7 @@ function startTournamentMode(targetSets = 2) {
         id: "final",
         label: "Finale",
         playerA: null,
-        playerB: aiSemiResult.winner,
+        playerB: null,
         winner: null,
         score: null,
       },
@@ -3280,9 +3299,8 @@ function startTournamentMode(targetSets = 2) {
   render();
 }
 
-function simulateAiTournamentMatch(playerA, playerB) {
+function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2) {
   const winner = Math.random() < 0.5 ? playerA : playerB;
-  const targetSets = state.tournament.targetSets ?? 2;
   const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
 }
@@ -3334,7 +3352,8 @@ function handleTournamentMatchComplete() {
       state.log.unshift(`Finale débloquée contre ${characterNameFromId(state.tournament.aiFinalistCharacterId)}.`);
     } else {
       final.playerA = winnerCharacterId;
-      const finalResult = simulateAiTournamentMatch(winnerCharacterId, state.tournament.aiFinalistCharacterId);
+      final.playerB = state.tournament.aiFinalistCharacterId;
+      const finalResult = simulateAiTournamentMatch(winnerCharacterId, state.tournament.aiFinalistCharacterId, state.tournament.targetSets ?? 2);
       final.winner = finalResult.winner;
       final.score = finalResult.score;
       state.tournament.stage = "complete";
@@ -3385,6 +3404,11 @@ function revealNextTournamentAiSet() {
   aiSemi.score = formatSetScores(aiSemi.revealedSetScores);
   if (aiSemi.revealedSetScores.length >= aiSemi.hiddenSetScores.length) {
     aiSemi.winner = aiSemi.hiddenWinner;
+    state.tournament.aiFinalistCharacterId = aiSemi.hiddenWinner;
+    const final = tournamentMatchById("final");
+    if (final && !final.playerB) {
+      final.playerB = aiSemi.hiddenWinner;
+    }
   }
 }
 
@@ -3394,6 +3418,11 @@ function revealAllTournamentAiSets() {
   aiSemi.revealedSetScores = aiSemi.hiddenSetScores.map((score) => [...score]);
   aiSemi.score = formatSetScores(aiSemi.revealedSetScores);
   aiSemi.winner = aiSemi.hiddenWinner;
+  state.tournament.aiFinalistCharacterId = aiSemi.hiddenWinner;
+  const final = tournamentMatchById("final");
+  if (final && !final.playerB) {
+    final.playerB = aiSemi.hiddenWinner;
+  }
 }
 
 function aiStyleLabel() {
@@ -3846,10 +3875,17 @@ function renderCardBack(className = "") {
   `;
 }
 
+function matchResultImageForPlayer(player, playerIndex) {
+  if (!state.setMatch.matchOver || state.setMatch.matchWinner == null) return null;
+  const resultKey = state.setMatch.matchWinner === playerIndex ? "win" : "lose";
+  return MATCH_RESULT_IMAGES[player.characterId]?.[resultKey] ?? null;
+}
+
 function renderCharacterCard(player, playerIndex) {
   const character = characterOf(player);
   const opponent = state.players[opponentOf(playerIndex)];
-  const imageUrl = CHARACTER_IMAGES[player.characterId]?.[player.characterSide] ?? CHARACTER_IMAGES[player.characterId]?.[0];
+  const resultImage = matchResultImageForPlayer(player, playerIndex);
+  const imageUrl = resultImage ?? CHARACTER_IMAGES[player.characterId]?.[player.characterSide] ?? CHARACTER_IMAGES[player.characterId]?.[0];
   const leader = leadingPlayerIndex();
   const leaderClass = leader === playerIndex ? " leading-power" : "";
   const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
