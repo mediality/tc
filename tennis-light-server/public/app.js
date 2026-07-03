@@ -831,6 +831,7 @@ function cardLogInfo(card) {
     boostPower: card.boostPower,
     boostPrecision: card.boostPrecision,
     effectType: card.effectType,
+    copiedSmashThreat: Boolean(card.copiedSmashThreat),
     boosted: Boolean(card.boosted),
     removed: Boolean(card.removed),
   };
@@ -909,7 +910,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v64",
+    version: "v65",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1685,7 +1686,29 @@ function canSoloPassAndWin(playerIndex) {
     const projectedSetScore = previewSetMatchScore(exchangeWinner, getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers));
     if (isSetOver(projectedSetScore) && leadingSetPlayer(projectedSetScore) === playerIndex) return true;
   }
+  if (SOLO_AI.style === "expert" && exchangeWinner === playerIndex && shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowers)) {
+    return false;
+  }
   return exchangeWinner === playerIndex;
+}
+
+function shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowersAfterPass) {
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const opponent = state.players[opponentIndex];
+  if (hasPlayedThisTurn(playerIndex) || state.mandatoryPlacement || opponent.endurance > 0) return false;
+  const passScore = getProjectedExchangeSetScore(playerIndex, "power", projectedPowersAfterPass);
+  if (passScore.loserGames === 0) return false;
+  const bestCoup = chooseSoloNormalCoup(playerIndex);
+  if (!bestCoup) return false;
+  const stats = getCardStats(player, bestCoup, false);
+  const projectedAfterCoup = state.players.map((candidate, index) => {
+    const coupPower = index === playerIndex ? stats.power : 0;
+    const forcedPassBonus = index === playerIndex ? Math.max(2, opponent.endurance) : 0;
+    return candidate.power + coupPower + forcedPassBonus + projectedEndBonuses(candidate);
+  });
+  const afterScore = getProjectedExchangeSetScore(playerIndex, "power", projectedAfterCoup);
+  return afterScore.loserGames < passScore.loserGames;
 }
 
 function shouldSoloPassToLimitBoostDamage(playerIndex) {
@@ -2268,6 +2291,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCard, isOpeningServe, placementWasInsufficient, boosted, remiseMode = "effect") {
   const player = state.players[playerIndex];
   const endsTurn = !isRemise(card);
+  const hasSmashThreat = card.effectType === "smashThreat" || playedCard.copiedSmashThreat;
 
   if (isRemise(card) && remiseMode === "effect") {
     state.turnHasEffect[playerIndex] = true;
@@ -2288,8 +2312,8 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
 
   state.lastCard = playedCard;
   state.returnServiceRestrictionFor = isOpeningServe ? opponentIndex : state.returnServiceRestrictionFor;
-  state.mandatoryPlacement = boosted || card.effectType === "smashThreat";
-  state.mandatoryPlacementReason = boosted ? "boost" : card.effectType === "smashThreat" ? "smash" : null;
+  state.mandatoryPlacement = boosted || hasSmashThreat;
+  state.mandatoryPlacementReason = boosted ? "boost" : hasSmashThreat ? "smash" : null;
   state.mandatoryPlacementSourceUid = state.mandatoryPlacement ? playedCard.playedUid : null;
   state.boostAvailableFor = !boosted && placementWasInsufficient ? opponentIndex : null;
   state.turnPlacement[playerIndex] = 0;
@@ -2647,6 +2671,12 @@ function resolveEffectChoice(chosenPlayedUid) {
     name: chosen.name,
   };
   state.log.unshift(`${player.name} choisit l'effet de ${chosen.name}.`);
+  if (chosen.effectType === "smashThreat") {
+    sourceCard.copiedSmashThreat = true;
+    if (state.latestPlayedCard?.playedUid === sourceCard.playedUid) {
+      state.latestPlayedCard.copiedSmashThreat = true;
+    }
+  }
   applyEffect(playerIndex, effectCard);
   setEffectNotice("appliqué", chosen, `Effet choisi via ${sourceCard.name}: ${chosen.effect}`);
   if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
