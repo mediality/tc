@@ -832,6 +832,7 @@ function cardLogInfo(card) {
     boostPrecision: card.boostPrecision,
     effectType: card.effectType,
     copiedSmashThreat: Boolean(card.copiedSmashThreat),
+    copiedEffectType: card.copiedEffectType ?? null,
     boosted: Boolean(card.boosted),
     removed: Boolean(card.removed),
   };
@@ -910,7 +911,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v65",
+    version: "v67",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -2291,7 +2292,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCard, isOpeningServe, placementWasInsufficient, boosted, remiseMode = "effect") {
   const player = state.players[playerIndex];
   const endsTurn = !isRemise(card);
-  const hasSmashThreat = card.effectType === "smashThreat" || playedCard.copiedSmashThreat;
+  const hasSmashThreat = card.effectType === "smashThreat" || playedCard.copiedSmashThreat || playedCard.copiedEffectType === "smashThreat";
 
   if (isRemise(card) && remiseMode === "effect") {
     state.turnHasEffect[playerIndex] = true;
@@ -2505,7 +2506,7 @@ function removalTargetScore(card) {
   for (const player of state.players) {
     if (player.limitedFamiliesSourceUid === card.playedUid) score += 8;
   }
-  if (["smashThreat", "limitOpponentFamilies", "boostedBonusAtEnd", "doubleLastShot"].includes(card.effectType)) score += 5;
+  if (["smashThreat", "limitOpponentFamilies", "boostedBonusAtEnd", "doubleLastShot"].includes(card.effectType) || card.copiedEffectType) score += 5;
   return score;
 }
 
@@ -2628,6 +2629,17 @@ function clearActiveEffectsFromRemovedCard(card) {
   }
 }
 
+function markCopiedEffectOnSource(sourceCard, chosen) {
+  sourceCard.copiedEffectType = chosen.effectType;
+  sourceCard.copiedEffectName = chosen.name;
+  if (chosen.effectType === "smashThreat") sourceCard.copiedSmashThreat = true;
+  if (state.latestPlayedCard?.playedUid === sourceCard.playedUid) {
+    state.latestPlayedCard.copiedEffectType = chosen.effectType;
+    state.latestPlayedCard.copiedEffectName = chosen.name;
+    if (chosen.effectType === "smashThreat") state.latestPlayedCard.copiedSmashThreat = true;
+  }
+}
+
 function effectChoicesFor(sourcePlayedUid, options = {}) {
   const { shotsOnly = true } = options;
   return state.players
@@ -2671,12 +2683,7 @@ function resolveEffectChoice(chosenPlayedUid) {
     name: chosen.name,
   };
   state.log.unshift(`${player.name} choisit l'effet de ${chosen.name}.`);
-  if (chosen.effectType === "smashThreat") {
-    sourceCard.copiedSmashThreat = true;
-    if (state.latestPlayedCard?.playedUid === sourceCard.playedUid) {
-      state.latestPlayedCard.copiedSmashThreat = true;
-    }
-  }
+  markCopiedEffectOnSource(sourceCard, chosen);
   applyEffect(playerIndex, effectCard);
   setEffectNotice("appliqué", chosen, `Effet choisi via ${sourceCard.name}: ${chosen.effect}`);
   if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
@@ -3687,12 +3694,6 @@ function renderPlayerPanel(playerIndex, root) {
     </div>
   `;
 
-  root.querySelectorAll("[data-play]").forEach((button) => {
-    button.addEventListener("click", () => playCard(Number(button.dataset.player), button.dataset.play, false, null, button.dataset.mode ?? "effect"));
-  });
-  root.querySelectorAll("[data-boost]").forEach((button) => {
-    button.addEventListener("click", () => openBoostModal(Number(button.dataset.player), button.dataset.boost));
-  });
   root.querySelectorAll("[data-pass]").forEach((button) => {
     button.addEventListener("click", () => pass(Number(button.dataset.pass)));
   });
@@ -4061,6 +4062,18 @@ els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+  const playButton = target?.closest("[data-play]");
+  if (playButton instanceof HTMLButtonElement && !playButton.disabled) {
+    event.preventDefault();
+    playCard(Number(playButton.dataset.player), playButton.dataset.play, false, null, playButton.dataset.mode ?? "effect");
+    return;
+  }
+  const boostButton = target?.closest("[data-boost]");
+  if (boostButton instanceof HTMLButtonElement && !boostButton.disabled) {
+    event.preventDefault();
+    openBoostModal(Number(boostButton.dataset.player), boostButton.dataset.boost);
+    return;
+  }
   if (target?.closest("[data-force-ai-turn]")) {
     forceSoloAITurn();
   }

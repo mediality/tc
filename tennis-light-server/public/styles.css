@@ -982,12 +982,17 @@ h1 {
 }
 
 .card-actions {
+  position: relative;
+  z-index: 32;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 
 .play-button {
+  position: relative;
+  z-index: 33;
+  pointer-events: auto;
   min-height: 34px;
   border-radius: 8px;
   color: #fff;
@@ -996,6 +1001,9 @@ h1 {
 }
 
 .boost-button {
+  position: relative;
+  z-index: 33;
+  pointer-events: auto;
   min-height: 34px;
   border-radius: 8px;
   color: #111827;
