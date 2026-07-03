@@ -1355,11 +1355,11 @@ h1 {
 }
 
 .played-visual.center-played {
-  width: min(132px, calc(100% - 16px));
+  width: min(154px, calc(100% - 16px));
 }
 
 .played-visual.history-card {
-  width: 58px;
+  width: 74px;
 }
 
 .played-visual.removed {

@@ -807,12 +807,17 @@ function createPlayer(name, characterId, nickname = name) {
     hand: [],
     played: [],
     nextPrecisionBonus: 0,
+    nextPrecisionSources: [],
     nextPlacementBonus: 0,
+    nextPlacementSources: [],
     nextDiscount: 0,
+    nextDiscountSources: [],
     cancelNextOpponentEffect: false,
+    cancelNextOpponentEffectSourceUid: null,
     limitedFamilies: null,
     limitedFamiliesSourceUid: null,
     freeBoostNext: false,
+    freeBoostNextSourceUid: null,
     endBonuses: [],
     passed: false,
   };
@@ -930,7 +935,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v68",
+    version: "v69",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1188,6 +1193,44 @@ function effectiveCost(player, card) {
   return isRemise(card) ? card.cost : Math.max(0, card.cost - player.nextDiscount);
 }
 
+function addNextPrecisionBonus(player, value, sourceUid = null) {
+  player.nextPrecisionSources = player.nextPrecisionSources ?? [];
+  player.nextPrecisionBonus += value;
+  if (sourceUid) player.nextPrecisionSources.push({ sourceUid, value });
+}
+
+function addNextPlacementBonus(player, value, sourceUid = null) {
+  player.nextPlacementSources = player.nextPlacementSources ?? [];
+  player.nextPlacementBonus += value;
+  if (sourceUid) player.nextPlacementSources.push({ sourceUid, value });
+}
+
+function addNextDiscount(player, value, sourceUid = null) {
+  player.nextDiscountSources = player.nextDiscountSources ?? [];
+  player.nextDiscount += value;
+  if (sourceUid) player.nextDiscountSources.push({ sourceUid, value });
+}
+
+function clearNextShotBonuses(player) {
+  player.nextDiscount = 0;
+  player.nextDiscountSources = [];
+  player.nextPrecisionBonus = 0;
+  player.nextPrecisionSources = [];
+  player.nextPlacementBonus = 0;
+  player.nextPlacementSources = [];
+}
+
+function removeSourcedNextBonus(player, key, sourceKey, sourceUid) {
+  const sources = player[sourceKey] ?? [];
+  const removedValue = sources
+    .filter((source) => source.sourceUid === sourceUid)
+    .reduce((sum, source) => sum + source.value, 0);
+  if (!removedValue) return 0;
+  player[key] = Math.max(0, player[key] - removedValue);
+  player[sourceKey] = sources.filter((source) => source.sourceUid !== sourceUid);
+  return removedValue;
+}
+
 function getCardStats(player, card, boosted) {
   const shotBonus = isRemise(card) ? 0 : 1;
   return {
@@ -1224,17 +1267,21 @@ function satisfiesColorBoostCondition(card) {
 function isFreeBoostNextWindow(playerIndex) {
   if (!state.lastCard?.boosted) return false;
   if (state.lastCard.isServiceTurn && playerIndex === opponentOf(state.server)) return true;
-  const serverShots = state.players[state.server].played.filter((card) => !card.removed && isShot(card)).length;
+  const serverShots = state.players[state.server].played.filter((card) => isShot(card)).length;
   const receiverIndex = opponentOf(state.server);
-  const receiverShots = state.players[receiverIndex].played.filter((card) => !card.removed && isShot(card)).length;
+  const receiverShots = state.players[receiverIndex].played.filter((card) => isShot(card)).length;
   return playerIndex === state.server && state.lastCard.owner === receiverIndex && serverShots === 1 && receiverShots === 1;
 }
 
 function isServiceBoostHintWindow(playerIndex) {
   if (!state.lastCard?.isServiceTurn || state.lastCard.boosted) return false;
   if (playerIndex !== opponentOf(state.server)) return false;
-  const receiverShots = state.players[playerIndex].played.filter((card) => !card.removed && isShot(card)).length;
+  const receiverShots = state.players[playerIndex].played.filter((card) => isShot(card)).length;
   return receiverShots === 0;
+}
+
+function isNextEffectCanceledFor(playerIndex) {
+  return Boolean(state.players[opponentOf(playerIndex)]?.cancelNextOpponentEffect);
 }
 
 function isRemise(card) {
@@ -1280,7 +1327,7 @@ function canPlayBoost(playerIndex, card) {
   const player = state.players[playerIndex];
   const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid);
   const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && state.lastCard == null;
-  const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex);
+  const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
   const boostWindow = state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || colorBoost;
@@ -2210,11 +2257,12 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 
   player.endurance -= cost;
   if (endsTurn) {
-    player.nextDiscount = 0;
-    player.nextPrecisionBonus = 0;
-    player.nextPlacementBonus = 0;
+    clearNextShotBonuses(player);
   }
-  if (boosted) player.freeBoostNext = false;
+  if (boosted) {
+    player.freeBoostNext = false;
+    player.freeBoostNextSourceUid = null;
+  }
 
   removeFromHand(player, card.uid);
 
@@ -2281,6 +2329,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     state.log.unshift(`L'effet de ${card.name} ne s'applique pas car la carte est jouée en Remise.`);
   } else if (effectCanceled) {
     state.players[opponentIndex].cancelNextOpponentEffect = false;
+    state.players[opponentIndex].cancelNextOpponentEffectSourceUid = null;
     setEffectNotice("annulé", card, `${card.effect} Annulé par l'effet adverse.`);
     state.log.unshift(`L'effet de ${card.name} est annulé.`);
   } else {
@@ -2432,24 +2481,25 @@ function applyEffect(playerIndex, card) {
       state.log.unshift(`${player.name} pioche ${card.effectValue} carte.`);
       break;
     case "nextPrecision":
-      player.nextPrecisionBonus += card.effectValue;
+      addNextPrecisionBonus(player, card.effectValue, card.playedUid);
       state.log.unshift(`${player.name} gagne +${card.effectValue} précision sur son prochain coup.`);
       break;
     case "nextPlacement":
-      player.nextPlacementBonus += card.effectValue;
+      addNextPlacementBonus(player, card.effectValue, card.playedUid);
       state.log.unshift(`${player.name} gagne +${card.effectValue} placement sur son prochain coup.`);
       break;
     case "nextPrecisionAndPlacement":
-      player.nextPrecisionBonus += card.effectValue;
-      player.nextPlacementBonus += card.effectValue;
+      addNextPrecisionBonus(player, card.effectValue, card.playedUid);
+      addNextPlacementBonus(player, card.effectValue, card.playedUid);
       state.log.unshift(`${player.name} gagne +${card.effectValue} précision et placement sur son prochain coup.`);
       break;
     case "nextDiscount":
-      player.nextDiscount += card.effectValue;
+      addNextDiscount(player, card.effectValue, card.playedUid);
       state.log.unshift(`Le prochain coup de ${player.name} coûte ${card.effectValue} endurance en moins.`);
       break;
     case "cancelOpponentNextEffect":
       player.cancelNextOpponentEffect = true;
+      player.cancelNextOpponentEffectSourceUid = card.playedUid;
       state.log.unshift(`${player.name} annulera le prochain effet adverse.`);
       break;
     case "limitOpponentFamilies":
@@ -2477,6 +2527,7 @@ function applyEffect(playerIndex, card) {
     case "freeBoostNext":
       if (isFreeBoostNextWindow(playerIndex)) {
         player.freeBoostNext = true;
+        player.freeBoostNextSourceUid = card.playedUid;
         state.log.unshift(`${player.name} pourra booster son prochain coup grâce au Retour de service.`);
       } else {
         state.log.unshift(`Retour de service est joué hors fenêtre : son bonus de boost ne s'applique pas.`);
@@ -2623,12 +2674,32 @@ function removeOpponentPlayed(opponentIndex, targetPlayedUid) {
 
 function clearActiveEffectsFromRemovedCard(card) {
   for (const player of state.players) {
+    const removedPrecision = removeSourcedNextBonus(player, "nextPrecisionBonus", "nextPrecisionSources", card.playedUid);
+    const removedPlacement = removeSourcedNextBonus(player, "nextPlacementBonus", "nextPlacementSources", card.playedUid);
+    const removedDiscount = removeSourcedNextBonus(player, "nextDiscount", "nextDiscountSources", card.playedUid);
+    if (removedPrecision) state.log.unshift(`Le bonus +${removedPrecision} précision créé par ${card.name} est annulé.`);
+    if (removedPlacement) state.log.unshift(`Le bonus +${removedPlacement} placement créé par ${card.name} est annulé.`);
+    if (removedDiscount) state.log.unshift(`Le bonus -${removedDiscount} endurance créé par ${card.name} est annulé.`);
     if (player.limitedFamiliesSourceUid === card.playedUid) {
       player.limitedFamilies = null;
       player.limitedFamiliesSourceUid = null;
       state.log.unshift(`La contrainte de type créée par ${card.name} est annulée.`);
     }
+    if (player.cancelNextOpponentEffectSourceUid === card.playedUid) {
+      player.cancelNextOpponentEffect = false;
+      player.cancelNextOpponentEffectSourceUid = null;
+      state.log.unshift(`L'annulation du prochain effet créée par ${card.name} est annulée.`);
+    }
+    if (player.freeBoostNextSourceUid === card.playedUid) {
+      player.freeBoostNext = false;
+      player.freeBoostNextSourceUid = null;
+      state.log.unshift(`Le boost libre créé par ${card.name} est annulé.`);
+    }
     player.endBonuses = player.endBonuses.filter((bonus) => bonus.sourceUid !== card.playedUid);
+  }
+  if (card.isServiceTurn && state.returnServiceRestrictionFor === opponentOf(card.owner)) {
+    state.returnServiceRestrictionFor = null;
+    state.log.unshift("La contrainte de retour de service disparaît avec le service supprimé.");
   }
   if (state.mandatoryPlacementSourceUid === card.playedUid) {
     state.mandatoryPlacement = false;
@@ -2824,7 +2895,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
   if (effect.type === "nextDiscount") {
     const value = effect.value ?? 1;
-    player.nextDiscount += value;
+    addNextDiscount(player, value, playedCard.playedUid);
     state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${player.name} coûte ${value} endurance en moins.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -3046,6 +3117,7 @@ function applySetMatchScore(winner, exchangeScore) {
     state.setMatch.setsWon[state.setMatch.winner] += 1;
     state.setMatch.matchOver = Boolean(state.setMatch.targetSets && state.setMatch.setsWon[state.setMatch.winner] >= state.setMatch.targetSets);
     state.setMatch.matchWinner = state.setMatch.matchOver ? state.setMatch.winner : null;
+    updateTournamentSetProgress();
   }
   state.resultInfo.setMatch = {
     previousScore: previous,
@@ -3167,8 +3239,11 @@ function startTournamentMode() {
         label: "Demi-finale 2",
         playerA: aiSemiA,
         playerB: aiSemiB,
-        winner: aiSemiResult.winner,
-        score: aiSemiResult.score,
+        winner: null,
+        score: null,
+        hiddenWinner: aiSemiResult.winner,
+        hiddenSetScores: aiSemiResult.setScores,
+        revealedSetScores: [],
         simulated: true,
       },
       {
@@ -3191,22 +3266,23 @@ function startTournamentMode() {
 
 function simulateAiTournamentMatch(playerA, playerB) {
   const winner = Math.random() < 0.5 ? playerA : playerB;
-  return { winner, score: randomMatchScoreForWinner(winner === playerA ? 0 : 1) };
+  const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1);
+  return { winner, setScores, score: formatSetScores(setScores) };
 }
 
-function randomMatchScoreForWinner(winnerIndex) {
-  const loserIndex = opponentOf(winnerIndex);
+function randomMatchSetScoresForWinner(winnerIndex) {
   const loserTakesSet = Math.random() < 0.34;
   const winnerSetScores = loserTakesSet
     ? [[4, 6], [6, 3], [7, 5]]
     : (Math.random() < 0.5 ? [[6, 4], [7, 5]] : [[6, 2], [6, 4]]);
   return winnerSetScores.map((score) => {
     const oriented = winnerIndex === 0 ? score : [score[1], score[0]];
-    if (oriented[loserIndex] > oriented[winnerIndex]) {
-      return `${oriented[0]}/${oriented[1]}`;
-    }
-    return `${oriented[0]}/${oriented[1]}`;
-  }).join(" - ");
+    return [oriented[0], oriented[1]];
+  });
+}
+
+function formatSetScores(setScores = []) {
+  return setScores.map((score) => `${score[0]}/${score[1]}`).join(" - ");
 }
 
 function tournamentMatchById(matchId) {
@@ -3225,9 +3301,11 @@ function handleTournamentMatchComplete() {
   match.winner = winnerCharacterId;
   match.score = tournamentCompletedSetScore();
   if (match.id === "semiHuman") {
+    revealAllTournamentAiSets();
     const final = tournamentMatchById("final");
     if (winnerCharacterId === state.tournament.humanCharacterId) {
       final.playerA = winnerCharacterId;
+      final.playerB = state.tournament.aiFinalistCharacterId;
       state.tournament.stage = "readyFinal";
       state.tournament.currentMatch = null;
       state.log.unshift(`Finale débloquée contre ${characterNameFromId(state.tournament.aiFinalistCharacterId)}.`);
@@ -3264,6 +3342,35 @@ function startTournamentFinal() {
   state.tournament.currentMatch = "final";
   state.log.unshift(`Finale du tournoi : ${selectedPlayerName()} contre ${characterNameFromId(SOLO_AI.characterId)}.`);
   render();
+}
+
+function updateTournamentSetProgress() {
+  if (!state.tournament.active || !state.setMatch.setOver || !state.tournament.currentMatch) return;
+  const current = tournamentMatchById(state.tournament.currentMatch);
+  if (current && !current.score) {
+    current.liveScore = tournamentCompletedSetScore();
+  }
+  revealNextTournamentAiSet();
+}
+
+function revealNextTournamentAiSet() {
+  const aiSemi = tournamentMatchById("semiAi");
+  if (!aiSemi?.hiddenSetScores?.length) return;
+  if ((aiSemi.revealedSetScores ?? []).length >= aiSemi.hiddenSetScores.length) return;
+  aiSemi.revealedSetScores = aiSemi.revealedSetScores ?? [];
+  aiSemi.revealedSetScores.push(aiSemi.hiddenSetScores[aiSemi.revealedSetScores.length]);
+  aiSemi.score = formatSetScores(aiSemi.revealedSetScores);
+  if (aiSemi.revealedSetScores.length >= aiSemi.hiddenSetScores.length) {
+    aiSemi.winner = aiSemi.hiddenWinner;
+  }
+}
+
+function revealAllTournamentAiSets() {
+  const aiSemi = tournamentMatchById("semiAi");
+  if (!aiSemi?.hiddenSetScores?.length) return;
+  aiSemi.revealedSetScores = aiSemi.hiddenSetScores.map((score) => [...score]);
+  aiSemi.score = formatSetScores(aiSemi.revealedSetScores);
+  aiSemi.winner = aiSemi.hiddenWinner;
 }
 
 function aiStyleLabel() {
@@ -3551,6 +3658,7 @@ function renderTournamentMatch(match, isFinal = false) {
   if (!match) return "";
   const playerA = match.playerA ? characterNameFromId(match.playerA) : "Vainqueur demi-finale";
   const playerB = match.playerB ? characterNameFromId(match.playerB) : "Vainqueur demi-finale";
+  const scoreText = match.score || match.liveScore || "";
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
@@ -3562,7 +3670,7 @@ function renderTournamentMatch(match, isFinal = false) {
         <span>${playerB}</span>
         ${match.winner === match.playerB ? "<strong>✓</strong>" : ""}
       </div>
-      ${match.score ? `<div class="tournament-score">${match.score}</div>` : ""}
+      ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
   `;
 }
