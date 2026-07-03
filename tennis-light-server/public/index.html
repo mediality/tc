@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=63" />
+    <link rel="stylesheet" href="./styles.css?v=64" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v63</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v64</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -69,19 +69,14 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v63</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v64</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
-          <button id="newGameButton" class="primary-button" type="button">Nouvel échange</button>
+          <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
           <button id="returnLobbyButton" class="small-button" type="button">Retour lobby</button>
           <button id="exportLogsButton" class="small-button" type="button">Exporter logs</button>
           <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler les cartes</button>
-          <button id="soloModeButton" class="small-button solo-button" type="button">Mode IA</button>
-          <button id="setModeButton" class="small-button set-button" type="button">Set IA</button>
-          <button id="matchTwoButton" class="small-button set-button" type="button">Match 2 sets</button>
-          <button id="matchThreeButton" class="small-button set-button" type="button">Match 3 sets</button>
-          <button id="onlineModeButton" class="small-button online-button" type="button">Mode en ligne</button>
         </div>
       </section>
 
@@ -106,6 +101,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=63"></script>
+    <script src="./app.js?v=64"></script>
   </body>
 </html>

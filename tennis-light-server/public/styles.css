@@ -280,8 +280,20 @@ h1 {
 .top-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.mode-info-badge {
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: #e9fbff;
+  background: rgba(2, 42, 59, 0.72);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .solo-button {

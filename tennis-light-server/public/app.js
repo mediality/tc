@@ -447,6 +447,7 @@ const state = {
 
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
+  modeInfoBadge: document.querySelector("#modeInfoBadge"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   menuScreen: document.querySelector("#menuScreen"),
   gameApp: document.querySelector(".game-app"),
@@ -908,7 +909,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v63",
+    version: "v64",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1284,7 +1285,7 @@ function startSoloGame() {
   SOLO_AI.nudgeVisible = false;
   SOLO_AI.nudgeWatchedTurn = null;
   newGame();
-  const styleLabel = SOLO_AI.style === "aggressive" ? "agressif" : SOLO_AI.style === "cautious" ? "prudent" : "équilibré";
+  const styleLabel = aiStyleLabel();
   state.log.unshift(`Mode IA : vous jouez ${selectedPlayerName()}, l'autre coach joue ${styleLabel}.`);
   render();
 }
@@ -1658,16 +1659,7 @@ function resolveSoloPendingChoice(forceClose = false) {
 }
 
 function chooseSoloAIStyle() {
-  const player = state.players[SOLO_AI.playerIndex];
-  const shots = player.hand.filter((card) => !isRemise(card));
-  const boostable = shots.filter((card) => card.boostPower >= 4).length;
-  const averagePower = shots.reduce((sum, card) => sum + card.power, 0) / Math.max(1, shots.length);
-  const averageCost = player.hand.reduce((sum, card) => sum + card.cost, 0) / Math.max(1, player.hand.length);
-  if (isMatchDangerForPlayer(SOLO_AI.playerIndex) || isSetDangerForPlayer(SOLO_AI.playerIndex)) return "aggressive";
-  if (isMatchComfortForPlayer(SOLO_AI.playerIndex) && averageCost >= 2) return "cautious";
-  if (boostable >= 2 || averagePower >= 3.5) return "aggressive";
-  if (shots.length <= 2 || averageCost >= 2.3) return "cautious";
-  return "balanced";
+  return "expert";
 }
 
 function canSoloFinishWithCoup(playerIndex) {
@@ -1698,7 +1690,7 @@ function canSoloPassAndWin(playerIndex) {
 
 function shouldSoloPassToLimitBoostDamage(playerIndex) {
   if (state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return false;
-  if (!isVulnerableToJuBoostPressure(playerIndex)) return false;
+  if (!isVulnerableToJuBoostPressure(playerIndex) && !isExpertVulnerableToCounterPressure(playerIndex)) return false;
   if (isMatchDangerForPlayer(playerIndex) || isSetDangerForPlayer(playerIndex)) return false;
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
@@ -1715,6 +1707,22 @@ function shouldSoloPassToLimitBoostDamage(playerIndex) {
   if (!isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, "power")) return false;
   const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers);
   return exchangeScore.loserGames > 0 || !state.setMatch.enabled;
+}
+
+function isExpertVulnerableToCounterPressure(playerIndex) {
+  if (SOLO_AI.style !== "expert") return false;
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (player.endurance > 2 || opponent.hand.length < 2 || !state.lastCard) return false;
+  const unseen = expertUnseenCards(playerIndex);
+  if (!unseen.length) return false;
+  const possibleBoostCards = unseen
+    .filter((card) => !isRemise(card) && card.family !== "Service")
+    .filter((card) => Math.max(0, card.cost - opponent.nextDiscount) <= opponent.endurance)
+    .filter((card) => state.boostAvailableFor === opponentOf(playerIndex) || canFamilyBoostAfter(state.lastCard.family, card.family));
+  const probability = Math.min(0.95, (possibleBoostCards.length / unseen.length) * Math.max(1, opponent.hand.length - 1));
+  const hasEmergencyDefense = player.hand.some((card) => isRemise(card) && ["jokerResponse", "removeOpponentLast"].includes(card.effectType) && effectiveCost(player, card) <= player.endurance);
+  return probability >= 0.5 && !hasEmergencyDefense;
 }
 
 function isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, winType) {
@@ -1746,6 +1754,78 @@ function getProjectedExchangeSetScore(winner, winType, projectedPowers) {
     loser,
     label: "Victoire aux points de puissance",
   };
+}
+
+function allVisibleCardIdsForExpert(playerIndex) {
+  const player = state.players[playerIndex];
+  return new Set([
+    ...player.hand.map((card) => card.id),
+    ...state.players.flatMap((candidate) => candidate.played.map((card) => card.id)),
+  ]);
+}
+
+function expertUnseenCards(playerIndex) {
+  const visibleIds = allVisibleCardIdsForExpert(playerIndex);
+  return CARD_LIBRARY.filter((card) => !visibleIds.has(card.id));
+}
+
+function canFamilyBoostAfter(previousFamily, cardFamily) {
+  return COLOR_BOOST_RULES[cardFamily]?.includes(previousFamily);
+}
+
+function expertCounterBoostThreat(playerIndex, boostedCard, sacrifice = null) {
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const opponent = state.players[opponentIndex];
+  if (opponent.hand.length < 2 || opponent.endurance <= 0) {
+    return { probability: 0, canDefend: true, danger: 0, possibleCounters: [] };
+  }
+  const unseen = expertUnseenCards(playerIndex);
+  const possibleCounters = unseen
+    .filter((card) => !isRemise(card) && card.family !== "Service")
+    .filter((card) => canFamilyBoostAfter(boostedCard.family, card.family))
+    .filter((card) => Math.max(0, card.cost - opponent.nextDiscount) <= opponent.endurance);
+  const probability = unseen.length
+    ? Math.min(0.95, (possibleCounters.length / unseen.length) * Math.max(1, opponent.hand.length - 1))
+    : 0;
+  const requiredPlacement = possibleCounters.reduce((max, card) => Math.max(max, card.boostPrecision), 0);
+  const remainingHand = player.hand.filter((card) => card.uid !== boostedCard.uid && card.uid !== sacrifice?.uid);
+  const remainingEndurance = player.endurance - effectiveCost(player, boostedCard);
+  const canDefend = requiredPlacement === 0 || expertCanDefendBoostWithCards(playerIndex, remainingHand, remainingEndurance, requiredPlacement);
+  const danger = probability * (canDefend ? 8 : 28 + requiredPlacement * 2);
+  return { probability, canDefend, danger, possibleCounters };
+}
+
+function expertCanDefendBoostWithCards(playerIndex, cards, endurance, requiredPlacement) {
+  if (endurance < 0) return false;
+  const player = state.players[playerIndex];
+  if (cards.some((card) => isRemise(card) && ["jokerResponse", "removeOpponentLast"].includes(card.effectType) && effectiveCost(player, card) <= endurance)) {
+    return true;
+  }
+  const remises = cards.filter((card) => isRemise(card));
+  const coups = cards.filter((card) => !isRemise(card) && satisfiesFamilyLimit(player, card) && satisfiesReturnServiceRestriction(card));
+  if (coups.some((card) => effectiveCost(player, card) <= endurance && getCardStats(player, card, false).placement >= requiredPlacement)) {
+    return true;
+  }
+  for (const subset of expertRemiseSubsets(remises)) {
+    const remiseCost = subset.reduce((sum, card) => sum + effectiveCost(player, card), 0);
+    if (remiseCost > endurance) continue;
+    const remisePlacement = subset.reduce((sum, card) => sum + getCardStats(player, card, false).placement, 0);
+    if (remisePlacement >= requiredPlacement) return true;
+    if (coups.some((card) => remiseCost + effectiveCost(player, card) <= endurance && remisePlacement + getCardStats(player, card, false).placement >= requiredPlacement)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function expertRemiseSubsets(remises) {
+  const subsets = [];
+  const maxMask = 1 << remises.length;
+  for (let mask = 1; mask < maxMask; mask += 1) {
+    subsets.push(remises.filter((_, index) => mask & (1 << index)));
+  }
+  return subsets;
 }
 
 function previewSetMatchScore(winner, exchangeScore) {
@@ -1879,14 +1959,33 @@ function chooseSoloBoostPlay(playerIndex) {
       const boostedScore = soloBoostScore(playerIndex, card) - soloSacrificeScore(sacrifice) * 0.35;
       const normalScore = canPlayNormal(playerIndex, card) ? soloCardScore(playerIndex, card) : -Infinity;
       const passPressure = wouldOpponentBeAbleToPassAndWin(playerIndex, card, true);
-      return { card, sacrifice, boostedScore, normalScore, passPressure };
+      const threat = SOLO_AI.style === "expert" ? expertCounterBoostThreat(playerIndex, card, sacrifice) : { danger: 0, probability: 0, canDefend: true };
+      return {
+        card,
+        sacrifice,
+        threat,
+        boostedScore: boostedScore - threat.danger,
+        rawBoostedScore: boostedScore,
+        normalScore,
+        passPressure,
+      };
     })
     .filter(Boolean)
     .sort((a, b) => b.boostedScore - a.boostedScore);
   const best = options[0];
   if (!best) return null;
-  const styleBoostMargin = SOLO_AI.style === "aggressive" ? 2 : SOLO_AI.style === "cautious" ? 7 : 5;
-  const shouldBoost = state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin;
+  const styleBoostMargin = SOLO_AI.style === "aggressive" ? 2 : SOLO_AI.style === "cautious" ? 7 : SOLO_AI.style === "expert" ? 4 : 5;
+  const expertBlocksRisk = SOLO_AI.style === "expert"
+    && !state.mandatoryPlacement
+    && state.boostAvailableFor !== playerIndex
+    && !best.passPressure
+    && !isSetDangerForPlayer(playerIndex)
+    && best.threat.probability >= 0.42
+    && !best.threat.canDefend;
+  const shouldBoost = !expertBlocksRisk && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
+  if (SOLO_AI.style === "expert" && best.threat.probability > 0.3) {
+    state.log.unshift(`IA Expert : risque de contre-boost estimé ${Math.round(best.threat.probability * 100)}%${best.threat.canDefend ? ", défense possible." : ", défense fragile."}`);
+  }
   return shouldBoost ? { card: best.card, sacrifice: best.sacrifice } : null;
 }
 
@@ -2965,12 +3064,19 @@ function startMatchMode(targetSets = null) {
   state.setMatch.matchWinner = null;
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
-  const styleLabel = SOLO_AI.style === "aggressive" ? "agressif" : SOLO_AI.style === "cautious" ? "prudent" : "équilibré";
+  const styleLabel = aiStyleLabel();
   const formatLabel = targetSets ? `match en ${targetSets} sets gagnants` : "set complet";
   const opponentLabel = SERVER_SYNC.enabled ? "en ligne" : `contre Coach Max (${styleLabel})`;
   state.log.unshift(`Mode ${formatLabel} : ${opponentLabel}.`);
   markServerDirtyForHostAction();
   render();
+}
+
+function aiStyleLabel() {
+  if (SOLO_AI.style === "expert") return "expert";
+  if (SOLO_AI.style === "aggressive") return "agressif";
+  if (SOLO_AI.style === "cautious") return "prudent";
+  return "équilibré";
 }
 
 function nextSetExchange() {
@@ -3181,37 +3287,24 @@ function ensureSoloAIForSet() {
 }
 
 function renderModeButtons() {
-  if (els.soloModeButton) {
-    els.soloModeButton.classList.toggle("active", SOLO_AI.enabled && !state.setMatch.enabled);
-    els.soloModeButton.textContent = SOLO_AI.enabled && !state.setMatch.enabled ? "IA active" : "Mode IA";
-    els.soloModeButton.disabled = SERVER_SYNC.enabled;
-  }
-  if (els.setModeButton) {
-    els.setModeButton.classList.toggle("active", state.setMatch.enabled && !state.setMatch.targetSets);
-    els.setModeButton.textContent = state.setMatch.enabled && !state.setMatch.targetSets ? "Set actif" : "Set IA";
-    els.setModeButton.disabled = SERVER_SYNC.enabled && (!SERVER_SYNC.isHost || !onlineRoomReady());
-  }
-  if (els.matchTwoButton) {
-    els.matchTwoButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 2);
-    els.matchTwoButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 2 ? "Match 2 actif" : "Match 2 sets";
-    els.matchTwoButton.disabled = SERVER_SYNC.enabled && (!SERVER_SYNC.isHost || !onlineRoomReady());
-  }
-  if (els.matchThreeButton) {
-    els.matchThreeButton.classList.toggle("active", state.setMatch.enabled && state.setMatch.targetSets === 3);
-    els.matchThreeButton.textContent = state.setMatch.enabled && state.setMatch.targetSets === 3 ? "Match 3 actif" : "Match 3 sets";
-    els.matchThreeButton.disabled = SERVER_SYNC.enabled && (!SERVER_SYNC.isHost || !onlineRoomReady());
-  }
-  if (els.onlineModeButton) {
-    els.onlineModeButton.classList.toggle("active", SERVER_SYNC.enabled);
-    els.onlineModeButton.textContent = SERVER_SYNC.enabled ? "En ligne actif" : "Mode en ligne";
-    els.onlineModeButton.disabled = SERVER_SYNC.enabled || SOLO_AI.enabled;
-  }
+  if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
   if (els.revealAiButton) {
     const canReveal = SOLO_AI.enabled && state.gameOver;
     els.revealAiButton.classList.toggle("hidden", !canReveal);
     els.revealAiButton.classList.toggle("active", state.revealAiCards);
     els.revealAiButton.textContent = state.revealAiCards ? "Cartes révélées" : "Révéler les cartes";
   }
+}
+
+function currentModeLabel() {
+  if (SERVER_SYNC.enabled) {
+    const format = SERVER_SYNC.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
+    return `Mode en ligne · ${format}`;
+  }
+  if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
+  if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
+  if (SOLO_AI.enabled) return `Contre l'IA · Échange · IA ${aiStyleLabel()}`;
+  return "Mode local";
 }
 
 function renderServerSyncPanel() {
@@ -3456,6 +3549,11 @@ function renderCenterNextExchangeButton() {
   return '<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>';
 }
 
+function renderCenterNextSoloExchangeButton() {
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.setMatch.enabled || !state.gameOver) return "";
+  return '<button class="primary-button next-exchange-button" type="button" data-next-solo-exchange>Échange suivant</button>';
+}
+
 function renderCenterNextSetButton() {
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
   return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
@@ -3463,7 +3561,15 @@ function renderCenterNextSetButton() {
 
 function bindCenterButtons() {
   els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
+  els.centerPlayedCard.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
   els.centerPlayedCard.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
+}
+
+function nextSoloExchange() {
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.setMatch.enabled || !state.gameOver) return;
+  newGame();
+  state.log.unshift(`Nouvel échange contre l'IA ${aiStyleLabel()}.`);
+  render();
 }
 
 function renderCenterPlayedCard() {
@@ -3472,6 +3578,7 @@ function renderCenterPlayedCard() {
       ${renderCenterSetScore()}
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
+      ${renderCenterNextSoloExchangeButton()}
       ${renderCenterNextExchangeButton()}
       ${renderCenterNextSetButton()}
     `;
@@ -3484,6 +3591,7 @@ function renderCenterPlayedCard() {
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
+    ${renderCenterNextSoloExchangeButton()}
     ${renderCenterNextExchangeButton()}
     ${renderCenterNextSetButton()}
   `;
@@ -3917,15 +4025,10 @@ function initMenu() {
   }, 3500);
 }
 
-els.newGameButton.addEventListener("click", newGame);
+els.newGameButton?.addEventListener("click", newGame);
 els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
-els.soloModeButton?.addEventListener("click", startSoloGame);
-els.setModeButton?.addEventListener("click", startSetAiGame);
-els.matchTwoButton?.addEventListener("click", () => startMatchMode(2));
-els.matchThreeButton?.addEventListener("click", () => startMatchMode(3));
-els.onlineModeButton?.addEventListener("click", startOnlineGame);
 document.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;
   if (target?.closest("[data-force-ai-turn]")) {
