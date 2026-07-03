@@ -54,6 +54,16 @@ const MENU_STATE = {
   lobbyTimer: null,
 };
 
+const EMPTY_TOURNAMENT = {
+  active: false,
+  stage: null,
+  humanCharacterId: null,
+  aiFinalistCharacterId: null,
+  currentMatch: null,
+  championCharacterId: null,
+  matches: [],
+};
+
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
 
@@ -429,6 +439,7 @@ const state = {
   turnDirty: false,
   revealAiCards: false,
   actionLog: [],
+  tournament: cloneData(EMPTY_TOURNAMENT),
   setMatch: {
     enabled: false,
     score: [0, 0],
@@ -465,6 +476,7 @@ const els = {
   matchThreeButton: document.querySelector("#matchThreeButton"),
   onlineModeButton: document.querySelector("#onlineModeButton"),
   resultPanel: document.querySelector("#resultPanel"),
+  tournamentPanel: document.querySelector("#tournamentPanel"),
   player1Summary: document.querySelector("#player1Summary"),
   player2Summary: document.querySelector("#player2Summary"),
   rallyState: document.querySelector("#rallyState"),
@@ -669,12 +681,17 @@ function configureSoloOpponent() {
   SOLO_AI.characterId = randomAiCharacterId();
 }
 
+function resetTournament() {
+  state.tournament = cloneData(EMPTY_TOURNAMENT);
+}
+
 function randomAiCharacterId() {
   const available = COACH_OPTIONS.filter((characterId) => characterId !== selectedCharacterId());
   return available[Math.floor(Math.random() * available.length)] ?? "coachMax";
 }
 
 function startSoloFromMenu(mode) {
+  if (mode !== "tournament") resetTournament();
   configureSoloOpponent();
   showGameScreen();
   if (mode === "exchange") {
@@ -685,6 +702,8 @@ function startSoloFromMenu(mode) {
     startMatchMode(2);
   } else if (mode === "match3") {
     startMatchMode(3);
+  } else if (mode === "tournament") {
+    startTournamentMode();
   }
 }
 
@@ -911,7 +930,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v67",
+    version: "v68",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1070,6 +1089,7 @@ const SNAPSHOT_KEYS = [
   "effectNotice",
   "resultInfo",
   "revealAiCards",
+  "tournament",
   "setMatch",
 ];
 
@@ -2955,6 +2975,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
+  handleTournamentMatchComplete();
   recordAction("exchange_end", {
     winner,
     winnerName: playerName(winner),
@@ -3084,13 +3105,13 @@ function startSetAiGame() {
   startMatchMode(null);
 }
 
-function startMatchMode(targetSets = null) {
+function startMatchMode(targetSets = null, options = {}) {
   if (SERVER_SYNC.enabled && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut lancer un set ou un match en ligne.");
     render();
     return;
   }
-  if (!SERVER_SYNC.enabled) {
+  if (!SERVER_SYNC.enabled && !options.keepSoloOpponent) {
     configureSoloOpponent();
   }
   resetSetMatch();
@@ -3103,9 +3124,145 @@ function startMatchMode(targetSets = null) {
   newGame({ preserveSet: true, serverOverride: server });
   const styleLabel = aiStyleLabel();
   const formatLabel = targetSets ? `match en ${targetSets} sets gagnants` : "set complet";
-  const opponentLabel = SERVER_SYNC.enabled ? "en ligne" : `contre Coach Max (${styleLabel})`;
+  const opponentLabel = SERVER_SYNC.enabled ? "en ligne" : `contre ${characterNameFromId(SOLO_AI.characterId)} (${styleLabel})`;
   state.log.unshift(`Mode ${formatLabel} : ${opponentLabel}.`);
   markServerDirtyForHostAction();
+  render();
+}
+
+function startTournamentMode() {
+  if (SERVER_SYNC.enabled) {
+    state.log.unshift("Le tournoi IA est disponible hors partie en ligne.");
+    render();
+    return;
+  }
+  resetTournament();
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  const humanCharacterId = selectedCharacterId();
+  const opponents = shuffle(COACH_OPTIONS.filter((characterId) => characterId !== humanCharacterId));
+  const semiOpponent = opponents[0];
+  const aiSemiA = opponents[1];
+  const aiSemiB = opponents[2];
+  const aiSemiResult = simulateAiTournamentMatch(aiSemiA, aiSemiB);
+  state.tournament = {
+    active: true,
+    stage: "semi",
+    humanCharacterId,
+    aiFinalistCharacterId: aiSemiResult.winner,
+    currentMatch: "semiHuman",
+    championCharacterId: null,
+    matches: [
+      {
+        id: "semiHuman",
+        label: "Demi-finale 1",
+        playerA: humanCharacterId,
+        playerB: semiOpponent,
+        winner: null,
+        score: null,
+        playable: true,
+      },
+      {
+        id: "semiAi",
+        label: "Demi-finale 2",
+        playerA: aiSemiA,
+        playerB: aiSemiB,
+        winner: aiSemiResult.winner,
+        score: aiSemiResult.score,
+        simulated: true,
+      },
+      {
+        id: "final",
+        label: "Finale",
+        playerA: null,
+        playerB: aiSemiResult.winner,
+        winner: null,
+        score: null,
+      },
+    ],
+  };
+  SOLO_AI.characterId = semiOpponent;
+  startMatchMode(2, { keepSoloOpponent: true });
+  state.tournament.currentMatch = "semiHuman";
+  state.tournament.stage = "semi";
+  state.log.unshift(`Tournoi IA : demi-finale contre ${characterNameFromId(semiOpponent)}.`);
+  render();
+}
+
+function simulateAiTournamentMatch(playerA, playerB) {
+  const winner = Math.random() < 0.5 ? playerA : playerB;
+  return { winner, score: randomMatchScoreForWinner(winner === playerA ? 0 : 1) };
+}
+
+function randomMatchScoreForWinner(winnerIndex) {
+  const loserIndex = opponentOf(winnerIndex);
+  const loserTakesSet = Math.random() < 0.34;
+  const winnerSetScores = loserTakesSet
+    ? [[4, 6], [6, 3], [7, 5]]
+    : (Math.random() < 0.5 ? [[6, 4], [7, 5]] : [[6, 2], [6, 4]]);
+  return winnerSetScores.map((score) => {
+    const oriented = winnerIndex === 0 ? score : [score[1], score[0]];
+    if (oriented[loserIndex] > oriented[winnerIndex]) {
+      return `${oriented[0]}/${oriented[1]}`;
+    }
+    return `${oriented[0]}/${oriented[1]}`;
+  }).join(" - ");
+}
+
+function tournamentMatchById(matchId) {
+  return state.tournament.matches.find((match) => match.id === matchId);
+}
+
+function tournamentCompletedSetScore() {
+  return state.setMatch.completedScores.map((score) => `${score[0]}/${score[1]}`).join(" - ");
+}
+
+function handleTournamentMatchComplete() {
+  if (!state.tournament.active || !state.setMatch.matchOver) return;
+  const match = tournamentMatchById(state.tournament.currentMatch);
+  if (!match || match.winner) return;
+  const winnerCharacterId = state.players[state.setMatch.matchWinner]?.characterId;
+  match.winner = winnerCharacterId;
+  match.score = tournamentCompletedSetScore();
+  if (match.id === "semiHuman") {
+    const final = tournamentMatchById("final");
+    if (winnerCharacterId === state.tournament.humanCharacterId) {
+      final.playerA = winnerCharacterId;
+      state.tournament.stage = "readyFinal";
+      state.tournament.currentMatch = null;
+      state.log.unshift(`Finale débloquée contre ${characterNameFromId(state.tournament.aiFinalistCharacterId)}.`);
+    } else {
+      final.playerA = winnerCharacterId;
+      const finalResult = simulateAiTournamentMatch(winnerCharacterId, state.tournament.aiFinalistCharacterId);
+      final.winner = finalResult.winner;
+      final.score = finalResult.score;
+      state.tournament.stage = "complete";
+      state.tournament.championCharacterId = finalResult.winner;
+      state.tournament.currentMatch = null;
+      state.log.unshift(`Tournoi terminé : ${characterNameFromId(finalResult.winner)} gagne la finale.`);
+    }
+  } else if (match.id === "final") {
+    state.tournament.stage = "complete";
+    state.tournament.championCharacterId = winnerCharacterId;
+    state.tournament.currentMatch = null;
+    state.log.unshift(`Tournoi gagné par ${characterNameFromId(winnerCharacterId)}.`);
+  }
+}
+
+function startTournamentFinal() {
+  if (!state.tournament.active || state.tournament.stage !== "readyFinal") return;
+  const final = tournamentMatchById("final");
+  final.playerA = state.tournament.humanCharacterId;
+  final.playerB = state.tournament.aiFinalistCharacterId;
+  state.tournament.stage = "final";
+  state.tournament.currentMatch = "final";
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  SOLO_AI.characterId = state.tournament.aiFinalistCharacterId;
+  startMatchMode(2, { keepSoloOpponent: true });
+  state.tournament.stage = "final";
+  state.tournament.currentMatch = "final";
+  state.log.unshift(`Finale du tournoi : ${selectedPlayerName()} contre ${characterNameFromId(SOLO_AI.characterId)}.`);
   render();
 }
 
@@ -3291,6 +3448,7 @@ function render() {
   ensureSoloAIForSet();
   renderModeButtons();
   renderResultPanel();
+  renderTournamentPanel();
   renderRallyState();
   renderEffectNotice();
   renderPlayerPanel(0, els.player1Panel);
@@ -3338,10 +3496,75 @@ function currentModeLabel() {
     const format = SERVER_SYNC.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     return `Mode en ligne · ${format}`;
   }
+  if (state.tournament.active) return `Tournoi IA · ${tournamentStageLabel()}`;
   if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
   if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
   if (SOLO_AI.enabled) return `Contre l'IA · Échange · IA ${aiStyleLabel()}`;
   return "Mode local";
+}
+
+function tournamentStageLabel() {
+  if (state.tournament.stage === "readyFinal") return "finale prête";
+  if (state.tournament.stage === "final") return "finale";
+  if (state.tournament.stage === "complete") return "terminé";
+  return "demi-finales";
+}
+
+function renderTournamentPanel() {
+  if (!els.tournamentPanel) return;
+  if (!state.tournament.active) {
+    els.tournamentPanel.classList.add("hidden");
+    els.tournamentPanel.innerHTML = "";
+    return;
+  }
+  const [semiHuman, semiAi, final] = state.tournament.matches;
+  const champion = state.tournament.championCharacterId;
+  els.tournamentPanel.innerHTML = `
+    <div class="tournament-header">
+      <div>
+        <p class="eyebrow">Tournoi IA</p>
+        <h2>Tableau final</h2>
+      </div>
+      ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
+    </div>
+    <div class="tournament-bracket">
+      <div class="tournament-column">
+        ${renderTournamentMatch(semiHuman)}
+        ${renderTournamentMatch(semiAi)}
+      </div>
+      <div class="tournament-column">
+        ${renderTournamentMatch(final, true)}
+      </div>
+      <div class="tournament-champion">
+        <span class="tournament-round-label">Vainqueur</span>
+        <div class="tournament-trophy"><img src="${CROWN_IMAGE}" alt="Couronne du vainqueur" /></div>
+        <strong>${champion ? characterNameFromId(champion) : "À déterminer"}</strong>
+        ${final?.score ? `<div class="tournament-score">${final.score}</div>` : ""}
+      </div>
+    </div>
+  `;
+  els.tournamentPanel.classList.remove("hidden");
+  els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", startTournamentFinal);
+}
+
+function renderTournamentMatch(match, isFinal = false) {
+  if (!match) return "";
+  const playerA = match.playerA ? characterNameFromId(match.playerA) : "Vainqueur demi-finale";
+  const playerB = match.playerB ? characterNameFromId(match.playerB) : "Vainqueur demi-finale";
+  return `
+    <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
+      <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
+      <div class="tournament-player-row ${match.winner === match.playerA ? "winner" : ""}">
+        <span>${playerA}</span>
+        ${match.winner === match.playerA ? "<strong>✓</strong>" : ""}
+      </div>
+      <div class="tournament-player-row ${match.winner === match.playerB ? "winner" : ""}">
+        <span>${playerB}</span>
+        ${match.winner === match.playerB ? "<strong>✓</strong>" : ""}
+      </div>
+      ${match.score ? `<div class="tournament-score">${match.score}</div>` : ""}
+    </article>
+  `;
 }
 
 function renderServerSyncPanel() {
@@ -4079,7 +4302,7 @@ document.addEventListener("click", (event) => {
   }
 });
 window.forceSoloAITurn = forceSoloAITurn;
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, startMatchMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
 newGame();
 initMenu();
 initServerSync();

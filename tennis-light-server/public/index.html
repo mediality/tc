@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=66" />
+    <link rel="stylesheet" href="./styles.css?v=68" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v67</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v68</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -45,6 +45,7 @@
               <button class="small-button" type="button" data-start-solo="set">Set</button>
               <button class="small-button" type="button" data-start-solo="match2">Match 2 sets</button>
               <button class="small-button" type="button" data-start-solo="match3">Match 3 sets</button>
+              <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament">Tournoi IA</button>
             </div>
           </section>
 
@@ -69,7 +70,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v67</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v68</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
@@ -81,6 +82,7 @@
       </section>
 
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
+      <section id="tournamentPanel" class="tournament-panel hidden" aria-live="polite"></section>
 
       <section class="scoreboard" aria-label="État de l'échange">
         <article class="rally-card">
@@ -101,6 +103,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=66"></script>
+    <script src="./app.js?v=68"></script>
   </body>
 </html>
