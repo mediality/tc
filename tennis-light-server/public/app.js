@@ -2,6 +2,7 @@ const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const CARD_BACK_IMAGE = "assets/cards/Demo-TC-_0000_VERSO-CARTES.png";
 const CROWN_IMAGE = "assets/crown_9418806.png";
+const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
   0: "assets/0.jpg",
   1: "assets/1.jpg",
@@ -454,6 +455,7 @@ const state = {
   mandatoryPlacementReason: null,
   mandatoryPlacementSourceUid: null,
   returnServiceRestrictionFor: null,
+  returnServiceRestrictionSpent: [false, false],
   turnPlacement: [0, 0],
   turnHasEffect: [false, false],
   turnIgnoresPlacement: [false, false],
@@ -969,7 +971,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v71",
+    version: "v72",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1050,6 +1052,7 @@ function newGame(options = {}) {
   state.mandatoryPlacementReason = null;
   state.mandatoryPlacementSourceUid = null;
   state.returnServiceRestrictionFor = null;
+  state.returnServiceRestrictionSpent = [false, false];
   state.turnPlacement = [0, 0];
   state.turnHasEffect = [false, false];
   state.turnIgnoresPlacement = [false, false];
@@ -1114,6 +1117,7 @@ const SNAPSHOT_KEYS = [
   "mandatoryPlacementReason",
   "mandatoryPlacementSourceUid",
   "returnServiceRestrictionFor",
+  "returnServiceRestrictionSpent",
   "turnPlacement",
   "turnHasEffect",
   "turnIgnoresPlacement",
@@ -1282,8 +1286,14 @@ function satisfiesFamilyLimit(player, card) {
   return !player.limitedFamilies || player.limitedFamilies.includes(card.family);
 }
 
+function hasReturnServiceRestriction(playerIndex) {
+  return state.returnServiceRestrictionFor === playerIndex && !state.returnServiceRestrictionSpent?.[playerIndex];
+}
+
 function satisfiesReturnServiceRestriction(card) {
-  return state.returnServiceRestrictionFor !== state.activePlayer || !["Volée", "Smash"].includes(card.family);
+  const playerIndex = state.activePlayer;
+  const restrictionActive = hasReturnServiceRestriction(playerIndex);
+  return !restrictionActive || !["Volée", "Smash"].includes(card.family);
 }
 
 const COLOR_BOOST_RULES = {
@@ -2415,7 +2425,11 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   }
 
   state.lastCard = playedCard;
-  state.returnServiceRestrictionFor = isOpeningServe ? opponentIndex : state.returnServiceRestrictionFor;
+  if (isOpeningServe) {
+    state.returnServiceRestrictionSpent = state.returnServiceRestrictionSpent ?? [false, false];
+    state.returnServiceRestrictionFor = opponentIndex;
+    state.returnServiceRestrictionSpent[opponentIndex] = false;
+  }
   state.mandatoryPlacement = boosted || hasSmashThreat;
   state.mandatoryPlacementReason = boosted ? "boost" : hasSmashThreat ? "smash" : null;
   state.mandatoryPlacementSourceUid = state.mandatoryPlacement ? playedCard.playedUid : null;
@@ -2430,6 +2444,8 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   player.limitedFamilies = null;
   player.limitedFamiliesSourceUid = null;
   if (state.returnServiceRestrictionFor === playerIndex) {
+    state.returnServiceRestrictionSpent = state.returnServiceRestrictionSpent ?? [false, false];
+    state.returnServiceRestrictionSpent[playerIndex] = true;
     state.returnServiceRestrictionFor = null;
   }
   state.activePlayer = opponentIndex;
@@ -2472,6 +2488,8 @@ function endTurn(playerIndex) {
   player.limitedFamilies = null;
   player.limitedFamiliesSourceUid = null;
   if (state.returnServiceRestrictionFor === playerIndex) {
+    state.returnServiceRestrictionSpent = state.returnServiceRestrictionSpent ?? [false, false];
+    state.returnServiceRestrictionSpent[playerIndex] = true;
     state.returnServiceRestrictionFor = null;
   }
   state.activePlayer = opponentIndex;
@@ -3815,7 +3833,7 @@ function renderRallyState() {
   const activeConstraints = [];
   if (state.mandatoryPlacement && last) activeConstraints.push(`placement ${last.precision}+ obligatoire (${state.mandatoryPlacementReason === "smash" ? "Smash" : "Boost"})`);
   if (active.limitedFamilies) activeConstraints.push(`type: ${active.limitedFamilies.join(" / ")}`);
-  if (state.returnServiceRestrictionFor === state.activePlayer) activeConstraints.push("retour de service: pas Volée/Smash");
+  if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
   const lines = [
     `<div><strong>Tour :</strong> ${state.gameOver ? "terminé" : active.name}</div>`,
     `<div><strong>Serveur :</strong> ${playerName(state.server)}</div>`,
@@ -4050,7 +4068,7 @@ function activeEffectBadges(playerIndex) {
     badges.push({ text: `Contrainte: placement ${state.lastCard.precision}+`, type: "constraint" });
   }
   if (state.boostAvailableFor === playerIndex) badges.push({ text: "Actif: boost possible", type: "effect" });
-  if (state.returnServiceRestrictionFor === playerIndex) {
+  if (hasReturnServiceRestriction(playerIndex)) {
     badges.push({ text: "Retour: pas Volée/Smash", type: "constraint" });
   }
   for (const bonus of player.endBonuses) {
@@ -4121,6 +4139,7 @@ function renderCard(playerIndex, card) {
   const placementIssue = !isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex];
   const imageUrl = CARD_IMAGES[card.id];
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
+  const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   if (isHidden) {
     return `
       <article class="card has-visual hidden-hand-card">
@@ -4131,8 +4150,9 @@ function renderCard(playerIndex, card) {
   return `
     <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || boostAllowed ? "" : "unplayable"}">
       ${imageUrl ? `
-        <div class="card-visual">
+        <div class="card-visual card-effect-forbid-host">
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
+          ${showForbidEffect ? `<img class="forbid-effect-overlay" src="${FORBID_IMAGE}" alt="Effet annulé" />` : ""}
         </div>
       ` : `
         ${card.star ? '<div class="card-star" aria-label="Carte étoile">★</div>' : ""}
@@ -4148,7 +4168,10 @@ function renderCard(playerIndex, card) {
           <div class="stat precision">Précision ${stats.precision}</div>
           <div class="stat placement">Placement ${stats.placement}${state.turnPlacement[playerIndex] ? ` + ${state.turnPlacement[playerIndex]}` : ""}</div>
         </div>
-        <div class="effect">${card.effect}</div>
+        <div class="effect ${showForbidEffect ? "effect-forbid-host" : ""}">
+          ${card.effect}
+          ${showForbidEffect ? `<img class="forbid-effect-overlay fallback" src="${FORBID_IMAGE}" alt="Effet annulé" />` : ""}
+        </div>
         ${isRemise(card) ? '<div class="boost-box remise-note">Remise : ne termine pas le tour</div>' : `<div class="boost-box">Boost : ${card.boostPower} puissance · ${card.boostPrecision} précision</div>`}
       `}
       ${imageUrl && hasDynamicStats ? `

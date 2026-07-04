@@ -767,6 +767,7 @@ h1 {
   width: 100%;
   aspect-ratio: 731 / 1039;
   object-fit: cover;
+  image-rendering: auto;
 }
 
 .card {
@@ -801,6 +802,31 @@ h1 {
   width: 100%;
   aspect-ratio: 731 / 1039;
   object-fit: cover;
+  image-rendering: auto;
+}
+
+.card-effect-forbid-host,
+.effect-forbid-host {
+  position: relative;
+}
+
+.forbid-effect-overlay {
+  position: absolute;
+  left: 50%;
+  top: 64%;
+  z-index: 4;
+  width: 42%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.34));
+}
+
+.forbid-effect-overlay.fallback {
+  top: 50%;
+  width: min(52px, 34%);
 }
 
 .card.has-visual,
@@ -1297,7 +1323,7 @@ h1 {
 }
 
 .center-card-wrap.boosted-center-wrap + .next-exchange-button {
-  margin-top: 108px;
+  margin-top: 140px;
 }
 
 .next-set-button {
@@ -1308,7 +1334,7 @@ h1 {
 .played-visual {
   position: relative;
   overflow: visible;
-  width: 114px;
+  width: 148px;
   border: 2px solid rgba(23, 33, 43, 0.12);
   border-radius: 8px;
   background: #f7faf8;
@@ -1355,15 +1381,15 @@ h1 {
 }
 
 .played-visual.latest-card {
-  width: min(172px, 42vw);
+  width: min(224px, 48vw);
 }
 
 .played-visual.center-played {
-  width: min(200px, calc(100% - 16px));
+  width: min(260px, calc(100% - 16px));
 }
 
 .played-visual.history-card {
-  width: 96px;
+  width: 125px;
 }
 
 .played-visual.removed {
