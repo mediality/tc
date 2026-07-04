@@ -237,8 +237,8 @@ const MATCH_RESULT_IMAGES = {
     lose: "assets/cards/CoachClemLoose.png",
   },
   theoBriancourt: {
-    win: "assets/cards/_0002_RAMIREZ-WIN.png",
-    lose: "assets/cards/_0003_RAMIREZ-LOSE.png",
+    win: "assets/cards/_0002_BRIANCOURT-WIN.png",
+    lose: "assets/cards/_0003_BRIANCOURT-LOSE.png",
   },
   alessandraConti: {
     win: "assets/cards/_0006_CONTI-WIN.png",
@@ -944,6 +944,7 @@ function createPlayer(name, characterId, nickname = name) {
     endurance: STARTING_ENDURANCE,
     power: 0,
     hand: [],
+    knownOpponentHand: null,
     played: [],
     nextPrecisionBonus: 0,
     nextPrecisionSources: [],
@@ -1077,7 +1078,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v74",
+    version: "v75",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1942,7 +1943,7 @@ function shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowersAfterPas
 function shouldSoloPassToLimitBoostDamage(playerIndex) {
   if (state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return false;
   if (!isVulnerableToJuBoostPressure(playerIndex) && !isExpertVulnerableToCounterPressure(playerIndex)) return false;
-  if (isMatchDangerForPlayer(playerIndex) || isSetDangerForPlayer(playerIndex)) return false;
+  if (isMatchDangerForPlayer(playerIndex) || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex)) return false;
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const projectedPowers = state.players.map((candidate, index) => {
@@ -1960,18 +1961,46 @@ function shouldSoloPassToLimitBoostDamage(playerIndex) {
   return exchangeScore.loserGames > 0 || !state.setMatch.enabled;
 }
 
+function wouldPassLoseSetOrMatch(playerIndex) {
+  if (!state.setMatch.enabled || hasPlayedThisTurn(playerIndex)) return false;
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const projectedPowers = state.players.map((candidate, index) => {
+    const passBonus = index === opponentIndex ? Math.max(2, player.endurance) : 0;
+    return candidate.power + passBonus + projectedEndBonuses(candidate);
+  });
+  const exchangeWinner = projectedPowers[playerIndex] > projectedPowers[opponentIndex]
+    ? playerIndex
+    : projectedPowers[playerIndex] < projectedPowers[opponentIndex]
+      ? opponentIndex
+      : state.server;
+  const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers);
+  const projectedSetScore = previewSetMatchScore(exchangeWinner, exchangeScore);
+  if (!isSetOver(projectedSetScore)) return false;
+  const setWinner = leadingSetPlayer(projectedSetScore);
+  if (setWinner === playerIndex) return false;
+  if (!state.setMatch.targetSets) return true;
+  const projectedSetsWon = [...state.setMatch.setsWon];
+  projectedSetsWon[setWinner] += 1;
+  return projectedSetsWon[setWinner] >= state.setMatch.targetSets || isSetDangerForPlayer(playerIndex);
+}
+
 function isExpertVulnerableToCounterPressure(playerIndex) {
   if (SOLO_AI.style !== "expert") return false;
   const player = state.players[playerIndex];
   const opponent = state.players[opponentOf(playerIndex)];
   if (player.endurance > 2 || opponent.hand.length < 2 || !state.lastCard) return false;
   const unseen = expertUnseenCards(playerIndex);
-  if (!unseen.length) return false;
-  const possibleBoostCards = unseen
+  const knownOpponentCards = expertKnownOpponentCards(playerIndex);
+  const riskPool = knownOpponentCards.length ? knownOpponentCards : unseen;
+  if (!riskPool.length) return false;
+  const possibleBoostCards = riskPool
     .filter((card) => !isRemise(card) && card.family !== "Service")
     .filter((card) => Math.max(0, card.cost - opponent.nextDiscount) <= opponent.endurance)
     .filter((card) => state.boostAvailableFor === opponentOf(playerIndex) || canFamilyBoostAfter(state.lastCard.family, card.family));
-  const probability = Math.min(0.95, (possibleBoostCards.length / unseen.length) * Math.max(1, opponent.hand.length - 1));
+  const probability = knownOpponentCards.length
+    ? (possibleBoostCards.length ? Math.min(0.95, possibleBoostCards.length / Math.max(1, knownOpponentCards.length) + 0.35) : 0)
+    : Math.min(0.95, (possibleBoostCards.length / unseen.length) * Math.max(1, opponent.hand.length - 1));
   const hasEmergencyDefense = player.hand.some((card) => isRemise(card) && ["jokerResponse", "removeOpponentLast"].includes(card.effectType) && effectiveCost(player, card) <= player.endurance);
   return probability >= 0.5 && !hasEmergencyDefense;
 }
@@ -2011,6 +2040,7 @@ function allVisibleCardIdsForExpert(playerIndex) {
   const player = state.players[playerIndex];
   return new Set([
     ...player.hand.map((card) => card.id),
+    ...(player.knownOpponentHand?.cardIds ?? []),
     ...state.players.flatMap((candidate) => candidate.played.map((card) => card.id)),
   ]);
 }
@@ -2018,6 +2048,14 @@ function allVisibleCardIdsForExpert(playerIndex) {
 function expertUnseenCards(playerIndex) {
   const visibleIds = allVisibleCardIdsForExpert(playerIndex);
   return CARD_LIBRARY.filter((card) => !visibleIds.has(card.id));
+}
+
+function expertKnownOpponentCards(playerIndex) {
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  if (player.knownOpponentHand?.opponentIndex !== opponentIndex) return [];
+  const remainingKnownIds = new Set(player.knownOpponentHand.cardIds ?? []);
+  return state.players[opponentIndex].hand.filter((card) => remainingKnownIds.has(card.id));
 }
 
 function canFamilyBoostAfter(previousFamily, cardFamily) {
@@ -2032,11 +2070,15 @@ function expertCounterBoostThreat(playerIndex, boostedCard, sacrifice = null) {
     return { probability: 0, canDefend: true, danger: 0, possibleCounters: [] };
   }
   const unseen = expertUnseenCards(playerIndex);
-  const possibleCounters = unseen
+  const knownOpponentCards = expertKnownOpponentCards(playerIndex);
+  const riskPool = knownOpponentCards.length ? knownOpponentCards : unseen;
+  const possibleCounters = riskPool
     .filter((card) => !isRemise(card) && card.family !== "Service")
     .filter((card) => canFamilyBoostAfter(boostedCard.family, card.family))
     .filter((card) => Math.max(0, card.cost - opponent.nextDiscount) <= opponent.endurance);
-  const probability = unseen.length
+  const probability = knownOpponentCards.length
+    ? (possibleCounters.length ? Math.min(0.98, possibleCounters.length / Math.max(1, knownOpponentCards.length) + 0.4) : 0)
+    : unseen.length
     ? Math.min(0.95, (possibleCounters.length / unseen.length) * Math.max(1, opponent.hand.length - 1))
     : 0;
   const requiredPlacement = possibleCounters.reduce((max, card) => Math.max(max, card.boostPrecision), 0);
@@ -2233,7 +2275,7 @@ function chooseSoloBoostPlay(playerIndex) {
     && !isSetDangerForPlayer(playerIndex)
     && best.threat.probability >= 0.42
     && !best.threat.canDefend;
-  const shouldBoost = !expertBlocksRisk && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
+  const shouldBoost = !expertBlocksRisk && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
   if (SOLO_AI.style === "expert" && best.threat.probability > 0.3) {
     state.log.unshift(`IA Expert : risque de contre-boost estimé ${Math.round(best.threat.probability * 100)}%${best.threat.canDefend ? ", défense possible." : ", défense fragile."}`);
   }
@@ -3164,7 +3206,13 @@ function applyCharacterEffect(playerIndex, playedCard) {
   }
 
   if (effect.type === "peekOpponentHand") {
-    const opponent = state.players[opponentOf(playerIndex)];
+    const opponentIndex = opponentOf(playerIndex);
+    const opponent = state.players[opponentIndex];
+    player.knownOpponentHand = {
+      opponentIndex,
+      cardIds: opponent.hand.map((card) => card.id),
+      observedAt: Date.now(),
+    };
     const cards = opponent.hand.map((card) => card.name).join(", ") || "main vide";
     state.log.unshift(`${character.name} (${effect.side}) : main adverse observée (${cards}).`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
@@ -3511,10 +3559,12 @@ function startTournamentMode(targetSets = 2) {
         id: "semiAi",
         label: "Demi-finale 2",
         round: "semi",
-        playerA: qfAi2.hiddenWinner,
-        playerB: qfAi3.hiddenWinner,
+        playerA: null,
+        playerB: null,
         winner: null,
         score: null,
+        hiddenPlayerA: qfAi2.hiddenWinner,
+        hiddenPlayerB: qfAi3.hiddenWinner,
         hiddenWinner: semiAiResult.winner,
         hiddenSetScores: semiAiResult.setScores,
         revealedSetScores: [],
@@ -3600,16 +3650,15 @@ function handleTournamentMatchComplete() {
   match.score = tournamentCompletedSetScore();
   if (match.id === "qfHuman") {
     revealAllTournamentAiSets("quarter");
+    refreshTournamentDerivedSlots();
     const qfAi1 = tournamentMatchById("qfAi1");
     const semiHuman = tournamentMatchById("semiHuman");
-    semiHuman.playerA = winnerCharacterId;
-    semiHuman.playerB = qfAi1.hiddenWinner;
     if (winnerCharacterId === state.tournament.humanCharacterId) {
       state.tournament.stage = "readySemi";
       state.tournament.currentMatch = null;
-      state.log.unshift(`Demi-finale débloquée contre ${characterNameFromId(qfAi1.hiddenWinner)}.`);
+      state.log.unshift(`Demi-finale débloquée contre ${characterNameFromId(semiHuman.playerB ?? qfAi1.hiddenWinner)}.`);
     } else {
-      const semiHumanResult = simulateAiTournamentMatch(winnerCharacterId, qfAi1.hiddenWinner, state.tournament.targetSets ?? 2);
+      const semiHumanResult = simulateAiTournamentMatch(winnerCharacterId, semiHuman.playerB ?? qfAi1.hiddenWinner, state.tournament.targetSets ?? 2);
       semiHuman.winner = semiHumanResult.winner;
       semiHuman.score = semiHumanResult.score;
       completeTournamentWithoutHuman(semiHumanResult.winner);
@@ -3683,6 +3732,7 @@ function updateTournamentSetProgress() {
     current.liveScore = tournamentCompletedSetScore();
   }
   revealNextTournamentAiSet();
+  refreshTournamentDerivedSlots();
 }
 
 function revealNextTournamentAiSet() {
@@ -3697,6 +3747,7 @@ function revealNextTournamentAiSet() {
       match.winner = match.hiddenWinner;
     }
   }
+  refreshTournamentDerivedSlots();
 }
 
 function revealAllTournamentAiSets(round = null) {
@@ -3706,6 +3757,7 @@ function revealAllTournamentAiSets(round = null) {
     match.score = formatSetScores(match.revealedSetScores);
     match.winner = match.hiddenWinner;
   }
+  refreshTournamentDerivedSlots();
 }
 
 function simulatedTournamentMatches(round = null) {
@@ -3726,6 +3778,30 @@ function completeTournamentWithoutHuman(semiHumanWinner) {
   state.tournament.championCharacterId = finalResult.winner;
   state.tournament.currentMatch = null;
   state.log.unshift(`Tournoi terminé : ${characterNameFromId(finalResult.winner)} gagne la finale.`);
+}
+
+function refreshTournamentDerivedSlots() {
+  if (!state.tournament.active) return;
+  const qfHuman = tournamentMatchById("qfHuman");
+  const qfAi1 = tournamentMatchById("qfAi1");
+  const qfAi2 = tournamentMatchById("qfAi2");
+  const qfAi3 = tournamentMatchById("qfAi3");
+  const semiHuman = tournamentMatchById("semiHuman");
+  const semiAi = tournamentMatchById("semiAi");
+  const final = tournamentMatchById("final");
+
+  if (semiHuman) {
+    semiHuman.playerA = qfHuman?.winner ?? null;
+    semiHuman.playerB = qfAi1?.winner ?? null;
+  }
+  if (semiAi) {
+    semiAi.playerA = qfAi2?.winner ?? null;
+    semiAi.playerB = qfAi3?.winner ?? null;
+  }
+  if (final) {
+    final.playerA = semiHuman?.winner ?? (final.playerA && semiHuman?.winner ? final.playerA : null);
+    final.playerB = semiAi?.winner ?? (final.playerB && semiAi?.winner ? final.playerB : null);
+  }
 }
 
 function aiStyleLabel() {
