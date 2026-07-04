@@ -1078,7 +1078,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v75",
+    version: "v76",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3522,7 +3522,6 @@ function startTournamentMode(targetSets = 2) {
   const qfAi1 = buildSimulatedTournamentMatch("qfAi1", "Quart de finale 2", selectedOpponents[1], selectedOpponents[2], targetSets, "quarter");
   const qfAi2 = buildSimulatedTournamentMatch("qfAi2", "Quart de finale 3", selectedOpponents[3], selectedOpponents[4], targetSets, "quarter");
   const qfAi3 = buildSimulatedTournamentMatch("qfAi3", "Quart de finale 4", selectedOpponents[5], selectedOpponents[6], targetSets, "quarter");
-  const semiAiResult = simulateAiTournamentMatch(qfAi2.hiddenWinner, qfAi3.hiddenWinner, targetSets);
   state.tournament = {
     active: true,
     stage: "quarter",
@@ -3563,10 +3562,8 @@ function startTournamentMode(targetSets = 2) {
         playerB: null,
         winner: null,
         score: null,
-        hiddenPlayerA: qfAi2.hiddenWinner,
-        hiddenPlayerB: qfAi3.hiddenWinner,
-        hiddenWinner: semiAiResult.winner,
-        hiddenSetScores: semiAiResult.setScores,
+        hiddenWinner: null,
+        hiddenSetScores: null,
         revealedSetScores: [],
         simulated: true,
       },
@@ -3731,6 +3728,7 @@ function updateTournamentSetProgress() {
   if (current && !current.score) {
     current.liveScore = tournamentCompletedSetScore();
   }
+  refreshTournamentDerivedSlots();
   revealNextTournamentAiSet();
   refreshTournamentDerivedSlots();
 }
@@ -3739,6 +3737,7 @@ function revealNextTournamentAiSet() {
   const round = state.tournament.stage === "quarter" ? "quarter" : state.tournament.stage === "semi" ? "semi" : null;
   if (!round) return;
   for (const match of simulatedTournamentMatches(round)) {
+    if (!ensureSimulatedTournamentMatchReady(match)) continue;
     if ((match.revealedSetScores ?? []).length >= match.hiddenSetScores.length) continue;
     match.revealedSetScores = match.revealedSetScores ?? [];
     match.revealedSetScores.push(match.hiddenSetScores[match.revealedSetScores.length]);
@@ -3752,6 +3751,7 @@ function revealNextTournamentAiSet() {
 
 function revealAllTournamentAiSets(round = null) {
   for (const match of simulatedTournamentMatches(round)) {
+    if (!ensureSimulatedTournamentMatchReady(match)) continue;
     if (!match.hiddenSetScores?.length) continue;
     match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
     match.score = formatSetScores(match.revealedSetScores);
@@ -3762,6 +3762,19 @@ function revealAllTournamentAiSets(round = null) {
 
 function simulatedTournamentMatches(round = null) {
   return state.tournament.matches.filter((match) => match.simulated && (!round || match.round === round));
+}
+
+function ensureSimulatedTournamentMatchReady(match) {
+  if (!match?.simulated) return false;
+  if (match.hiddenSetScores?.length && match.hiddenWinner) return true;
+  if (!match.playerA || !match.playerB) return false;
+  const result = simulateAiTournamentMatch(match.playerA, match.playerB, state.tournament.targetSets ?? 2);
+  match.hiddenWinner = result.winner;
+  match.hiddenSetScores = result.setScores;
+  match.revealedSetScores = [];
+  match.score = null;
+  match.winner = null;
+  return true;
 }
 
 function completeTournamentWithoutHuman(semiHumanWinner) {
@@ -3795,8 +3808,16 @@ function refreshTournamentDerivedSlots() {
     semiHuman.playerB = qfAi1?.winner ?? null;
   }
   if (semiAi) {
-    semiAi.playerA = qfAi2?.winner ?? null;
-    semiAi.playerB = qfAi3?.winner ?? null;
+    const ready = Boolean(qfAi2?.winner && qfAi3?.winner);
+    semiAi.playerA = ready ? qfAi2.winner : null;
+    semiAi.playerB = ready ? qfAi3.winner : null;
+    if (!ready) {
+      semiAi.hiddenWinner = null;
+      semiAi.hiddenSetScores = null;
+      semiAi.revealedSetScores = [];
+      semiAi.score = null;
+      semiAi.winner = null;
+    }
   }
   if (final) {
     final.playerA = semiHuman?.winner ?? (final.playerA && semiHuman?.winner ? final.playerA : null);
