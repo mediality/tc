@@ -82,6 +82,18 @@ const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+const TOURNAMENT_CHARACTER_POOL = [
+  "coachJu",
+  "coachMax",
+  "coachCarla",
+  "coachClem",
+  "theoBriancourt",
+  "alessandraConti",
+  "saharaJackson",
+  "kjellBlomqvist",
+  "kojiIwata",
+  "elianaMarquez",
+];
 
 const CHARACTERS = {
   coachUnknown: {
@@ -116,6 +128,48 @@ const CHARACTERS = {
       { side: "Rose", label: "Récupère autant d'endurance que de coups visibles", type: "recoverEnduranceByShots" },
     ],
   },
+  theoBriancourt: {
+    name: "Theo Briancourt",
+    effects: [
+      { side: "Bleu", label: "Récupère 1 carte dans la défausse", type: "recoverUndealt" },
+      { side: "Rose", label: "Défausse une carte adverse engagée de votre choix", type: "removeOpponentPlayedChoice" },
+    ],
+  },
+  alessandraConti: {
+    name: "Alessandra Conti",
+    effects: [
+      { side: "Bleu", label: "Toutes vos cartes gagnent +2 placement jusqu'à la fin de l'échange", type: "exchangePlacementBonus", value: 2 },
+      { side: "Rose", label: "Récupère 2 endurance et pioche 1 carte", type: "gainEnduranceAndDraw", endurance: 2, draw: 1 },
+    ],
+  },
+  saharaJackson: {
+    name: "Sahara Jackson",
+    effects: [
+      { side: "Bleu", label: "+1 puissance", type: "gainPower", value: 1 },
+      { side: "Rose", label: "Double votre dernière carte Coup à la fin de l'échange", type: "endDoubleLastShot" },
+    ],
+  },
+  kjellBlomqvist: {
+    name: "Kjell Blomqvist",
+    effects: [
+      { side: "Bleu", label: "Toutes vos cartes gagnent +2 précision jusqu'à la fin de l'échange", type: "exchangePrecisionBonus", value: 2 },
+      { side: "Rose", label: "Pioche 2 cartes", type: "drawCard", count: 2 },
+    ],
+  },
+  kojiIwata: {
+    name: "Koji Iwata",
+    effects: [
+      { side: "Bleu", label: "Récupère 1 endurance", type: "gainEndurance", value: 1 },
+      { side: "Rose", label: "Pioche au hasard 1 carte dans la main adverse", type: "drawRandomOpponentHand" },
+    ],
+  },
+  elianaMarquez: {
+    name: "Eliana Marquez",
+    effects: [
+      { side: "Bleu", label: "Regarde la main adverse", type: "peekOpponentHand" },
+      { side: "Rose", label: "Double la puissance de votre prochain coup", type: "nextPowerMultiplier", value: 2 },
+    ],
+  },
 };
 
 const CHARACTER_IMAGES = {
@@ -139,6 +193,30 @@ const CHARACTER_IMAGES = {
     "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.png",
     "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.png",
   ],
+  theoBriancourt: [
+    "assets/cards/_0023_BRIANCOURT.png",
+    "assets/cards/_0022_BRIANCOURT-VERSO.png",
+  ],
+  alessandraConti: [
+    "assets/cards/_0021_CONTI.png",
+    "assets/cards/_0020_CONTI-VERSO.png",
+  ],
+  saharaJackson: [
+    "assets/cards/_0019_JACKSON.png",
+    "assets/cards/_0018_JACKSON-VERSO.png",
+  ],
+  kjellBlomqvist: [
+    "assets/cards/_0017_BLOMQVIST.png",
+    "assets/cards/_0016_BLOMQVIST-VERSO.png",
+  ],
+  kojiIwata: [
+    "assets/cards/_0015_IWATA.png",
+    "assets/cards/_0014_IWATA-VERSO.png",
+  ],
+  elianaMarquez: [
+    "assets/cards/_0013_MARQUEZ.png",
+    "assets/cards/_0012_MARQUEZ-VERSO.png",
+  ],
 };
 
 const MATCH_RESULT_IMAGES = {
@@ -157,6 +235,30 @@ const MATCH_RESULT_IMAGES = {
   coachClem: {
     win: "assets/cards/CoachClemWin.png",
     lose: "assets/cards/CoachClemLoose.png",
+  },
+  theoBriancourt: {
+    win: "assets/cards/_0002_RAMIREZ-WIN.png",
+    lose: "assets/cards/_0003_RAMIREZ-LOSE.png",
+  },
+  alessandraConti: {
+    win: "assets/cards/_0006_CONTI-WIN.png",
+    lose: "assets/cards/_0007_CONTI-LOSE.png",
+  },
+  saharaJackson: {
+    win: "assets/cards/_0005_JACKSON-WIN.png",
+    lose: "assets/cards/_0004_JACKSON-LOSE.png",
+  },
+  kjellBlomqvist: {
+    win: "assets/cards/_0001_BLOMQVIST-WIN.png",
+    lose: "assets/cards/_0000_BLOMQVIST-LOSE.png",
+  },
+  kojiIwata: {
+    win: "assets/cards/_0008_IWATA-WIN.png",
+    lose: "assets/cards/_0009_IWATA-LOSE.png",
+  },
+  elianaMarquez: {
+    win: "assets/cards/_0011_MARQUEZ-WIN.png",
+    lose: "assets/cards/_0010_MARQUEZ-LOSE.png",
   },
 };
 
@@ -849,6 +951,9 @@ function createPlayer(name, characterId, nickname = name) {
     nextPlacementSources: [],
     nextDiscount: 0,
     nextDiscountSources: [],
+    nextPowerMultiplier: 1,
+    exchangePrecisionBonus: 0,
+    exchangePlacementBonus: 0,
     cancelNextOpponentEffect: false,
     cancelNextOpponentEffectSourceUid: null,
     limitedFamilies: null,
@@ -972,7 +1077,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v73",
+    version: "v74",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1259,6 +1364,7 @@ function clearNextShotBonuses(player) {
   player.nextPrecisionSources = [];
   player.nextPlacementBonus = 0;
   player.nextPlacementSources = [];
+  player.nextPowerMultiplier = 1;
 }
 
 function removeSourcedNextBonus(player, key, sourceKey, sourceUid) {
@@ -1274,10 +1380,11 @@ function removeSourcedNextBonus(player, key, sourceKey, sourceUid) {
 
 function getCardStats(player, card, boosted) {
   const shotBonus = isRemise(card) ? 0 : 1;
+  const basePower = boosted ? card.boostPower : card.power;
   return {
-    power: boosted ? card.boostPower : card.power,
-    precision: (boosted ? card.boostPrecision : card.precision) + player.nextPrecisionBonus * shotBonus,
-    placement: card.placement + player.nextPlacementBonus * shotBonus,
+    power: basePower * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1)),
+    precision: (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus,
+    placement: card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus,
   };
 }
 
@@ -2905,10 +3012,29 @@ function applyCharacterEffect(playerIndex, playedCard) {
   flipCharacter(player);
 
   if (effect.type === "drawCard") {
-    const drawn = drawCards(player, 1);
-    const message = drawn > 0 ? "Piochez 1 carte." : "Le deck est vide, aucune carte piochée.";
+    const count = effect.count ?? 1;
+    const drawn = drawCards(player, count);
+    const message = drawn > 0 ? `Piochez ${drawn} carte${drawn > 1 ? "s" : ""}.` : "Le deck est vide, aucune carte piochée.";
     state.log.unshift(`${character.name} (${effect.side}) : ${message}`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}. ${message}`);
+    return false;
+  }
+
+  if (effect.type === "gainEndurance") {
+    const value = effect.value ?? 1;
+    player.endurance += value;
+    state.log.unshift(`${character.name} (${effect.side}) : +${value} endurance.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "gainEnduranceAndDraw") {
+    const endurance = effect.endurance ?? 2;
+    const drawCount = effect.draw ?? 1;
+    player.endurance += endurance;
+    const drawn = drawCards(player, drawCount);
+    state.log.unshift(`${character.name} (${effect.side}) : +${endurance} endurance et pioche ${drawn} carte${drawn > 1 ? "s" : ""}.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
 
@@ -2966,6 +3092,30 @@ function applyCharacterEffect(playerIndex, playedCard) {
     return false;
   }
 
+  if (effect.type === "nextPowerMultiplier") {
+    const value = effect.value ?? 2;
+    player.nextPowerMultiplier = Math.max(player.nextPowerMultiplier ?? 1, value);
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${player.name} comptera puissance x${value}.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "exchangePrecisionBonus") {
+    const value = effect.value ?? 2;
+    player.exchangePrecisionBonus = (player.exchangePrecisionBonus ?? 0) + value;
+    state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${player.name} gagnent +${value} précision jusqu'à la fin de l'échange.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "exchangePlacementBonus") {
+    const value = effect.value ?? 2;
+    player.exchangePlacementBonus = (player.exchangePlacementBonus ?? 0) + value;
+    state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${player.name} gagnent +${value} placement jusqu'à la fin de l'échange.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
   if (effect.type === "recoverEnduranceByShots") {
     const visibleShots = player.played.filter((card) => !card.removed && isShot(card)).length;
     player.endurance += visibleShots;
@@ -2984,6 +3134,48 @@ function applyCharacterEffect(playerIndex, playedCard) {
     state.log.unshift(`${character.name} (${effect.side}) : ${player.name} choisit une carte non distribuée à récupérer.`);
     setEffectNotice("coach", { name: character.name }, effect.label);
     return true;
+  }
+
+  if (effect.type === "removeOpponentPlayedChoice") {
+    const opponentIndex = opponentOf(playerIndex);
+    if (!removableOpponentCards(opponentIndex).length) {
+      state.log.unshift(`${character.name} (${effect.side}) : aucune carte adverse engagée à défausser.`);
+      setEffectNotice("coach", { name: character.name }, "Aucune carte adverse engagée disponible.");
+      return false;
+    }
+    state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: playedCard.playedUid };
+    state.log.unshift(`${character.name} (${effect.side}) : ${player.name} choisit une carte adverse engagée à défausser.`);
+    setEffectNotice("coach", { name: character.name }, effect.label);
+    return true;
+  }
+
+  if (effect.type === "drawRandomOpponentHand") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    if (!opponent.hand.length) {
+      state.log.unshift(`${character.name} (${effect.side}) : la main adverse est vide.`);
+      setEffectNotice("coach", { name: character.name }, "Main adverse vide.");
+      return false;
+    }
+    const [drawn] = opponent.hand.splice(Math.floor(Math.random() * opponent.hand.length), 1);
+    player.hand.push(drawn);
+    state.log.unshift(`${character.name} (${effect.side}) : ${player.name} pioche ${drawn.name} dans la main adverse.`);
+    setEffectNotice("coach", { name: character.name }, `${drawn.name} rejoint la main.`);
+    return false;
+  }
+
+  if (effect.type === "peekOpponentHand") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    const cards = opponent.hand.map((card) => card.name).join(", ") || "main vide";
+    state.log.unshift(`${character.name} (${effect.side}) : main adverse observée (${cards}).`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "endDoubleLastShot") {
+    player.endBonuses.push({ type: "doubleLastShot", sourceUid: playedCard.playedUid });
+    state.log.unshift(`${character.name} (${effect.side}) : prépare un doublement de la dernière carte Coup en fin d'échange.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
   }
 
   return false;
@@ -3277,25 +3469,40 @@ function startTournamentMode(targetSets = 2) {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   const humanCharacterId = selectedCharacterId();
-  const opponents = shuffle(COACH_OPTIONS.filter((characterId) => characterId !== humanCharacterId));
-  const semiOpponent = opponents[0];
-  const aiSemiA = opponents[1];
-  const aiSemiB = opponents[2];
-  const aiSemiResult = simulateAiTournamentMatch(aiSemiA, aiSemiB, targetSets);
+  const selectedOpponents = shuffle(TOURNAMENT_CHARACTER_POOL.filter((characterId) => characterId !== humanCharacterId)).slice(0, 7);
+  const quarterHumanOpponent = selectedOpponents[0];
+  const qfAi1 = buildSimulatedTournamentMatch("qfAi1", "Quart de finale 2", selectedOpponents[1], selectedOpponents[2], targetSets, "quarter");
+  const qfAi2 = buildSimulatedTournamentMatch("qfAi2", "Quart de finale 3", selectedOpponents[3], selectedOpponents[4], targetSets, "quarter");
+  const qfAi3 = buildSimulatedTournamentMatch("qfAi3", "Quart de finale 4", selectedOpponents[5], selectedOpponents[6], targetSets, "quarter");
+  const semiAiResult = simulateAiTournamentMatch(qfAi2.hiddenWinner, qfAi3.hiddenWinner, targetSets);
   state.tournament = {
     active: true,
-    stage: "semi",
+    stage: "quarter",
     targetSets,
     humanCharacterId,
-    aiFinalistCharacterId: aiSemiResult.winner,
-    currentMatch: "semiHuman",
+    aiFinalistCharacterId: null,
+    currentMatch: "qfHuman",
     championCharacterId: null,
     matches: [
       {
+        id: "qfHuman",
+        label: "Quart de finale 1",
+        round: "quarter",
+        playerA: humanCharacterId,
+        playerB: quarterHumanOpponent,
+        winner: null,
+        score: null,
+        playable: true,
+      },
+      qfAi1,
+      qfAi2,
+      qfAi3,
+      {
         id: "semiHuman",
         label: "Demi-finale 1",
-        playerA: humanCharacterId,
-        playerB: semiOpponent,
+        round: "semi",
+        playerA: null,
+        playerB: null,
         winner: null,
         score: null,
         playable: true,
@@ -3303,18 +3510,20 @@ function startTournamentMode(targetSets = 2) {
       {
         id: "semiAi",
         label: "Demi-finale 2",
-        playerA: aiSemiA,
-        playerB: aiSemiB,
+        round: "semi",
+        playerA: qfAi2.hiddenWinner,
+        playerB: qfAi3.hiddenWinner,
         winner: null,
         score: null,
-        hiddenWinner: aiSemiResult.winner,
-        hiddenSetScores: aiSemiResult.setScores,
+        hiddenWinner: semiAiResult.winner,
+        hiddenSetScores: semiAiResult.setScores,
         revealedSetScores: [],
         simulated: true,
       },
       {
         id: "final",
         label: "Finale",
+        round: "final",
         playerA: null,
         playerB: null,
         winner: null,
@@ -3322,12 +3531,29 @@ function startTournamentMode(targetSets = 2) {
       },
     ],
   };
-  SOLO_AI.characterId = semiOpponent;
+  SOLO_AI.characterId = quarterHumanOpponent;
   startMatchMode(targetSets, { keepSoloOpponent: true });
-  state.tournament.currentMatch = "semiHuman";
-  state.tournament.stage = "semi";
-  state.log.unshift(`Tournoi IA : demi-finale contre ${characterNameFromId(semiOpponent)}.`);
+  state.tournament.currentMatch = "qfHuman";
+  state.tournament.stage = "quarter";
+  state.log.unshift(`Tournoi IA : quart de finale contre ${characterNameFromId(quarterHumanOpponent)}.`);
   render();
+}
+
+function buildSimulatedTournamentMatch(id, label, playerA, playerB, targetSets, round) {
+  const result = simulateAiTournamentMatch(playerA, playerB, targetSets);
+  return {
+    id,
+    label,
+    round,
+    playerA,
+    playerB,
+    winner: null,
+    score: null,
+    hiddenWinner: result.winner,
+    hiddenSetScores: result.setScores,
+    revealedSetScores: [],
+    simulated: true,
+  };
 }
 
 function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2) {
@@ -3372,9 +3598,27 @@ function handleTournamentMatchComplete() {
   const winnerCharacterId = state.players[state.setMatch.matchWinner]?.characterId;
   match.winner = winnerCharacterId;
   match.score = tournamentCompletedSetScore();
-  if (match.id === "semiHuman") {
-    revealAllTournamentAiSets();
+  if (match.id === "qfHuman") {
+    revealAllTournamentAiSets("quarter");
+    const qfAi1 = tournamentMatchById("qfAi1");
+    const semiHuman = tournamentMatchById("semiHuman");
+    semiHuman.playerA = winnerCharacterId;
+    semiHuman.playerB = qfAi1.hiddenWinner;
+    if (winnerCharacterId === state.tournament.humanCharacterId) {
+      state.tournament.stage = "readySemi";
+      state.tournament.currentMatch = null;
+      state.log.unshift(`Demi-finale débloquée contre ${characterNameFromId(qfAi1.hiddenWinner)}.`);
+    } else {
+      const semiHumanResult = simulateAiTournamentMatch(winnerCharacterId, qfAi1.hiddenWinner, state.tournament.targetSets ?? 2);
+      semiHuman.winner = semiHumanResult.winner;
+      semiHuman.score = semiHumanResult.score;
+      completeTournamentWithoutHuman(semiHumanResult.winner);
+    }
+  } else if (match.id === "semiHuman") {
+    revealAllTournamentAiSets("semi");
     const final = tournamentMatchById("final");
+    const semiAi = tournamentMatchById("semiAi");
+    state.tournament.aiFinalistCharacterId = semiAi.hiddenWinner;
     if (winnerCharacterId === state.tournament.humanCharacterId) {
       final.playerA = winnerCharacterId;
       final.playerB = state.tournament.aiFinalistCharacterId;
@@ -3398,6 +3642,21 @@ function handleTournamentMatchComplete() {
     state.tournament.currentMatch = null;
     state.log.unshift(`Tournoi gagné par ${characterNameFromId(winnerCharacterId)}.`);
   }
+}
+
+function startTournamentSemi() {
+  if (!state.tournament.active || state.tournament.stage !== "readySemi") return;
+  const semi = tournamentMatchById("semiHuman");
+  state.tournament.stage = "semi";
+  state.tournament.currentMatch = "semiHuman";
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  SOLO_AI.characterId = semi.playerB;
+  startMatchMode(state.tournament.targetSets ?? 2, { keepSoloOpponent: true });
+  state.tournament.stage = "semi";
+  state.tournament.currentMatch = "semiHuman";
+  state.log.unshift(`Demi-finale du tournoi : ${selectedPlayerName()} contre ${characterNameFromId(SOLO_AI.characterId)}.`);
+  render();
 }
 
 function startTournamentFinal() {
@@ -3427,33 +3686,46 @@ function updateTournamentSetProgress() {
 }
 
 function revealNextTournamentAiSet() {
-  const aiSemi = tournamentMatchById("semiAi");
-  if (!aiSemi?.hiddenSetScores?.length) return;
-  if ((aiSemi.revealedSetScores ?? []).length >= aiSemi.hiddenSetScores.length) return;
-  aiSemi.revealedSetScores = aiSemi.revealedSetScores ?? [];
-  aiSemi.revealedSetScores.push(aiSemi.hiddenSetScores[aiSemi.revealedSetScores.length]);
-  aiSemi.score = formatSetScores(aiSemi.revealedSetScores);
-  if (aiSemi.revealedSetScores.length >= aiSemi.hiddenSetScores.length) {
-    aiSemi.winner = aiSemi.hiddenWinner;
-    state.tournament.aiFinalistCharacterId = aiSemi.hiddenWinner;
-    const final = tournamentMatchById("final");
-    if (final && !final.playerB) {
-      final.playerB = aiSemi.hiddenWinner;
+  const round = state.tournament.stage === "quarter" ? "quarter" : state.tournament.stage === "semi" ? "semi" : null;
+  if (!round) return;
+  for (const match of simulatedTournamentMatches(round)) {
+    if ((match.revealedSetScores ?? []).length >= match.hiddenSetScores.length) continue;
+    match.revealedSetScores = match.revealedSetScores ?? [];
+    match.revealedSetScores.push(match.hiddenSetScores[match.revealedSetScores.length]);
+    match.score = formatSetScores(match.revealedSetScores);
+    if (match.revealedSetScores.length >= match.hiddenSetScores.length) {
+      match.winner = match.hiddenWinner;
     }
   }
 }
 
-function revealAllTournamentAiSets() {
-  const aiSemi = tournamentMatchById("semiAi");
-  if (!aiSemi?.hiddenSetScores?.length) return;
-  aiSemi.revealedSetScores = aiSemi.hiddenSetScores.map((score) => [...score]);
-  aiSemi.score = formatSetScores(aiSemi.revealedSetScores);
-  aiSemi.winner = aiSemi.hiddenWinner;
-  state.tournament.aiFinalistCharacterId = aiSemi.hiddenWinner;
-  const final = tournamentMatchById("final");
-  if (final && !final.playerB) {
-    final.playerB = aiSemi.hiddenWinner;
+function revealAllTournamentAiSets(round = null) {
+  for (const match of simulatedTournamentMatches(round)) {
+    if (!match.hiddenSetScores?.length) continue;
+    match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
+    match.score = formatSetScores(match.revealedSetScores);
+    match.winner = match.hiddenWinner;
   }
+}
+
+function simulatedTournamentMatches(round = null) {
+  return state.tournament.matches.filter((match) => match.simulated && (!round || match.round === round));
+}
+
+function completeTournamentWithoutHuman(semiHumanWinner) {
+  revealAllTournamentAiSets("semi");
+  const semiAi = tournamentMatchById("semiAi");
+  const final = tournamentMatchById("final");
+  final.playerA = semiHumanWinner;
+  final.playerB = semiAi.hiddenWinner;
+  const finalResult = simulateAiTournamentMatch(semiHumanWinner, semiAi.hiddenWinner, state.tournament.targetSets ?? 2);
+  final.winner = finalResult.winner;
+  final.score = finalResult.score;
+  state.tournament.aiFinalistCharacterId = semiAi.hiddenWinner;
+  state.tournament.stage = "complete";
+  state.tournament.championCharacterId = finalResult.winner;
+  state.tournament.currentMatch = null;
+  state.log.unshift(`Tournoi terminé : ${characterNameFromId(finalResult.winner)} gagne la finale.`);
 }
 
 function aiStyleLabel() {
@@ -3694,10 +3966,13 @@ function currentModeLabel() {
 }
 
 function tournamentStageLabel() {
+  if (state.tournament.stage === "quarter") return "quarts de finale";
+  if (state.tournament.stage === "readySemi") return "demi-finale prête";
+  if (state.tournament.stage === "semi") return "demi-finales";
   if (state.tournament.stage === "readyFinal") return "finale prête";
   if (state.tournament.stage === "final") return "finale";
   if (state.tournament.stage === "complete") return "terminé";
-  return "demi-finales";
+  return "tournoi";
 }
 
 function renderTournamentPanel() {
@@ -3707,7 +3982,9 @@ function renderTournamentPanel() {
     els.tournamentPanel.innerHTML = "";
     return;
   }
-  const [semiHuman, semiAi, final] = state.tournament.matches;
+  const quarterMatches = state.tournament.matches.filter((match) => match.round === "quarter");
+  const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
+  const final = tournamentMatchById("final");
   const champion = state.tournament.championCharacterId;
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
@@ -3715,12 +3992,15 @@ function renderTournamentPanel() {
         <p class="eyebrow">Tournoi IA</p>
         <h2>Tableau final</h2>
       </div>
+      ${state.tournament.stage === "readySemi" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer la demi-finale</button>' : ""}
       ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
     </div>
     <div class="tournament-bracket">
       <div class="tournament-column">
-        ${renderTournamentMatch(semiHuman)}
-        ${renderTournamentMatch(semiAi)}
+        ${quarterMatches.map((match) => renderTournamentMatch(match)).join("")}
+      </div>
+      <div class="tournament-column">
+        ${semiMatches.map((match) => renderTournamentMatch(match)).join("")}
       </div>
       <div class="tournament-column">
         ${renderTournamentMatch(final, true)}
@@ -3734,6 +4014,7 @@ function renderTournamentPanel() {
     </div>
   `;
   els.tournamentPanel.classList.remove("hidden");
+  els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", startTournamentSemi);
   els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", startTournamentFinal);
 }
 
@@ -4073,6 +4354,9 @@ function activeEffectBadges(playerIndex) {
   if (player.nextPrecisionBonus) badges.push({ text: `Prochain coup: +${player.nextPrecisionBonus} précision`, type: "effect" });
   if (player.nextPlacementBonus) badges.push({ text: `Prochain coup: +${player.nextPlacementBonus} placement`, type: "effect" });
   if (player.nextDiscount) badges.push({ text: `Prochain coup: -${player.nextDiscount} endurance`, type: "effect" });
+  if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain coup: puissance x${player.nextPowerMultiplier}`, type: "effect" });
+  if (player.exchangePrecisionBonus) badges.push({ text: `Échange: +${player.exchangePrecisionBonus} précision`, type: "effect" });
+  if (player.exchangePlacementBonus) badges.push({ text: `Échange: +${player.exchangePlacementBonus} placement`, type: "effect" });
   if (player.cancelNextOpponentEffect) badges.push({ text: "Actif: annule le prochain effet adverse", type: "effect" });
   if (player.freeBoostNext) badges.push({ text: "Actif: boost libre", type: "effect" });
   if (state.turnIgnoresPlacement[playerIndex]) badges.push({ text: "Joker: placement ignoré ce tour", type: "effect" });
@@ -4111,6 +4395,9 @@ function renderPlayerPanel(playerIndex, root) {
         ${player.nextPrecisionBonus ? `<span class="badge">+${player.nextPrecisionBonus} précision</span>` : ""}
         ${player.nextPlacementBonus ? `<span class="badge">+${player.nextPlacementBonus} placement</span>` : ""}
         ${player.nextDiscount ? `<span class="badge">-${player.nextDiscount} coût</span>` : ""}
+        ${(player.nextPowerMultiplier ?? 1) > 1 ? `<span class="badge">x${player.nextPowerMultiplier} puissance</span>` : ""}
+        ${player.exchangePrecisionBonus ? `<span class="badge">+${player.exchangePrecisionBonus} précision échange</span>` : ""}
+        ${player.exchangePlacementBonus ? `<span class="badge">+${player.exchangePlacementBonus} placement échange</span>` : ""}
         ${state.activePlayer === playerIndex && state.turnPlacement[playerIndex] ? `<span class="badge">${state.turnPlacement[playerIndex]} placement préparé</span>` : ""}
         ${player.limitedFamilies ? `<span class="badge">${player.limitedFamilies.join(" / ")}</span>` : ""}
         ${activeEffectBadges(playerIndex).map((badge) => `<span class="badge ${badge.type}-badge">${badge.text}</span>`).join("")}
