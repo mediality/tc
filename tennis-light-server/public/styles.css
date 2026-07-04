@@ -813,9 +813,9 @@ h1 {
 .forbid-effect-overlay {
   position: absolute;
   left: 50%;
-  top: 64%;
+  top: 74%;
   z-index: 4;
-  width: 42%;
+  width: 16%;
   height: auto;
   aspect-ratio: 1;
   object-fit: contain;
@@ -826,7 +826,7 @@ h1 {
 
 .forbid-effect-overlay.fallback {
   top: 50%;
-  width: min(52px, 34%);
+  width: min(34px, 22%);
 }
 
 .card.has-visual,

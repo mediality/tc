@@ -454,6 +454,7 @@ const state = {
   mandatoryPlacement: false,
   mandatoryPlacementReason: null,
   mandatoryPlacementSourceUid: null,
+  openingServePlayed: false,
   returnServiceRestrictionFor: null,
   returnServiceRestrictionSpent: [false, false],
   turnPlacement: [0, 0],
@@ -971,7 +972,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v72",
+    version: "v73",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1051,6 +1052,7 @@ function newGame(options = {}) {
   state.mandatoryPlacement = false;
   state.mandatoryPlacementReason = null;
   state.mandatoryPlacementSourceUid = null;
+  state.openingServePlayed = false;
   state.returnServiceRestrictionFor = null;
   state.returnServiceRestrictionSpent = [false, false];
   state.turnPlacement = [0, 0];
@@ -1116,6 +1118,7 @@ const SNAPSHOT_KEYS = [
   "mandatoryPlacement",
   "mandatoryPlacementReason",
   "mandatoryPlacementSourceUid",
+  "openingServePlayed",
   "returnServiceRestrictionFor",
   "returnServiceRestrictionSpent",
   "turnPlacement",
@@ -1324,6 +1327,12 @@ function isServiceBoostHintWindow(playerIndex) {
   return receiverShots === 0;
 }
 
+function isOpeningServeAvailable() {
+  const serverCards = state.players[state.server]?.played ?? [];
+  const serverAlreadyPlayedOpeningShot = serverCards.some((card) => card.isServiceTurn || isShot(card));
+  return !state.openingServePlayed && !serverAlreadyPlayedOpeningShot;
+}
+
 function isNextEffectCanceledFor(playerIndex) {
   return Boolean(state.players[opponentOf(playerIndex)]?.cancelNextOpponentEffect);
 }
@@ -1370,7 +1379,7 @@ function canPlayBoost(playerIndex, card) {
   if (isRemise(card)) return false;
   const player = state.players[playerIndex];
   const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid);
-  const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && state.lastCard == null;
+  const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && isOpeningServeAvailable();
   const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
@@ -2287,7 +2296,10 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     constraints: constraintsLogInfo(),
   };
   const endsTurn = !isRemise(card);
-  const isOpeningServe = endsTurn && playerIndex === state.server && state.lastCard == null;
+  const isOpeningServe = endsTurn && playerIndex === state.server && isOpeningServeAvailable();
+  if (isOpeningServe) {
+    state.openingServePlayed = true;
+  }
   const countsPlacement = !isRemise(card) || remiseMode === "placement";
   const appliesEffect = !isRemise(card) || remiseMode === "effect";
   const cost = effectiveCost(player, card);
@@ -2472,7 +2484,8 @@ function endTurn(playerIndex) {
     opponent: playerLogInfo(opponent),
   });
 
-  if (playerIndex === state.server && state.lastCard == null) {
+  if (playerIndex === state.server && isOpeningServeAvailable()) {
+    state.openingServePlayed = true;
     const drawn = drawCards(opponent, 1);
     state.log.unshift(drawn > 0 ? `${opponent.name} pioche 1 carte car le serveur termine sans Service ni Coup droit.` : `${opponent.name} devrait piocher, mais le deck est vide.`);
   }
