@@ -560,6 +560,7 @@ const state = {
   returnServiceRestrictionFor: null,
   returnServiceRestrictionSpent: [false, false],
   turnPlacement: [0, 0],
+  turnEffectPlacement: [0, 0],
   turnHasEffect: [false, false],
   turnIgnoresPlacement: [false, false],
   turnPlayedCards: [[], []],
@@ -1028,6 +1029,7 @@ function constraintsLogInfo() {
     mandatoryPlacementSourceUid: state.mandatoryPlacementSourceUid,
     returnServiceRestrictionFor: state.returnServiceRestrictionFor,
     turnPlacement: [...state.turnPlacement],
+    turnEffectPlacement: [...(state.turnEffectPlacement ?? [0, 0])],
     turnHasEffect: [...state.turnHasEffect],
     turnIgnoresPlacement: [...state.turnIgnoresPlacement],
     limitedFamilies: state.players.map((player) => player.limitedFamilies ? [...player.limitedFamilies] : null),
@@ -1078,7 +1080,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v76",
+    version: "v77",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1162,6 +1164,7 @@ function newGame(options = {}) {
   state.returnServiceRestrictionFor = null;
   state.returnServiceRestrictionSpent = [false, false];
   state.turnPlacement = [0, 0];
+  state.turnEffectPlacement = [0, 0];
   state.turnHasEffect = [false, false];
   state.turnIgnoresPlacement = [false, false];
   state.turnPlayedCards = [[], []];
@@ -1228,6 +1231,7 @@ const SNAPSHOT_KEYS = [
   "returnServiceRestrictionFor",
   "returnServiceRestrictionSpent",
   "turnPlacement",
+  "turnEffectPlacement",
   "turnHasEffect",
   "turnIgnoresPlacement",
   "turnPlayedCards",
@@ -1458,6 +1462,10 @@ function hasPlacementForPrevious(playerIndex, card, boosted = false) {
   return totalTurnPlacement(playerIndex, card, boosted) >= state.lastCard.precision;
 }
 
+function turnEndPlacement(playerIndex) {
+  return state.turnPlacement[playerIndex] + (state.turnEffectPlacement?.[playerIndex] ?? 0);
+}
+
 function canPlayNormal(playerIndex, card) {
   if (state.gameOver || playerIndex !== state.activePlayer) return false;
   if (!canUseSeat(playerIndex)) return false;
@@ -1472,7 +1480,7 @@ function canPlayNormal(playerIndex, card) {
 function canEndTurn(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return false;
   if (state.mandatoryPlacement) {
-    return hasPlayedThisTurn(playerIndex) && state.lastCard && state.turnPlacement[playerIndex] >= state.lastCard.precision;
+    return hasPlayedThisTurn(playerIndex) && state.lastCard && turnEndPlacement(playerIndex) >= state.lastCard.precision;
   }
   return state.turnHasEffect[playerIndex] || state.turnPlacement[playerIndex] > 0;
 }
@@ -2457,6 +2465,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     ...rawStats,
     placement: countsPlacement ? rawStats.placement : 0,
   };
+  state.turnEffectPlacement[playerIndex] = isRemise(card) && remiseMode === "effect" ? rawStats.placement : 0;
   const combinedPlacement = state.turnPlacement[playerIndex] + stats.placement;
   const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
 
@@ -2492,6 +2501,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     precision: stats.precision,
     placement: stats.placement,
     turnPlacement: combinedPlacement,
+    turnEndPlacement: combinedPlacement + (state.turnEffectPlacement[playerIndex] ?? 0),
     removed: false,
   };
 
@@ -2527,7 +2537,10 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 
   const boostText = boosted ? " en BOOST" : "";
   const remiseText = isRemise(card) ? (remiseMode === "placement" ? " en REMISE" : " pour l'EFFET") : "";
-  state.log.unshift(`${player.name} joue ${card.name}${boostText}${remiseText} : +${stats.power} puissance, précision ${stats.precision}, placement ${stats.placement}${endsTurn ? `, placement total ${combinedPlacement}` : ""}.`);
+  const effectPlacementText = isRemise(card) && remiseMode === "effect" && rawStats.placement
+    ? `, placement de clôture ${rawStats.placement}`
+    : "";
+  state.log.unshift(`${player.name} joue ${card.name}${boostText}${remiseText} : +${stats.power} puissance, précision ${stats.precision}, placement ${stats.placement}${effectPlacementText}${endsTurn ? `, placement total ${combinedPlacement}` : ""}.`);
   const effectCanceled = state.players[opponentIndex].cancelNextOpponentEffect;
   if (!appliesEffect) {
     setEffectNotice("ignoré", card, `${card.effect} Ne s'applique pas car la carte est jouée en Remise.`);
@@ -2597,6 +2610,8 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   state.boostAvailableFor = !boosted && placementWasInsufficient ? opponentIndex : null;
   state.turnPlacement[playerIndex] = 0;
   state.turnPlacement[opponentIndex] = 0;
+  state.turnEffectPlacement[playerIndex] = 0;
+  state.turnEffectPlacement[opponentIndex] = 0;
   state.turnHasEffect[playerIndex] = false;
   state.turnHasEffect[opponentIndex] = false;
   state.turnIgnoresPlacement[playerIndex] = false;
@@ -2620,7 +2635,7 @@ function endTurn(playerIndex) {
   const opponentIndex = opponentOf(playerIndex);
   const player = state.players[playerIndex];
   const opponent = state.players[opponentIndex];
-  const preparedPlacement = state.turnPlacement[playerIndex];
+  const preparedPlacement = turnEndPlacement(playerIndex);
   const opensBoost = Boolean(state.lastCard && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
   recordAction("end_turn", {
     playerIndex,
@@ -2644,6 +2659,7 @@ function endTurn(playerIndex) {
   state.mandatoryPlacementReason = null;
   state.mandatoryPlacementSourceUid = null;
   state.turnPlacement[playerIndex] = 0;
+  state.turnEffectPlacement[playerIndex] = 0;
   state.turnHasEffect[playerIndex] = false;
   state.turnIgnoresPlacement[playerIndex] = false;
   rememberPreviousTurn(playerIndex);
@@ -4231,7 +4247,7 @@ function renderRallyState() {
     `<div><strong>Dernier coup :</strong> ${last ? `${last.name}${last.boosted ? " BOOST" : ""} · précision ${last.precision}` : "aucun"}</div>`,
     `<div class="${activeConstraints.length ? "constraint-line" : ""}"><strong>Contrainte :</strong> ${activeConstraints.length ? activeConstraints.join(" · ") : "placement insuffisant autorisé"}</div>`,
     `<div><strong>Boost :</strong> ${state.boostAvailableFor == null ? "fermé" : `ouvert pour ${playerName(state.boostAvailableFor)}`}</div>`,
-    `<div><strong>Placement préparé :</strong> ${active.power != null ? state.turnPlacement[state.activePlayer] : 0}</div>`,
+    `<div><strong>Placement préparé :</strong> ${active.power != null ? turnEndPlacement(state.activePlayer) : 0}</div>`,
   ];
   els.rallyState.innerHTML = lines.join("");
 }
@@ -4495,7 +4511,7 @@ function renderPlayerPanel(playerIndex, root) {
         ${(player.nextPowerMultiplier ?? 1) > 1 ? `<span class="badge">x${player.nextPowerMultiplier} puissance</span>` : ""}
         ${player.exchangePrecisionBonus ? `<span class="badge">+${player.exchangePrecisionBonus} précision échange</span>` : ""}
         ${player.exchangePlacementBonus ? `<span class="badge">+${player.exchangePlacementBonus} placement échange</span>` : ""}
-        ${state.activePlayer === playerIndex && state.turnPlacement[playerIndex] ? `<span class="badge">${state.turnPlacement[playerIndex]} placement préparé</span>` : ""}
+        ${state.activePlayer === playerIndex && turnEndPlacement(playerIndex) ? `<span class="badge">${turnEndPlacement(playerIndex)} placement préparé</span>` : ""}
         ${player.limitedFamilies ? `<span class="badge">${player.limitedFamilies.join(" / ")}</span>` : ""}
         ${activeEffectBadges(playerIndex).map((badge) => `<span class="badge ${badge.type}-badge">${badge.text}</span>`).join("")}
       </div>
