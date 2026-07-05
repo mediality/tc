@@ -100,6 +100,13 @@ const CHARACTERS = {
     name: "Coach",
     effects: [],
   },
+  tennisHope: {
+    name: "Espoir du Tennis",
+    effects: [
+      { side: "Bleu", label: "Pioche 1 carte", type: "drawCard" },
+      { side: "Rose", label: "Gagne 2 endurance", type: "gainEndurance", value: 2 },
+    ],
+  },
   coachJu: {
     name: "Coach Ju",
     effects: [
@@ -176,6 +183,10 @@ const CHARACTER_IMAGES = {
   coachUnknown: [
     "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
     "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
+  ],
+  tennisHope: [
+    "assets/ESPOIRRECTO.png",
+    "assets/ESPOIRVERSO.png",
   ],
   coachJu: [
     "assets/cards/Demo-TC-_0004_Coach-JU-RECTO.png",
@@ -546,6 +557,359 @@ const CARD_LIBRARY = [
   },
 ];
 
+const TUTORIAL_COACH_IMAGE = "assets/Coach-Ju-Speak.png";
+const TUTORIAL_MAX_IMAGE = "assets/CoachMaxTRS.png";
+const TUTORIAL_SCRIPT = [
+  {
+    id: "m1-1",
+    type: "message",
+    speaker: "ju",
+    title: "Principes de base",
+    text: "Bienvenue dans Tennis Courts Academy. Je suis Coach Ju, et je vais vous apprendre les bases de Tennis Courts.",
+  },
+  {
+    id: "m1-2",
+    type: "message",
+    speaker: "ju",
+    title: "Le but",
+    text: "Dans Tennis Courts, vous jouez une succession d'échanges. Chaque échange permet de gagner des jeux. Les jeux permettent de gagner un set. Les sets permettent de gagner le match.",
+  },
+  {
+    type: "message",
+    speaker: "ju",
+    title: "Gagner un échange",
+    text: "Il existe deux façons de gagner un échange : marquer plus de points de puissance que l'adversaire, ou réussir une frappe boostée que l'adversaire ne peut pas renvoyer.",
+  },
+  {
+    type: "message",
+    speaker: "ju",
+    title: "Deck d'académie",
+    text: "Dans cette académie, nous allons apprendre avec un deck unique de 18 cartes. Dans la version complète de Tennis Courts, chaque joueur dispose de son propre deck, de 48 cartes, et d'une carte personnage.",
+  },
+  {
+    id: "m1-5",
+    type: "message",
+    speaker: "ju",
+    title: "Premier échange",
+    text: "Pour commencer, nous allons jouer un échange simple. Vous incarnez l'Espoir du Tennis. Vous êtes au service.",
+  },
+  {
+    id: "m2-setup",
+    type: "message",
+    speaker: "ju",
+    title: "Jouer une carte",
+    text: "Pour jouer une carte, vous devez payer son coût en endurance. Le coût est indiqué en haut à gauche de la carte.",
+  },
+  {
+    id: "m2-power",
+    type: "message",
+    speaker: "ju",
+    title: "Puissance",
+    text: "Une fois la carte jouée, vous marquez immédiatement ses points de puissance. La puissance est indiquée en haut à droite.",
+  },
+  {
+    id: "m2-service",
+    type: "message",
+    speaker: "ju",
+    title: "Service",
+    text: "Au service, vous pouvez jouer n'importe quelle carte. Mais si votre première carte n'est ni un Service, ni un Coup droit, l'adversaire pioche 1 carte. C'est la conséquence d'une mise en jeu moins solide.",
+  },
+  {
+    id: "m2-play-service",
+    type: "action",
+    speaker: "ju",
+    title: "À vous de servir",
+    text: "Jouez la carte Service.",
+    action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal" },
+  },
+  {
+    id: "m2-after-service",
+    type: "message",
+    speaker: "ju",
+    title: "Endurance et puissance",
+    text: "Vous avez payé l'endurance de la carte. Votre endurance diminue, et votre puissance augmente.",
+  },
+  {
+    id: "m2-precision-placement",
+    type: "message",
+    speaker: "ju",
+    title: "Précision et placement",
+    text: "La carte jouée indique aussi une précision et un placement. La précision représente la qualité du coup envoyé. Le placement représente la capacité à répondre au coup adverse.",
+  },
+  {
+    id: "m2-coach-reply",
+    type: "message",
+    speaker: "ju",
+    title: "Réponse adverse",
+    text: "Je réponds avec assez de placement. L'échange continue normalement.",
+    auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
+  },
+  {
+    id: "m3-setup",
+    type: "message",
+    speaker: "ju",
+    title: "Gagner aux points",
+    text: "Un échange continue tant que les deux joueurs jouent des cartes. À chaque carte jouée, on paie l'endurance, on marque la puissance, puis on résout l'effet éventuel.",
+    auto: { kind: "scenario", scenario: "points" },
+  },
+  {
+    id: "m3-player-card-1",
+    type: "action",
+    speaker: "ju",
+    title: "Continuer l'échange",
+    text: "Jouez une nouvelle carte.",
+    action: { kind: "play", playerIndex: 0, cardId: "revers-3-3-3", mode: "normal" },
+  },
+  {
+    id: "m3-coach-card",
+    type: "message",
+    speaker: "ju",
+    title: "Réponse",
+    text: "Je réponds avec une nouvelle carte.",
+    auto: { kind: "play", playerIndex: 1, cardId: "volee-2-2-3", mode: "normal" },
+  },
+  {
+    id: "m3-pass-rule",
+    type: "message",
+    speaker: "ju",
+    title: "Passer",
+    text: "À tout moment, un joueur peut décider de passer. Passer met immédiatement fin à l'échange.",
+  },
+  {
+    id: "m3-pass-penalty",
+    type: "message",
+    speaker: "ju",
+    title: "Pénalité",
+    text: "Mais passer donne des points à l'adversaire. Le joueur qui passe donne autant de puissance qu'il lui reste d'endurance, avec un minimum de 2.",
+  },
+  {
+    id: "m3-player-card-2",
+    type: "action",
+    speaker: "ju",
+    title: "Dernier coup",
+    text: "Jouez une troisième carte.",
+    action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal" },
+  },
+  {
+    id: "m3-coach-pass",
+    type: "message",
+    speaker: "ju",
+    title: "Fin de l'échange",
+    text: "Je passe. Je vous donne donc des points de puissance supplémentaires.",
+    auto: { kind: "pass", playerIndex: 1 },
+  },
+  {
+    id: "m3-score",
+    type: "message",
+    speaker: "ju",
+    title: "Score de l'échange",
+    text: "On compare maintenant les points de puissance. Le joueur qui en a le plus gagne l'échange. En cas d'égalité, le serveur gagne.",
+  },
+  {
+    id: "m3-games",
+    type: "message",
+    speaker: "ju",
+    title: "Jeux gagnés",
+    text: "Une victoire aux points rapporte 2 jeux au vainqueur. Si le perdant termine à moins de 5 points de puissance d'écart, il marque tout de même 1 jeu. Dans cet exemple, le bilan de l'échange est donc de 2 jeux à 1.",
+  },
+  {
+    id: "m4-setup",
+    type: "message",
+    speaker: "ju",
+    title: "Victoire boostée",
+    text: "Nous allons maintenant voir la frappe boostée. C'est la deuxième façon de gagner un échange.",
+    auto: { kind: "scenario", scenario: "boost" },
+  },
+  {
+    id: "m4-precision",
+    type: "message",
+    speaker: "ju",
+    title: "Créer une occasion",
+    text: "Quand un joueur envoie un coup, sa carte indique une précision. Pour répondre proprement, l'adversaire doit poser assez de placement.",
+  },
+  {
+    id: "m4-coach-high-precision",
+    type: "message",
+    speaker: "ju",
+    title: "Coup précis",
+    text: "Je joue une carte avec une précision élevée.",
+    auto: { kind: "play", playerIndex: 1, cardId: "lob-2-0-4", mode: "normal" },
+  },
+  {
+    id: "m4-low-placement",
+    type: "action",
+    speaker: "ju",
+    title: "Placement insuffisant",
+    text: "Répondez avec une carte dont le placement est inférieur à la précision demandée.",
+    action: { kind: "play", playerIndex: 0, cardId: "coup-droit-3-3-3", mode: "normal" },
+  },
+  {
+    id: "m4-window",
+    type: "message",
+    speaker: "ju",
+    title: "Fenêtre de boost",
+    text: "Votre placement est insuffisant. Vous avez le droit de jouer cette carte, mais je peux maintenant booster mon prochain coup.",
+  },
+  {
+    id: "m4-boost-explain",
+    type: "message",
+    speaker: "ju",
+    title: "Booster",
+    text: "Pour booster, on utilise la partie basse de la carte. Une carte boostée impose une réponse plus difficile. Booster coûte aussi une carte supplémentaire, sacrifiée sous la carte boostée.",
+  },
+  {
+    id: "m4-coach-boost",
+    type: "message",
+    speaker: "ju",
+    title: "Frappe boostée",
+    text: "Je joue une carte boostée. Vous êtes maintenant sous contrainte de boost.",
+    auto: { kind: "play", playerIndex: 1, cardId: "smash-4-2-1", mode: "boost", sacrificeCardId: "double" },
+  },
+  {
+    id: "m4-boost-danger",
+    type: "message",
+    speaker: "ju",
+    title: "Danger",
+    text: "Cette fois, vous devez répondre avec un placement suffisant. Si vous passez, ou si vous ne pouvez pas répondre, vous perdez automatiquement l'échange. Une victoire par boost rapporte 3 jeux au vainqueur, et 0 jeu au perdant.",
+  },
+  {
+    id: "m4-defend",
+    type: "action",
+    speaker: "ju",
+    title: "Renvoyer le boost",
+    text: "Répondez avec une carte dont le placement est suffisant.",
+    action: { kind: "play", playerIndex: 0, cardId: "revers-5-4-1", mode: "normal" },
+  },
+  {
+    id: "m4-summary",
+    type: "message",
+    speaker: "ju",
+    title: "Boost retenu",
+    text: "Vous avez renvoyé le boost. Retenez l'idée principale : un placement insuffisant peut donner une occasion de boost, et un boost non renvoyé fait perdre l'échange immédiatement.",
+  },
+  {
+    id: "m5-setup",
+    type: "message",
+    speaker: "max",
+    title: "Effet / Remise",
+    text: "Dans cette deuxième partie, je vais vous montrer les cartes Effet / Remise.",
+    auto: { kind: "scenario", scenario: "remise" },
+  },
+  {
+    id: "m5-dual",
+    type: "message",
+    speaker: "max",
+    title: "Deux façons de jouer",
+    text: "Ces cartes sont particulières. Elles peuvent être jouées de deux manières différentes : pour leur effet, ou en remise.",
+  },
+  {
+    id: "m5-effect",
+    type: "action",
+    speaker: "max",
+    title: "Jouer pour l'effet",
+    text: "Quand vous jouez une carte Effet / Remise pour son effet, le texte de la carte s'applique. Jouez une carte Effet / Remise pour son effet.",
+    action: { kind: "play", playerIndex: 0, cardId: "retour-service", mode: "effect" },
+  },
+  {
+    id: "m5-remise",
+    type: "action",
+    speaker: "max",
+    title: "Jouer en remise",
+    text: "Quand une carte Effet / Remise est jouée en remise, son effet ne s'applique pas. En revanche, son placement est ajouté au placement total de votre tour. Jouez une carte en remise.",
+    action: { kind: "play", playerIndex: 0, cardId: "joker", mode: "placement" },
+  },
+  {
+    id: "m5-finish-shot",
+    type: "action",
+    speaker: "max",
+    title: "Additionner le placement",
+    text: "Le placement de cette carte est maintenant préparé. Jouez une carte Coup pour terminer le tour.",
+    action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal" },
+  },
+  {
+    id: "m5-summary",
+    type: "message",
+    speaker: "max",
+    title: "À retenir",
+    text: "Votre placement total correspond au placement de vos remises, ajouté au placement de votre coup final. Si une carte Effet / Remise termine votre tour, on tient compte à la fois de son effet et de son placement.",
+  },
+  {
+    id: "m6-setup",
+    type: "message",
+    speaker: "max",
+    title: "Sortir d'un boost",
+    text: "Comment sortir d'un BOOST avec un EFFET, comme par exemple le Joker.",
+    auto: { kind: "scenario", scenario: "joker" },
+  },
+  {
+    id: "m6-joker",
+    type: "message",
+    speaker: "max",
+    title: "Le Joker",
+    text: "Le Joker est une carte Effet / Remise très importante. Son rôle principal est de vous aider à survivre après une frappe boostée.",
+  },
+  {
+    id: "m6-play-joker",
+    type: "action",
+    speaker: "max",
+    title: "Annuler la contrainte",
+    text: "Vous êtes sous contrainte de boost. Si vous jouez le Joker pour son effet, il annule cette contrainte de placement. Jouez le Joker pour son effet.",
+    action: { kind: "play", playerIndex: 0, cardId: "joker", mode: "effect" },
+  },
+  {
+    id: "m6-follow",
+    type: "action",
+    speaker: "max",
+    title: "Poursuivre l'échange",
+    text: "Le Joker annule la contrainte de placement du boost. Vous pouvez maintenant jouer une carte Coup sans devoir atteindre ce niveau de placement.",
+    action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal" },
+  },
+  {
+    id: "m6-summary",
+    type: "message",
+    speaker: "max",
+    title: "Limite du Joker",
+    text: "Attention : le Joker annule la contrainte de placement du boost, mais il n'annule pas les autres contraintes éventuelles. Par exemple, une limite à Revers, Lob ou Remise reste active.",
+  },
+  {
+    id: "m7-setup",
+    type: "message",
+    speaker: "max",
+    title: "Couleurs de boost",
+    text: "Il existe une autre manière de booster : les couleurs de boost.",
+    auto: { kind: "scenario", scenario: "color" },
+  },
+  {
+    id: "m7-rules",
+    type: "message",
+    speaker: "max",
+    title: "Contre-attaque",
+    text: "Certaines cartes portent une couleur de coup. Certaines cartes peuvent booster immédiatement après certaines couleurs adverses. Dans ce cas, il n'est pas nécessaire que l'adversaire ait manqué son placement.",
+  },
+  {
+    id: "m7-relations",
+    type: "message",
+    speaker: "max",
+    title: "Relations principales",
+    text: "Un Passing peut booster après un Smash, une Amortie ou une Volée. Une Volée peut booster après un Passing. Une Amortie peut booster après une autre Amortie ou un Passing. Un Lob peut booster après une Volée ou un Smash. Un Smash peut booster après un Lob.",
+  },
+  {
+    id: "m7-boost",
+    type: "action",
+    speaker: "max",
+    title: "Booster par couleur",
+    text: "Je viens de jouer une Volée. Votre Lob peut booster immédiatement grâce à la couleur. Jouez le Lob en boost.",
+    action: { kind: "play", playerIndex: 0, cardId: "lob-2-0-4", mode: "boost", sacrificeCardId: "double" },
+  },
+  {
+    id: "done",
+    type: "message",
+    speaker: "max",
+    title: "Tutoriel terminé",
+    text: "Les couleurs créent des fenêtres de boost tactiques. Même un coup bien placé peut être contré si sa couleur ouvre une opportunité. Vous connaissez maintenant les bases principales de Tennis Courts Academy.",
+  },
+];
+
 const state = {
   players: [],
   deck: [],
@@ -593,6 +957,12 @@ const state = {
     matchOver: false,
     matchWinner: null,
   },
+  tutorial: {
+    active: false,
+    stepIndex: 0,
+    completed: false,
+    autoCompletedIds: [],
+  },
 };
 
 const els = {
@@ -616,6 +986,7 @@ const els = {
   onlineModeButton: document.querySelector("#onlineModeButton"),
   resultPanel: document.querySelector("#resultPanel"),
   tournamentPanel: document.querySelector("#tournamentPanel"),
+  tutorialOverlay: document.querySelector("#tutorialOverlay"),
   player1Summary: document.querySelector("#player1Summary"),
   player2Summary: document.querySelector("#player2Summary"),
   rallyState: document.querySelector("#rallyState"),
@@ -712,6 +1083,279 @@ function showGameScreen() {
 function showMenuScreen() {
   els.gameApp?.classList.add("hidden");
   els.menuScreen?.classList.remove("hidden");
+}
+
+function cardByIdForTutorial(cardId, copyIndex) {
+  const card = CARD_LIBRARY.find((item) => item.id === cardId);
+  return card ? cloneCard(card, `tutorial-${copyIndex}`) : null;
+}
+
+function tutorialHand(cardIds, prefix) {
+  return cardIds.map((cardId, index) => cardByIdForTutorial(cardId, `${prefix}-${index}`)).filter(Boolean);
+}
+
+function tutorialStep() {
+  return state.tutorial.active ? TUTORIAL_SCRIPT[state.tutorial.stepIndex] ?? null : null;
+}
+
+function tutorialExpectedAction() {
+  const step = tutorialStep();
+  return step?.type === "action" ? step.action : null;
+}
+
+function tutorialAllowsPlay(playerIndex, card, mode, boosted = false) {
+  if (!state.tutorial.active) return true;
+  const action = tutorialExpectedAction();
+  if (!action || action.kind !== "play" || !card) return false;
+  const expectedMode = boosted ? "boost" : mode;
+  return action.playerIndex === playerIndex && action.cardId === card.id && action.mode === expectedMode;
+}
+
+function tutorialAllowsEndTurn(playerIndex) {
+  if (!state.tutorial.active) return true;
+  const action = tutorialExpectedAction();
+  return action?.kind === "endTurn" && action.playerIndex === playerIndex;
+}
+
+function tutorialAllowsPass() {
+  if (!state.tutorial.active) return true;
+  const action = tutorialExpectedAction();
+  return action?.kind === "pass";
+}
+
+function tutorialClickArrow() {
+  return state.tutorial.active ? '<span class="tutorial-click-arrow" aria-hidden="true"></span>' : "";
+}
+
+function tutorialButtonCue(kind, playerIndex, card = null, mode = null, boosted = false) {
+  if (!state.tutorial.active) return "";
+  const action = tutorialExpectedAction();
+  if (!action || action.kind !== kind || action.playerIndex !== playerIndex) return "";
+  if (kind === "play") {
+    const expectedMode = boosted ? "boost" : mode;
+    if (!card || action.cardId !== card.id || action.mode !== expectedMode) return "";
+  }
+  return tutorialClickArrow();
+}
+
+function tutorialSacrificeCue(card) {
+  const action = tutorialExpectedAction();
+  if (!state.tutorial.active || action?.kind !== "play" || action.mode !== "boost") return "";
+  if (action.sacrificeCardId && card.id !== action.sacrificeCardId) return "";
+  return tutorialClickArrow();
+}
+
+function startTutorial() {
+  if (SERVER_SYNC.enabled) {
+    leaveOnlineRoom();
+  }
+  resetTournament();
+  resetSetMatch();
+  stopSoloTimers();
+  SOLO_AI.enabled = false;
+
+  setupTutorialScenario("base");
+  state.server = 0;
+  state.activePlayer = 0;
+  state.tutorial = { active: true, stepIndex: 0, completed: false, autoCompletedIds: [] };
+  state.log = ["Tutoriel lancé."];
+  captureTurnSnapshot();
+  showGameScreen();
+  render();
+}
+
+function completeTutorialAction(action) {
+  if (!state.tutorial.active) return;
+  const expected = tutorialExpectedAction();
+  if (!expected || expected.kind !== action.kind || expected.playerIndex !== action.playerIndex) return;
+  if (expected.kind === "play" && (expected.cardId !== action.cardId || expected.mode !== action.mode)) return;
+  advanceTutorial();
+}
+
+function advanceTutorial() {
+  if (!state.tutorial.active) return;
+  state.tutorial.stepIndex += 1;
+  runTutorialAutoSteps();
+  render();
+}
+
+function finishTutorial() {
+  state.tutorial = { active: false, stepIndex: 0, completed: true, autoCompletedIds: [] };
+  showMenuScreen();
+  render();
+}
+
+function runTutorialAutoSteps() {
+  const step = tutorialStep();
+  if (!step?.auto) return;
+  const stepKey = step.id ?? `step-${state.tutorial.stepIndex}`;
+  state.tutorial.autoCompletedIds = state.tutorial.autoCompletedIds ?? [];
+  if (state.tutorial.autoCompletedIds.includes(stepKey)) return;
+  state.tutorial.autoCompletedIds.push(stepKey);
+  performTutorialAuto(step.auto);
+}
+
+function performTutorialAuto(auto) {
+  if (auto.kind === "scenario") {
+    setupTutorialScenario(auto.scenario);
+    return;
+  }
+  if (auto.kind === "pass") {
+    pass(auto.playerIndex, true);
+    return;
+  }
+  if (auto.kind === "endTurn") {
+    endTurn(auto.playerIndex);
+    return;
+  }
+  if (auto.kind !== "play") return;
+  const player = state.players[auto.playerIndex];
+  const card = player?.hand.find((item) => item.id === auto.cardId);
+  if (!card) return;
+  const sacrifice = auto.mode === "boost"
+    ? player.hand.find((item) => item.id === auto.sacrificeCardId && item.uid !== card.uid)
+    : null;
+  playCard(auto.playerIndex, card.uid, auto.mode === "boost", sacrifice?.uid ?? null, auto.mode);
+}
+
+function resetTutorialExchange(players, hands, server = 0, activePlayer = server) {
+  const usedIds = new Set(hands.flatMap((hand) => hand.map((card) => card.id)));
+  state.players = players;
+  state.players[0].hand = hands[0];
+  state.players[1].hand = hands[1];
+  state.deck = CARD_LIBRARY
+    .filter((card) => !usedIds.has(card.id))
+    .map((card, index) => cloneCard(card, `tutorial-deck-${index}`));
+  state.server = server;
+  state.activePlayer = activePlayer;
+  state.lastCard = null;
+  state.boostAvailableFor = null;
+  state.mandatoryPlacement = false;
+  state.mandatoryPlacementReason = null;
+  state.mandatoryPlacementSourceUid = null;
+  state.openingServePlayed = false;
+  state.returnServiceRestrictionFor = null;
+  state.returnServiceRestrictionSpent = [false, false];
+  state.turnPlacement = [0, 0];
+  state.turnEffectPlacement = [0, 0];
+  state.turnHasEffect = [false, false];
+  state.turnIgnoresPlacement = [false, false];
+  state.turnPlayedCards = [[], []];
+  state.latestPlayedCard = null;
+  state.gameOver = false;
+  state.pendingBoost = null;
+  state.pendingEffectChoice = null;
+  state.pendingCoachChoice = null;
+  state.pendingRemoveChoice = null;
+  state.pendingEndTurnAfterChoice = null;
+  state.effectNotice = null;
+  state.resultInfo = null;
+  state.turnDirty = false;
+  state.revealAiCards = true;
+  state.actionLog = [];
+}
+
+function createTutorialPlayedCard(cardId, owner, boosted = false, sacrificeCardId = null) {
+  const card = cardByIdForTutorial(cardId, `played-${owner}`);
+  const sacrifice = sacrificeCardId ? cardByIdForTutorial(sacrificeCardId, `sacrifice-${owner}`) : null;
+  return {
+    ...card,
+    playedUid: crypto.randomUUID(),
+    owner,
+    boosted,
+    sacrificedCard: sacrifice,
+    isServiceTurn: false,
+    costPaid: card.cost,
+    powerGained: card.power,
+    cardPowerGained: card.power,
+    effectPowerGained: 0,
+    precision: boosted ? card.boostPrecision : card.precision,
+    placement: card.placement,
+    turnPlacement: card.placement,
+    turnEndPlacement: card.placement,
+    effectApplied: true,
+    effectDeferredUntilEndTurn: false,
+    removed: false,
+  };
+}
+
+function setupTutorialScenario(scenario) {
+  const edt = createPlayer("Espoir du Tennis", "tennisHope", "Espoir du Tennis");
+  const coachJu = createPlayer("Coach Ju", "coachJu", "Coach Ju");
+  const coachMax = createPlayer("Coach Max", "coachMax", "Coach Max");
+  if (scenario === "base") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["service-coup-droit", "amortie-2-1-4", "revers-3-3-3"], "base-edt"),
+        tutorialHand(["passing-1-1-4", "lob-2-0-4"], "base-ju"),
+      ],
+      0,
+      0,
+    );
+  } else if (scenario === "points") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["revers-3-3-3", "coup-droit-2-2-2", "amortie-2-1-4"], "points-edt"),
+        tutorialHand(["volee-2-2-3", "passing-1-1-4"], "points-ju"),
+      ],
+      0,
+      0,
+    );
+  } else if (scenario === "boost") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["coup-droit-3-3-3", "revers-5-4-1", "joker"], "boost-edt"),
+        tutorialHand(["lob-2-0-4", "smash-4-2-1", "double"], "boost-ju"),
+      ],
+      1,
+      1,
+    );
+  } else if (scenario === "remise") {
+    resetTutorialExchange(
+      [edt, coachMax],
+      [
+        tutorialHand(["retour-service", "joker", "coup-droit-2-2-2"], "remise-edt"),
+        tutorialHand(["passing-1-1-4"], "remise-max"),
+      ],
+      0,
+      0,
+    );
+  } else if (scenario === "joker") {
+    resetTutorialExchange(
+      [edt, coachMax],
+      [
+        tutorialHand(["joker", "coup-droit-2-2-2"], "joker-edt"),
+        tutorialHand(["smash-4-2-1", "double"], "joker-max"),
+      ],
+      1,
+      0,
+    );
+    const boostedSmash = createTutorialPlayedCard("smash-4-2-1", 1, true, "double");
+    state.players[1].played.push(boostedSmash);
+    state.latestPlayedCard = { ...boostedSmash };
+    state.lastCard = boostedSmash;
+    state.mandatoryPlacement = true;
+    state.mandatoryPlacementReason = "boost";
+    state.mandatoryPlacementSourceUid = boostedSmash.playedUid;
+  } else if (scenario === "color") {
+    resetTutorialExchange(
+      [edt, coachMax],
+      [
+        tutorialHand(["lob-2-0-4", "double"], "color-edt"),
+        tutorialHand(["volee-2-2-3"], "color-max"),
+      ],
+      1,
+      0,
+    );
+    const volee = createTutorialPlayedCard("volee-2-2-3", 1, false);
+    state.players[1].played.push(volee);
+    state.latestPlayedCard = { ...volee };
+    state.lastCard = volee;
+  }
+  captureTurnSnapshot();
 }
 
 function stopSoloTimers() {
@@ -1081,7 +1725,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v78",
+    version: "v80",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1495,6 +2139,7 @@ function canPlayNormal(playerIndex, card) {
 
 function canEndTurn(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return false;
+  if (!tutorialAllowsEndTurn(playerIndex)) return false;
   if (state.mandatoryPlacement) {
     return hasPlayedThisTurn(playerIndex)
       && state.lastCard
@@ -3378,9 +4023,14 @@ function closeImpossibleCoachChoice(playerIndex) {
   );
 }
 
-function pass(playerIndex) {
+function pass(playerIndex, tutorialBypass = false) {
   if (state.gameOver || playerIndex !== state.activePlayer) return;
   if (!canUseSeat(playerIndex)) return;
+  if (!tutorialBypass && !tutorialAllowsPass()) {
+    state.log.unshift("Le tutoriel guide l'action suivante : suis l'étape indiquée par Coach Ju.");
+    render();
+    return;
+  }
   if (hasPlayedThisTurn(playerIndex)) {
     if (canEndTurn(playerIndex)) {
       endTurn(playerIndex);
@@ -4101,6 +4751,7 @@ function render() {
   renderModeButtons();
   renderResultPanel();
   renderTournamentPanel();
+  renderTutorialOverlay();
   renderRallyState();
   renderEffectNotice();
   renderPlayerPanel(0, els.player1Panel);
@@ -4116,6 +4767,50 @@ function render() {
   scheduleServerSync();
   scheduleSoloAINudge();
   maybeRunSoloAI();
+}
+
+function renderTutorialOverlay() {
+  if (!els.tutorialOverlay) return;
+  const step = tutorialStep();
+  if (!state.tutorial.active || !step) {
+    els.tutorialOverlay.classList.add("hidden");
+    els.tutorialOverlay.innerHTML = "";
+    return;
+  }
+  const action = step.type === "action" ? step.action : null;
+  const isFinalStep = step.id === "done";
+  const speakerImage = step.speaker === "max" ? TUTORIAL_MAX_IMAGE : TUTORIAL_COACH_IMAGE;
+  const speakerAlt = step.speaker === "max" ? "Coach Max explique" : "Coach Ju explique";
+  els.tutorialOverlay.classList.remove("hidden");
+  els.tutorialOverlay.innerHTML = `
+    <div class="tutorial-coach">
+      <img src="${speakerImage}" alt="${speakerAlt}" />
+    </div>
+    <aside class="tutorial-card ${action ? "tutorial-card-action" : ""}" aria-label="Tutoriel">
+      <p class="tutorial-kicker">Tutoriel</p>
+      <h2>${step.title}</h2>
+      <p>${step.text}</p>
+      ${action ? `<p class="tutorial-action">Action attendue : ${tutorialActionLabel(action)}</p>` : ""}
+      ${step.type === "message" ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>${tutorialClickArrow()}${isFinalStep ? "Terminer" : "Continuer"}</button>` : ""}
+    </aside>
+  `;
+  els.tutorialOverlay.querySelector("[data-tutorial-next]")?.addEventListener("click", () => {
+    if (isFinalStep) {
+      finishTutorial();
+    } else {
+      advanceTutorial();
+    }
+  });
+}
+
+function tutorialActionLabel(action) {
+  if (action.kind === "endTurn") return "clique sur Terminer le tour";
+  const card = CARD_LIBRARY.find((item) => item.id === action.cardId);
+  const cardName = card?.name ?? "la carte indiquée";
+  if (action.mode === "placement") return `joue ${cardName} en Remise`;
+  if (action.mode === "effect") return `joue ${cardName} en Effet`;
+  if (action.mode === "boost") return `joue ${cardName} en Boost`;
+  return `joue ${cardName}`;
 }
 
 function ensureSoloAIForSet() {
@@ -4567,6 +5262,7 @@ function activeEffectBadges(playerIndex) {
 
 function renderPlayerPanel(playerIndex, root) {
   const player = state.players[playerIndex];
+  const passDisabled = playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) || !tutorialAllowsPass();
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
     <header class="player-header">
@@ -4574,8 +5270,8 @@ function renderPlayerPanel(playerIndex, root) {
         <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${player.name}</h2>
         <div class="player-nickname">${player.nickname ?? player.name}</div>
         <div class="turn-buttons">
-          <button class="pass-button" type="button" data-pass="${playerIndex}" ${playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) ? "disabled" : ""}>Passer</button>
-          ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">Terminer le tour</button>` : ""}
+          <button class="pass-button" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
+          ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
           ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
         </div>
       </div>
@@ -4604,10 +5300,18 @@ function renderPlayerPanel(playerIndex, root) {
   `;
 
   root.querySelectorAll("[data-pass]").forEach((button) => {
-    button.addEventListener("click", () => pass(Number(button.dataset.pass)));
+    button.addEventListener("click", () => {
+      const playerIndex = Number(button.dataset.pass);
+      pass(playerIndex);
+      completeTutorialAction({ kind: "pass", playerIndex });
+    });
   });
   root.querySelectorAll("[data-end-turn]").forEach((button) => {
-    button.addEventListener("click", () => endTurn(Number(button.dataset.endTurn)));
+    button.addEventListener("click", () => {
+      const playerIndex = Number(button.dataset.endTurn);
+      endTurn(playerIndex);
+      completeTutorialAction({ kind: "endTurn", playerIndex });
+    });
   });
   root.querySelectorAll("[data-undo-turn]").forEach((button) => {
     button.addEventListener("click", () => restoreTurnSnapshot());
@@ -4621,8 +5325,10 @@ function renderCard(playerIndex, card) {
     : SOLO_AI.enabled
       ? playerIndex === SOLO_AI.playerIndex && !(state.gameOver && state.revealAiCards)
       : playerIndex !== state.activePlayer && !state.gameOver;
-  const normalAllowed = canPlayNormal(playerIndex, card);
-  const boostAllowed = canPlayBoost(playerIndex, card);
+  const effectModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "effect", false);
+  const placementModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "placement", false);
+  const normalAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "normal", false);
+  const boostAllowed = canPlayBoost(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "boost", true);
   const cost = effectiveCost(player, card);
   const stats = getCardStats(player, card, false);
   const placementTotal = totalTurnPlacement(playerIndex, card, false);
@@ -4638,7 +5344,7 @@ function renderCard(playerIndex, card) {
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || boostAllowed ? "" : "unplayable"}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : "unplayable"}">
       ${imageUrl ? `
         <div class="card-visual card-effect-forbid-host">
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
@@ -4673,11 +5379,11 @@ function renderCard(playerIndex, card) {
       ` : ""}
       <div class="card-actions ${isRemise(card) ? "remise-actions" : ""}">
         ${isRemise(card) ? `
-          <button class="play-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${normalAllowed ? "" : "disabled"}>${cost} end. · Effet</button>
-          <button class="boost-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${normalAllowed ? "" : "disabled"}>${cost} end. · Remise</button>
+          <button class="play-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}${cost} end. · Effet</button>
+          <button class="boost-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}${cost} end. · Remise</button>
         ` : `
-          <button class="play-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${cost} end. · Jouer</button>
-          <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>Boost</button>
+          <button class="play-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}${cost} end. · Jouer</button>
+          <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
       ${placementIssue && !state.mandatoryPlacement ? '<div class="stat placement">Placement total insuffisant : ouvre le boost adverse</div>' : ""}
@@ -4720,6 +5426,7 @@ function renderBoostModal() {
       <div class="choice-grid">
         ${choices.map((choice) => `
           <button class="choice-card" type="button" data-sacrifice="${choice.uid}">
+            ${tutorialSacrificeCue(choice)}
             ${renderChoiceCardVisual(choice)}
           </button>
         `).join("")}
@@ -4731,8 +5438,10 @@ function renderBoostModal() {
   backdrop.querySelectorAll("[data-sacrifice]").forEach((button) => {
     button.addEventListener("click", () => {
       const sacrificeUid = button.dataset.sacrifice;
+      const boostCard = player.hand.find((item) => item.uid === cardUid);
       state.pendingBoost = null;
       playCard(playerIndex, cardUid, true, sacrificeUid);
+      completeTutorialAction({ kind: "play", playerIndex, cardId: boostCard?.id, mode: "boost" });
     });
   });
 }
@@ -4961,6 +5670,7 @@ function initMenu() {
   document.querySelectorAll("[data-start-solo]").forEach((button) => {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
+  document.querySelector("[data-start-tutorial]")?.addEventListener("click", startTutorial);
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
   refreshLobbyRooms();
@@ -4979,13 +5689,21 @@ document.addEventListener("click", (event) => {
   const playButton = target?.closest("[data-play]");
   if (playButton instanceof HTMLButtonElement && !playButton.disabled) {
     event.preventDefault();
-    playCard(Number(playButton.dataset.player), playButton.dataset.play, false, null, playButton.dataset.mode ?? "effect");
+    const playerIndex = Number(playButton.dataset.player);
+    const card = state.players[playerIndex]?.hand.find((item) => item.uid === playButton.dataset.play);
+    const mode = playButton.dataset.mode ?? "normal";
+    if (!tutorialAllowsPlay(playerIndex, card, mode, false)) return;
+    playCard(playerIndex, playButton.dataset.play, false, null, mode);
+    completeTutorialAction({ kind: "play", playerIndex, cardId: card?.id, mode });
     return;
   }
   const boostButton = target?.closest("[data-boost]");
   if (boostButton instanceof HTMLButtonElement && !boostButton.disabled) {
     event.preventDefault();
-    openBoostModal(Number(boostButton.dataset.player), boostButton.dataset.boost);
+    const playerIndex = Number(boostButton.dataset.player);
+    const card = state.players[playerIndex]?.hand.find((item) => item.uid === boostButton.dataset.boost);
+    if (!tutorialAllowsPlay(playerIndex, card, "boost", true)) return;
+    openBoostModal(playerIndex, boostButton.dataset.boost);
     return;
   }
   if (target?.closest("[data-force-ai-turn]")) {
@@ -4993,7 +5711,7 @@ document.addEventListener("click", (event) => {
   }
 });
 window.forceSoloAITurn = forceSoloAITurn;
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
 newGame();
 initMenu();
 initServerSync();
