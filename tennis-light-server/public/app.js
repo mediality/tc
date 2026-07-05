@@ -571,6 +571,7 @@ const state = {
   pendingEffectChoice: null,
   pendingCoachChoice: null,
   pendingRemoveChoice: null,
+  pendingEndTurnAfterChoice: null,
   effectNotice: null,
   resultInfo: null,
   turnSnapshot: null,
@@ -1080,7 +1081,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v77",
+    version: "v78",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -1174,6 +1175,7 @@ function newGame(options = {}) {
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
   state.pendingRemoveChoice = null;
+  state.pendingEndTurnAfterChoice = null;
   state.effectNotice = null;
   state.resultInfo = null;
   state.turnDirty = false;
@@ -1242,6 +1244,7 @@ const SNAPSHOT_KEYS = [
   "pendingEffectChoice",
   "pendingCoachChoice",
   "pendingRemoveChoice",
+  "pendingEndTurnAfterChoice",
   "effectNotice",
   "resultInfo",
   "revealAiCards",
@@ -1466,6 +1469,19 @@ function turnEndPlacement(playerIndex) {
   return state.turnPlacement[playerIndex] + (state.turnEffectPlacement?.[playerIndex] ?? 0);
 }
 
+function finalRemisePlayedThisTurn(playerIndex) {
+  const played = (state.turnPlayedCards[playerIndex] ?? []).filter((card) => !card.removed);
+  const finalCard = played[played.length - 1];
+  return finalCard && isRemise(finalCard) ? finalCard : null;
+}
+
+function finalRemiseCanResolvePlacementConstraint(playerIndex) {
+  const finalCard = finalRemisePlayedThisTurn(playerIndex);
+  if (!finalCard || !finalCard.effectDeferredUntilEndTurn || finalCard.effectApplied) return false;
+  if (isNextEffectCanceledFor(playerIndex)) return false;
+  return ["jokerResponse", "removeOpponentLast"].includes(finalCard.effectType);
+}
+
 function canPlayNormal(playerIndex, card) {
   if (state.gameOver || playerIndex !== state.activePlayer) return false;
   if (!canUseSeat(playerIndex)) return false;
@@ -1480,7 +1496,9 @@ function canPlayNormal(playerIndex, card) {
 function canEndTurn(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return false;
   if (state.mandatoryPlacement) {
-    return hasPlayedThisTurn(playerIndex) && state.lastCard && turnEndPlacement(playerIndex) >= state.lastCard.precision;
+    return hasPlayedThisTurn(playerIndex)
+      && state.lastCard
+      && (turnEndPlacement(playerIndex) >= state.lastCard.precision || finalRemiseCanResolvePlacementConstraint(playerIndex));
   }
   return state.turnHasEffect[playerIndex] || state.turnPlacement[playerIndex] > 0;
 }
@@ -2502,6 +2520,8 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     placement: stats.placement,
     turnPlacement: combinedPlacement,
     turnEndPlacement: combinedPlacement + (state.turnEffectPlacement[playerIndex] ?? 0),
+    effectApplied: appliesEffect,
+    effectDeferredUntilEndTurn: isRemise(card) && remiseMode === "placement",
     removed: false,
   };
 
@@ -2632,6 +2652,51 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
 function endTurn(playerIndex) {
   if (!canEndTurn(playerIndex)) return;
   markLocalServerDirty(playerIndex);
+  if (applyDeferredFinalRemiseEffect(playerIndex)) {
+    render();
+    return;
+  }
+  commitEndTurn(playerIndex);
+}
+
+function applyDeferredFinalRemiseEffect(playerIndex) {
+  const finalCard = finalRemisePlayedThisTurn(playerIndex);
+  if (!finalCard || !isRemise(finalCard) || !finalCard.effectDeferredUntilEndTurn || finalCard.effectApplied) return false;
+  const opponentIndex = opponentOf(playerIndex);
+  const effectCanceled = state.players[opponentIndex].cancelNextOpponentEffect;
+  finalCard.effectDeferredUntilEndTurn = false;
+  finalCard.effectApplied = true;
+  if (effectCanceled) {
+    state.players[opponentIndex].cancelNextOpponentEffect = false;
+    state.players[opponentIndex].cancelNextOpponentEffectSourceUid = null;
+    setEffectNotice("annulé", finalCard, `${finalCard.effect} Annulé par l'effet adverse.`);
+    state.log.unshift(`L'effet final de ${finalCard.name} est annulé.`);
+    return false;
+  }
+  const freeBoostWindow = finalCard.effectType !== "freeBoostNext" || isFreeBoostNextWindow(playerIndex);
+  applyEffect(playerIndex, finalCard);
+  if (freeBoostWindow) {
+    setEffectNotice("appliqué", finalCard, finalCard.effect);
+  }
+  state.log.unshift(`${state.players[playerIndex].name} termine son tour sur ${finalCard.name} : son effet et son placement sont pris en compte.`);
+  if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
+    state.pendingEndTurnAfterChoice = { playerIndex, sourcePlayedUid: finalCard.playedUid };
+    return true;
+  }
+  return false;
+}
+
+function continuePendingEndTurnIfNeeded(playerIndex, sourcePlayedUid) {
+  if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) return true;
+  if (!state.pendingEndTurnAfterChoice) return false;
+  if (state.pendingEndTurnAfterChoice.playerIndex !== playerIndex) return false;
+  if (sourcePlayedUid && state.pendingEndTurnAfterChoice.sourcePlayedUid !== sourcePlayedUid) return false;
+  state.pendingEndTurnAfterChoice = null;
+  commitEndTurn(playerIndex);
+  return true;
+}
+
+function commitEndTurn(playerIndex) {
   const opponentIndex = opponentOf(playerIndex);
   const player = state.players[playerIndex];
   const opponent = state.players[opponentIndex];
@@ -2831,6 +2896,9 @@ function resolveRemoveChoice(targetPlayedUid) {
     return;
   }
   removeOpponentPlayed(opponentIndex, target.playedUid);
+  if (continuePendingEndTurnIfNeeded(playerIndex, sourcePlayedUid)) {
+    return;
+  }
   completePlayedCardResolution(
     playerIndex,
     opponentIndex,
@@ -2852,6 +2920,9 @@ function closeImpossibleRemoveChoice(playerIndex) {
   state.log.unshift(`${player.name} ne peut supprimer aucune carte adverse.`);
   if (!sourceCard) {
     render();
+    return;
+  }
+  if (continuePendingEndTurnIfNeeded(playerIndex, sourcePlayedUid)) {
     return;
   }
   completePlayedCardResolution(
@@ -3011,6 +3082,9 @@ function resolveEffectChoice(chosenPlayedUid) {
     render();
     return;
   }
+  if (continuePendingEndTurnIfNeeded(playerIndex, sourcePlayedUid)) {
+    return;
+  }
   completePlayedCardResolution(
     playerIndex,
     opponentIndex,
@@ -3032,6 +3106,9 @@ function closeImpossibleEffectChoice(playerIndex) {
   state.log.unshift(`${player.name} ne peut choisir aucun effet valide.`);
   if (!sourceCard) {
     render();
+    return;
+  }
+  if (continuePendingEndTurnIfNeeded(playerIndex, sourcePlayedUid)) {
     return;
   }
   completePlayedCardResolution(
