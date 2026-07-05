@@ -243,6 +243,19 @@ button:disabled {
   gap: 10px;
 }
 
+.menu-mode-group {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-mode-group .label {
+  margin-bottom: 0;
+}
+
 .lobby-header {
   display: flex;
   align-items: center;
@@ -1217,6 +1230,18 @@ h1 {
 .tournament-player-row.winner {
   color: #fff;
   background: linear-gradient(90deg, #f2a334, #f8c64c);
+}
+
+.tournament-player-row.human-player {
+  color: #052e1b;
+  border: 2px solid rgba(134, 239, 172, 0.98);
+  background: linear-gradient(90deg, #bbf7d0, #86efac);
+}
+
+.tournament-player-row.human-player.winner {
+  color: #052e1b;
+  border-color: #e9ff70;
+  background: linear-gradient(90deg, #e9ff70, #f8c64c);
 }
 
 .tournament-score {

@@ -70,6 +70,7 @@ const MENU_STATE = {
 
 const EMPTY_TOURNAMENT = {
   active: false,
+  visible: false,
   stage: null,
   humanCharacterId: null,
   aiFinalistCharacterId: null,
@@ -1725,7 +1726,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v80",
+    version: "v81",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4267,6 +4268,7 @@ function startTournamentMode(targetSets = 2) {
   const qfAi3 = buildSimulatedTournamentMatch("qfAi3", "Quart de finale 4", selectedOpponents[5], selectedOpponents[6], targetSets, "quarter");
   state.tournament = {
     active: true,
+    visible: false,
     stage: "quarter",
     targetSets,
     humanCharacterId,
@@ -4325,7 +4327,7 @@ function startTournamentMode(targetSets = 2) {
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = "qfHuman";
   state.tournament.stage = "quarter";
-  state.log.unshift(`Tournoi IA : quart de finale contre ${characterNameFromId(quarterHumanOpponent)}.`);
+  state.log.unshift(`${targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets"} : quart de finale contre ${characterNameFromId(quarterHumanOpponent)}.`);
   render();
 }
 
@@ -4843,7 +4845,7 @@ function currentModeLabel() {
     const format = SERVER_SYNC.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     return `Mode en ligne · ${format}`;
   }
-  if (state.tournament.active) return `Tournoi IA · ${state.tournament.targetSets} sets · ${tournamentStageLabel()}`;
+  if (state.tournament.active) return `${state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets"} · ${tournamentStageLabel()}`;
   if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
   if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
   if (SOLO_AI.enabled) return `Contre l'IA · Échange · IA ${aiStyleLabel()}`;
@@ -4867,6 +4869,7 @@ function renderTournamentPanel() {
     els.tournamentPanel.innerHTML = "";
     return;
   }
+  const title = state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets";
   const quarterMatches = state.tournament.matches.filter((match) => match.round === "quarter");
   const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
   const final = tournamentMatchById("final");
@@ -4874,13 +4877,16 @@ function renderTournamentPanel() {
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
       <div>
-        <p class="eyebrow">Tournoi IA</p>
-        <h2>Tableau final</h2>
+        <p class="eyebrow">Compétition</p>
+        <h2>${title}</h2>
       </div>
+      <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
+        ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
+      </button>
       ${state.tournament.stage === "readySemi" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer la demi-finale</button>' : ""}
       ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
     </div>
-    <div class="tournament-bracket">
+    <div class="tournament-bracket ${state.tournament.visible ? "" : "hidden"}">
       <div class="tournament-column">
         ${quarterMatches.map((match) => renderTournamentMatch(match)).join("")}
       </div>
@@ -4899,6 +4905,7 @@ function renderTournamentPanel() {
     </div>
   `;
   els.tournamentPanel.classList.remove("hidden");
+  els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
   els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", startTournamentSemi);
   els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", startTournamentFinal);
 }
@@ -4909,20 +4916,27 @@ function renderTournamentMatch(match, isFinal = false) {
   const playerB = match.playerB ? characterNameFromId(match.playerB) : "Vainqueur demi-finale";
   const scoreText = match.score || match.liveScore || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
+  const human = state.tournament.humanCharacterId;
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
-      <div class="tournament-player-row ${revealedWinner === match.playerA ? "winner" : ""}">
+      <div class="tournament-player-row ${revealedWinner === match.playerA ? "winner" : ""} ${match.playerA === human ? "human-player" : ""}">
         <span>${playerA}</span>
         ${revealedWinner === match.playerA ? "<strong>✓</strong>" : ""}
       </div>
-      <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""}">
+      <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""} ${match.playerB === human ? "human-player" : ""}">
         <span>${playerB}</span>
         ${revealedWinner === match.playerB ? "<strong>✓</strong>" : ""}
       </div>
       ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
   `;
+}
+
+function toggleTournamentPanel() {
+  if (!state.tournament.active) return;
+  state.tournament.visible = !state.tournament.visible;
+  render();
 }
 
 function renderServerSyncPanel() {
