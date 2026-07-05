@@ -256,6 +256,19 @@ button:disabled {
   margin-bottom: 0;
 }
 
+.ai-difficulty-button {
+  background: #d9e8ff;
+}
+
+.ai-difficulty-button[data-difficulty="champion"] {
+  background: #f5d05f;
+}
+
+.ai-difficulty-button[data-difficulty="hardcore"] {
+  background: #ef4444;
+  color: #fff;
+}
+
 .lobby-header {
   display: flex;
   align-items: center;
@@ -410,6 +423,17 @@ h1 {
   font-size: 0.78rem;
   font-weight: 900;
   letter-spacing: 0;
+}
+
+.difficulty-reminder {
+  display: inline-block;
+  margin-top: 4px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: rgba(17, 24, 39, 0.78);
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.76rem;
 }
 
 .solo-button {
