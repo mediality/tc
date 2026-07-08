@@ -70,6 +70,11 @@ const MENU_STATE = {
   lobbyTimer: null,
 };
 
+const AUTH_STATE = {
+  user: null,
+  loading: false,
+};
+
 const AI_DIFFICULTIES = ["normal", "champion", "hardcore"];
 const AI_DIFFICULTY_LABELS = {
   normal: "NORMAL",
@@ -983,6 +988,14 @@ const els = {
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   menuScreen: document.querySelector("#menuScreen"),
   gameApp: document.querySelector(".game-app"),
+  authStatus: document.querySelector("#authStatus"),
+  authForm: document.querySelector("#authForm"),
+  authEmailInput: document.querySelector("#authEmailInput"),
+  authPasswordInput: document.querySelector("#authPasswordInput"),
+  authNicknameInput: document.querySelector("#authNicknameInput"),
+  loginButton: document.querySelector("#loginButton"),
+  registerButton: document.querySelector("#registerButton"),
+  logoutButton: document.querySelector("#logoutButton"),
   nicknameInput: document.querySelector("#nicknameInput"),
   aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
   coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
@@ -1102,6 +1115,88 @@ function applyOnlinePlayersFromRoom(players = []) {
     }
   });
   return changed;
+}
+
+function renderAuthState(message = "") {
+  if (!els.authStatus) return;
+  const user = AUTH_STATE.user;
+  els.authStatus.textContent = message || (user ? `Connecté : ${user.nickname}` : "Non connecté");
+  els.authStatus.classList.toggle("connected", Boolean(user));
+  els.authForm?.classList.toggle("hidden", Boolean(user));
+  els.logoutButton?.classList.toggle("hidden", !user);
+  if (els.authNicknameInput && !els.authNicknameInput.value && MENU_STATE.nickname) {
+    els.authNicknameInput.value = MENU_STATE.nickname;
+  }
+}
+
+async function authRequest(path, payload = null) {
+  const options = payload
+    ? {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+    : {};
+  const response = await fetch(path, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Action impossible pour le moment.");
+  return data;
+}
+
+function applyAuthenticatedUser(user) {
+  AUTH_STATE.user = user || null;
+  if (user?.nickname) {
+    MENU_STATE.nickname = user.nickname;
+    localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);
+    if (els.nicknameInput) els.nicknameInput.value = MENU_STATE.nickname;
+  }
+  renderAuthState();
+}
+
+async function loadAuthState() {
+  try {
+    const data = await authRequest("/api/auth/me");
+    applyAuthenticatedUser(data.user);
+  } catch (error) {
+    renderAuthState("Comptes indisponibles sur cette version locale.");
+  }
+}
+
+async function registerAccount() {
+  const email = els.authEmailInput?.value?.trim() || "";
+  const password = els.authPasswordInput?.value || "";
+  const nickname = els.authNicknameInput?.value?.trim() || nicknameValue();
+  renderAuthState("Création du compte...");
+  try {
+    const data = await authRequest("/api/auth/register", { email, password, nickname });
+    applyAuthenticatedUser(data.user);
+    if (els.authPasswordInput) els.authPasswordInput.value = "";
+  } catch (error) {
+    renderAuthState(error.message);
+  }
+}
+
+async function loginAccount() {
+  const email = els.authEmailInput?.value?.trim() || "";
+  const password = els.authPasswordInput?.value || "";
+  renderAuthState("Connexion...");
+  try {
+    const data = await authRequest("/api/auth/login", { email, password });
+    applyAuthenticatedUser(data.user);
+    if (els.authPasswordInput) els.authPasswordInput.value = "";
+  } catch (error) {
+    renderAuthState(error.message);
+  }
+}
+
+async function logoutAccount() {
+  renderAuthState("Déconnexion...");
+  try {
+    await authRequest("/api/auth/logout", {});
+  } catch (error) {
+    // Même si le serveur ne répond pas, on libère l'interface locale.
+  }
+  applyAuthenticatedUser(null);
 }
 
 function nicknameValue() {
@@ -1769,7 +1864,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v82",
+    version: "v83",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5757,6 +5852,11 @@ function initMenu() {
   MENU_STATE.tournamentDifficulty = normalizeAiDifficulty(MENU_STATE.tournamentDifficulty);
   updateMenuSelection();
   updateTournamentDifficultyButton();
+  renderAuthState();
+  loadAuthState();
+  els.loginButton?.addEventListener("click", loginAccount);
+  els.registerButton?.addEventListener("click", registerAccount);
+  els.logoutButton?.addEventListener("click", logoutAccount);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);

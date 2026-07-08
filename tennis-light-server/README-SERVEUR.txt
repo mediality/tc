@@ -18,5 +18,13 @@ Deployer :
 - La commande de demarrage est : npm start
 - Le serveur utilise la variable PORT si l'hebergeur l'impose.
 
+Comptes utilisateurs avec PostgreSQL :
+- Creer une base PostgreSQL sur Render.
+- Dans le service Web Render, ajouter les variables d'environnement :
+  DATABASE_URL = Internal Database URL de la base PostgreSQL
+  SESSION_SECRET = une longue phrase aleatoire, privee
+- Au premier demarrage, le serveur cree automatiquement les tables users et sessions.
+- En local, si DATABASE_URL n'est pas configuree, les comptes fonctionnent en memoire mais disparaissent au redemarrage.
+
 Note importante :
 Cette premiere couche serveur synchronise l'etat de jeu entre deux navigateurs et masque la main du joueur inactif dans l'interface. Elle ne fait pas encore une validation serveur complete de toutes les regles carte par carte. Pour une version anti-triche stricte, la prochaine etape sera de deplacer le moteur de regles entier cote serveur et de n'envoyer a chaque joueur que sa vue privee.
