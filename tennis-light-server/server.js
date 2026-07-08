@@ -19,6 +19,15 @@ const PASSWORD_ITERATIONS = 210000;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
 const USER_ROLES = new Set(["free", "pro", "admin"]);
+const COMPETITION_DEFINITIONS = [
+  { id: "minor400", name: "Minor 400", difficulty: "normal", points: { qualif: 0, quarter: 50, semi: 100, finalist: 200, winner: 400 }, directThreshold: 500 },
+  { id: "minor600", name: "Minor 600", difficulty: "champion", points: { qualif: 0, quarter: 75, semi: 150, finalist: 300, winner: 600 }, directThreshold: 700 },
+  { id: "major1000", name: "Major 1000", difficulty: "normal", points: { qualif: 0, quarter: 100, semi: 200, finalist: 500, winner: 1000 }, directThreshold: 1200 },
+  { id: "major1500", name: "Major 1500", difficulty: "champion", points: { qualif: 0, quarter: 150, semi: 350, finalist: 750, winner: 1500 }, directThreshold: 1800 },
+  { id: "slam2000", name: "Slam 2000", difficulty: "champion", points: { qualif: 0, quarter: 200, semi: 500, finalist: 1200, winner: 2000 }, directThreshold: 2500 },
+];
+const SURFACES = ["grass", "hard", "clay"];
+const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 const authMemory = {
   users: new Map(),
   sessions: new Map(),
@@ -73,11 +82,39 @@ function isValidEmail(email) {
 function publicUser(user) {
   return user ? {
     id: user.id,
+    accountNumber: user.account_number || user.accountNumber || null,
     email: user.email,
     nickname: user.nickname,
     role: normalizeRole(user.role),
     createdAt: user.created_at || user.createdAt,
   } : null;
+}
+
+function currentWeekKey(date = new Date()) {
+  const parisDate = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const monday = new Date(parisDate);
+  const day = (monday.getDay() + 6) % 7;
+  monday.setDate(monday.getDate() - day);
+  monday.setHours(3, 0, 0, 0);
+  if (parisDate < monday) monday.setDate(monday.getDate() - 7);
+  return monday.toISOString().slice(0, 10);
+}
+
+function seededNumber(seed) {
+  const hash = crypto.createHash("sha256").update(seed).digest();
+  return hash.readUInt32BE(0) / 0xffffffff;
+}
+
+function weeklyCompetitionPayload(weekKey = currentWeekKey()) {
+  return COMPETITION_DEFINITIONS.map((competition, index) => {
+    const surface = SURFACES[Math.floor(seededNumber(`${weekKey}:${competition.id}:surface`) * SURFACES.length)] || SURFACES[index % SURFACES.length];
+    return {
+      ...competition,
+      weekKey,
+      surface,
+      surfaceLabel: SURFACE_LABELS[surface],
+    };
+  });
 }
 
 function hashPassword(password) {
@@ -160,7 +197,25 @@ async function initAuthStorage() {
     )
   `);
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'free'");
+  await db.query("CREATE SEQUENCE IF NOT EXISTS users_account_number_seq START WITH 1");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number BIGINT");
+  await db.query("UPDATE users SET account_number = nextval('users_account_number_seq') WHERE account_number IS NULL");
+  await db.query("SELECT setval('users_account_number_seq', GREATEST((SELECT COALESCE(MAX(account_number), 0) FROM users), 1))");
+  await db.query("ALTER TABLE users ALTER COLUMN account_number SET DEFAULT nextval('users_account_number_seq')");
+  await db.query("ALTER TABLE users ALTER COLUMN account_number SET NOT NULL");
+  await db.query("CREATE UNIQUE INDEX IF NOT EXISTS users_account_number_idx ON users(account_number)");
   await db.query("UPDATE users SET role = 'admin' WHERE email = $1", [ADMIN_EMAIL]);
+  await db.query(`
+    WITH duplicates AS (
+      SELECT id, nickname, account_number, ROW_NUMBER() OVER (PARTITION BY LOWER(nickname) ORDER BY created_at, account_number) AS duplicate_rank
+      FROM users
+      WHERE nickname !~ ' #[0-9]+$'
+    )
+    UPDATE users
+    SET nickname = CONCAT(duplicates.nickname, ' #', duplicates.account_number)
+    FROM duplicates
+    WHERE users.id = duplicates.id AND duplicates.duplicate_rank > 1
+  `);
   await db.query(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -171,6 +226,55 @@ async function initAuthStorage() {
   `);
   await db.query("CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id)");
   await db.query("DELETE FROM sessions WHERE expires_at < NOW()");
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS weekly_competition_scores (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      week_key TEXT NOT NULL,
+      competition_id TEXT NOT NULL,
+      points INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, week_key, competition_id)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS weekly_rankings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      ranking_points INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS app_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+  await applyWeeklyRankingRollover();
+}
+
+async function applyWeeklyRankingRollover() {
+  if (!db) return;
+  const weekKey = currentWeekKey();
+  const result = await db.query("SELECT value FROM app_state WHERE key = 'ranking_week_key'");
+  const storedWeekKey = result.rows[0]?.value || null;
+  if (!storedWeekKey) {
+    await db.query("INSERT INTO app_state (key, value) VALUES ('ranking_week_key', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [weekKey]);
+    return;
+  }
+  if (storedWeekKey === weekKey) return;
+  await db.query(`
+    INSERT INTO weekly_rankings (user_id, ranking_points, updated_at)
+    SELECT users.id, COALESCE(SUM(weekly_competition_scores.points), 0)::int, NOW()
+    FROM users
+    LEFT JOIN weekly_competition_scores
+      ON weekly_competition_scores.user_id = users.id
+      AND weekly_competition_scores.week_key = $1
+    GROUP BY users.id
+    ON CONFLICT (user_id) DO UPDATE
+      SET ranking_points = EXCLUDED.ranking_points,
+          updated_at = NOW()
+  `, [storedWeekKey]);
+  await db.query("UPDATE app_state SET value = $1 WHERE key = 'ranking_week_key'", [weekKey]);
 }
 
 async function findUserByEmail(email) {
@@ -195,8 +299,17 @@ async function createUser({ email, nickname, password }) {
       "INSERT INTO users (id, email, nickname, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING *",
       [user.id, user.email, user.nickname, user.password_hash, user.role],
     );
-    return result.rows[0];
+    const created = result.rows[0];
+    const duplicates = await db.query("SELECT COUNT(*)::int AS count FROM users WHERE LOWER(nickname) = LOWER($1)", [created.nickname]);
+    if (duplicates.rows[0]?.count > 1) {
+      const updated = await db.query("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [`${created.nickname} #${created.account_number}`, created.id]);
+      return updated.rows[0];
+    }
+    return created;
   }
+  const duplicateCount = [...authMemory.users.values()].filter((item) => item.nickname.toLowerCase() === user.nickname.toLowerCase()).length;
+  user.accountNumber = authMemory.users.size + 1;
+  if (duplicateCount > 0) user.nickname = `${user.nickname} #${user.accountNumber}`;
   authMemory.users.set(user.id, user);
   return user;
 }
@@ -326,12 +439,21 @@ async function handleAuth(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/admin/users") {
     if (!await requireAdmin(req, res)) return true;
+    const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+    const pageSize = 50;
+    const offset = (page - 1) * pageSize;
     if (db) {
-      const result = await db.query("SELECT id, email, nickname, role, created_at, last_login_at FROM users ORDER BY created_at DESC");
-      sendJson(res, 200, { users: result.rows.map(publicUser) });
+      const [result, countResult] = await Promise.all([
+        db.query("SELECT id, account_number, email, nickname, role, created_at, last_login_at FROM users ORDER BY account_number ASC LIMIT $1 OFFSET $2", [pageSize, offset]),
+        db.query("SELECT COUNT(*)::int AS total FROM users"),
+      ]);
+      const total = countResult.rows[0]?.total || 0;
+      sendJson(res, 200, { users: result.rows.map(publicUser), page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
       return true;
     }
-    sendJson(res, 200, { users: [...authMemory.users.values()].map(publicUser) });
+    const allUsers = [...authMemory.users.values()].sort((a, b) => (a.accountNumber || 0) - (b.accountNumber || 0));
+    const users = allUsers.slice(offset, offset + pageSize);
+    sendJson(res, 200, { users: users.map(publicUser), page, pageSize, total: allUsers.length, totalPages: Math.max(1, Math.ceil(allUsers.length / pageSize)) });
     return true;
   }
 
@@ -344,7 +466,7 @@ async function handleAuth(req, res, url) {
     const role = normalizeRole(payload.role);
     if (db) {
       const result = await db.query(
-        "UPDATE users SET role = $1 WHERE id = $2 RETURNING id, email, nickname, role, created_at, last_login_at",
+        "UPDATE users SET role = $1 WHERE id = $2 RETURNING id, account_number, email, nickname, role, created_at, last_login_at",
         [role, userId],
       );
       if (!result.rows[0]) {
@@ -361,6 +483,66 @@ async function handleAuth(req, res, url) {
     }
     user.role = role;
     sendJson(res, 200, { user: publicUser(user) });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/competitions") {
+    const user = await currentUser(req);
+    const weekKey = currentWeekKey();
+    let bestScores = {};
+    if (user && db) {
+      const result = await db.query("SELECT competition_id, points FROM weekly_competition_scores WHERE user_id = $1 AND week_key = $2", [user.id, weekKey]);
+      bestScores = Object.fromEntries(result.rows.map((row) => [row.competition_id, row.points]));
+    }
+    sendJson(res, 200, { weekKey, competitions: weeklyCompetitionPayload(weekKey), bestScores });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/ranking") {
+    const user = await currentUser(req);
+    const weekKey = currentWeekKey();
+    if (db) {
+      const ranking = await db.query(`
+        WITH current_scores AS (
+          SELECT user_id, COALESCE(SUM(points), 0)::int AS current_points
+          FROM weekly_competition_scores
+          WHERE week_key = $1
+          GROUP BY user_id
+        )
+        SELECT users.id, users.account_number, users.nickname, COALESCE(weekly_rankings.ranking_points, 0)::int AS ranking_points,
+               COALESCE(current_scores.current_points, 0)::int AS current_points
+        FROM users
+        LEFT JOIN weekly_rankings ON weekly_rankings.user_id = users.id
+        LEFT JOIN current_scores ON current_scores.user_id = users.id
+        ORDER BY ranking_points DESC, current_points DESC, users.account_number ASC
+        LIMIT 10
+      `, [weekKey]);
+      let currentUserRank = null;
+      if (user) {
+        const rankResult = await db.query(`
+          WITH current_scores AS (
+            SELECT user_id, COALESCE(SUM(points), 0)::int AS current_points
+            FROM weekly_competition_scores
+            WHERE week_key = $1
+            GROUP BY user_id
+          ),
+          ranked AS (
+            SELECT users.id, users.account_number, users.nickname,
+                   COALESCE(weekly_rankings.ranking_points, 0)::int AS ranking_points,
+                   COALESCE(current_scores.current_points, 0)::int AS current_points,
+                   ROW_NUMBER() OVER (ORDER BY COALESCE(weekly_rankings.ranking_points, 0) DESC, COALESCE(current_scores.current_points, 0) DESC, users.account_number ASC) AS rank
+            FROM users
+            LEFT JOIN weekly_rankings ON weekly_rankings.user_id = users.id
+            LEFT JOIN current_scores ON current_scores.user_id = users.id
+          )
+          SELECT * FROM ranked WHERE id = $2
+        `, [weekKey, user.id]);
+        currentUserRank = rankResult.rows[0] || null;
+      }
+      sendJson(res, 200, { weekKey, top: ranking.rows, currentUserRank });
+      return true;
+    }
+    sendJson(res, 200, { weekKey, top: [], currentUserRank: null });
     return true;
   }
 
@@ -500,7 +682,7 @@ function publicRoomInfo(req, room) {
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/")) && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname === "/api/competitions" || url.pathname === "/api/ranking") && await handleAuth(req, res, url)) {
     return;
   }
 

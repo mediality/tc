@@ -74,6 +74,10 @@ const AUTH_STATE = {
   user: null,
   loading: false,
   adminUsers: [],
+  adminPage: 1,
+  adminTotalPages: 1,
+  ranking: null,
+  competitions: null,
 };
 
 const ROLE_LABELS = {
@@ -994,6 +998,7 @@ const els = {
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   menuScreen: document.querySelector("#menuScreen"),
+  adminScreen: document.querySelector("#adminScreen"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
@@ -1004,8 +1009,15 @@ const els = {
   registerButton: document.querySelector("#registerButton"),
   logoutButton: document.querySelector("#logoutButton"),
   adminPanel: document.querySelector("#adminPanel"),
-  refreshUsersButton: document.querySelector("#refreshUsersButton"),
-  adminUsersList: document.querySelector("#adminUsersList"),
+  manageUsersButton: document.querySelector("#manageUsersButton"),
+  backToLobbyFromAdminButton: document.querySelector("#backToLobbyFromAdminButton"),
+  adminUsersTable: document.querySelector("#adminUsersTable"),
+  adminPrevPageButton: document.querySelector("#adminPrevPageButton"),
+  adminNextPageButton: document.querySelector("#adminNextPageButton"),
+  adminPageInfo: document.querySelector("#adminPageInfo"),
+  refreshRankingButton: document.querySelector("#refreshRankingButton"),
+  rankingList: document.querySelector("#rankingList"),
+  weeklyCompetitionsList: document.querySelector("#weeklyCompetitionsList"),
   nicknameInput: document.querySelector("#nicknameInput"),
   aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
   coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
@@ -1162,13 +1174,13 @@ function updateAccessControls() {
     });
   });
   els.adminPanel?.classList.toggle("hidden", !canAccessAdminFeatures());
-  if (canAccessAdminFeatures()) {
-    loadAdminUsers();
-  } else {
+  if (!canAccessAdminFeatures()) {
     AUTH_STATE.adminUsers = [];
-    if (els.adminUsersList) els.adminUsersList.innerHTML = "";
+    if (els.adminUsersTable) els.adminUsersTable.innerHTML = "";
   }
   if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
+  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) loadRanking();
+  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) loadCompetitions();
 }
 
 function renderAuthState(message = "") {
@@ -1256,40 +1268,58 @@ async function logoutAccount() {
 }
 
 function renderAdminUsers() {
-  if (!els.adminUsersList) return;
+  if (!els.adminUsersTable) return;
   if (!AUTH_STATE.adminUsers.length) {
-    els.adminUsersList.innerHTML = '<div class="admin-empty">Aucun utilisateur à afficher.</div>';
+    els.adminUsersTable.innerHTML = '<div class="admin-empty">Aucun utilisateur à afficher.</div>';
     return;
   }
-  els.adminUsersList.innerHTML = AUTH_STATE.adminUsers.map((user) => {
-    const role = normalizeUserRole(user.role);
-    return `
-      <article class="admin-user-row">
-        <div>
-          <strong>${escapeHtml(user.nickname || "Sans pseudo")}</strong>
+  els.adminUsersTable.innerHTML = `
+    <div class="admin-table-head">
+      <span>ID</span>
+      <span>Nom</span>
+      <span>Mail</span>
+      <span>Rôle</span>
+    </div>
+    ${AUTH_STATE.adminUsers.map((user) => {
+      const role = normalizeUserRole(user.role);
+      return `
+        <article class="admin-table-row">
+          <strong>${escapeHtml(user.accountNumber || "-")}</strong>
+          <span>${escapeHtml(user.nickname || "Sans pseudo")}</span>
           <span>${escapeHtml(user.email || "")}</span>
-        </div>
-        <select data-admin-role="${escapeHtml(user.id)}" aria-label="Niveau de ${escapeHtml(user.nickname || user.email)}">
-          <option value="free" ${role === "free" ? "selected" : ""}>FREE</option>
-          <option value="pro" ${role === "pro" ? "selected" : ""}>PRO</option>
-          <option value="admin" ${role === "admin" ? "selected" : ""}>ADMIN</option>
-        </select>
-      </article>
-    `;
-  }).join("");
-  els.adminUsersList.querySelectorAll("[data-admin-role]").forEach((select) => {
+          <select data-admin-role="${escapeHtml(user.id)}" aria-label="Niveau de ${escapeHtml(user.nickname || user.email)}">
+            <option value="free" ${role === "free" ? "selected" : ""}>FREE</option>
+            <option value="pro" ${role === "pro" ? "selected" : ""}>PRO</option>
+            <option value="admin" ${role === "admin" ? "selected" : ""}>ADMIN</option>
+          </select>
+        </article>
+      `;
+    }).join("")}
+  `;
+  els.adminUsersTable.querySelectorAll("[data-admin-role]").forEach((select) => {
     select.addEventListener("change", () => updateUserRole(select.dataset.adminRole, select.value));
   });
 }
 
-async function loadAdminUsers() {
+function updateAdminPagination() {
+  if (els.adminPageInfo) els.adminPageInfo.textContent = `Page ${AUTH_STATE.adminPage} / ${AUTH_STATE.adminTotalPages}`;
+  if (els.adminPrevPageButton) els.adminPrevPageButton.disabled = AUTH_STATE.adminPage <= 1;
+  if (els.adminNextPageButton) els.adminNextPageButton.disabled = AUTH_STATE.adminPage >= AUTH_STATE.adminTotalPages;
+}
+
+async function loadAdminUsers(page = AUTH_STATE.adminPage) {
   if (!canAccessAdminFeatures()) return;
+  AUTH_STATE.adminPage = Math.max(1, page);
+  if (els.adminUsersTable) els.adminUsersTable.innerHTML = '<div class="admin-empty">Chargement des comptes...</div>';
   try {
-    const data = await authRequest("/api/admin/users");
+    const data = await authRequest(`/api/admin/users?page=${AUTH_STATE.adminPage}`);
     AUTH_STATE.adminUsers = data.users || [];
+    AUTH_STATE.adminPage = data.page || AUTH_STATE.adminPage;
+    AUTH_STATE.adminTotalPages = data.totalPages || 1;
     renderAdminUsers();
+    updateAdminPagination();
   } catch (error) {
-    if (els.adminUsersList) els.adminUsersList.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+    if (els.adminUsersTable) els.adminUsersTable.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -1301,7 +1331,77 @@ async function updateUserRole(userId, role) {
     renderAdminUsers();
     if (AUTH_STATE.user?.id === userId) applyAuthenticatedUser(data.user);
   } catch (error) {
-    if (els.adminUsersList) els.adminUsersList.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+    if (els.adminUsersTable) els.adminUsersTable.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderRanking() {
+  if (!els.rankingList) return;
+  const top = AUTH_STATE.ranking?.top || [];
+  const current = AUTH_STATE.ranking?.currentUserRank || null;
+  if (!top.length) {
+    els.rankingList.innerHTML = '<div class="lobby-empty">Aucun classement disponible pour le moment.</div>';
+    return;
+  }
+  const rows = top.map((row, index) => `
+    <div class="ranking-row">
+      <span>${index + 1}</span>
+      <strong>${escapeHtml(row.nickname)}</strong>
+      <span>${Number(row.ranking_points || 0)}</span>
+      <span>(${Number(row.current_points || 0)})</span>
+    </div>
+  `).join("");
+  const currentRow = current && !top.some((row) => row.id === current.id)
+    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${escapeHtml(current.nickname)}</strong><span>${Number(current.ranking_points || 0)}</span><span>(${Number(current.current_points || 0)})</span></div>`
+    : "";
+  els.rankingList.innerHTML = `
+    <div class="ranking-head"><span>#</span><span>Nom</span><span>Points</span><span>Cumul</span></div>
+    ${rows}
+    ${currentRow}
+  `;
+}
+
+async function loadRanking() {
+  if (!canAccessProFeatures()) {
+    if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Classement réservé aux comptes Pro et Admin.</div>';
+    return;
+  }
+  try {
+    const data = await authRequest("/api/ranking");
+    AUTH_STATE.ranking = data;
+    renderRanking();
+  } catch (error) {
+    if (els.rankingList) els.rankingList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderCompetitions() {
+  if (!els.weeklyCompetitionsList) return;
+  const competitions = AUTH_STATE.competitions?.competitions || [];
+  const bestScores = AUTH_STATE.competitions?.bestScores || {};
+  if (!competitions.length) {
+    els.weeklyCompetitionsList.innerHTML = '<div class="lobby-empty">Aucune compétition générée.</div>';
+    return;
+  }
+  els.weeklyCompetitionsList.innerHTML = competitions.map((competition) => `
+    <article class="weekly-competition">
+      <strong>${escapeHtml(competition.name)}</strong>
+      <span>${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)}</span>
+      <span>Meilleur score : ${Number(bestScores[competition.id] || 0)}</span>
+    </article>
+  `).join("");
+}
+
+async function loadCompetitions() {
+  if (!canAccessProFeatures()) {
+    if (els.weeklyCompetitionsList) els.weeklyCompetitionsList.innerHTML = "";
+    return;
+  }
+  try {
+    AUTH_STATE.competitions = await authRequest("/api/competitions");
+    renderCompetitions();
+  } catch (error) {
+    if (els.weeklyCompetitionsList) els.weeklyCompetitionsList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -1319,12 +1419,28 @@ function updateMenuSelection() {
 
 function showGameScreen() {
   els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
 }
 
 function showMenuScreen() {
   els.gameApp?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
   els.menuScreen?.classList.remove("hidden");
+  renderAuthState();
+  updateMenuSelection();
+  refreshLobbyRooms();
+  loadRanking();
+  loadCompetitions();
+}
+
+function showAdminScreen() {
+  if (!canAccessAdminFeatures()) return;
+  els.menuScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.adminScreen?.classList.remove("hidden");
+  AUTH_STATE.adminPage = 1;
+  loadAdminUsers();
 }
 
 function cardByIdForTutorial(cardId, copyIndex) {
@@ -1982,7 +2098,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v84",
+    version: "v85",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4647,20 +4763,29 @@ function buildSimulatedTournamentMatch(id, label, playerA, playerB, targetSets, 
 }
 
 function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2) {
-  const winner = Math.random() < 0.5 ? playerA : playerB;
+  const strengthA = aiTournamentStrength(playerA);
+  const strengthB = aiTournamentStrength(playerB);
+  const winChanceA = strengthA / Math.max(1, strengthA + strengthB);
+  const winner = Math.random() < winChanceA ? playerA : playerB;
   const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
+}
+
+function aiTournamentStrength(characterId) {
+  const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
+  return base + Math.floor(Math.random() * 17);
 }
 
 function randomMatchSetScoresForWinner(winnerIndex, targetSets = 2) {
   const setScores = [];
   let winnerSets = 0;
   let loserSets = 0;
+  const winningSetScores = [[6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
+  const losingSetScores = [[4, 6], [3, 6], [5, 7], [6, 7]];
   while (winnerSets < targetSets) {
     const winnerLosesSet = loserSets < targetSets - 1 && winnerSets < targetSets - 1 && Math.random() < 0.28;
-    const score = winnerLosesSet
-      ? (Math.random() < 0.5 ? [4, 6] : [5, 7])
-      : (Math.random() < 0.35 ? [6, 2] : Math.random() < 0.7 ? [6, 4] : [7, 5]);
+    const pool = winnerLosesSet ? losingSetScores : winningSetScores;
+    const score = pool[Math.floor(Math.random() * pool.length)];
     if (winnerLosesSet) loserSets += 1;
     else winnerSets += 1;
     const oriented = winnerIndex === 0 ? score : [score[1], score[0]];
@@ -5976,7 +6101,11 @@ function initMenu() {
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.logoutButton?.addEventListener("click", logoutAccount);
-  els.refreshUsersButton?.addEventListener("click", loadAdminUsers);
+  els.manageUsersButton?.addEventListener("click", showAdminScreen);
+  els.backToLobbyFromAdminButton?.addEventListener("click", showMenuScreen);
+  els.adminPrevPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage - 1));
+  els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
+  els.refreshRankingButton?.addEventListener("click", loadRanking);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);
@@ -5997,6 +6126,8 @@ function initMenu() {
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
   refreshLobbyRooms();
+  loadRanking();
+  loadCompetitions();
   window.clearInterval(MENU_STATE.lobbyTimer);
   MENU_STATE.lobbyTimer = window.setInterval(() => {
     if (!els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();

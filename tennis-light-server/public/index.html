@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=84" />
+    <link rel="stylesheet" href="./styles.css?v=85" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v84</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v85</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -36,9 +36,8 @@
               <section id="adminPanel" class="admin-panel hidden" aria-live="polite">
                 <div class="admin-panel-header">
                   <p class="label">Administration</p>
-                  <button id="refreshUsersButton" class="small-button" type="button">Actualiser</button>
+                  <button id="manageUsersButton" class="primary-button" type="button">Gérer</button>
                 </div>
-                <div id="adminUsersList" class="admin-users-list"></div>
               </section>
             </div>
             <p class="label">Profil</p>
@@ -82,6 +81,7 @@
                 <button id="aiDifficultyButton" class="small-button ai-difficulty-button" type="button">IA tournoi : NORMAL</button>
                 <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament2">Tournoi 2 sets</button>
                 <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament3">Slam 3 sets</button>
+                <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
                 <p class="access-note">Réservé aux comptes Pro et Admin.</p>
               </div>
             </div>
@@ -102,14 +102,44 @@
             <div id="lobbyRooms" class="lobby-rooms" aria-live="polite"></div>
             <p class="access-note">Lobby en ligne réservé aux comptes Pro et Admin.</p>
           </section>
+
+          <section class="menu-panel ranking-panel restricted-pro" data-required-role="pro">
+            <div class="lobby-header">
+              <p class="label">Classement Tennis Courts</p>
+              <button id="refreshRankingButton" class="small-button" type="button">Actualiser</button>
+            </div>
+            <div id="rankingList" class="ranking-list" aria-live="polite"></div>
+          </section>
         </div>
+      </div>
+    </section>
+
+    <section id="adminScreen" class="menu-screen hidden">
+      <div class="menu-shell admin-shell">
+        <p class="eyebrow">Administration <span>v85</span></p>
+        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+        <section class="menu-panel admin-management-panel">
+          <div class="admin-management-header">
+            <div>
+              <p class="label">Comptes inscrits</p>
+              <h1>Gestion des utilisateurs</h1>
+            </div>
+            <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour lobby</button>
+          </div>
+          <div id="adminUsersTable" class="admin-users-table" aria-live="polite"></div>
+          <div class="admin-pagination">
+            <button id="adminPrevPageButton" class="small-button" type="button">Précédent</button>
+            <span id="adminPageInfo">Page 1</span>
+            <button id="adminNextPageButton" class="small-button" type="button">Suivant</button>
+          </div>
+        </section>
       </div>
     </section>
 
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v84</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v85</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
@@ -143,6 +173,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=84"></script>
+    <script src="./app.js?v=85"></script>
   </body>
 </html>
