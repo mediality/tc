@@ -31,6 +31,7 @@ const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 const authMemory = {
   users: new Map(),
   sessions: new Map(),
+  weeklyScores: new Map(),
 };
 const db = PgPool && process.env.DATABASE_URL
   ? new PgPool({
@@ -115,6 +116,10 @@ function weeklyCompetitionPayload(weekKey = currentWeekKey()) {
       surfaceLabel: SURFACE_LABELS[surface],
     };
   });
+}
+
+function competitionDefinitionById(competitionId) {
+  return COMPETITION_DEFINITIONS.find((competition) => competition.id === competitionId) || null;
 }
 
 function hashPassword(password) {
@@ -487,14 +492,51 @@ async function handleAuth(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/competitions") {
-    const user = await currentUser(req);
+    const user = await requirePro(req, res);
+    if (!user) return true;
     const weekKey = currentWeekKey();
     let bestScores = {};
     if (user && db) {
       const result = await db.query("SELECT competition_id, points FROM weekly_competition_scores WHERE user_id = $1 AND week_key = $2", [user.id, weekKey]);
       bestScores = Object.fromEntries(result.rows.map((row) => [row.competition_id, row.points]));
+    } else if (user) {
+      bestScores = Object.fromEntries([...authMemory.weeklyScores.entries()]
+        .filter(([key]) => key.startsWith(`${user.id}:${weekKey}:`))
+        .map(([key, value]) => [key.split(":").pop(), value.points]));
     }
     sendJson(res, 200, { weekKey, competitions: weeklyCompetitionPayload(weekKey), bestScores });
+    return true;
+  }
+
+  const scoreMatch = url.pathname.match(/^\/api\/competitions\/([^/]+)\/score$/);
+  if (req.method === "POST" && scoreMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return true;
+    const competitionId = decodeURIComponent(scoreMatch[1]);
+    const competition = competitionDefinitionById(competitionId);
+    if (!competition) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return true;
+    }
+    const payload = await readJson(req);
+    const maxPoints = Math.max(...Object.values(competition.points));
+    const points = Math.max(0, Math.min(maxPoints, Number(payload.points || 0)));
+    const achievement = String(payload.achievement || "").slice(0, 32);
+    const weekKey = currentWeekKey();
+    if (db) {
+      await db.query(`
+        INSERT INTO weekly_competition_scores (user_id, week_key, competition_id, points, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (user_id, week_key, competition_id) DO UPDATE
+          SET points = GREATEST(weekly_competition_scores.points, EXCLUDED.points),
+              updated_at = CASE WHEN EXCLUDED.points > weekly_competition_scores.points THEN NOW() ELSE weekly_competition_scores.updated_at END
+      `, [user.id, weekKey, competitionId, points]);
+    } else {
+      const key = `${user.id}:${weekKey}:${competitionId}`;
+      const previous = authMemory.weeklyScores.get(key)?.points || 0;
+      authMemory.weeklyScores.set(key, { points: Math.max(previous, points), achievement, updatedAt: new Date().toISOString() });
+    }
+    sendJson(res, 200, { ok: true, weekKey, competitionId, points });
     return true;
   }
 
@@ -682,7 +724,7 @@ function publicRoomInfo(req, room) {
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname === "/api/competitions" || url.pathname === "/api/ranking") && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking") && await handleAuth(req, res, url)) {
     return;
   }
 

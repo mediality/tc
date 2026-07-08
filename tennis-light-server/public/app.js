@@ -97,6 +97,13 @@ const EMPTY_TOURNAMENT = {
   active: false,
   visible: false,
   difficulty: "normal",
+  weekly: false,
+  competitionId: null,
+  competitionName: null,
+  competitionSurface: null,
+  competitionSurfaceLabel: null,
+  competitionPoints: null,
+  pointsRecorded: false,
   stage: null,
   humanCharacterId: null,
   aiFinalistCharacterId: null,
@@ -1172,6 +1179,9 @@ function updateAccessControls() {
     section.querySelectorAll("button, select").forEach((control) => {
       control.disabled = !hasProAccess;
     });
+    section.querySelectorAll(".access-note").forEach((note) => {
+      note.classList.toggle("hidden", hasProAccess);
+    });
   });
   els.adminPanel?.classList.toggle("hidden", !canAccessAdminFeatures());
   if (!canAccessAdminFeatures()) {
@@ -1363,7 +1373,7 @@ function renderRanking() {
 
 async function loadRanking() {
   if (!canAccessProFeatures()) {
-    if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Classement réservé aux comptes Pro et Admin.</div>';
+    if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
   try {
@@ -1385,11 +1395,17 @@ function renderCompetitions() {
   }
   els.weeklyCompetitionsList.innerHTML = competitions.map((competition) => `
     <article class="weekly-competition">
-      <strong>${escapeHtml(competition.name)}</strong>
-      <span>${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)}</span>
-      <span>Meilleur score : ${Number(bestScores[competition.id] || 0)}</span>
+      <div>
+        <strong>${escapeHtml(competition.name)}</strong>
+        <span>${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)} · ${competition.id === "slam2000" ? "3 sets" : "2 sets"}</span>
+      </div>
+      <span>Meilleur : ${Number(bestScores[competition.id] || 0)} pts</span>
+      <button class="small-button" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}">Jouer</button>
     </article>
   `).join("");
+  els.weeklyCompetitionsList.querySelectorAll("[data-start-weekly-competition]").forEach((button) => {
+    button.addEventListener("click", () => startWeeklyCompetition(button.dataset.startWeeklyCompetition));
+  });
 }
 
 async function loadCompetitions() {
@@ -1403,6 +1419,25 @@ async function loadCompetitions() {
   } catch (error) {
     if (els.weeklyCompetitionsList) els.weeklyCompetitionsList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
   }
+}
+
+function weeklyCompetitionById(competitionId) {
+  return (AUTH_STATE.competitions?.competitions || []).find((competition) => competition.id === competitionId) || null;
+}
+
+function startWeeklyCompetition(competitionId) {
+  if (!canAccessProFeatures()) {
+    renderAuthState("Les tournois de la semaine sont réservés aux joueurs Pro.");
+    return;
+  }
+  const competition = weeklyCompetitionById(competitionId);
+  if (!competition) {
+    renderAuthState("Tournoi de la semaine indisponible. Actualise le classement.");
+    return;
+  }
+  showGameScreen();
+  const targetSets = competition.id === "slam2000" ? 3 : 2;
+  startTournamentMode(targetSets, { competition });
 }
 
 function nicknameValue() {
@@ -1835,7 +1870,7 @@ function randomAiCharacterId() {
 
 function startSoloFromMenu(mode) {
   if (mode.startsWith("tournament") && !canAccessProFeatures()) {
-    renderAuthState("Le mode Compétition est réservé aux comptes Pro et Admin.");
+    renderAuthState("Réservé aux joueurs Pro.");
     return;
   }
   if (!mode.startsWith("tournament")) resetTournament();
@@ -1884,7 +1919,7 @@ function renderLobbyRooms(rooms = []) {
 async function refreshLobbyRooms() {
   if (!els.lobbyRooms) return;
   if (!canAccessProFeatures()) {
-    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Le lobby en ligne est réservé aux comptes Pro et Admin.</div>';
+    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
   try {
@@ -1899,7 +1934,7 @@ async function refreshLobbyRooms() {
 
 async function createLobbyRoom() {
   if (!canAccessProFeatures()) {
-    if (els.lobbyRooms) els.lobbyRooms.innerHTML = '<div class="lobby-empty">Le lobby en ligne est réservé aux comptes Pro et Admin.</div>';
+    if (els.lobbyRooms) els.lobbyRooms.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
   const targetSets = Number(els.onlineFormatSelect?.value || 2);
@@ -2098,7 +2133,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v85",
+    version: "v86",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4663,16 +4698,17 @@ function startMatchMode(targetSets = null, options = {}) {
   render();
 }
 
-function startTournamentMode(targetSets = 2) {
+function startTournamentMode(targetSets = 2, options = {}) {
   if (SERVER_SYNC.enabled) {
     state.log.unshift("Le tournoi IA est disponible hors partie en ligne.");
     render();
     return;
   }
+  const weeklyCompetition = options.competition || null;
   resetTournament();
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  SOLO_AI.difficulty = selectedTournamentDifficulty();
+  SOLO_AI.difficulty = normalizeAiDifficulty(weeklyCompetition?.difficulty || selectedTournamentDifficulty());
   const humanCharacterId = selectedCharacterId();
   const selectedOpponents = shuffle(TOURNAMENT_CHARACTER_POOL.filter((characterId) => characterId !== humanCharacterId)).slice(0, 7);
   const quarterHumanOpponent = selectedOpponents[0];
@@ -4683,6 +4719,13 @@ function startTournamentMode(targetSets = 2) {
     active: true,
     visible: false,
     difficulty: SOLO_AI.difficulty,
+    weekly: Boolean(weeklyCompetition),
+    competitionId: weeklyCompetition?.id || null,
+    competitionName: weeklyCompetition?.name || null,
+    competitionSurface: weeklyCompetition?.surface || null,
+    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
+    competitionPoints: weeklyCompetition?.points || null,
+    pointsRecorded: false,
     stage: "quarter",
     targetSets,
     humanCharacterId,
@@ -4741,7 +4784,9 @@ function startTournamentMode(targetSets = 2) {
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = "qfHuman";
   state.tournament.stage = "quarter";
-  state.log.unshift(`${targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets"} ${tournamentDifficultyLabel(SOLO_AI.difficulty)} : quart de finale contre ${characterNameFromId(quarterHumanOpponent)}.`);
+  const tournamentLabel = weeklyCompetition?.name || (targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
+  const surfaceText = weeklyCompetition?.surfaceLabel ? ` · ${weeklyCompetition.surfaceLabel}` : "";
+  state.log.unshift(`${tournamentLabel}${surfaceText} ${tournamentDifficultyLabel(SOLO_AI.difficulty)} : quart de finale contre ${characterNameFromId(quarterHumanOpponent)}.`);
   render();
 }
 
@@ -4856,6 +4901,47 @@ function handleTournamentMatchComplete() {
     state.tournament.currentMatch = null;
     state.log.unshift(`Tournoi gagné par ${characterNameFromId(winnerCharacterId)}.`);
   }
+  recordWeeklyCompetitionResult();
+}
+
+function humanTournamentAchievement() {
+  if (!state.tournament.active) return null;
+  const human = state.tournament.humanCharacterId;
+  const final = tournamentMatchById("final");
+  const semiHuman = tournamentMatchById("semiHuman");
+  const qfHuman = tournamentMatchById("qfHuman");
+  if (state.tournament.championCharacterId === human) return "winner";
+  if (final?.score && (final.playerA === human || final.playerB === human)) return "finalist";
+  if (semiHuman?.score && (semiHuman.playerA === human || semiHuman.playerB === human)) return "semi";
+  if (qfHuman?.score && (qfHuman.playerA === human || qfHuman.playerB === human)) return "quarter";
+  return null;
+}
+
+function humanTournamentPoints() {
+  const achievement = humanTournamentAchievement();
+  if (!achievement) return { achievement: null, points: 0 };
+  const pointsTable = state.tournament.competitionPoints || {};
+  return {
+    achievement,
+    points: Number(pointsTable[achievement] || 0),
+  };
+}
+
+async function recordWeeklyCompetitionResult() {
+  if (!state.tournament.weekly || state.tournament.pointsRecorded || !state.tournament.competitionId) return;
+  const { achievement, points } = humanTournamentPoints();
+  if (!achievement) return;
+  state.tournament.pointsRecorded = true;
+  state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${points} points pour la semaine prochaine.`);
+  try {
+    await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement });
+    await loadCompetitions();
+    await loadRanking();
+    render();
+  } catch (error) {
+    state.log.unshift(`Score hebdomadaire non enregistré : ${error.message}`);
+    render();
+  }
 }
 
 function startTournamentSemi() {
@@ -4959,6 +5045,7 @@ function completeTournamentWithoutHuman(semiHumanWinner) {
   state.tournament.championCharacterId = finalResult.winner;
   state.tournament.currentMatch = null;
   state.log.unshift(`Tournoi terminé : ${characterNameFromId(finalResult.winner)} gagne la finale.`);
+  recordWeeklyCompetitionResult();
 }
 
 function refreshTournamentDerivedSlots() {
@@ -5268,7 +5355,11 @@ function currentModeLabel() {
     const format = SERVER_SYNC.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     return `Mode en ligne · ${format}`;
   }
-  if (state.tournament.active) return `${state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets"} · ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentStageLabel()}`;
+  if (state.tournament.active) {
+    const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
+    const surface = state.tournament.competitionSurfaceLabel ? ` · ${state.tournament.competitionSurfaceLabel}` : "";
+    return `${title}${surface} · ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentStageLabel()}`;
+  }
   if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
   if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
   if (SOLO_AI.enabled) return `Contre l'IA · Échange · IA ${aiStyleLabel()}`;
@@ -5292,7 +5383,7 @@ function renderTournamentPanel() {
     els.tournamentPanel.innerHTML = "";
     return;
   }
-  const title = state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets";
+  const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
   const quarterMatches = state.tournament.matches.filter((match) => match.round === "quarter");
   const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
   const final = tournamentMatchById("final");
@@ -5302,7 +5393,8 @@ function renderTournamentPanel() {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title}</h2>
-        <span class="difficulty-reminder">${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
+        <span class="difficulty-reminder">${state.tournament.competitionSurfaceLabel ? `${escapeHtml(state.tournament.competitionSurfaceLabel)} · ` : ""}${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
+        ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">${humanTournamentPoints().points} pts semaine</span>` : ""}
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
