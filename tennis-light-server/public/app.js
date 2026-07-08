@@ -73,6 +73,13 @@ const MENU_STATE = {
 const AUTH_STATE = {
   user: null,
   loading: false,
+  adminUsers: [],
+};
+
+const ROLE_LABELS = {
+  free: "FREE",
+  pro: "PRO",
+  admin: "ADMIN",
 };
 
 const AI_DIFFICULTIES = ["normal", "champion", "hardcore"];
@@ -996,6 +1003,9 @@ const els = {
   loginButton: document.querySelector("#loginButton"),
   registerButton: document.querySelector("#registerButton"),
   logoutButton: document.querySelector("#logoutButton"),
+  adminPanel: document.querySelector("#adminPanel"),
+  refreshUsersButton: document.querySelector("#refreshUsersButton"),
+  adminUsersList: document.querySelector("#adminUsersList"),
   nicknameInput: document.querySelector("#nicknameInput"),
   aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
   coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
@@ -1075,6 +1085,16 @@ function characterNameFromId(characterId) {
   return CHARACTERS[characterId]?.name ?? "Coach";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  }[char]));
+}
+
 function normalizeCharacterId(characterId, fallback = "coachJu") {
   return COACH_OPTIONS.includes(characterId) ? characterId : fallback;
 }
@@ -1117,10 +1137,45 @@ function applyOnlinePlayersFromRoom(players = []) {
   return changed;
 }
 
+function normalizeUserRole(role) {
+  return ROLE_LABELS[role] ? role : "free";
+}
+
+function currentUserRole() {
+  return normalizeUserRole(AUTH_STATE.user?.role);
+}
+
+function canAccessProFeatures() {
+  return ["pro", "admin"].includes(currentUserRole());
+}
+
+function canAccessAdminFeatures() {
+  return currentUserRole() === "admin";
+}
+
+function updateAccessControls() {
+  const hasProAccess = canAccessProFeatures();
+  document.querySelectorAll("[data-required-role='pro']").forEach((section) => {
+    section.classList.toggle("locked", !hasProAccess);
+    section.querySelectorAll("button, select").forEach((control) => {
+      control.disabled = !hasProAccess;
+    });
+  });
+  els.adminPanel?.classList.toggle("hidden", !canAccessAdminFeatures());
+  if (canAccessAdminFeatures()) {
+    loadAdminUsers();
+  } else {
+    AUTH_STATE.adminUsers = [];
+    if (els.adminUsersList) els.adminUsersList.innerHTML = "";
+  }
+  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
+}
+
 function renderAuthState(message = "") {
   if (!els.authStatus) return;
   const user = AUTH_STATE.user;
-  els.authStatus.textContent = message || (user ? `Connecté : ${user.nickname}` : "Non connecté");
+  const roleLabel = ROLE_LABELS[currentUserRole()] || "FREE";
+  els.authStatus.textContent = message || (user ? `Connecté : ${user.nickname} · ${roleLabel}` : "Non connecté");
   els.authStatus.classList.toggle("connected", Boolean(user));
   els.authForm?.classList.toggle("hidden", Boolean(user));
   els.logoutButton?.classList.toggle("hidden", !user);
@@ -1151,6 +1206,7 @@ function applyAuthenticatedUser(user) {
     if (els.nicknameInput) els.nicknameInput.value = MENU_STATE.nickname;
   }
   renderAuthState();
+  updateAccessControls();
 }
 
 async function loadAuthState() {
@@ -1197,6 +1253,56 @@ async function logoutAccount() {
     // Même si le serveur ne répond pas, on libère l'interface locale.
   }
   applyAuthenticatedUser(null);
+}
+
+function renderAdminUsers() {
+  if (!els.adminUsersList) return;
+  if (!AUTH_STATE.adminUsers.length) {
+    els.adminUsersList.innerHTML = '<div class="admin-empty">Aucun utilisateur à afficher.</div>';
+    return;
+  }
+  els.adminUsersList.innerHTML = AUTH_STATE.adminUsers.map((user) => {
+    const role = normalizeUserRole(user.role);
+    return `
+      <article class="admin-user-row">
+        <div>
+          <strong>${escapeHtml(user.nickname || "Sans pseudo")}</strong>
+          <span>${escapeHtml(user.email || "")}</span>
+        </div>
+        <select data-admin-role="${escapeHtml(user.id)}" aria-label="Niveau de ${escapeHtml(user.nickname || user.email)}">
+          <option value="free" ${role === "free" ? "selected" : ""}>FREE</option>
+          <option value="pro" ${role === "pro" ? "selected" : ""}>PRO</option>
+          <option value="admin" ${role === "admin" ? "selected" : ""}>ADMIN</option>
+        </select>
+      </article>
+    `;
+  }).join("");
+  els.adminUsersList.querySelectorAll("[data-admin-role]").forEach((select) => {
+    select.addEventListener("change", () => updateUserRole(select.dataset.adminRole, select.value));
+  });
+}
+
+async function loadAdminUsers() {
+  if (!canAccessAdminFeatures()) return;
+  try {
+    const data = await authRequest("/api/admin/users");
+    AUTH_STATE.adminUsers = data.users || [];
+    renderAdminUsers();
+  } catch (error) {
+    if (els.adminUsersList) els.adminUsersList.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function updateUserRole(userId, role) {
+  if (!canAccessAdminFeatures() || !userId) return;
+  try {
+    const data = await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/role`, { role });
+    AUTH_STATE.adminUsers = AUTH_STATE.adminUsers.map((user) => user.id === userId ? data.user : user);
+    renderAdminUsers();
+    if (AUTH_STATE.user?.id === userId) applyAuthenticatedUser(data.user);
+  } catch (error) {
+    if (els.adminUsersList) els.adminUsersList.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+  }
 }
 
 function nicknameValue() {
@@ -1612,6 +1718,10 @@ function randomAiCharacterId() {
 }
 
 function startSoloFromMenu(mode) {
+  if (mode.startsWith("tournament") && !canAccessProFeatures()) {
+    renderAuthState("Le mode Compétition est réservé aux comptes Pro et Admin.");
+    return;
+  }
   if (!mode.startsWith("tournament")) resetTournament();
   configureSoloOpponent();
   showGameScreen();
@@ -1657,6 +1767,10 @@ function renderLobbyRooms(rooms = []) {
 
 async function refreshLobbyRooms() {
   if (!els.lobbyRooms) return;
+  if (!canAccessProFeatures()) {
+    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Le lobby en ligne est réservé aux comptes Pro et Admin.</div>';
+    return;
+  }
   try {
     const response = await fetch("/api/lobby");
     if (!response.ok) throw new Error("lobby unavailable");
@@ -1668,6 +1782,10 @@ async function refreshLobbyRooms() {
 }
 
 async function createLobbyRoom() {
+  if (!canAccessProFeatures()) {
+    if (els.lobbyRooms) els.lobbyRooms.innerHTML = '<div class="lobby-empty">Le lobby en ligne est réservé aux comptes Pro et Admin.</div>';
+    return;
+  }
   const targetSets = Number(els.onlineFormatSelect?.value || 2);
   try {
     const response = await fetch("/api/lobby/rooms", {
@@ -1864,7 +1982,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v83",
+    version: "v84",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5853,10 +5971,12 @@ function initMenu() {
   updateMenuSelection();
   updateTournamentDifficultyButton();
   renderAuthState();
+  updateAccessControls();
   loadAuthState();
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.logoutButton?.addEventListener("click", logoutAccount);
+  els.refreshUsersButton?.addEventListener("click", loadAdminUsers);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);

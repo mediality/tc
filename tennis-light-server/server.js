@@ -17,6 +17,8 @@ const SESSION_COOKIE = "tc_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const PASSWORD_ITERATIONS = 210000;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
+const USER_ROLES = new Set(["free", "pro", "admin"]);
 const authMemory = {
   users: new Map(),
   sessions: new Map(),
@@ -55,12 +57,27 @@ function normalizeNickname(nickname) {
   return String(nickname || "").trim().slice(0, 24);
 }
 
+function normalizeRole(role) {
+  const value = String(role || "").trim().toLowerCase();
+  return USER_ROLES.has(value) ? value : "free";
+}
+
+function defaultRoleForEmail(email) {
+  return normalizeEmail(email) === ADMIN_EMAIL ? "admin" : "free";
+}
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function publicUser(user) {
-  return user ? { id: user.id, email: user.email, nickname: user.nickname, createdAt: user.created_at || user.createdAt } : null;
+  return user ? {
+    id: user.id,
+    email: user.email,
+    nickname: user.nickname,
+    role: normalizeRole(user.role),
+    createdAt: user.created_at || user.createdAt,
+  } : null;
 }
 
 function hashPassword(password) {
@@ -137,10 +154,13 @@ async function initAuthStorage() {
       email TEXT UNIQUE NOT NULL,
       nickname TEXT NOT NULL,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'free',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       last_login_at TIMESTAMPTZ
     )
   `);
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'free'");
+  await db.query("UPDATE users SET role = 'admin' WHERE email = $1", [ADMIN_EMAIL]);
   await db.query(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -167,12 +187,13 @@ async function createUser({ email, nickname, password }) {
     email,
     nickname,
     password_hash: hashPassword(password),
+    role: defaultRoleForEmail(email),
     createdAt: new Date().toISOString(),
   };
   if (db) {
     const result = await db.query(
-      "INSERT INTO users (id, email, nickname, password_hash) VALUES ($1, $2, $3, $4) RETURNING *",
-      [user.id, user.email, user.nickname, user.password_hash],
+      "INSERT INTO users (id, email, nickname, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [user.id, user.email, user.nickname, user.password_hash, user.role],
     );
     return result.rows[0];
   }
@@ -226,6 +247,24 @@ async function userFromSession(sessionId) {
 async function currentUser(req) {
   const sessionId = unpackSessionCookie(parseCookies(req)[SESSION_COOKIE]);
   return userFromSession(sessionId);
+}
+
+async function requireAdmin(req, res) {
+  const user = await currentUser(req);
+  if (!user || normalizeRole(user.role) !== "admin") {
+    sendJson(res, 403, { error: "Accès administrateur requis." });
+    return null;
+  }
+  return user;
+}
+
+async function requirePro(req, res) {
+  const user = await currentUser(req);
+  if (!user || !["pro", "admin"].includes(normalizeRole(user.role))) {
+    sendJson(res, 403, { error: "Compte Pro requis." });
+    return null;
+  }
+  return user;
 }
 
 async function handleAuth(req, res, url) {
@@ -282,6 +321,46 @@ async function handleAuth(req, res, url) {
     await deleteSession(unpackSessionCookie(parseCookies(req)[SESSION_COOKIE]));
     clearSessionCookie(res);
     sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/users") {
+    if (!await requireAdmin(req, res)) return true;
+    if (db) {
+      const result = await db.query("SELECT id, email, nickname, role, created_at, last_login_at FROM users ORDER BY created_at DESC");
+      sendJson(res, 200, { users: result.rows.map(publicUser) });
+      return true;
+    }
+    sendJson(res, 200, { users: [...authMemory.users.values()].map(publicUser) });
+    return true;
+  }
+
+  const roleMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/role$/);
+  if (req.method === "POST" && roleMatch) {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return true;
+    const userId = decodeURIComponent(roleMatch[1]);
+    const payload = await readJson(req);
+    const role = normalizeRole(payload.role);
+    if (db) {
+      const result = await db.query(
+        "UPDATE users SET role = $1 WHERE id = $2 RETURNING id, email, nickname, role, created_at, last_login_at",
+        [role, userId],
+      );
+      if (!result.rows[0]) {
+        sendJson(res, 404, { error: "Utilisateur introuvable." });
+        return true;
+      }
+      sendJson(res, 200, { user: publicUser(result.rows[0]) });
+      return true;
+    }
+    const user = authMemory.users.get(userId);
+    if (!user) {
+      sendJson(res, 404, { error: "Utilisateur introuvable." });
+      return true;
+    }
+    user.role = role;
+    sendJson(res, 200, { user: publicUser(user) });
     return true;
   }
 
@@ -421,11 +500,12 @@ function publicRoomInfo(req, room) {
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if (url.pathname.startsWith("/api/auth/") && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/")) && await handleAuth(req, res, url)) {
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/api/lobby") {
+    if (!await requirePro(req, res)) return;
     const openRooms = [...rooms.values()]
       .filter((room) => room.status === "waiting")
       .sort((a, b) => b.createdAt - a.createdAt)
@@ -435,11 +515,13 @@ async function handleApi(req, res) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/lobby/rooms") {
+    const user = await requirePro(req, res);
+    if (!user) return;
     const payload = await readJson(req);
     const targetSets = Number(payload.targetSets) === 3 ? 3 : 2;
     const characterId = normalizeCharacterId(payload.characterId);
     const hostSeat = characterId === "coachMax" ? 1 : 0;
-    const nickname = String(payload.nickname || (hostSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24);
+    const nickname = String(user.nickname || payload.nickname || (hostSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24);
     const { room, hostUrl } = createRoom(req, {
       status: "waiting",
       targetSets,
@@ -453,6 +535,8 @@ async function handleApi(req, res) {
 
   const joinMatch = url.pathname.match(/^\/api\/lobby\/rooms\/([^/]+)\/join$/);
   if (req.method === "POST" && joinMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return;
     const room = rooms.get(joinMatch[1]);
     if (!room || room.status !== "waiting") {
       sendJson(res, 404, { error: "Partie indisponible." });
@@ -466,7 +550,7 @@ async function handleApi(req, res) {
     const payload = await readJson(req);
     const characterId = normalizeCharacterId(payload.characterId, "coachJu");
     room.players[openSeat] = {
-      nickname: String(payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
+      nickname: String(user.nickname || payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
       characterId,
       joinedAt: Date.now(),
       isHost: false,

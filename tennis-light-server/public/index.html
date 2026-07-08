@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=83" />
+    <link rel="stylesheet" href="./styles.css?v=84" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v83</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v84</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -33,6 +33,13 @@
                 </div>
               </div>
               <button id="logoutButton" class="small-button hidden" type="button">Déconnexion</button>
+              <section id="adminPanel" class="admin-panel hidden" aria-live="polite">
+                <div class="admin-panel-header">
+                  <p class="label">Administration</p>
+                  <button id="refreshUsersButton" class="small-button" type="button">Actualiser</button>
+                </div>
+                <div id="adminUsersList" class="admin-users-list"></div>
+              </section>
             </div>
             <p class="label">Profil</p>
             <label class="menu-field">Pseudo
@@ -70,16 +77,17 @@
                 <button class="small-button" type="button" data-start-solo="match2">Match 2 sets</button>
                 <button class="small-button" type="button" data-start-solo="match3">Match 3 sets</button>
               </div>
-              <div class="menu-mode-group">
+              <div class="menu-mode-group restricted-pro" data-required-role="pro">
                 <p class="label">Compétition</p>
                 <button id="aiDifficultyButton" class="small-button ai-difficulty-button" type="button">IA tournoi : NORMAL</button>
                 <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament2">Tournoi 2 sets</button>
                 <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament3">Slam 3 sets</button>
+                <p class="access-note">Réservé aux comptes Pro et Admin.</p>
               </div>
             </div>
           </section>
 
-          <section class="menu-panel online-lobby-panel">
+          <section class="menu-panel online-lobby-panel restricted-pro" data-required-role="pro">
             <div class="lobby-header">
               <p class="label">Lobby en ligne</p>
               <button id="refreshLobbyButton" class="small-button" type="button">Actualiser</button>
@@ -92,6 +100,7 @@
               <button id="createLobbyRoomButton" class="primary-button" type="button">Créer une partie en ligne</button>
             </div>
             <div id="lobbyRooms" class="lobby-rooms" aria-live="polite"></div>
+            <p class="access-note">Lobby en ligne réservé aux comptes Pro et Admin.</p>
           </section>
         </div>
       </div>
@@ -100,7 +109,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v83</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v84</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
@@ -134,6 +143,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=83"></script>
+    <script src="./app.js?v=84"></script>
   </body>
 </html>

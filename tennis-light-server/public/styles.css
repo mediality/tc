@@ -214,6 +214,73 @@ button:disabled {
   background: rgba(216, 243, 220, 0.96);
 }
 
+.admin-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(14, 116, 144, 0.28);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(219, 244, 255, 0.84);
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-users-list {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.admin-user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(99, 115, 129, 0.18);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.admin-user-row strong,
+.admin-user-row span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-user-row strong {
+  color: #17212b;
+  font-size: 0.88rem;
+  font-weight: 950;
+}
+
+.admin-user-row span,
+.admin-empty,
+.access-note {
+  color: #536272;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-user-row select {
+  min-height: 34px;
+  border: 1px solid rgba(99, 115, 129, 0.28);
+  border-radius: 8px;
+  color: #17212b;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  background: #fff;
+}
+
 .menu-field {
   display: grid;
   gap: 7px;
@@ -286,6 +353,17 @@ button:disabled {
 
 .menu-mode-group .label {
   margin-bottom: 0;
+}
+
+.menu-mode-group.locked,
+.online-lobby-panel.locked {
+  opacity: 0.58;
+}
+
+.menu-mode-group.locked button,
+.online-lobby-panel.locked button,
+.online-lobby-panel.locked select {
+  cursor: not-allowed;
 }
 
 .ai-difficulty-button {
