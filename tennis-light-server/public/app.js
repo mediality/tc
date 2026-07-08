@@ -128,6 +128,28 @@ const TOURNAMENT_CHARACTER_POOL = [
   "kojiIwata",
   "elianaMarquez",
 ];
+const SURFACE_SPECIALISTS = {
+  grass: ["elianaMarquez", "kojiIwata"],
+  hard: ["alessandraConti", "kjellBlomqvist"],
+  clay: ["saharaJackson", "theoBriancourt"],
+};
+const SURFACE_BONUSES = {
+  grass: [
+    { id: "grassPowerVolleySmash", label: "+2 puissance pour chaque Volée ou Smash joué" },
+    { id: "grassCheapRemise", label: "Les cartes Effet/Remise coûtent 1 endurance en moins" },
+    { id: "grassBoostPrecisionDraw", label: "Chaque BOOST donne +1 précision sur la carte suivante et pioche 1 carte" },
+  ],
+  hard: [
+    { id: "hardPrecisePower", label: "+1 puissance pour chaque Coup avec précision supérieure à 3" },
+    { id: "hardCheapShotDraw", label: "Pioche 1 carte à chaque Coup qui coûte 1 endurance" },
+    { id: "hardBoostPlacement", label: "Chaque BOOST donne +2 placement sur la carte suivante" },
+  ],
+  clay: [
+    { id: "clayGroundPower", label: "+1 puissance pour chaque Coup droit ou Revers joué" },
+    { id: "clayForehandEndurance", label: "+1 endurance pour chaque Coup droit joué" },
+    { id: "clayBoostPower", label: "+2 puissance pour chaque BOOST joué" },
+  ],
+};
 
 const CHARACTERS = {
   coachUnknown: {
@@ -1006,6 +1028,7 @@ const els = {
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   menuScreen: document.querySelector("#menuScreen"),
   adminScreen: document.querySelector("#adminScreen"),
+  rankingScreen: document.querySelector("#rankingScreen"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
@@ -1023,7 +1046,10 @@ const els = {
   adminNextPageButton: document.querySelector("#adminNextPageButton"),
   adminPageInfo: document.querySelector("#adminPageInfo"),
   refreshRankingButton: document.querySelector("#refreshRankingButton"),
+  openRankingPageButton: document.querySelector("#openRankingPageButton"),
+  backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
   rankingList: document.querySelector("#rankingList"),
+  rankingFullList: document.querySelector("#rankingFullList"),
   weeklyCompetitionsList: document.querySelector("#weeklyCompetitionsList"),
   nicknameInput: document.querySelector("#nicknameInput"),
   aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
@@ -1345,13 +1371,11 @@ async function updateUserRole(userId, role) {
   }
 }
 
-function renderRanking() {
-  if (!els.rankingList) return;
+function rankingMarkup() {
   const top = AUTH_STATE.ranking?.top || [];
   const current = AUTH_STATE.ranking?.currentUserRank || null;
   if (!top.length) {
-    els.rankingList.innerHTML = '<div class="lobby-empty">Aucun classement disponible pour le moment.</div>';
-    return;
+    return '<div class="lobby-empty">Aucun classement disponible pour le moment.</div>';
   }
   const rows = top.map((row, index) => `
     <div class="ranking-row">
@@ -1364,11 +1388,17 @@ function renderRanking() {
   const currentRow = current && !top.some((row) => row.id === current.id)
     ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${escapeHtml(current.nickname)}</strong><span>${Number(current.ranking_points || 0)}</span><span>(${Number(current.current_points || 0)})</span></div>`
     : "";
-  els.rankingList.innerHTML = `
+  return `
     <div class="ranking-head"><span>#</span><span>Nom</span><span>Points</span><span>Cumul</span></div>
     ${rows}
     ${currentRow}
   `;
+}
+
+function renderRanking() {
+  const markup = rankingMarkup();
+  if (els.rankingList) els.rankingList.innerHTML = markup;
+  if (els.rankingFullList) els.rankingFullList.innerHTML = markup;
 }
 
 async function loadRanking() {
@@ -1425,10 +1455,13 @@ function weeklyCompetitionById(competitionId) {
   return (AUTH_STATE.competitions?.competitions || []).find((competition) => competition.id === competitionId) || null;
 }
 
-function startWeeklyCompetition(competitionId) {
+async function startWeeklyCompetition(competitionId) {
   if (!canAccessProFeatures()) {
     renderAuthState("Les tournois de la semaine sont réservés aux joueurs Pro.");
     return;
+  }
+  if (!AUTH_STATE.ranking) {
+    await loadRanking();
   }
   const competition = weeklyCompetitionById(competitionId);
   if (!competition) {
@@ -1455,12 +1488,22 @@ function updateMenuSelection() {
 function showGameScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
+}
+
+function showRankingScreen() {
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.rankingScreen?.classList.remove("hidden");
+  loadRanking();
 }
 
 function showMenuScreen() {
   els.gameApp?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
   els.menuScreen?.classList.remove("hidden");
   renderAuthState();
   updateMenuSelection();
@@ -1473,6 +1516,7 @@ function showAdminScreen() {
   if (!canAccessAdminFeatures()) return;
   els.menuScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
   els.adminScreen?.classList.remove("hidden");
   AUTH_STATE.adminPage = 1;
   loadAdminUsers();
@@ -2015,6 +2059,7 @@ function createPlayer(name, characterId, nickname = name) {
     freeBoostNext: false,
     freeBoostNextSourceUid: null,
     endBonuses: [],
+    surfaceBonus: null,
     passed: false,
   };
 }
@@ -2133,7 +2178,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v86",
+    version: "v87",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -2203,6 +2248,11 @@ function newGame(options = {}) {
       createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, nicknameValue()),
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
+  state.players.forEach((player) => {
+    player.surfaceBonus = state.tournament.active && state.tournament.surfaceBonuses
+      ? state.tournament.surfaceBonuses[player.characterId] ?? null
+      : null;
+  });
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
@@ -2398,7 +2448,10 @@ function canUseSeat(playerIndex) {
 }
 
 function effectiveCost(player, card) {
-  return isRemise(card) ? card.cost : Math.max(0, card.cost - player.nextDiscount);
+  const remiseDiscount = isRemise(card) && player.surfaceBonus?.id === "grassCheapRemise" ? 1 : 0;
+  return isRemise(card)
+    ? Math.max(0, card.cost - remiseDiscount)
+    : Math.max(0, card.cost - player.nextDiscount);
 }
 
 function addNextPrecisionBonus(player, value, sourceUid = null) {
@@ -2453,10 +2506,17 @@ function getCardStats(player, card, boosted) {
   const aiDifficulty = tournamentAiDifficultyForPlayer(player);
   const aiStatBonus = aiDifficulty === "champion" || aiDifficulty === "hardcore" ? 1 : 0;
   const aiPowerBonus = aiDifficulty === "hardcore" && !isRemise(card) ? 1 : 0;
+  let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus;
+  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + aiStatBonus;
+  let surfacePowerBonus = 0;
+  if (!isRemise(card) && player.surfaceBonus?.id === "grassPowerVolleySmash" && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
+  if (!isRemise(card) && player.surfaceBonus?.id === "hardPrecisePower" && precision > 3) surfacePowerBonus += 1;
+  if (!isRemise(card) && player.surfaceBonus?.id === "clayGroundPower" && ["Coup droit", "Revers"].includes(card.family)) surfacePowerBonus += 1;
+  if (!isRemise(card) && player.surfaceBonus?.id === "clayBoostPower" && boosted) surfacePowerBonus += 2;
   return {
-    power: (basePower + aiPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1)),
-    precision: (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus,
-    placement: card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + aiStatBonus,
+    power: (basePower + aiPowerBonus + surfacePowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1)),
+    precision,
+    placement,
   };
 }
 
@@ -3518,6 +3578,29 @@ function soloEffectScore(card) {
   return effectScores[card.effectType] ?? 1;
 }
 
+function applySurfaceBonusAfterPlay(playerIndex, playedCard, costPaid) {
+  const player = state.players[playerIndex];
+  const bonus = player.surfaceBonus;
+  if (!bonus || isRemise(playedCard)) return;
+  if (bonus.id === "grassBoostPrecisionDraw" && playedCard.boosted) {
+    addNextPrecisionBonus(player, 1, playedCard.playedUid);
+    const drawn = drawCards(player, 1);
+    state.log.unshift(`${bonus.label} : ${player.name} gagne +1 précision${drawn ? " et pioche 1 carte" : ""}.`);
+  }
+  if (bonus.id === "hardCheapShotDraw" && costPaid === 1) {
+    const drawn = drawCards(player, 1);
+    state.log.unshift(drawn ? `${bonus.label} : ${player.name} pioche 1 carte.` : `${bonus.label} : deck vide.`);
+  }
+  if (bonus.id === "hardBoostPlacement" && playedCard.boosted) {
+    addNextPlacementBonus(player, 2, playedCard.playedUid);
+    state.log.unshift(`${bonus.label} : ${player.name} gagne +2 placement sur sa carte suivante.`);
+  }
+  if (bonus.id === "clayForehandEndurance" && playedCard.family === "Coup droit") {
+    player.endurance += 1;
+    state.log.unshift(`${bonus.label} : ${player.name} récupère 1 endurance.`);
+  }
+}
+
 function setEffectNotice(status, card, message) {
   state.effectNotice = {
     status,
@@ -3611,6 +3694,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   state.turnPlayedCards[playerIndex].push(playedCard);
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
+  applySurfaceBonusAfterPlay(playerIndex, playedCard, cost);
 
   recordAction("play_card", {
     playerIndex,
@@ -4520,11 +4604,14 @@ function pass(playerIndex, tutorialBypass = false) {
   player.passed = true;
   opponent.power += bonus;
   state.log.unshift(`${player.name} passe et donne ${bonus} puissance à ${opponent.name}.`);
-  finishGame({ reason: `${player.name} passe. ${opponent.name} gagne ${bonus} puissance. L'échange s'arrête immédiatement.` });
+  finishGame({
+    reason: `${player.name} passe. ${opponent.name} gagne ${bonus} puissance. L'échange s'arrête immédiatement.`,
+    extraPowerDetails: [{ playerIndex: opponentIndex, label: "Pénalité de passe adverse", points: bonus }],
+  });
 }
 
-function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power", reason }) {
-  if (!ignoreScore) applyEndBonuses();
+function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power", reason, extraPowerDetails = [] }) {
+  const endBonusDetails = ignoreScore ? [] : applyEndBonuses();
   state.gameOver = true;
   const winner = forcedWinner ?? getWinner();
   const p1 = state.players[0];
@@ -4538,6 +4625,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
     reason,
     scoreText: ignoreScore ? "Victoire automatique : les points ne sont pas comptés." : `Score final : ${p1.name} ${p1.power} - ${p2.power} ${p2.name}${p1.power === p2.power ? `. Égalité : le serveur (${playerName(state.server)}) gagne.` : "."}`,
     setScore,
+    endBonusDetails: [...extraPowerDetails, ...endBonusDetails],
   };
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
@@ -4710,6 +4798,10 @@ function startTournamentMode(targetSets = 2, options = {}) {
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(weeklyCompetition?.difficulty || selectedTournamentDifficulty());
   const humanCharacterId = selectedCharacterId();
+  if (weeklyCompetition) {
+    startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
+    return;
+  }
   const selectedOpponents = shuffle(TOURNAMENT_CHARACTER_POOL.filter((characterId) => characterId !== humanCharacterId)).slice(0, 7);
   const quarterHumanOpponent = selectedOpponents[0];
   const qfAi1 = buildSimulatedTournamentMatch("qfAi1", "Quart de finale 2", selectedOpponents[1], selectedOpponents[2], targetSets, "quarter");
@@ -4790,6 +4882,132 @@ function startTournamentMode(targetSets = 2, options = {}) {
   render();
 }
 
+function currentRankingTotalPoints() {
+  const current = AUTH_STATE.ranking?.currentUserRank;
+  return Number(current?.ranking_points || 0) + Number(current?.current_points || 0);
+}
+
+function randomSurfaceBonus(surface) {
+  const options = SURFACE_BONUSES[surface] || [];
+  return options[Math.floor(Math.random() * options.length)] || null;
+}
+
+function buildWeeklySurfaceBonuses(surface, seededCharacters) {
+  const bonuses = {};
+  for (const characterId of seededCharacters) {
+    const bonus = randomSurfaceBonus(surface);
+    if (bonus) bonuses[characterId] = { ...bonus, surface };
+  }
+  return bonuses;
+}
+
+function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId) {
+  const surface = weeklyCompetition.surface || "hard";
+  const specialists = (SURFACE_SPECIALISTS[surface] || []).filter((characterId) => characterId !== humanCharacterId);
+  const seededSpecialists = specialists.length >= 2
+    ? specialists.slice(0, 2)
+    : shuffle(TOURNAMENT_CHARACTER_POOL.filter((characterId) => characterId !== humanCharacterId)).slice(0, 2);
+  const remainingPool = shuffle(TOURNAMENT_CHARACTER_POOL.filter((characterId) => !seededSpecialists.includes(characterId) && characterId !== humanCharacterId));
+  const humanDirect = currentRankingTotalPoints() >= Number(weeklyCompetition.directThreshold || 0);
+  const positions = Array(12).fill(null);
+  positions[1] = seededSpecialists[0];
+  positions[2] = seededSpecialists[1];
+  if (humanDirect) {
+    const directCandidates = shuffle([humanCharacterId, ...remainingPool.splice(0, 2)]);
+    positions[3] = directCandidates[0];
+    positions[4] = directCandidates[1];
+    positions[5] = directCandidates[2];
+    shuffle([6, 7, 8, 9, 10, 11]).forEach((position) => {
+      positions[position] = remainingPool.shift();
+    });
+  } else {
+    const directCandidates = remainingPool.splice(0, 3);
+    shuffle([3, 4, 5]).forEach((position, index) => {
+      positions[position] = directCandidates[index];
+    });
+    const qualifierCandidates = shuffle([humanCharacterId, ...remainingPool.splice(0, 5)]);
+    shuffle([6, 7, 8, 9, 10, 11]).forEach((position, index) => {
+      positions[position] = qualifierCandidates[index];
+    });
+  }
+  const surfaceBonuses = buildWeeklySurfaceBonuses(surface, seededSpecialists);
+  state.tournament = {
+    active: true,
+    visible: false,
+    difficulty: SOLO_AI.difficulty,
+    weekly: true,
+    competitionId: weeklyCompetition.id,
+    competitionName: weeklyCompetition.name,
+    competitionSurface: weeklyCompetition.surface,
+    competitionSurfaceLabel: weeklyCompetition.surfaceLabel,
+    competitionPoints: weeklyCompetition.points,
+    directThreshold: weeklyCompetition.directThreshold,
+    humanDirect,
+    pointsRecorded: false,
+    stage: "weekly",
+    targetSets,
+    humanCharacterId,
+    aiFinalistCharacterId: null,
+    currentMatch: null,
+    nextHumanMatchId: null,
+    championCharacterId: null,
+    weeklyPositions: positions,
+    surfaceBonuses,
+    matches: buildWeeklyTournamentMatches(positions, humanCharacterId, targetSets),
+  };
+  refreshWeeklyTournamentDerivedSlots();
+  let firstHumanMatch = nextHumanTournamentMatch();
+  if (!firstHumanMatch && humanDirect) {
+    revealAllTournamentAiSets("qualif");
+    refreshWeeklyTournamentDerivedSlots();
+    firstHumanMatch = nextHumanTournamentMatch();
+  }
+  state.tournament.currentMatch = firstHumanMatch?.id || null;
+  SOLO_AI.characterId = opponentCharacterInMatch(firstHumanMatch, humanCharacterId);
+  startMatchMode(targetSets, { keepSoloOpponent: true });
+  state.tournament.stage = firstHumanMatch?.round || "weekly";
+  state.tournament.currentMatch = firstHumanMatch?.id || null;
+  state.log.unshift(`${weeklyCompetition.name} ${weeklyCompetition.surfaceLabel} : ${humanDirect ? "entrée directe en quart" : "entrée en qualification"} contre ${characterNameFromId(SOLO_AI.characterId)}.`);
+  render();
+}
+
+function buildWeeklyTournamentMatches(positions, humanCharacterId, targetSets) {
+  const match = (id, label, round, playerA, playerB) => ({
+    id,
+    label,
+    round,
+    playerA,
+    playerB,
+    winner: null,
+    score: null,
+    liveScore: null,
+    playable: playerA === humanCharacterId || playerB === humanCharacterId,
+    simulated: playerA !== humanCharacterId && playerB !== humanCharacterId,
+    hiddenWinner: null,
+    hiddenSetScores: null,
+    revealedSetScores: [],
+  });
+  return [
+    match("qual1", "Qualification 1", "qualif", positions[6], positions[11]),
+    match("qual2", "Qualification 2", "qualif", positions[7], positions[10]),
+    match("qual3", "Qualification 3", "qualif", positions[8], positions[9]),
+    match("qf1", "Quart de finale 1", "quarter", positions[1], null),
+    match("qf2", "Quart de finale 2", "quarter", positions[4], positions[5]),
+    match("qf3", "Quart de finale 3", "quarter", positions[3], null),
+    match("qf4", "Quart de finale 4", "quarter", positions[2], null),
+    match("semi1", "Demi-finale 1", "semi", null, null),
+    match("semi2", "Demi-finale 2", "semi", null, null),
+    match("final", "Finale", "final", null, null),
+  ].map((item) => {
+    if (item.simulated) {
+      const result = simulateAiTournamentMatch(item.playerA, item.playerB, targetSets);
+      item.hiddenWinner = result.winner;
+      item.hiddenSetScores = result.setScores;
+    }
+    return item;
+  });
+}
+
 function buildSimulatedTournamentMatch(id, label, playerA, playerB, targetSets, round) {
   const result = simulateAiTournamentMatch(playerA, playerB, targetSets);
   return {
@@ -4847,12 +5065,48 @@ function tournamentMatchById(matchId) {
   return state.tournament.matches.find((match) => match.id === matchId);
 }
 
+function opponentCharacterInMatch(match, humanCharacterId = state.tournament.humanCharacterId) {
+  if (!match) return randomAiCharacterId();
+  return match.playerA === humanCharacterId ? match.playerB : match.playerA;
+}
+
+function nextHumanTournamentMatch() {
+  const human = state.tournament.humanCharacterId;
+  return state.tournament.matches.find((match) => {
+    if (match.winner || match.score) return false;
+    if (match.playerA !== human && match.playerB !== human) return false;
+    const opponent = opponentCharacterInMatch(match, human);
+    return Boolean(opponent);
+  }) || null;
+}
+
+function setMatchPlayers(match, playerA, playerB) {
+  if (!match) return;
+  const wasReady = Boolean(match.playerA && match.playerB);
+  match.playerA = playerA ?? null;
+  match.playerB = playerB ?? null;
+  match.playable = match.playerA === state.tournament.humanCharacterId || match.playerB === state.tournament.humanCharacterId;
+  match.simulated = Boolean(match.playerA && match.playerB && !match.playable);
+  if (!wasReady && match.simulated) {
+    match.hiddenWinner = null;
+    match.hiddenSetScores = null;
+    match.revealedSetScores = [];
+    match.score = null;
+    match.winner = null;
+    ensureSimulatedTournamentMatchReady(match);
+  }
+}
+
 function tournamentCompletedSetScore() {
   return state.setMatch.completedScores.map((score) => `${score[0]}/${score[1]}`).join(" - ");
 }
 
 function handleTournamentMatchComplete() {
   if (!state.tournament.active || !state.setMatch.matchOver) return;
+  if (state.tournament.weekly) {
+    handleWeeklyTournamentMatchComplete();
+    return;
+  }
   const match = tournamentMatchById(state.tournament.currentMatch);
   if (!match || match.winner) return;
   const winnerCharacterId = state.players[state.setMatch.matchWinner]?.characterId;
@@ -4904,13 +5158,79 @@ function handleTournamentMatchComplete() {
   recordWeeklyCompetitionResult();
 }
 
+function handleWeeklyTournamentMatchComplete() {
+  const match = tournamentMatchById(state.tournament.currentMatch);
+  if (!match || match.winner) return;
+  const winnerCharacterId = state.players[state.setMatch.matchWinner]?.characterId;
+  match.winner = winnerCharacterId;
+  match.score = tournamentCompletedSetScore();
+  match.liveScore = null;
+  refreshWeeklyTournamentDerivedSlots();
+  revealNextTournamentAiSet();
+  refreshWeeklyTournamentDerivedSlots();
+  const human = state.tournament.humanCharacterId;
+  if (winnerCharacterId !== human) {
+    completeWeeklyTournamentAfterHumanLoss();
+    recordWeeklyCompetitionResult();
+    render();
+    return;
+  }
+  const nextMatch = nextHumanTournamentMatch();
+  if (!nextMatch) {
+    state.tournament.stage = "complete";
+    state.tournament.currentMatch = null;
+    state.tournament.nextHumanMatchId = null;
+    state.tournament.championCharacterId = human;
+    recordWeeklyCompetitionResult();
+    render();
+    return;
+  }
+  state.tournament.stage = "readyNext";
+  state.tournament.currentMatch = null;
+  state.tournament.nextHumanMatchId = nextMatch.id;
+  state.log.unshift(`Prochain match : ${characterNameFromId(human)} contre ${characterNameFromId(opponentCharacterInMatch(nextMatch, human))}.`);
+}
+
+function completeWeeklyTournamentAfterHumanLoss() {
+  for (const match of state.tournament.matches) {
+    if (match.winner || !match.playerA || !match.playerB) continue;
+    if (match.playable) continue;
+    ensureSimulatedTournamentMatchReady(match);
+    match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
+    match.score = formatSetScores(match.revealedSetScores);
+    match.winner = match.hiddenWinner;
+    refreshWeeklyTournamentDerivedSlots();
+  }
+  refreshWeeklyTournamentDerivedSlots();
+  const final = tournamentMatchById("final");
+  if (final?.playerA && final?.playerB && !final.winner) {
+    const result = simulateAiTournamentMatch(final.playerA, final.playerB, state.tournament.targetSets ?? 2);
+    final.winner = result.winner;
+    final.score = result.score;
+  }
+  state.tournament.stage = "complete";
+  state.tournament.currentMatch = null;
+  state.tournament.nextHumanMatchId = null;
+  state.tournament.championCharacterId = final?.winner || null;
+}
+
 function humanTournamentAchievement() {
   if (!state.tournament.active) return null;
   const human = state.tournament.humanCharacterId;
   const final = tournamentMatchById("final");
+  if (state.tournament.championCharacterId === human) return "winner";
+  if (state.tournament.weekly) {
+    const playedHumanMatches = state.tournament.matches.filter((match) => match.score && (match.playerA === human || match.playerB === human));
+    const last = playedHumanMatches.at(-1);
+    if (!last) return null;
+    if (last.round === "final") return last.winner === human ? "winner" : "finalist";
+    if (last.round === "semi") return "semi";
+    if (last.round === "quarter") return "quarter";
+    if (last.round === "qualif") return "qualif";
+    return null;
+  }
   const semiHuman = tournamentMatchById("semiHuman");
   const qfHuman = tournamentMatchById("qfHuman");
-  if (state.tournament.championCharacterId === human) return "winner";
   if (final?.score && (final.playerA === human || final.playerB === human)) return "finalist";
   if (semiHuman?.score && (semiHuman.playerA === human || semiHuman.playerB === human)) return "semi";
   if (qfHuman?.score && (qfHuman.playerA === human || qfHuman.playerB === human)) return "quarter";
@@ -4945,6 +5265,10 @@ async function recordWeeklyCompetitionResult() {
 }
 
 function startTournamentSemi() {
+  if (state.tournament.weekly && state.tournament.stage === "readyNext") {
+    startWeeklyNextMatch();
+    return;
+  }
   if (!state.tournament.active || state.tournament.stage !== "readySemi") return;
   const semi = tournamentMatchById("semiHuman");
   state.tournament.stage = "semi";
@@ -4960,6 +5284,10 @@ function startTournamentSemi() {
 }
 
 function startTournamentFinal() {
+  if (state.tournament.weekly && state.tournament.stage === "readyNext") {
+    startWeeklyNextMatch();
+    return;
+  }
   if (!state.tournament.active || state.tournament.stage !== "readyFinal") return;
   const final = tournamentMatchById("final");
   final.playerA = state.tournament.humanCharacterId;
@@ -4976,19 +5304,38 @@ function startTournamentFinal() {
   render();
 }
 
+function startWeeklyNextMatch() {
+  if (!state.tournament.active || !state.tournament.weekly || state.tournament.stage !== "readyNext") return;
+  const match = tournamentMatchById(state.tournament.nextHumanMatchId);
+  if (!match) return;
+  state.tournament.stage = match.round;
+  state.tournament.currentMatch = match.id;
+  state.tournament.nextHumanMatchId = null;
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  SOLO_AI.characterId = opponentCharacterInMatch(match, state.tournament.humanCharacterId);
+  startMatchMode(state.tournament.targetSets ?? 2, { keepSoloOpponent: true });
+  state.tournament.stage = match.round;
+  state.tournament.currentMatch = match.id;
+  state.log.unshift(`${match.label} : ${selectedPlayerName()} contre ${characterNameFromId(SOLO_AI.characterId)}.`);
+  render();
+}
+
 function updateTournamentSetProgress() {
   if (!state.tournament.active || !state.setMatch.setOver || !state.tournament.currentMatch) return;
   const current = tournamentMatchById(state.tournament.currentMatch);
   if (current && !current.score) {
     current.liveScore = tournamentCompletedSetScore();
   }
-  refreshTournamentDerivedSlots();
+  if (state.tournament.weekly) refreshWeeklyTournamentDerivedSlots();
+  else refreshTournamentDerivedSlots();
   revealNextTournamentAiSet();
-  refreshTournamentDerivedSlots();
+  if (state.tournament.weekly) refreshWeeklyTournamentDerivedSlots();
+  else refreshTournamentDerivedSlots();
 }
 
 function revealNextTournamentAiSet() {
-  const round = state.tournament.stage === "quarter" ? "quarter" : state.tournament.stage === "semi" ? "semi" : null;
+  const round = ["qualif", "quarter", "semi"].includes(state.tournament.stage) ? state.tournament.stage : null;
   if (!round) return;
   for (const match of simulatedTournamentMatches(round)) {
     if (!ensureSimulatedTournamentMatchReady(match)) continue;
@@ -5048,8 +5395,32 @@ function completeTournamentWithoutHuman(semiHumanWinner) {
   recordWeeklyCompetitionResult();
 }
 
+function refreshWeeklyTournamentDerivedSlots() {
+  if (!state.tournament.active || !state.tournament.weekly) return;
+  const qual1 = tournamentMatchById("qual1");
+  const qual2 = tournamentMatchById("qual2");
+  const qual3 = tournamentMatchById("qual3");
+  const qf1 = tournamentMatchById("qf1");
+  const qf2 = tournamentMatchById("qf2");
+  const qf3 = tournamentMatchById("qf3");
+  const qf4 = tournamentMatchById("qf4");
+  const semi1 = tournamentMatchById("semi1");
+  const semi2 = tournamentMatchById("semi2");
+  const final = tournamentMatchById("final");
+  if (qf1 && qual1?.winner) setMatchPlayers(qf1, qf1.playerA, qual1.winner);
+  if (qf3 && qual2?.winner) setMatchPlayers(qf3, qf3.playerA, qual2.winner);
+  if (qf4 && qual3?.winner) setMatchPlayers(qf4, qf4.playerA, qual3.winner);
+  if (semi1 && qf1?.winner && qf2?.winner) setMatchPlayers(semi1, qf1.winner, qf2.winner);
+  if (semi2 && qf3?.winner && qf4?.winner) setMatchPlayers(semi2, qf3.winner, qf4.winner);
+  if (final && semi1?.winner && semi2?.winner) setMatchPlayers(final, semi1.winner, semi2.winner);
+}
+
 function refreshTournamentDerivedSlots() {
   if (!state.tournament.active) return;
+  if (state.tournament.weekly) {
+    refreshWeeklyTournamentDerivedSlots();
+    return;
+  }
   const qfHuman = tournamentMatchById("qfHuman");
   const qfAi1 = tournamentMatchById("qfAi1");
   const qfAi2 = tournamentMatchById("qfAi2");
@@ -5192,10 +5563,18 @@ function renderResultPanel() {
   }
   const setScore = state.resultInfo.setScore;
   const setMatch = state.resultInfo.setMatch;
+  const endBonusDetails = state.resultInfo.endBonusDetails || [];
   els.resultPanel.innerHTML = `
     <p class="eyebrow">Fin de l'échange</p>
     <div class="winner-dialog">${state.players[state.resultInfo.winner].name} gagne l'échange</div>
     <p>${state.resultInfo.reason}</p>
+    <p><strong>Condition :</strong> ${setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique")}</p>
+    ${endBonusDetails.length ? `
+      <div class="set-score-box end-bonus-box">
+        <strong>Points supplémentaires appliqués</strong>
+        ${endBonusDetails.map((bonus) => `<span>${state.players[bonus.playerIndex].name} : +${bonus.points} puissance · ${escapeHtml(bonus.label)}</span>`).join("")}
+      </div>
+    ` : '<p><strong>Points supplémentaires :</strong> aucun bonus de fin d’échange.</p>'}
     <p>${state.resultInfo.scoreText}</p>
     ${setScore ? `
       <div class="set-score-box">
@@ -5217,6 +5596,7 @@ function renderResultPanel() {
 }
 
 function applyEndBonuses() {
+  const details = [];
   for (const player of state.players) {
     for (const bonus of player.endBonuses) {
       if (bonus.type === "doubleLastShot") {
@@ -5224,6 +5604,7 @@ function applyEndBonuses() {
         if (target) {
           const doubledPower = target.cardPowerGained ?? target.powerGained;
           player.power += doubledPower;
+          details.push({ playerIndex: state.players.indexOf(player), label: `Double ${target.name}`, points: doubledPower });
           state.log.unshift(`${player.name} double ${target.name} : +${doubledPower} puissance.`);
         }
       }
@@ -5231,10 +5612,12 @@ function applyEndBonuses() {
         const count = player.played.filter((card) => card.boosted && !card.removed).length;
         const gained = count * bonus.value;
         player.power += gained;
+        if (gained) details.push({ playerIndex: state.players.indexOf(player), label: `Bonus cartes boostées (${count})`, points: gained });
         state.log.unshift(`${player.name} gagne +${gained} puissance pour ses cartes boostées.`);
       }
     }
   }
+  return details;
 }
 
 function isShot(card) {
@@ -5399,6 +5782,7 @@ function renderTournamentPanel() {
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
       </button>
+      ${state.tournament.stage === "readyNext" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer le prochain match</button>' : ""}
       ${state.tournament.stage === "readySemi" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer la demi-finale</button>' : ""}
       ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
     </div>
@@ -5428,11 +5812,14 @@ function renderTournamentPanel() {
 
 function renderTournamentMatch(match, isFinal = false) {
   if (!match) return "";
-  const playerA = match.playerA ? characterNameFromId(match.playerA) : "Vainqueur demi-finale";
-  const playerB = match.playerB ? characterNameFromId(match.playerB) : "Vainqueur demi-finale";
+  const unknownLabel = isFinal ? "À déterminer" : match.round === "semi" ? "À déterminer" : "Qualifié à déterminer";
+  const playerA = match.playerA ? characterNameFromId(match.playerA) : unknownLabel;
+  const playerB = match.playerB ? characterNameFromId(match.playerB) : unknownLabel;
   const scoreText = match.score || match.liveScore || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
   const human = state.tournament.humanCharacterId;
+  const bonusA = state.tournament.surfaceBonuses?.[match.playerA];
+  const bonusB = state.tournament.surfaceBonuses?.[match.playerB];
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
@@ -5440,10 +5827,12 @@ function renderTournamentMatch(match, isFinal = false) {
         <span>${playerA}</span>
         ${revealedWinner === match.playerA ? "<strong>✓</strong>" : ""}
       </div>
+      ${bonusA ? `<div class="surface-bonus-pill">${escapeHtml(bonusA.label)}</div>` : ""}
       <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""} ${match.playerB === human ? "human-player" : ""}">
         <span>${playerB}</span>
         ${revealedWinner === match.playerB ? "<strong>✓</strong>" : ""}
       </div>
+      ${bonusB ? `<div class="surface-bonus-pill">${escapeHtml(bonusB.label)}</div>` : ""}
       ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
   `;
@@ -5622,12 +6011,16 @@ function renderCharacterCard(player, playerIndex) {
   const aiNudge = playerIndex === SOLO_AI.playerIndex && state.activePlayer === playerIndex && !state.gameOver && !SERVER_SYNC.enabled && SOLO_AI.nudgeVisible
     ? '<button class="ai-nudge-button" type="button" data-force-ai-turn onclick="window.forceSoloAITurn?.()" onpointerdown="window.forceSoloAITurn?.()">Coach Max à jouer</button>'
     : "";
+  const surfaceBonus = player.surfaceBonus
+    ? `<div class="surface-bonus-reminder">${escapeHtml(player.surfaceBonus.label)}</div>`
+    : "";
   return `
     <div class="character-zone">
       <div class="character-card">
         <img src="${imageUrl}" alt="${character.name}" />
         ${aiNudge}
       </div>
+      ${surfaceBonus}
       <div class="character-stats">
         <div class="character-power-reminder${leaderClass}">
           ${crown}
@@ -5720,6 +6113,9 @@ function renderCenterNextSoloExchangeButton() {
 }
 
 function renderCenterNextSetButton() {
+  if (state.tournament.active && state.gameOver && (state.tournament.stage === "complete" || (state.tournament.weekly && !nextHumanTournamentMatch() && state.tournament.currentMatch == null))) {
+    return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>Sortir du tournoi</button>';
+  }
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
   return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
 }
@@ -5728,6 +6124,13 @@ function bindCenterButtons() {
   els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
   els.centerPlayedCard.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
   els.centerPlayedCard.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
+  els.centerPlayedCard.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
+}
+
+async function exitTournamentToLobby() {
+  if (state.tournament.weekly) await recordWeeklyCompetitionResult();
+  resetTournament();
+  showMenuScreen();
 }
 
 function nextSoloExchange() {
@@ -6198,6 +6601,8 @@ function initMenu() {
   els.adminPrevPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage - 1));
   els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
   els.refreshRankingButton?.addEventListener("click", loadRanking);
+  els.openRankingPageButton?.addEventListener("click", showRankingScreen);
+  els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);

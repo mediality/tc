@@ -93,12 +93,10 @@ function publicUser(user) {
 
 function currentWeekKey(date = new Date()) {
   const parisDate = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const monday = new Date(parisDate);
-  const day = (monday.getDay() + 6) % 7;
-  monday.setDate(monday.getDate() - day);
-  monday.setHours(3, 0, 0, 0);
-  if (parisDate < monday) monday.setDate(monday.getDate() - 7);
-  return monday.toISOString().slice(0, 10);
+  const reset = new Date(parisDate);
+  reset.setHours(3, 0, 0, 0);
+  if (parisDate < reset) reset.setDate(reset.getDate() - 1);
+  return reset.toISOString().slice(0, 10);
 }
 
 function seededNumber(seed) {
@@ -276,7 +274,7 @@ async function applyWeeklyRankingRollover() {
       AND weekly_competition_scores.week_key = $1
     GROUP BY users.id
     ON CONFLICT (user_id) DO UPDATE
-      SET ranking_points = EXCLUDED.ranking_points,
+      SET ranking_points = weekly_rankings.ranking_points + EXCLUDED.ranking_points,
           updated_at = NOW()
   `, [storedWeekKey]);
   await db.query("UPDATE app_state SET value = $1 WHERE key = 'ranking_week_key'", [weekKey]);
@@ -557,7 +555,6 @@ async function handleAuth(req, res, url) {
         LEFT JOIN weekly_rankings ON weekly_rankings.user_id = users.id
         LEFT JOIN current_scores ON current_scores.user_id = users.id
         ORDER BY ranking_points DESC, current_points DESC, users.account_number ASC
-        LIMIT 10
       `, [weekKey]);
       let currentUserRank = null;
       if (user) {

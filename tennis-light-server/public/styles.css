@@ -799,6 +799,11 @@ h1 {
   font-weight: 850;
 }
 
+.end-bonus-box {
+  background: #fff7ed;
+  border-color: rgba(251, 146, 60, 0.55);
+}
+
 .hidden {
   display: none;
 }
@@ -1529,6 +1534,27 @@ h1 {
   font-weight: 950;
 }
 
+.surface-bonus-pill,
+.surface-bonus-reminder {
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: #3b0764;
+  background: #f3e8ff;
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.surface-bonus-pill {
+  margin: 5px 0;
+}
+
+.surface-bonus-reminder {
+  max-width: 220px;
+  text-align: center;
+}
+
 .tournament-champion {
   display: grid;
   gap: 8px;
@@ -1553,6 +1579,23 @@ h1 {
 
 .tournament-final-button {
   justify-self: start;
+}
+
+.full-ranking-button {
+  margin-top: 12px;
+}
+
+.ranking-shell {
+  max-width: 980px;
+}
+
+.ranking-full-panel {
+  min-height: 520px;
+}
+
+.ranking-full-list .ranking-row,
+.ranking-full-list .ranking-head {
+  grid-template-columns: 70px 1fr 120px 120px;
 }
 
 @media (max-width: 860px) {
