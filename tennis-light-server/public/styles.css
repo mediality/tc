@@ -545,6 +545,15 @@ button:disabled {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.weekly-competition-counter {
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #102a43;
+  font-size: 0.78rem;
+  font-weight: 900;
+  background: rgba(233, 255, 112, 0.86);
+}
+
 .weekly-competition strong,
 .weekly-competition span {
   overflow: hidden;
@@ -596,7 +605,7 @@ button:disabled {
 .ranking-head,
 .ranking-row {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 84px 84px;
+  grid-template-columns: 42px minmax(0, 1fr) 84px 84px 84px;
   gap: 8px;
   align-items: center;
   border-radius: 8px;
@@ -626,6 +635,51 @@ button:disabled {
 .ranking-row.current-user {
   border: 2px solid #e9ff70;
   background: rgba(216, 243, 220, 0.94);
+}
+
+.ranking-meta {
+  color: #536272;
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profile-card {
+  display: grid;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 14px;
+  color: #17212b;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.profile-wide {
+  grid-column: 1 / -1;
+}
+
+.profile-role {
+  width: max-content;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #102a43;
+  font-weight: 950;
+  background: #e9ff70;
+}
+
+.profile-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(232, 240, 244, 0.86);
 }
 
 @media (max-width: 980px) {
@@ -1686,7 +1740,7 @@ h1 {
 
 .ranking-full-list .ranking-row,
 .ranking-full-list .ranking-head {
-  grid-template-columns: 70px 1fr 120px 120px;
+  grid-template-columns: 70px 1fr 120px 120px 120px;
 }
 
 @media (max-width: 860px) {

@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=89" />
+    <link rel="stylesheet" href="./styles.css?v=90" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v89</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v90</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -33,6 +33,7 @@
                 </div>
               </div>
               <button id="logoutButton" class="small-button hidden" type="button">Déconnexion</button>
+              <button id="profileButton" class="small-button hidden" type="button">Profil joueur</button>
               <div id="proCodePanel" class="pro-code-panel hidden">
                 <p class="label">Passer Pro</p>
                 <div class="pro-code-row">
@@ -91,11 +92,6 @@
                 <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament3">Slam 3 sets</button>
                 <p class="access-note">Réservé aux joueurs Pro.</p>
               </div>
-              <div class="menu-mode-group restricted-pro" data-required-role="pro">
-                <p class="label">Tournois de la semaine</p>
-                <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
-                <p class="access-note">Réservé aux joueurs Pro.</p>
-              </div>
             </div>
           </section>
 
@@ -115,6 +111,15 @@
             <p class="access-note">Réservé aux joueurs Pro.</p>
           </section>
 
+          <section class="menu-panel weekly-circuit-panel restricted-pro" data-required-role="pro">
+            <div class="lobby-header">
+              <p class="label">Tennis Court Pro Circuit</p>
+              <button id="adminNextWeekButton" class="small-button hidden" type="button">Semaine suivante</button>
+            </div>
+            <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
+            <p class="access-note">Réservé aux joueurs Pro.</p>
+          </section>
+
           <section class="menu-panel ranking-panel restricted-pro" data-required-role="pro">
             <div class="lobby-header">
               <p class="label">Classement Tennis Courts</p>
@@ -127,9 +132,23 @@
       </div>
     </section>
 
+    <section id="profileScreen" class="menu-screen hidden">
+      <div class="menu-shell ranking-shell">
+        <p class="eyebrow">Profil joueur <span>v90</span></p>
+        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+        <section class="menu-panel ranking-full-panel">
+          <div class="lobby-header">
+            <p class="label">Mon profil</p>
+            <button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour lobby</button>
+          </div>
+          <div id="profileContent" class="profile-content" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v89</span></p>
+        <p class="eyebrow">Classement général <span>v90</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -143,7 +162,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v89</span></p>
+        <p class="eyebrow">Administration <span>v90</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -176,7 +195,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v89</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v90</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
@@ -210,6 +229,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=89"></script>
+    <script src="./app.js?v=90"></script>
   </body>
 </html>

@@ -19,20 +19,52 @@ const PASSWORD_ITERATIONS = 210000;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
 const USER_ROLES = new Set(["free", "pro", "admin"]);
-const COMPETITION_DEFINITIONS = [
-  { id: "minor400", name: "Minor 400", difficulty: "normal", points: { qualif: 0, quarter: 50, semi: 100, finalist: 200, winner: 400 }, directThreshold: 500 },
-  { id: "minor600", name: "Minor 600", difficulty: "champion", points: { qualif: 0, quarter: 75, semi: 150, finalist: 300, winner: 600 }, directThreshold: 700 },
-  { id: "major1000", name: "Major 1000", difficulty: "normal", points: { qualif: 0, quarter: 100, semi: 200, finalist: 500, winner: 1000 }, directThreshold: 1200 },
-  { id: "major1500", name: "Major 1500", difficulty: "champion", points: { qualif: 0, quarter: 150, semi: 350, finalist: 750, winner: 1500 }, directThreshold: 1800 },
-  { id: "slam2000", name: "Slam 2000", difficulty: "champion", points: { qualif: 0, quarter: 200, semi: 500, finalist: 1200, winner: 2000 }, directThreshold: 2500 },
-];
 const SURFACES = ["grass", "hard", "clay"];
 const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
+const CIRCUIT_SEASON_LENGTH = 20;
+const DAILY_RETRY_LIMIT = 5;
+const WORLD_TOUR_CSV = path.join(__dirname, "world-tour.csv");
+const COUNTRY_FLAGS = {
+  Allemagne: "🇩🇪", Argentine: "🇦🇷", Australie: "🇦🇺", Autriche: "🇦🇹", Belgique: "🇧🇪",
+  Bresil: "🇧🇷", Brésil: "🇧🇷", Canada: "🇨🇦", Chine: "🇨🇳", Croatie: "🇭🇷",
+  Danemark: "🇩🇰", Espagne: "🇪🇸", "Etats-Unis": "🇺🇸", "États-Unis": "🇺🇸", France: "🇫🇷",
+  Italie: "🇮🇹", Japon: "🇯🇵", Maroc: "🇲🇦", Mexique: "🇲🇽", Norvege: "🇳🇴",
+  Norvège: "🇳🇴", PaysBas: "🇳🇱", "Pays-Bas": "🇳🇱", Portugal: "🇵🇹", RoyaumeUni: "🇬🇧",
+  "Royaume-Uni": "🇬🇧", Serbie: "🇷🇸", Suede: "🇸🇪", Suède: "🇸🇪", Suisse: "🇨🇭",
+};
+const LEVEL_LABELS = {
+  Circuit: "Circuit 400",
+  Major: "Major 600",
+  Premier: "Premier 1000",
+  Crown: "Crown 1500",
+  Slam: "Slam 2000",
+  Finals: "Tennis Courts World Finals 4000",
+};
+const SURFACE_FROM_CSV = {
+  DUR: "hard",
+  HERBE: "grass",
+  "TERRE-BATTUE": "clay",
+};
+const POINT_TABLES = {
+  400: { qualif: 0, quarter: 50, semi: 100, finalist: 200, winner: 400 },
+  600: { qualif: 0, quarter: 75, semi: 150, finalist: 300, winner: 600 },
+  1000: { qualif: 0, quarter: 100, semi: 200, finalist: 500, winner: 1000 },
+  1500: { qualif: 0, quarter: 150, semi: 350, finalist: 750, winner: 1500 },
+  2000: { qualif: 0, quarter: 200, semi: 500, finalist: 1200, winner: 2000 },
+  4000: { qualif: 0, quarter: 400, semi: 1000, finalist: 2400, winner: 4000 },
+};
+const DIRECT_THRESHOLDS = { 400: 500, 600: 700, 1000: 1200, 1500: 1800, 2000: 2500, 4000: 5000 };
+const COMPETITION_DEFINITIONS = loadWorldTourDefinitions();
 const authMemory = {
   users: new Map(),
   sessions: new Map(),
   weeklyScores: new Map(),
   proCodes: new Map(),
+  circuitWeekScores: new Map(),
+  circuitAttempts: new Map(),
+  circuitResults: [],
+  aiResults: new Map(),
+  appState: new Map(),
 };
 const db = PgPool && process.env.DATABASE_URL
   ? new PgPool({
@@ -101,25 +133,157 @@ function currentWeekKey(date = new Date()) {
   return period.toISOString().slice(0, 10);
 }
 
+function loadWorldTourDefinitions() {
+  if (!fs.existsSync(WORLD_TOUR_CSV)) {
+    return [
+      { id: "circuit400", week: 1, slot: 1, type: "Circuit 400", level: "Circuit", name: "Blue Lantern Cup", city: "Vancouver", country: "Canada", flag: "🇨🇦", surface: "hard", surfaceLabel: "DUR", difficulty: "normal", targetSets: 2, points: POINT_TABLES[400], directThreshold: 500, value: 400 },
+      { id: "major600", week: 1, slot: 2, type: "Major 600", level: "Major", name: "Clayforge Open", city: "Valence", country: "Espagne", flag: "🇪🇸", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 2, points: POINT_TABLES[600], directThreshold: 700, value: 600 },
+      { id: "premier1000", week: 1, slot: 3, type: "Premier 1000", level: "Premier", name: "Oakspire Masters", city: "Copenhague", country: "Danemark", flag: "🇩🇰", surface: "grass", surfaceLabel: "HERBE", difficulty: "normal", targetSets: 2, points: POINT_TABLES[1000], directThreshold: 1200, value: 1000 },
+      { id: "crown1500", week: 1, slot: 4, type: "Crown 1500", level: "Crown", name: "Sunbridge Crown", city: "Tokyo", country: "Japon", flag: "🇯🇵", surface: "hard", surfaceLabel: "DUR", difficulty: "champion", targetSets: 2, points: POINT_TABLES[1500], directThreshold: 1800, value: 1500 },
+      { id: "slam2000", week: 1, slot: 5, type: "Slam 2000", level: "Slam", name: "Grand Slam Academy", city: "Paris", country: "France", flag: "🇫🇷", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 3, points: POINT_TABLES[2000], directThreshold: 2500, value: 2000 },
+    ];
+  }
+  const rows = fs.readFileSync(WORLD_TOUR_CSV, "utf8").trim().split(/\r?\n/);
+  const headers = rows.shift().replace(/^\uFEFF/, "").split(";");
+  const definitions = rows.map((line) => {
+    const values = line.split(";");
+    const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
+    const pointsValue = Number(row.points || 400);
+    const level = row.niveau || "Circuit";
+    const surface = SURFACE_FROM_CSV[row.surface] || "hard";
+    return {
+      id: row.tournament_id,
+      week: Number(row.semaine || 1),
+      slot: Number(row.slot_semaine || 1),
+      level,
+      type: LEVEL_LABELS[level] || `${level} ${pointsValue}`,
+      value: pointsValue,
+      name: row.nom_tournoi,
+      city: row.ville,
+      country: row.pays,
+      flag: COUNTRY_FLAGS[row.pays] || "🏳️",
+      surface,
+      surfaceLabel: SURFACE_LABELS[surface],
+      difficulty: pointsValue === 400 || pointsValue === 1000 ? "normal" : "champion",
+      targetSets: pointsValue >= 2000 ? 3 : 2,
+      points: POINT_TABLES[pointsValue] || POINT_TABLES[400],
+      directThreshold: DIRECT_THRESHOLDS[pointsValue] || 500,
+      eventType: row.type_epreuve || "Tour",
+    };
+  });
+  const hasFinals = definitions.some((competition) => competition.value === 4000);
+  if (!hasFinals) {
+    definitions.push({
+      id: "TCWT-FINALS-20",
+      week: CIRCUIT_SEASON_LENGTH,
+      slot: 6,
+      level: "Finals",
+      type: LEVEL_LABELS.Finals,
+      value: 4000,
+      name: "Tennis Courts World Finals",
+      city: "Paris",
+      country: "France",
+      flag: "🇫🇷",
+      surface: "hard",
+      surfaceLabel: SURFACE_LABELS.hard,
+      difficulty: "champion",
+      targetSets: 3,
+      points: POINT_TABLES[4000],
+      directThreshold: DIRECT_THRESHOLDS[4000],
+      eventType: "Finals",
+    });
+  }
+  return definitions;
+}
+
 function seededNumber(seed) {
   const hash = crypto.createHash("sha256").update(seed).digest();
   return hash.readUInt32BE(0) / 0xffffffff;
 }
 
-function weeklyCompetitionPayload(weekKey = currentWeekKey()) {
-  return COMPETITION_DEFINITIONS.map((competition, index) => {
-    const surface = SURFACES[Math.floor(seededNumber(`${weekKey}:${competition.id}:surface`) * SURFACES.length)] || SURFACES[index % SURFACES.length];
-    return {
-      ...competition,
-      weekKey,
-      surface,
-      surfaceLabel: SURFACE_LABELS[surface],
-    };
-  });
+async function getAppStateValue(key, fallback = null) {
+  if (db) {
+    const result = await db.query("SELECT value FROM app_state WHERE key = $1", [key]);
+    return result.rows[0]?.value ?? fallback;
+  }
+  return authMemory.appState.get(key) ?? fallback;
 }
 
-function competitionDefinitionById(competitionId) {
-  return COMPETITION_DEFINITIONS.find((competition) => competition.id === competitionId) || null;
+async function setAppStateValue(key, value) {
+  if (db) {
+    await db.query(`
+      INSERT INTO app_state (key, value) VALUES ($1, $2)
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    `, [key, String(value)]);
+    return;
+  }
+  authMemory.appState.set(key, String(value));
+}
+
+async function circuitState() {
+  const periodKey = currentWeekKey();
+  let storedPeriod = await getAppStateValue("circuit_period_key", null);
+  let week = Number(await getAppStateValue("circuit_week_number", 1));
+  let season = Number(await getAppStateValue("circuit_season_number", 1));
+  if (!storedPeriod) {
+    await setAppStateValue("circuit_period_key", periodKey);
+    await setAppStateValue("circuit_week_number", week);
+    await setAppStateValue("circuit_season_number", season);
+  } else if (storedPeriod !== periodKey) {
+    const previous = new Date(`${storedPeriod}T03:00:00+02:00`);
+    const current = new Date(`${periodKey}T03:00:00+02:00`);
+    const elapsedDays = Math.max(1, Math.round((current - previous) / 86400000));
+    for (let index = 0; index < elapsedDays; index += 1) {
+      week += 1;
+      if (week > CIRCUIT_SEASON_LENGTH) {
+        week = 1;
+        season += 1;
+      }
+    }
+    await setAppStateValue("circuit_period_key", periodKey);
+    await setAppStateValue("circuit_week_number", week);
+    await setAppStateValue("circuit_season_number", season);
+  }
+  return { weekKey: periodKey, week, season };
+}
+
+async function advanceCircuitWeek() {
+  const current = await circuitState();
+  let week = current.week + 1;
+  let season = current.season;
+  if (week > CIRCUIT_SEASON_LENGTH) {
+    week = 1;
+    season += 1;
+  }
+  await setAppStateValue("circuit_week_number", week);
+  await setAppStateValue("circuit_season_number", season);
+  await setAppStateValue("circuit_period_key", currentWeekKey());
+  return { weekKey: currentWeekKey(), week, season };
+}
+
+function circuitScoreKey(current) {
+  return `S${current.season}-W${current.week}`;
+}
+
+async function weeklyCompetitionPayload() {
+  const current = await circuitState();
+  return COMPETITION_DEFINITIONS
+    .filter((competition) => competition.week === current.week)
+    .sort((a, b) => a.slot - b.slot)
+    .map((competition) => ({ ...competition, weekKey: current.weekKey, season: current.season, week: current.week }));
+}
+
+async function competitionDefinitionById(competitionId) {
+  const competitions = await weeklyCompetitionPayload();
+  return competitions.find((competition) => competition.id === competitionId) || null;
+}
+
+function previousCircuitWeeks(week) {
+  return [1, 2, 3, 4].map((offset) => {
+    let value = week - offset;
+    if (value <= 0) value += CIRCUIT_SEASON_LENGTH;
+    return value;
+  });
 }
 
 function hashPassword(password) {
@@ -290,6 +454,50 @@ async function initAuthStorage() {
     )
   `);
   await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_week_scores (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      points INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, season_number, week_number)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_attempts (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      competition_id TEXT NOT NULL,
+      retries INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, season_number, week_number, competition_id)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_tournament_results (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      competition_id TEXT NOT NULL,
+      competition_name TEXT NOT NULL,
+      competition_type TEXT NOT NULL,
+      achievement TEXT NOT NULL,
+      points INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, season_number, week_number, competition_id)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_ai_results (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ai_character_id TEXT NOT NULL,
+      wins INTEGER NOT NULL DEFAULT 0,
+      losses INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, ai_character_id)
+    )
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS app_state (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -321,6 +529,134 @@ async function applyWeeklyRankingRollover() {
           updated_at = NOW()
   `, [storedWeekKey]);
   await db.query("UPDATE app_state SET value = $1 WHERE key = 'ranking_week_key'", [weekKey]);
+}
+
+async function recomputeUserCircuitWeekScore(userId, season, week) {
+  const scoreKey = circuitScoreKey({ season, week });
+  if (db) {
+    await db.query(`
+      INSERT INTO circuit_week_scores (user_id, season_number, week_number, points, updated_at)
+      SELECT $1, $2, $3, COALESCE(SUM(points), 0)::int, NOW()
+      FROM weekly_competition_scores
+      WHERE user_id = $1 AND week_key = $4
+      ON CONFLICT (user_id, season_number, week_number) DO UPDATE
+        SET points = EXCLUDED.points,
+            updated_at = NOW()
+    `, [userId, season, week, scoreKey]);
+    return;
+  }
+  const total = [...authMemory.weeklyScores.entries()]
+    .filter(([key]) => key.startsWith(`${userId}:${scoreKey}:`))
+    .reduce((sum, [, value]) => sum + Number(value.points || 0), 0);
+  authMemory.circuitWeekScores.set(`${userId}:${season}:${week}`, total);
+}
+
+async function currentTournamentScoreMap(userId) {
+  const current = await circuitState();
+  const scoreKey = circuitScoreKey(current);
+  if (db) {
+    const result = await db.query(
+      "SELECT competition_id, points FROM weekly_competition_scores WHERE user_id = $1 AND week_key = $2",
+      [userId, scoreKey],
+    );
+    return Object.fromEntries(result.rows.map((row) => [row.competition_id, row.points]));
+  }
+  return Object.fromEntries([...authMemory.weeklyScores.entries()]
+    .filter(([key]) => key.startsWith(`${userId}:${scoreKey}:`))
+    .map(([key, value]) => [key.split(":").pop(), value.points]));
+}
+
+async function currentRetryInfo(userId) {
+  const current = await circuitState();
+  if (db) {
+    const result = await db.query(
+      "SELECT competition_id, retries FROM circuit_attempts WHERE user_id = $1 AND season_number = $2 AND week_number = $3",
+      [userId, current.season, current.week],
+    );
+    const byCompetition = Object.fromEntries(result.rows.map((row) => [row.competition_id, Number(row.retries || 0)]));
+    return {
+      byCompetition,
+      retriesUsed: result.rows.reduce((sum, row) => sum + Number(row.retries || 0), 0),
+      retryLimit: DAILY_RETRY_LIMIT,
+    };
+  }
+  const prefix = `${userId}:${current.season}:${current.week}:`;
+  const entries = [...authMemory.circuitAttempts.entries()].filter(([key]) => key.startsWith(prefix));
+  return {
+    byCompetition: Object.fromEntries(entries.map(([key, value]) => [key.split(":").pop(), value])),
+    retriesUsed: entries.reduce((sum, [, value]) => sum + Number(value || 0), 0),
+    retryLimit: DAILY_RETRY_LIMIT,
+  };
+}
+
+async function buildRanking(page = 1, pageSize = 50, currentUser = null) {
+  const current = await circuitState();
+  const refWeeks = previousCircuitWeeks(current.week);
+  if (db) {
+    const result = await db.query(`
+      WITH week_scores AS (
+        SELECT user_id,
+          COALESCE(SUM(points) FILTER (WHERE week_number = ANY($2::int[])), 0)::int AS score_ref,
+          COALESCE(SUM(points) FILTER (WHERE week_number = $3), 0)::int AS score_week,
+          COALESCE(SUM(points), 0)::int AS score_total
+        FROM circuit_week_scores
+        WHERE season_number = $1
+        GROUP BY user_id
+      ),
+      ranked AS (
+        SELECT users.id, users.account_number, users.nickname,
+          COALESCE(week_scores.score_ref, 0)::int AS score_ref,
+          COALESCE(week_scores.score_week, 0)::int AS score_week,
+          COALESCE(week_scores.score_total, 0)::int AS score_total,
+          ROW_NUMBER() OVER (
+            ORDER BY COALESCE(week_scores.score_ref, 0) DESC,
+                     COALESCE(week_scores.score_week, 0) DESC,
+                     COALESCE(week_scores.score_total, 0) DESC,
+                     users.account_number ASC
+          ) AS rank
+        FROM users
+        LEFT JOIN week_scores ON week_scores.user_id = users.id
+      )
+      SELECT * FROM ranked
+      ORDER BY rank ASC
+    `, [current.season, refWeeks, current.week]);
+    const rows = result.rows;
+    const offset = (page - 1) * pageSize;
+    const pageRows = rows.slice(offset, offset + pageSize);
+    const currentUserRank = currentUser ? rows.find((row) => row.id === currentUser.id) || null : null;
+    return {
+      ...current,
+      refWeeks,
+      page,
+      pageSize,
+      totalPlayers: rows.length,
+      totalPages: Math.max(1, Math.ceil(rows.length / pageSize)),
+      top: pageRows,
+      currentUserRank,
+    };
+  }
+  return { ...current, refWeeks, page, pageSize, totalPlayers: 0, totalPages: 1, top: [], currentUserRank: null };
+}
+
+async function registerCircuitAiResults(userId, results = []) {
+  for (const item of Array.isArray(results) ? results : []) {
+    const aiCharacterId = String(item.aiCharacterId || "").slice(0, 48);
+    if (!aiCharacterId) continue;
+    const won = item.result === "win";
+    if (db) {
+      await db.query(`
+        INSERT INTO circuit_ai_results (user_id, ai_character_id, wins, losses)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, ai_character_id) DO UPDATE
+          SET wins = circuit_ai_results.wins + EXCLUDED.wins,
+              losses = circuit_ai_results.losses + EXCLUDED.losses
+      `, [userId, aiCharacterId, won ? 1 : 0, won ? 0 : 1]);
+    } else {
+      const key = `${userId}:${aiCharacterId}`;
+      const current = authMemory.aiResults.get(key) || { wins: 0, losses: 0 };
+      authMemory.aiResults.set(key, { wins: current.wins + (won ? 1 : 0), losses: current.losses + (won ? 0 : 1) });
+    }
+  }
 }
 
 async function findUserByEmail(email) {
@@ -680,17 +1016,57 @@ async function handleAuth(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/competitions") {
     const user = await requirePro(req, res);
     if (!user) return true;
-    const weekKey = currentWeekKey();
-    let bestScores = {};
-    if (user && db) {
-      const result = await db.query("SELECT competition_id, points FROM weekly_competition_scores WHERE user_id = $1 AND week_key = $2", [user.id, weekKey]);
-      bestScores = Object.fromEntries(result.rows.map((row) => [row.competition_id, row.points]));
-    } else if (user) {
-      bestScores = Object.fromEntries([...authMemory.weeklyScores.entries()]
-        .filter(([key]) => key.startsWith(`${user.id}:${weekKey}:`))
-        .map(([key, value]) => [key.split(":").pop(), value.points]));
+    const current = await circuitState();
+    const bestScores = await currentTournamentScoreMap(user.id);
+    const retryInfo = await currentRetryInfo(user.id);
+    sendJson(res, 200, {
+      ...current,
+      scoreKey: circuitScoreKey(current),
+      title: "Tennis Court Pro Circuit",
+      competitions: await weeklyCompetitionPayload(),
+      bestScores,
+      retriesUsed: retryInfo.retriesUsed,
+      retryLimit: retryInfo.retryLimit,
+      retriesRemaining: Math.max(0, retryInfo.retryLimit - retryInfo.retriesUsed),
+      retriesByCompetition: retryInfo.byCompetition,
+    });
+    return true;
+  }
+
+  const attemptMatch = url.pathname.match(/^\/api\/competitions\/([^/]+)\/attempt$/);
+  if (req.method === "POST" && attemptMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return true;
+    const competitionId = decodeURIComponent(attemptMatch[1]);
+    const competition = await competitionDefinitionById(competitionId);
+    if (!competition) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return true;
     }
-    sendJson(res, 200, { weekKey, competitions: weeklyCompetitionPayload(weekKey), bestScores });
+    const current = await circuitState();
+    const scoreKey = circuitScoreKey(current);
+    const bestScores = await currentTournamentScoreMap(user.id);
+    const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competitionId);
+    const retryInfo = await currentRetryInfo(user.id);
+    if (alreadyPlayed && retryInfo.retriesUsed >= DAILY_RETRY_LIMIT) {
+      sendJson(res, 403, { error: "Vous avez utilisé vos 5 nouvelles tentatives de la semaine." });
+      return true;
+    }
+    if (alreadyPlayed) {
+      if (db) {
+        await db.query(`
+          INSERT INTO circuit_attempts (user_id, season_number, week_number, competition_id, retries, updated_at)
+          VALUES ($1, $2, $3, $4, 1, NOW())
+          ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
+            SET retries = circuit_attempts.retries + 1,
+                updated_at = NOW()
+        `, [user.id, current.season, current.week, competitionId]);
+      } else {
+        const key = `${user.id}:${current.season}:${current.week}:${competitionId}`;
+        authMemory.circuitAttempts.set(key, Number(authMemory.circuitAttempts.get(key) || 0) + 1);
+      }
+    }
+    sendJson(res, 200, { ok: true, scoreKey, countedAsRetry: alreadyPlayed });
     return true;
   }
 
@@ -699,7 +1075,7 @@ async function handleAuth(req, res, url) {
     const user = await requirePro(req, res);
     if (!user) return true;
     const competitionId = decodeURIComponent(scoreMatch[1]);
-    const competition = competitionDefinitionById(competitionId);
+    const competition = await competitionDefinitionById(competitionId);
     if (!competition) {
       sendJson(res, 404, { error: "Tournoi introuvable." });
       return true;
@@ -707,7 +1083,8 @@ async function handleAuth(req, res, url) {
     const payload = await readJson(req);
     const points = Math.max(0, Math.round(Number(payload.points || 0)));
     const achievement = String(payload.achievement || "").slice(0, 32);
-    const weekKey = currentWeekKey();
+    const current = await circuitState();
+    const scoreKey = circuitScoreKey(current);
     if (db) {
       await db.query(`
         INSERT INTO weekly_competition_scores (user_id, week_key, competition_id, points, updated_at)
@@ -715,60 +1092,110 @@ async function handleAuth(req, res, url) {
         ON CONFLICT (user_id, week_key, competition_id) DO UPDATE
           SET points = GREATEST(weekly_competition_scores.points, EXCLUDED.points),
               updated_at = CASE WHEN EXCLUDED.points > weekly_competition_scores.points THEN NOW() ELSE weekly_competition_scores.updated_at END
-      `, [user.id, weekKey, competitionId, points]);
+      `, [user.id, scoreKey, competitionId, points]);
+      if (achievement === "winner" || achievement === "finalist") {
+        await db.query(`
+          INSERT INTO circuit_tournament_results
+            (user_id, season_number, week_number, competition_id, competition_name, competition_type, achievement, points, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
+            SET achievement = CASE
+                WHEN circuit_tournament_results.achievement = 'winner' THEN 'winner'
+                WHEN EXCLUDED.achievement = 'winner' THEN 'winner'
+                ELSE EXCLUDED.achievement
+              END,
+              points = GREATEST(circuit_tournament_results.points, EXCLUDED.points),
+              updated_at = NOW()
+        `, [user.id, current.season, current.week, competitionId, competition.name, competition.type, achievement, points]);
+      }
     } else {
-      const key = `${user.id}:${weekKey}:${competitionId}`;
+      const key = `${user.id}:${scoreKey}:${competitionId}`;
       const previous = authMemory.weeklyScores.get(key)?.points || 0;
       authMemory.weeklyScores.set(key, { points: Math.max(previous, points), achievement, updatedAt: new Date().toISOString() });
+      if (achievement === "winner" || achievement === "finalist") {
+        const filtered = authMemory.circuitResults.filter((row) => !(row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId));
+        filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, achievement, points });
+        authMemory.circuitResults = filtered;
+      }
     }
-    sendJson(res, 200, { ok: true, weekKey, competitionId, points });
+    await registerCircuitAiResults(user.id, payload.aiResults);
+    await recomputeUserCircuitWeekScore(user.id, current.season, current.week);
+    sendJson(res, 200, { ok: true, weekKey: current.weekKey, scoreKey, competitionId, points });
     return true;
   }
 
   if (req.method === "GET" && url.pathname === "/api/ranking") {
     const user = await currentUser(req);
-    const weekKey = currentWeekKey();
-    if (db) {
-      const ranking = await db.query(`
-        WITH current_scores AS (
-          SELECT user_id, COALESCE(SUM(points), 0)::int AS current_points
-          FROM weekly_competition_scores
-          WHERE week_key = $1
-          GROUP BY user_id
-        )
-        SELECT users.id, users.account_number, users.nickname, COALESCE(weekly_rankings.ranking_points, 0)::int AS ranking_points,
-               COALESCE(current_scores.current_points, 0)::int AS current_points
-        FROM users
-        LEFT JOIN weekly_rankings ON weekly_rankings.user_id = users.id
-        LEFT JOIN current_scores ON current_scores.user_id = users.id
-        ORDER BY ranking_points DESC, current_points DESC, users.account_number ASC
-      `, [weekKey]);
-      let currentUserRank = null;
-      if (user) {
-        const rankResult = await db.query(`
-          WITH current_scores AS (
-            SELECT user_id, COALESCE(SUM(points), 0)::int AS current_points
-            FROM weekly_competition_scores
-            WHERE week_key = $1
-            GROUP BY user_id
-          ),
-          ranked AS (
-            SELECT users.id, users.account_number, users.nickname,
-                   COALESCE(weekly_rankings.ranking_points, 0)::int AS ranking_points,
-                   COALESCE(current_scores.current_points, 0)::int AS current_points,
-                   ROW_NUMBER() OVER (ORDER BY COALESCE(weekly_rankings.ranking_points, 0) DESC, COALESCE(current_scores.current_points, 0) DESC, users.account_number ASC) AS rank
-            FROM users
-            LEFT JOIN weekly_rankings ON weekly_rankings.user_id = users.id
-            LEFT JOIN current_scores ON current_scores.user_id = users.id
-          )
-          SELECT * FROM ranked WHERE id = $2
-        `, [weekKey, user.id]);
-        currentUserRank = rankResult.rows[0] || null;
-      }
-      sendJson(res, 200, { weekKey, top: ranking.rows, currentUserRank });
+    const page = Math.max(1, Number(url.searchParams.get("page") || 1));
+    const pageSize = Math.min(50, Math.max(10, Number(url.searchParams.get("pageSize") || 50)));
+    sendJson(res, 200, await buildRanking(page, pageSize, user));
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/profile") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
       return true;
     }
-    sendJson(res, 200, { weekKey, top: [], currentUserRank: null });
+    const ranking = await buildRanking(1, 50, user);
+    let results = [];
+    let aiResults = [];
+    if (db) {
+      const resultRows = await db.query(`
+        SELECT season_number, week_number, competition_id, competition_name, competition_type, achievement, points
+        FROM circuit_tournament_results
+        WHERE user_id = $1
+        ORDER BY season_number DESC, week_number DESC, updated_at DESC
+      `, [user.id]);
+      results = resultRows.rows;
+      const aiRows = await db.query("SELECT ai_character_id, wins, losses FROM circuit_ai_results WHERE user_id = $1 ORDER BY ai_character_id", [user.id]);
+      aiResults = aiRows.rows;
+    } else {
+      results = authMemory.circuitResults.filter((row) => row.userId === user.id);
+      aiResults = [...authMemory.aiResults.entries()]
+        .filter(([key]) => key.startsWith(`${user.id}:`))
+        .map(([key, value]) => ({ ai_character_id: key.split(":").pop(), ...value }));
+    }
+    sendJson(res, 200, { user: publicUser(user), ranking: ranking.currentUserRank, circuit: { season: ranking.season, week: ranking.week }, results, aiResults });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/profile/nickname") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    const payload = await readJson(req);
+    const nickname = normalizeNickname(payload.nickname);
+    if (!nickname) {
+      sendJson(res, 400, { error: "Pseudo invalide." });
+      return true;
+    }
+    if (db) {
+      const duplicate = await db.query("SELECT id FROM users WHERE LOWER(nickname) = LOWER($1) AND id <> $2 LIMIT 1", [nickname, user.id]);
+      if (duplicate.rows[0]) {
+        sendJson(res, 409, { error: "Ce pseudo existe déjà." });
+        return true;
+      }
+      const updated = await db.query("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [nickname, user.id]);
+      sendJson(res, 200, { user: publicUser(updated.rows[0]) });
+      return true;
+    }
+    const duplicate = [...authMemory.users.values()].find((candidate) => candidate.id !== user.id && candidate.nickname.toLowerCase() === nickname.toLowerCase());
+    if (duplicate) {
+      sendJson(res, 409, { error: "Ce pseudo existe déjà." });
+      return true;
+    }
+    user.nickname = nickname;
+    sendJson(res, 200, { user: publicUser(user) });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/circuit/next-week") {
+    if (!await requireAdmin(req, res)) return true;
+    sendJson(res, 200, await advanceCircuitWeek());
     return true;
   }
 
@@ -908,7 +1335,7 @@ function publicRoomInfo(req, room) {
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking") && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile")) && await handleAuth(req, res, url)) {
     return;
   }
 

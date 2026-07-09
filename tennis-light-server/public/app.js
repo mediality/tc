@@ -78,7 +78,9 @@ const AUTH_STATE = {
   adminPage: 1,
   adminTotalPages: 1,
   ranking: null,
+  rankingPage: 1,
   competitions: null,
+  profile: null,
 };
 
 const ROLE_LABELS = {
@@ -1032,6 +1034,7 @@ const els = {
   menuScreen: document.querySelector("#menuScreen"),
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
+  profileScreen: document.querySelector("#profileScreen"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
@@ -1041,6 +1044,7 @@ const els = {
   loginButton: document.querySelector("#loginButton"),
   registerButton: document.querySelector("#registerButton"),
   logoutButton: document.querySelector("#logoutButton"),
+  profileButton: document.querySelector("#profileButton"),
   proCodePanel: document.querySelector("#proCodePanel"),
   proCodeInput: document.querySelector("#proCodeInput"),
   redeemProCodeButton: document.querySelector("#redeemProCodeButton"),
@@ -1053,12 +1057,15 @@ const els = {
   adminProCodesList: document.querySelector("#adminProCodesList"),
   adminPrevPageButton: document.querySelector("#adminPrevPageButton"),
   adminNextPageButton: document.querySelector("#adminNextPageButton"),
+  adminNextWeekButton: document.querySelector("#adminNextWeekButton"),
   adminPageInfo: document.querySelector("#adminPageInfo"),
   refreshRankingButton: document.querySelector("#refreshRankingButton"),
   openRankingPageButton: document.querySelector("#openRankingPageButton"),
   backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
+  backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
+  profileContent: document.querySelector("#profileContent"),
   weeklyCompetitionsList: document.querySelector("#weeklyCompetitionsList"),
   nicknameInput: document.querySelector("#nicknameInput"),
   aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
@@ -1241,7 +1248,9 @@ function renderAuthState(message = "") {
   els.authStatus.classList.toggle("connected", Boolean(user));
   els.authForm?.classList.toggle("hidden", Boolean(user));
   els.logoutButton?.classList.toggle("hidden", !user);
+  els.profileButton?.classList.toggle("hidden", !user);
   els.proCodePanel?.classList.toggle("hidden", !user || currentUserRole() !== "free");
+  els.adminNextWeekButton?.classList.toggle("hidden", !canAccessAdminFeatures());
   if (els.authNicknameInput && !els.authNicknameInput.value && MENU_STATE.nickname) {
     els.authNicknameInput.value = MENU_STATE.nickname;
   }
@@ -1460,19 +1469,21 @@ function rankingMarkup() {
   }
   const rows = top.map((row, index) => `
     <div class="ranking-row">
-      <span>${index + 1}</span>
+      <span>${Number(row.rank || index + 1)}</span>
       <strong>${escapeHtml(row.nickname)}</strong>
-      <span>${Number(row.ranking_points || 0)}</span>
-      <span>(${Number(row.current_points || 0)})</span>
+      <span>${Number(row.score_ref || 0)}</span>
+      <span>${Number(row.score_week || 0)}</span>
+      <span>${Number(row.score_total || 0)}</span>
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${escapeHtml(current.nickname)}</strong><span>${Number(current.ranking_points || 0)}</span><span>(${Number(current.current_points || 0)})</span></div>`
+    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${escapeHtml(current.nickname)}</strong><span>${Number(current.score_ref || 0)}</span><span>${Number(current.score_week || 0)}</span><span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
-    <div class="ranking-head"><span>#</span><span>Nom</span><span>Points</span><span>Cumul</span></div>
+    <div class="ranking-head"><span>#</span><span>Nom</span><span>Points</span><span>Semaine</span><span>Saison</span></div>
     ${rows}
     ${currentRow}
+    <div class="ranking-meta">Saison ${Number(AUTH_STATE.ranking?.season || 1)} · Semaine ${Number(AUTH_STATE.ranking?.week || 1)}</div>
   `;
 }
 
@@ -1482,13 +1493,111 @@ function renderRanking() {
   if (els.rankingFullList) els.rankingFullList.innerHTML = markup;
 }
 
-async function loadRanking() {
+function profileMarkup(profile) {
+  const user = profile?.user || AUTH_STATE.user;
+  const ranking = profile?.ranking || {};
+  const results = profile?.results || [];
+  const aiResults = profile?.aiResults || [];
+  const resultRows = results.length
+    ? results.map((row) => `<div class="profile-row"><strong>${escapeHtml(row.competition_name || row.competitionName)}</strong><span>Saison ${Number(row.season_number || row.season)} · Semaine ${Number(row.week_number || row.week)} · ${row.achievement === "winner" ? "Victoire" : "Finale"} · ${Number(row.points || 0)} pts</span></div>`).join("")
+    : '<div class="lobby-empty">Aucune victoire ou finale enregistrée.</div>';
+  const aiRows = aiResults.length
+    ? aiResults.map((row) => `<div class="profile-row"><strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong><span>${Number(row.wins || 0)} / ${Number(row.losses || 0)}</span></div>`).join("")
+    : '<div class="lobby-empty">Aucun résultat contre IA enregistré.</div>';
+  return `
+    <div class="profile-grid">
+      <section class="profile-card">
+        <p class="label">Compte</p>
+        <div class="profile-role">${escapeHtml(ROLE_LABELS[user?.role] || "FREE")}</div>
+        <label class="menu-field">Pseudo
+          <input id="profileNicknameInput" type="text" maxlength="24" value="${escapeHtml(user?.nickname || "")}" />
+        </label>
+        <button id="saveProfileNicknameButton" class="primary-button" type="button">Modifier le pseudo</button>
+        ${user?.role === "free" ? `
+          <label class="menu-field">Code Pro
+            <input id="profileProCodeInput" type="text" maxlength="6" autocomplete="off" placeholder="CODE PRO" />
+          </label>
+          <button id="profileRedeemProCodeButton" class="small-button" type="button">Passer Pro</button>
+        ` : ""}
+      </section>
+      <section class="profile-card">
+        <p class="label">Classement mondial</p>
+        <div class="ranking-row current-user"><span>${Number(ranking.rank || 0) || "-"}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
+        <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
+      </section>
+      <section class="profile-card profile-wide">
+        <p class="label">Victoires et finales Tennis Court Circuit</p>
+        ${resultRows}
+      </section>
+      <section class="profile-card profile-wide">
+        <p class="label">Résultats contre IA</p>
+        ${aiRows}
+      </section>
+    </div>
+  `;
+}
+
+async function loadProfile() {
+  if (!AUTH_STATE.user) return;
+  if (els.profileContent) els.profileContent.innerHTML = '<div class="lobby-empty">Chargement du profil...</div>';
+  try {
+    AUTH_STATE.profile = await authRequest("/api/profile");
+    if (els.profileContent) els.profileContent.innerHTML = profileMarkup(AUTH_STATE.profile);
+    document.querySelector("#saveProfileNicknameButton")?.addEventListener("click", saveProfileNickname);
+    document.querySelector("#profileRedeemProCodeButton")?.addEventListener("click", redeemProfileProCode);
+    document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
+  } catch (error) {
+    if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function saveProfileNickname() {
+  const nickname = document.querySelector("#profileNicknameInput")?.value?.trim() || "";
+  if (!nickname) return;
+  try {
+    const data = await authRequest("/api/profile/nickname", { nickname });
+    applyAuthenticatedUser(data.user);
+    await loadProfile();
+  } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
+async function redeemProfileProCode() {
+  const code = document.querySelector("#profileProCodeInput")?.value?.trim().toUpperCase() || "";
+  if (!code) return;
+  try {
+    const data = await authRequest("/api/auth/redeem-pro-code", { code });
+    applyAuthenticatedUser(data.user);
+    await loadProfile();
+    await loadCompetitions();
+    await loadRanking(1);
+  } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
+async function adminAdvanceCircuitWeek() {
+  if (!canAccessAdminFeatures()) return;
+  renderAuthState("Passage à la semaine suivante...");
+  try {
+    await authRequest("/api/admin/circuit/next-week", {});
+    await loadCompetitions();
+    await loadRanking(1);
+    renderAuthState("Semaine suivante activée.");
+  } catch (error) {
+    renderAuthState(error.message);
+  }
+}
+
+async function loadRanking(page = AUTH_STATE.rankingPage || 1) {
   if (!canAccessProFeatures()) {
     if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
   try {
-    const data = await authRequest("/api/ranking");
+    AUTH_STATE.rankingPage = page;
+    const data = await authRequest(`/api/ranking?page=${encodeURIComponent(page)}&pageSize=50`);
     AUTH_STATE.ranking = data;
     renderRanking();
   } catch (error) {
@@ -1504,16 +1613,21 @@ function renderCompetitions() {
     els.weeklyCompetitionsList.innerHTML = '<div class="lobby-empty">Aucune compétition générée.</div>';
     return;
   }
-  els.weeklyCompetitionsList.innerHTML = competitions.map((competition) => `
-    <article class="weekly-competition">
-      <div>
-        <strong>${escapeHtml(competition.name)}</strong>
-        <span>${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)} · ${competition.id === "slam2000" ? "3 sets" : "2 sets"}</span>
-      </div>
-      <span>Meilleur : ${Number(bestScores[competition.id] || 0)} pts</span>
-      <button class="small-button" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}">Jouer</button>
-    </article>
-  `).join("");
+  const retriesUsed = Number(AUTH_STATE.competitions?.retriesUsed || 0);
+  const retryLimit = Number(AUTH_STATE.competitions?.retryLimit || 5);
+  els.weeklyCompetitionsList.innerHTML = `
+    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit}</div>
+    ${competitions.map((competition) => `
+      <article class="weekly-competition">
+        <div>
+          <strong>${escapeHtml(competition.type || competition.name)} - ${escapeHtml(competition.name)}</strong>
+          <span>${escapeHtml(competition.city || "")} · ${escapeHtml(competition.country || "")} ${escapeHtml(competition.flag || "")} · ${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)} · ${Number(competition.targetSets || 2)} sets</span>
+        </div>
+        <span>Gains : ${Number(bestScores[competition.id] || 0)} pts</span>
+        <button class="small-button" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}">Jouer</button>
+      </article>
+    `).join("")}
+  `;
   els.weeklyCompetitionsList.querySelectorAll("[data-start-weekly-competition]").forEach((button) => {
     button.addEventListener("click", () => startWeeklyCompetition(button.dataset.startWeeklyCompetition));
   });
@@ -1538,7 +1652,7 @@ function weeklyCompetitionById(competitionId) {
 
 async function startWeeklyCompetition(competitionId) {
   if (!canAccessProFeatures()) {
-    renderAuthState("Les tournois de la semaine sont réservés aux joueurs Pro.");
+    renderAuthState("Le Tennis Court Pro Circuit est réservé aux joueurs Pro.");
     return;
   }
   if (!AUTH_STATE.ranking) {
@@ -1546,11 +1660,18 @@ async function startWeeklyCompetition(competitionId) {
   }
   const competition = weeklyCompetitionById(competitionId);
   if (!competition) {
-    renderAuthState("Tournoi de la semaine indisponible. Actualise le classement.");
+    renderAuthState("Tournoi indisponible. Actualise le classement.");
+    return;
+  }
+  try {
+    await authRequest(`/api/competitions/${encodeURIComponent(competitionId)}/attempt`, {});
+    await loadCompetitions();
+  } catch (error) {
+    renderAuthState(error.message);
     return;
   }
   showGameScreen();
-  const targetSets = competition.id === "slam2000" ? 3 : 2;
+  const targetSets = Number(competition.targetSets || 2);
   startTournamentMode(targetSets, { competition });
 }
 
@@ -1577,6 +1698,7 @@ function showRankingScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
   els.rankingScreen?.classList.remove("hidden");
   loadRanking();
 }
@@ -1585,6 +1707,7 @@ function showMenuScreen() {
   els.gameApp?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
   els.menuScreen?.classList.remove("hidden");
   renderAuthState();
   updateMenuSelection();
@@ -1593,11 +1716,22 @@ function showMenuScreen() {
   loadCompetitions();
 }
 
+function showProfileScreen() {
+  if (!AUTH_STATE.user) return;
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.profileScreen?.classList.remove("hidden");
+  loadProfile();
+}
+
 function showAdminScreen() {
   if (!canAccessAdminFeatures()) return;
   els.menuScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
   els.adminScreen?.classList.remove("hidden");
   AUTH_STATE.adminPage = 1;
   loadAdminUsers();
@@ -2695,7 +2829,8 @@ function canPlayNormal(playerIndex, card) {
   if (!canAfford(player, card) || !satisfiesFamilyLimit(player, card)) return false;
   if (isRemise(card)) return true;
   if (!satisfiesReturnServiceRestriction(card)) return false;
-  if (state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && card.effectType !== "jokerResponse") return false;
+  const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
+  if (state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) return false;
   return true;
 }
 
@@ -3951,6 +4086,7 @@ function commitEndTurn(playerIndex) {
   const player = state.players[playerIndex];
   const opponent = state.players[opponentIndex];
   const preparedPlacement = turnEndPlacement(playerIndex);
+  const finalRemise = finalRemisePlayedThisTurn(playerIndex);
   const opensBoost = Boolean(state.lastCard && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]);
   recordAction("end_turn", {
     playerIndex,
@@ -3969,6 +4105,11 @@ function commitEndTurn(playerIndex) {
     state.log.unshift(drawn > 0 ? `${opponent.name} pioche 1 carte car le serveur termine sans Service ni Coup droit.` : `${opponent.name} devrait piocher, mais le deck est vide.`);
   }
 
+  if (finalRemise) {
+    finalRemise.turnPlacement = preparedPlacement;
+    finalRemise.turnEndPlacement = preparedPlacement;
+    state.lastCard = finalRemise;
+  }
   state.boostAvailableFor = opensBoost ? opponentIndex : null;
   state.mandatoryPlacement = false;
   state.mandatoryPlacementReason = null;
@@ -4081,15 +4222,16 @@ function applyEffect(playerIndex, card) {
       }
       break;
     case "jokerResponse":
-      state.turnIgnoresPlacement[playerIndex] = true;
       if (state.mandatoryPlacement && state.mandatoryPlacementReason === "boost") {
+        state.turnIgnoresPlacement[playerIndex] = true;
         state.turnCannotOpenBoost[playerIndex] = true;
         state.mandatoryPlacement = false;
         state.mandatoryPlacementReason = null;
         state.mandatoryPlacementSourceUid = null;
         state.log.unshift(`${player.name} neutralise la contrainte de placement du BOOST avec Joker pour tout ce tour.`);
       } else {
-        state.log.unshift(`${player.name} ignore la contrainte de placement pour tout ce tour grâce à Joker.`);
+        state.log.unshift(`Joker ne neutralise aucune contrainte : il annule uniquement la contrainte de placement d'un BOOST adverse.`);
+        setEffectNotice("sans effet", card, "Le Joker annule uniquement la contrainte de placement liée à un BOOST adverse.");
       }
       break;
     case "choosePlayedEffect":
@@ -4968,7 +5110,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
 
 function currentRankingTotalPoints() {
   const current = AUTH_STATE.ranking?.currentUserRank;
-  return Number(current?.ranking_points || 0) + Number(current?.current_points || 0);
+  return Number(current?.score_ref || 0) + Number(current?.score_week || 0);
 }
 
 function randomSurfaceBonus(surface) {
@@ -5386,6 +5528,21 @@ function humanTournamentPoints() {
   };
 }
 
+function humanTournamentAiResults() {
+  if (!state.tournament.weekly) return [];
+  const human = state.tournament.humanCharacterId;
+  return state.tournament.matches
+    .filter((match) => match.score && match.winner && (match.playerA === human || match.playerB === human))
+    .map((match) => {
+      const aiCharacterId = match.playerA === human ? match.playerB : match.playerA;
+      return {
+        aiCharacterId,
+        result: match.winner === human ? "win" : "loss",
+      };
+    })
+    .filter((item) => item.aiCharacterId);
+}
+
 async function recordWeeklyCompetitionResult() {
   if (!state.tournament.weekly || state.tournament.pointsRecorded || !state.tournament.competitionId) return;
   const { achievement, points, qualificationPoints, bonusPoints } = humanTournamentPoints();
@@ -5393,7 +5550,7 @@ async function recordWeeklyCompetitionResult() {
   state.tournament.pointsRecorded = true;
   state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${qualificationPoints} points de parcours + ${bonusPoints} points bonus = ${points} points pour demain.`);
   try {
-    await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement });
+    await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement, aiResults: humanTournamentAiResults() });
     await loadCompetitions();
     await loadRanking();
     render();
@@ -5917,7 +6074,7 @@ function renderTournamentPanel() {
         <p class="eyebrow">Compétition</p>
         <h2>${title}</h2>
         <span class="difficulty-reminder">${state.tournament.competitionSurfaceLabel ? `${escapeHtml(state.tournament.competitionSurfaceLabel)} · ` : ""}${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
-        ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">${humanTournamentPoints().points} pts semaine</span>` : ""}
+        ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
@@ -6758,6 +6915,7 @@ function initMenu() {
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.logoutButton?.addEventListener("click", logoutAccount);
+  els.profileButton?.addEventListener("click", showProfileScreen);
   els.redeemProCodeButton?.addEventListener("click", redeemProCode);
   els.proCodeInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") redeemProCode();
@@ -6767,9 +6925,11 @@ function initMenu() {
   els.generateProCodesButton?.addEventListener("click", generateProCodes);
   els.adminPrevPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage - 1));
   els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
+  els.adminNextWeekButton?.addEventListener("click", adminAdvanceCircuitWeek);
   els.refreshRankingButton?.addEventListener("click", loadRanking);
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
+  els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);
