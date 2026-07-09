@@ -1499,7 +1499,16 @@ function profileMarkup(profile) {
   const results = profile?.results || [];
   const aiResults = profile?.aiResults || [];
   const resultRows = results.length
-    ? results.map((row) => `<div class="profile-row"><strong>${escapeHtml(row.competition_name || row.competitionName)}</strong><span>Saison ${Number(row.season_number || row.season)} · Semaine ${Number(row.week_number || row.week)} · ${row.achievement === "winner" ? "Victoire" : "Finale"} · ${Number(row.points || 0)} pts</span></div>`).join("")
+    ? results.map((row) => {
+      const won = row.achievement === "winner";
+      const city = row.city || "";
+      const country = row.country || "";
+      const flag = row.flag || "";
+      return `<div class="profile-row">
+        <strong><span class="profile-result-medal ${won ? "gold" : "silver"}"></span>${escapeHtml(row.competition_name || row.competitionName)}</strong>
+        <span>${escapeHtml(city)} · ${escapeHtml(country)} ${escapeHtml(flag)} · Saison ${Number(row.season_number || row.season)} · Semaine ${Number(row.week_number || row.week)} · ${won ? "Victoire" : "Finale"} · ${Number(row.points || 0)} pts</span>
+      </div>`;
+    }).join("")
     : '<div class="lobby-empty">Aucune victoire ou finale enregistrée.</div>';
   const aiRows = aiResults.length
     ? aiResults.map((row) => `<div class="profile-row"><strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong><span>${Number(row.wins || 0)} / ${Number(row.losses || 0)}</span></div>`).join("")
@@ -1526,7 +1535,7 @@ function profileMarkup(profile) {
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
       <section class="profile-card profile-wide">
-        <p class="label">Victoires et finales Tennis Court Circuit</p>
+        <p class="label">Victoires et finales Tennis Courts Pro Circuit</p>
         ${resultRows}
       </section>
       <section class="profile-card profile-wide">
@@ -1652,7 +1661,7 @@ function weeklyCompetitionById(competitionId) {
 
 async function startWeeklyCompetition(competitionId) {
   if (!canAccessProFeatures()) {
-    renderAuthState("Le Tennis Court Pro Circuit est réservé aux joueurs Pro.");
+    renderAuthState("Le Tennis Courts Pro Circuit est réservé aux joueurs Pro.");
     return;
   }
   if (!AUTH_STATE.ranking) {
@@ -3951,6 +3960,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   } else if (effectCanceled) {
     state.players[opponentIndex].cancelNextOpponentEffect = false;
     state.players[opponentIndex].cancelNextOpponentEffectSourceUid = null;
+    playedCard.effectApplied = false;
     setEffectNotice("annulé", card, `${card.effect} Annulé par l'effet adverse.`);
     state.log.unshift(`L'effet de ${card.name} est annulé.`);
   } else {
@@ -3982,7 +3992,8 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCard, isOpeningServe, placementWasInsufficient, boosted, remiseMode = "effect", answeredBoostConstraint = false) {
   const player = state.players[playerIndex];
   const endsTurn = !isRemise(card);
-  const hasSmashThreat = card.effectType === "smashThreat" || playedCard.copiedSmashThreat || playedCard.copiedEffectType === "smashThreat";
+  const hasActiveEffect = playedCard.effectApplied !== false;
+  const hasSmashThreat = hasActiveEffect && (card.effectType === "smashThreat" || playedCard.copiedSmashThreat || playedCard.copiedEffectType === "smashThreat");
 
   if (isRemise(card) && remiseMode === "effect") {
     state.turnHasEffect[playerIndex] = true;
@@ -4054,6 +4065,7 @@ function applyDeferredFinalRemiseEffect(playerIndex) {
   if (effectCanceled) {
     state.players[opponentIndex].cancelNextOpponentEffect = false;
     state.players[opponentIndex].cancelNextOpponentEffectSourceUid = null;
+    finalCard.effectApplied = false;
     setEffectNotice("annulé", finalCard, `${finalCard.effect} Annulé par l'effet adverse.`);
     state.log.unshift(`L'effet final de ${finalCard.name} est annulé.`);
     return false;
@@ -5110,7 +5122,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
 
 function currentRankingTotalPoints() {
   const current = AUTH_STATE.ranking?.currentUserRank;
-  return Number(current?.score_ref || 0) + Number(current?.score_week || 0);
+  return Number(current?.score_ref || 0);
 }
 
 function randomSurfaceBonus(surface) {
@@ -6588,6 +6600,7 @@ function renderCard(playerIndex, card) {
   const imageUrl = CARD_IMAGES[card.id];
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
+  const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
   if (isHidden) {
     return `
       <article class="card has-visual hidden-hand-card">
@@ -6631,14 +6644,14 @@ function renderCard(playerIndex, card) {
       ` : ""}
       <div class="card-actions ${isRemise(card) ? "remise-actions" : ""}">
         ${isRemise(card) ? `
-          <button class="play-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}${cost} end. · Effet</button>
-          <button class="boost-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}${cost} end. · Remise</button>
+          <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span>${cost} END</span><strong>Effet</strong></button>
+          <button class="boost-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
         ` : `
-          <button class="play-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}${cost} end. · Jouer</button>
+          <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
           <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
-      ${placementIssue && !state.mandatoryPlacement ? '<div class="stat placement">Placement total insuffisant : ouvre le boost adverse</div>' : ""}
+      ${placementIssue && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
     </article>
   `;
 }

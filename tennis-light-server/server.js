@@ -53,7 +53,7 @@ const POINT_TABLES = {
   2000: { qualif: 0, quarter: 200, semi: 500, finalist: 1200, winner: 2000 },
   4000: { qualif: 0, quarter: 400, semi: 1000, finalist: 2400, winner: 4000 },
 };
-const DIRECT_THRESHOLDS = { 400: 500, 600: 700, 1000: 1200, 1500: 1800, 2000: 2500, 4000: 5000 };
+const DIRECT_THRESHOLDS = { 400: 2000, 600: 2800, 1000: 4400, 1500: 6400, 2000: 8400, 4000: 12000 };
 const COMPETITION_DEFINITIONS = loadWorldTourDefinitions();
 const authMemory = {
   users: new Map(),
@@ -136,11 +136,11 @@ function currentWeekKey(date = new Date()) {
 function loadWorldTourDefinitions() {
   if (!fs.existsSync(WORLD_TOUR_CSV)) {
     return [
-      { id: "circuit400", week: 1, slot: 1, type: "Circuit 400", level: "Circuit", name: "Blue Lantern Cup", city: "Vancouver", country: "Canada", flag: "🇨🇦", surface: "hard", surfaceLabel: "DUR", difficulty: "normal", targetSets: 2, points: POINT_TABLES[400], directThreshold: 500, value: 400 },
-      { id: "major600", week: 1, slot: 2, type: "Major 600", level: "Major", name: "Clayforge Open", city: "Valence", country: "Espagne", flag: "🇪🇸", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 2, points: POINT_TABLES[600], directThreshold: 700, value: 600 },
-      { id: "premier1000", week: 1, slot: 3, type: "Premier 1000", level: "Premier", name: "Oakspire Masters", city: "Copenhague", country: "Danemark", flag: "🇩🇰", surface: "grass", surfaceLabel: "HERBE", difficulty: "normal", targetSets: 2, points: POINT_TABLES[1000], directThreshold: 1200, value: 1000 },
-      { id: "crown1500", week: 1, slot: 4, type: "Crown 1500", level: "Crown", name: "Sunbridge Crown", city: "Tokyo", country: "Japon", flag: "🇯🇵", surface: "hard", surfaceLabel: "DUR", difficulty: "champion", targetSets: 2, points: POINT_TABLES[1500], directThreshold: 1800, value: 1500 },
-      { id: "slam2000", week: 1, slot: 5, type: "Slam 2000", level: "Slam", name: "Grand Slam Academy", city: "Paris", country: "France", flag: "🇫🇷", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 3, points: POINT_TABLES[2000], directThreshold: 2500, value: 2000 },
+      { id: "circuit400", week: 1, slot: 1, type: "Circuit 400", level: "Circuit", name: "Blue Lantern Cup", city: "Vancouver", country: "Canada", flag: "🇨🇦", surface: "hard", surfaceLabel: "DUR", difficulty: "normal", targetSets: 2, points: POINT_TABLES[400], directThreshold: DIRECT_THRESHOLDS[400], value: 400 },
+      { id: "major600", week: 1, slot: 2, type: "Major 600", level: "Major", name: "Clayforge Open", city: "Valence", country: "Espagne", flag: "🇪🇸", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 2, points: POINT_TABLES[600], directThreshold: DIRECT_THRESHOLDS[600], value: 600 },
+      { id: "premier1000", week: 1, slot: 3, type: "Premier 1000", level: "Premier", name: "Oakspire Masters", city: "Copenhague", country: "Danemark", flag: "🇩🇰", surface: "grass", surfaceLabel: "HERBE", difficulty: "normal", targetSets: 2, points: POINT_TABLES[1000], directThreshold: DIRECT_THRESHOLDS[1000], value: 1000 },
+      { id: "crown1500", week: 1, slot: 4, type: "Crown 1500", level: "Crown", name: "Sunbridge Crown", city: "Tokyo", country: "Japon", flag: "🇯🇵", surface: "hard", surfaceLabel: "DUR", difficulty: "champion", targetSets: 2, points: POINT_TABLES[1500], directThreshold: DIRECT_THRESHOLDS[1500], value: 1500 },
+      { id: "slam2000", week: 1, slot: 5, type: "Slam 2000", level: "Slam", name: "Grand Slam Academy", city: "Paris", country: "France", flag: "🇫🇷", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 3, points: POINT_TABLES[2000], directThreshold: DIRECT_THRESHOLDS[2000], value: 2000 },
     ];
   }
   const rows = fs.readFileSync(WORLD_TOUR_CSV, "utf8").trim().split(/\r?\n/);
@@ -482,12 +482,18 @@ async function initAuthStorage() {
       competition_id TEXT NOT NULL,
       competition_name TEXT NOT NULL,
       competition_type TEXT NOT NULL,
+      city TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT '',
+      flag TEXT NOT NULL DEFAULT '',
       achievement TEXT NOT NULL,
       points INTEGER NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (user_id, season_number, week_number, competition_id)
     )
   `);
+  await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT ''");
+  await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT ''");
+  await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS flag TEXT NOT NULL DEFAULT ''");
   await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_ai_results (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1022,7 +1028,7 @@ async function handleAuth(req, res, url) {
     sendJson(res, 200, {
       ...current,
       scoreKey: circuitScoreKey(current),
-      title: "Tennis Court Pro Circuit",
+      title: "Tennis Courts Pro Circuit",
       competitions: await weeklyCompetitionPayload(),
       bestScores,
       retriesUsed: retryInfo.retriesUsed,
@@ -1096,8 +1102,8 @@ async function handleAuth(req, res, url) {
       if (achievement === "winner" || achievement === "finalist") {
         await db.query(`
           INSERT INTO circuit_tournament_results
-            (user_id, season_number, week_number, competition_id, competition_name, competition_type, achievement, points, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            (user_id, season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
           ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
             SET achievement = CASE
                 WHEN circuit_tournament_results.achievement = 'winner' THEN 'winner'
@@ -1105,8 +1111,11 @@ async function handleAuth(req, res, url) {
                 ELSE EXCLUDED.achievement
               END,
               points = GREATEST(circuit_tournament_results.points, EXCLUDED.points),
+              city = EXCLUDED.city,
+              country = EXCLUDED.country,
+              flag = EXCLUDED.flag,
               updated_at = NOW()
-        `, [user.id, current.season, current.week, competitionId, competition.name, competition.type, achievement, points]);
+        `, [user.id, current.season, current.week, competitionId, competition.name, competition.type, competition.city, competition.country, competition.flag, achievement, points]);
       }
     } else {
       const key = `${user.id}:${scoreKey}:${competitionId}`;
@@ -1114,7 +1123,7 @@ async function handleAuth(req, res, url) {
       authMemory.weeklyScores.set(key, { points: Math.max(previous, points), achievement, updatedAt: new Date().toISOString() });
       if (achievement === "winner" || achievement === "finalist") {
         const filtered = authMemory.circuitResults.filter((row) => !(row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId));
-        filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, achievement, points });
+        filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, city: competition.city, country: competition.country, flag: competition.flag, achievement, points });
         authMemory.circuitResults = filtered;
       }
     }
@@ -1143,7 +1152,7 @@ async function handleAuth(req, res, url) {
     let aiResults = [];
     if (db) {
       const resultRows = await db.query(`
-        SELECT season_number, week_number, competition_id, competition_name, competition_type, achievement, points
+        SELECT season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points
         FROM circuit_tournament_results
         WHERE user_id = $1
         ORDER BY season_number DESC, week_number DESC, updated_at DESC
