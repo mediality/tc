@@ -274,7 +274,7 @@ async function applyWeeklyRankingRollover() {
       AND weekly_competition_scores.week_key = $1
     GROUP BY users.id
     ON CONFLICT (user_id) DO UPDATE
-      SET ranking_points = weekly_rankings.ranking_points + EXCLUDED.ranking_points,
+      SET ranking_points = EXCLUDED.ranking_points,
           updated_at = NOW()
   `, [storedWeekKey]);
   await db.query("UPDATE app_state SET value = $1 WHERE key = 'ranking_week_key'", [weekKey]);
@@ -517,7 +517,7 @@ async function handleAuth(req, res, url) {
       return true;
     }
     const payload = await readJson(req);
-    const maxPoints = Math.max(...Object.values(competition.points));
+    const maxPoints = Math.max(...Object.values(competition.points)) + 500;
     const points = Math.max(0, Math.min(maxPoints, Number(payload.points || 0)));
     const achievement = String(payload.achievement || "").slice(0, 32);
     const weekKey = currentWeekKey();

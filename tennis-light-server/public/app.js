@@ -102,8 +102,10 @@ const EMPTY_TOURNAMENT = {
   competitionName: null,
   competitionSurface: null,
   competitionSurfaceLabel: null,
-  competitionPoints: null,
-  pointsRecorded: false,
+    competitionPoints: null,
+    matchBonusPoints: 0,
+    matchBonusDetails: [],
+    pointsRecorded: false,
   stage: null,
   humanCharacterId: null,
   aiFinalistCharacterId: null,
@@ -2178,7 +2180,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v87",
+    version: "v88",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4817,6 +4819,8 @@ function startTournamentMode(targetSets = 2, options = {}) {
     competitionSurface: weeklyCompetition?.surface || null,
     competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
     competitionPoints: weeklyCompetition?.points || null,
+    matchBonusPoints: 0,
+    matchBonusDetails: [],
     pointsRecorded: false,
     stage: "quarter",
     targetSets,
@@ -4943,6 +4947,8 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     competitionPoints: weeklyCompetition.points,
     directThreshold: weeklyCompetition.directThreshold,
     humanDirect,
+    matchBonusPoints: 0,
+    matchBonusDetails: [],
     pointsRecorded: false,
     stage: "weekly",
     targetSets,
@@ -5165,6 +5171,7 @@ function handleWeeklyTournamentMatchComplete() {
   match.winner = winnerCharacterId;
   match.score = tournamentCompletedSetScore();
   match.liveScore = null;
+  addHumanMatchPerformanceBonus(match);
   refreshWeeklyTournamentDerivedSlots();
   revealNextTournamentAiSet();
   refreshWeeklyTournamentDerivedSlots();
@@ -5237,22 +5244,74 @@ function humanTournamentAchievement() {
   return null;
 }
 
+function humanIndexInMatch(match) {
+  if (!match) return null;
+  const human = state.tournament.humanCharacterId;
+  if (match.playerA === human) return 0;
+  if (match.playerB === human) return 1;
+  return null;
+}
+
+function humanMatchPerformanceBonus(match, setScores = state.setMatch.completedScores) {
+  const humanMatchIndex = humanIndexInMatch(match);
+  if (humanMatchIndex == null) return { points: 0, details: [] };
+  let points = 0;
+  let wonSets = 0;
+  let lostSets = 0;
+  const details = [];
+  for (const score of setScores || []) {
+    const humanGames = score[humanMatchIndex] ?? 0;
+    const opponentGames = score[opponentOf(humanMatchIndex)] ?? 0;
+    if (humanGames > opponentGames) {
+      wonSets += 1;
+      points += 5;
+      const gap = humanGames - opponentGames;
+      points += gap;
+      details.push(`Set gagné ${humanGames}/${opponentGames}: +${5 + gap}`);
+    } else {
+      lostSets += 1;
+    }
+  }
+  if (match.winner === state.tournament.humanCharacterId && lostSets === 0 && wonSets > 0) {
+    points += 5;
+    details.push("Victoire sans perdre de set: +5");
+  }
+  return { points, details };
+}
+
+function addHumanMatchPerformanceBonus(match) {
+  if (!state.tournament.weekly || !match || match.performanceBonusRecorded) return;
+  const bonus = humanMatchPerformanceBonus(match);
+  match.performanceBonusRecorded = true;
+  match.performanceBonusPoints = bonus.points;
+  match.performanceBonusDetails = bonus.details;
+  state.tournament.matchBonusPoints = (state.tournament.matchBonusPoints || 0) + bonus.points;
+  state.tournament.matchBonusDetails = [...(state.tournament.matchBonusDetails || []), ...bonus.details.map((detail) => `${match.label}: ${detail}`)];
+  if (bonus.points) {
+    state.log.unshift(`${match.label}: bonus performance +${bonus.points} points.`);
+  }
+}
+
 function humanTournamentPoints() {
   const achievement = humanTournamentAchievement();
   if (!achievement) return { achievement: null, points: 0 };
   const pointsTable = state.tournament.competitionPoints || {};
+  const qualificationPoints = Number(pointsTable[achievement] || 0);
+  const bonusPoints = Number(state.tournament.matchBonusPoints || 0);
   return {
     achievement,
-    points: Number(pointsTable[achievement] || 0),
+    qualificationPoints,
+    bonusPoints,
+    points: qualificationPoints + bonusPoints,
   };
 }
 
 async function recordWeeklyCompetitionResult() {
   if (!state.tournament.weekly || state.tournament.pointsRecorded || !state.tournament.competitionId) return;
-  const { achievement, points } = humanTournamentPoints();
+  const { achievement, points, qualificationPoints, bonusPoints } = humanTournamentPoints();
   if (!achievement) return;
   state.tournament.pointsRecorded = true;
-  state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${points} points pour la semaine prochaine.`);
+  state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${qualificationPoints} points de parcours + ${bonusPoints} points bonus = ${points} points pour demain.`);
   try {
     await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement });
     await loadCompetitions();
@@ -5767,6 +5826,7 @@ function renderTournamentPanel() {
     return;
   }
   const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
+  const qualificationMatches = state.tournament.matches.filter((match) => match.round === "qualif");
   const quarterMatches = state.tournament.matches.filter((match) => match.round === "quarter");
   const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
   const final = tournamentMatchById("final");
@@ -5786,6 +5846,12 @@ function renderTournamentPanel() {
       ${state.tournament.stage === "readySemi" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer la demi-finale</button>' : ""}
       ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
     </div>
+    ${state.tournament.weekly && qualificationMatches.length ? `
+      <div class="qualification-summary ${state.tournament.visible ? "" : "hidden"}">
+        <span class="tournament-round-label">Qualifications</span>
+        ${qualificationMatches.map((match) => renderTournamentMatch(match)).join("")}
+      </div>
+    ` : ""}
     <div class="tournament-bracket ${state.tournament.visible ? "" : "hidden"}">
       <div class="tournament-column">
         ${quarterMatches.map((match) => renderTournamentMatch(match)).join("")}
@@ -5799,7 +5865,7 @@ function renderTournamentPanel() {
       <div class="tournament-champion">
         <span class="tournament-round-label">Vainqueur</span>
         <div class="tournament-trophy"><img src="${CROWN_IMAGE}" alt="Couronne du vainqueur" /></div>
-        <strong>${champion ? characterNameFromId(champion) : "À déterminer"}</strong>
+        <strong>${champion ? tournamentPlayerLabel(champion) : "À déterminer"}</strong>
         ${final?.score ? `<div class="tournament-score">${final.score}</div>` : ""}
       </div>
     </div>
@@ -5813,13 +5879,11 @@ function renderTournamentPanel() {
 function renderTournamentMatch(match, isFinal = false) {
   if (!match) return "";
   const unknownLabel = isFinal ? "À déterminer" : match.round === "semi" ? "À déterminer" : "Qualifié à déterminer";
-  const playerA = match.playerA ? characterNameFromId(match.playerA) : unknownLabel;
-  const playerB = match.playerB ? characterNameFromId(match.playerB) : unknownLabel;
+  const playerA = match.playerA ? tournamentPlayerLabel(match.playerA) : unknownLabel;
+  const playerB = match.playerB ? tournamentPlayerLabel(match.playerB) : unknownLabel;
   const scoreText = match.score || match.liveScore || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
   const human = state.tournament.humanCharacterId;
-  const bonusA = state.tournament.surfaceBonuses?.[match.playerA];
-  const bonusB = state.tournament.surfaceBonuses?.[match.playerB];
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
@@ -5827,15 +5891,19 @@ function renderTournamentMatch(match, isFinal = false) {
         <span>${playerA}</span>
         ${revealedWinner === match.playerA ? "<strong>✓</strong>" : ""}
       </div>
-      ${bonusA ? `<div class="surface-bonus-pill">${escapeHtml(bonusA.label)}</div>` : ""}
       <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""} ${match.playerB === human ? "human-player" : ""}">
         <span>${playerB}</span>
         ${revealedWinner === match.playerB ? "<strong>✓</strong>" : ""}
       </div>
-      ${bonusB ? `<div class="surface-bonus-pill">${escapeHtml(bonusB.label)}</div>` : ""}
       ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
   `;
+}
+
+function tournamentPlayerLabel(characterId) {
+  return characterId === state.tournament.humanCharacterId
+    ? nicknameValue()
+    : characterNameFromId(characterId);
 }
 
 function toggleTournamentPanel() {
@@ -6113,11 +6181,21 @@ function renderCenterNextSoloExchangeButton() {
 }
 
 function renderCenterNextSetButton() {
-  if (state.tournament.active && state.gameOver && (state.tournament.stage === "complete" || (state.tournament.weekly && !nextHumanTournamentMatch() && state.tournament.currentMatch == null))) {
+  if (isHumanTournamentRunOver()) {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>Sortir du tournoi</button>';
   }
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
   return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
+}
+
+function isHumanTournamentRunOver() {
+  if (!state.tournament.active || !state.gameOver || !state.setMatch.matchOver) return false;
+  const human = state.tournament.humanCharacterId;
+  if (state.tournament.championCharacterId === human) return true;
+  if (state.tournament.stage !== "complete") return false;
+  const playedHumanMatches = state.tournament.matches.filter((match) => match.score && (match.playerA === human || match.playerB === human));
+  const last = playedHumanMatches.at(-1);
+  return Boolean(last && last.winner !== human);
 }
 
 function bindCenterButtons() {
@@ -6128,6 +6206,7 @@ function bindCenterButtons() {
 }
 
 async function exitTournamentToLobby() {
+  if (!window.confirm("Confirmez vous sortir du tournoi ?")) return;
   if (state.tournament.weekly) await recordWeeklyCompetitionResult();
   resetTournament();
   showMenuScreen();
