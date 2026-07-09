@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=87" />
+    <link rel="stylesheet" href="./styles.css?v=89" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v88</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v89</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -33,6 +33,14 @@
                 </div>
               </div>
               <button id="logoutButton" class="small-button hidden" type="button">Déconnexion</button>
+              <div id="proCodePanel" class="pro-code-panel hidden">
+                <p class="label">Passer Pro</p>
+                <div class="pro-code-row">
+                  <input id="proCodeInput" type="text" maxlength="6" autocomplete="off" placeholder="CODE PRO" />
+                  <button id="redeemProCodeButton" class="small-button" type="button">Valider</button>
+                </div>
+                <p id="proCodeStatus" class="pro-code-status"></p>
+              </div>
               <section id="adminPanel" class="admin-panel hidden" aria-live="polite">
                 <div class="admin-panel-header">
                   <p class="label">Administration</p>
@@ -121,7 +129,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v88</span></p>
+        <p class="eyebrow">Classement général <span>v89</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -135,7 +143,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v88</span></p>
+        <p class="eyebrow">Administration <span>v89</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -151,6 +159,16 @@
             <span id="adminPageInfo">Page 1</span>
             <button id="adminNextPageButton" class="small-button" type="button">Suivant</button>
           </div>
+          <div class="admin-codes-panel">
+            <div class="admin-management-header compact">
+              <div>
+                <p class="label">Codes Pro</p>
+                <h2>Codes à usage unique</h2>
+              </div>
+              <button id="generateProCodesButton" class="primary-button" type="button">Générer 5 codes</button>
+            </div>
+            <div id="adminProCodesList" class="admin-codes-list" aria-live="polite"></div>
+          </div>
         </section>
       </div>
     </section>
@@ -158,7 +176,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v88</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v89</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
@@ -192,6 +210,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=87"></script>
+    <script src="./app.js?v=89"></script>
   </body>
 </html>

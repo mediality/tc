@@ -74,6 +74,7 @@ const AUTH_STATE = {
   user: null,
   loading: false,
   adminUsers: [],
+  adminProCodes: [],
   adminPage: 1,
   adminTotalPages: 1,
   ranking: null,
@@ -1040,10 +1041,16 @@ const els = {
   loginButton: document.querySelector("#loginButton"),
   registerButton: document.querySelector("#registerButton"),
   logoutButton: document.querySelector("#logoutButton"),
+  proCodePanel: document.querySelector("#proCodePanel"),
+  proCodeInput: document.querySelector("#proCodeInput"),
+  redeemProCodeButton: document.querySelector("#redeemProCodeButton"),
+  proCodeStatus: document.querySelector("#proCodeStatus"),
   adminPanel: document.querySelector("#adminPanel"),
   manageUsersButton: document.querySelector("#manageUsersButton"),
   backToLobbyFromAdminButton: document.querySelector("#backToLobbyFromAdminButton"),
   adminUsersTable: document.querySelector("#adminUsersTable"),
+  generateProCodesButton: document.querySelector("#generateProCodesButton"),
+  adminProCodesList: document.querySelector("#adminProCodesList"),
   adminPrevPageButton: document.querySelector("#adminPrevPageButton"),
   adminNextPageButton: document.querySelector("#adminNextPageButton"),
   adminPageInfo: document.querySelector("#adminPageInfo"),
@@ -1202,19 +1209,24 @@ function canAccessAdminFeatures() {
 
 function updateAccessControls() {
   const hasProAccess = canAccessProFeatures();
+  const role = currentUserRole();
   document.querySelectorAll("[data-required-role='pro']").forEach((section) => {
     section.classList.toggle("locked", !hasProAccess);
     section.querySelectorAll("button, select").forEach((control) => {
       control.disabled = !hasProAccess;
     });
     section.querySelectorAll(".access-note").forEach((note) => {
-      note.classList.toggle("hidden", hasProAccess);
+      note.classList.toggle("hidden", hasProAccess || !AUTH_STATE.user);
     });
   });
   els.adminPanel?.classList.toggle("hidden", !canAccessAdminFeatures());
+  els.proCodePanel?.classList.toggle("hidden", !AUTH_STATE.user || role !== "free");
+  if (role !== "free" && els.proCodeStatus) els.proCodeStatus.textContent = "";
   if (!canAccessAdminFeatures()) {
     AUTH_STATE.adminUsers = [];
+    AUTH_STATE.adminProCodes = [];
     if (els.adminUsersTable) els.adminUsersTable.innerHTML = "";
+    if (els.adminProCodesList) els.adminProCodesList.innerHTML = "";
   }
   if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
   if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) loadRanking();
@@ -1229,6 +1241,7 @@ function renderAuthState(message = "") {
   els.authStatus.classList.toggle("connected", Boolean(user));
   els.authForm?.classList.toggle("hidden", Boolean(user));
   els.logoutButton?.classList.toggle("hidden", !user);
+  els.proCodePanel?.classList.toggle("hidden", !user || currentUserRole() !== "free");
   if (els.authNicknameInput && !els.authNicknameInput.value && MENU_STATE.nickname) {
     els.authNicknameInput.value = MENU_STATE.nickname;
   }
@@ -1305,6 +1318,26 @@ async function logoutAccount() {
   applyAuthenticatedUser(null);
 }
 
+async function redeemProCode() {
+  if (!AUTH_STATE.user || currentUserRole() !== "free") return;
+  const code = (els.proCodeInput?.value || "").trim().toUpperCase();
+  if (!code) {
+    if (els.proCodeStatus) els.proCodeStatus.textContent = "Renseigne ton code Pro.";
+    return;
+  }
+  if (els.proCodeStatus) els.proCodeStatus.textContent = "Vérification du code...";
+  try {
+    const data = await authRequest("/api/auth/redeem-pro-code", { code });
+    if (els.proCodeInput) els.proCodeInput.value = "";
+    if (els.proCodeStatus) els.proCodeStatus.textContent = "Compte Pro activé.";
+    applyAuthenticatedUser(data.user);
+    await loadRanking();
+    await loadCompetitions();
+  } catch (error) {
+    if (els.proCodeStatus) els.proCodeStatus.textContent = error.message;
+  }
+}
+
 function renderAdminUsers() {
   if (!els.adminUsersTable) return;
   if (!AUTH_STATE.adminUsers.length) {
@@ -1317,19 +1350,22 @@ function renderAdminUsers() {
       <span>Nom</span>
       <span>Mail</span>
       <span>Rôle</span>
+      <span>Code</span>
     </div>
     ${AUTH_STATE.adminUsers.map((user) => {
       const role = normalizeUserRole(user.role);
+      const isProtectedAdmin = role === "admin" || String(user.email || "").toLowerCase() === "julien.castagnoli@mediality.fr";
       return `
         <article class="admin-table-row">
           <strong>${escapeHtml(user.accountNumber || "-")}</strong>
           <span>${escapeHtml(user.nickname || "Sans pseudo")}</span>
           <span>${escapeHtml(user.email || "")}</span>
-          <select data-admin-role="${escapeHtml(user.id)}" aria-label="Niveau de ${escapeHtml(user.nickname || user.email)}">
+          <select data-admin-role="${escapeHtml(user.id)}" aria-label="Niveau de ${escapeHtml(user.nickname || user.email)}" ${isProtectedAdmin ? "disabled" : ""}>
             <option value="free" ${role === "free" ? "selected" : ""}>FREE</option>
             <option value="pro" ${role === "pro" ? "selected" : ""}>PRO</option>
-            <option value="admin" ${role === "admin" ? "selected" : ""}>ADMIN</option>
+            ${role === "admin" ? '<option value="admin" selected>ADMIN</option>' : ""}
           </select>
+          <span>${escapeHtml(user.proCode || "-")}</span>
         </article>
       `;
     }).join("")}
@@ -1337,6 +1373,25 @@ function renderAdminUsers() {
   els.adminUsersTable.querySelectorAll("[data-admin-role]").forEach((select) => {
     select.addEventListener("change", () => updateUserRole(select.dataset.adminRole, select.value));
   });
+}
+
+function renderAdminProCodes() {
+  if (!els.adminProCodesList) return;
+  const codes = AUTH_STATE.adminProCodes || [];
+  if (!codes.length) {
+    els.adminProCodesList.innerHTML = '<div class="admin-empty">Aucun code Pro disponible.</div>';
+    return;
+  }
+  els.adminProCodesList.innerHTML = `
+    <div class="admin-code-head"><span>Code</span><span>Statut</span><span>Compte</span></div>
+    ${codes.map((item) => `
+      <div class="admin-code-row ${item.assignedTo ? "used" : ""}">
+        <strong>${escapeHtml(item.code)}</strong>
+        <span>${item.assignedTo ? "Attribué" : "Disponible"}</span>
+        <span>${escapeHtml(item.assignedTo?.nickname || item.assignedTo?.email || "-")}</span>
+      </div>
+    `).join("")}
+  `;
 }
 
 function updateAdminPagination() {
@@ -1358,6 +1413,30 @@ async function loadAdminUsers(page = AUTH_STATE.adminPage) {
     updateAdminPagination();
   } catch (error) {
     if (els.adminUsersTable) els.adminUsersTable.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function loadAdminProCodes() {
+  if (!canAccessAdminFeatures()) return;
+  if (els.adminProCodesList) els.adminProCodesList.innerHTML = '<div class="admin-empty">Chargement des codes...</div>';
+  try {
+    const data = await authRequest("/api/admin/pro-codes");
+    AUTH_STATE.adminProCodes = data.codes || [];
+    renderAdminProCodes();
+  } catch (error) {
+    if (els.adminProCodesList) els.adminProCodesList.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function generateProCodes() {
+  if (!canAccessAdminFeatures()) return;
+  if (els.adminProCodesList) els.adminProCodesList.innerHTML = '<div class="admin-empty">Génération des codes...</div>';
+  try {
+    const data = await authRequest("/api/admin/pro-codes/generate", { count: 5 });
+    AUTH_STATE.adminProCodes = data.codes || [];
+    renderAdminProCodes();
+  } catch (error) {
+    if (els.adminProCodesList) els.adminProCodesList.innerHTML = `<div class="admin-empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -1522,6 +1601,7 @@ function showAdminScreen() {
   els.adminScreen?.classList.remove("hidden");
   AUTH_STATE.adminPage = 1;
   loadAdminUsers();
+  loadAdminProCodes();
 }
 
 function cardByIdForTutorial(cardId, copyIndex) {
@@ -2180,7 +2260,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v88",
+    version: "v89",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5846,20 +5926,23 @@ function renderTournamentPanel() {
       ${state.tournament.stage === "readySemi" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer la demi-finale</button>' : ""}
       ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
     </div>
-    ${state.tournament.weekly && qualificationMatches.length ? `
-      <div class="qualification-summary ${state.tournament.visible ? "" : "hidden"}">
-        <span class="tournament-round-label">Qualifications</span>
-        ${qualificationMatches.map((match) => renderTournamentMatch(match)).join("")}
-      </div>
-    ` : ""}
     <div class="tournament-bracket ${state.tournament.visible ? "" : "hidden"}">
+      ${state.tournament.weekly && qualificationMatches.length ? `
+        <div class="tournament-column qualification-column">
+          <span class="tournament-round-label tournament-column-title">Qualifications</span>
+          ${qualificationMatches.map((match) => renderTournamentMatch(match)).join("")}
+        </div>
+      ` : ""}
       <div class="tournament-column">
+        <span class="tournament-round-label tournament-column-title">Quarts</span>
         ${quarterMatches.map((match) => renderTournamentMatch(match)).join("")}
       </div>
       <div class="tournament-column">
+        <span class="tournament-round-label tournament-column-title">Demies</span>
         ${semiMatches.map((match) => renderTournamentMatch(match)).join("")}
       </div>
       <div class="tournament-column">
+        <span class="tournament-round-label tournament-column-title">Finale</span>
         ${renderTournamentMatch(final, true)}
       </div>
       <div class="tournament-champion">
@@ -6675,8 +6758,13 @@ function initMenu() {
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.logoutButton?.addEventListener("click", logoutAccount);
+  els.redeemProCodeButton?.addEventListener("click", redeemProCode);
+  els.proCodeInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") redeemProCode();
+  });
   els.manageUsersButton?.addEventListener("click", showAdminScreen);
   els.backToLobbyFromAdminButton?.addEventListener("click", showMenuScreen);
+  els.generateProCodesButton?.addEventListener("click", generateProCodes);
   els.adminPrevPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage - 1));
   els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
   els.refreshRankingButton?.addEventListener("click", loadRanking);

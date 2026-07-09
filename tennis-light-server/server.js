@@ -32,6 +32,7 @@ const authMemory = {
   users: new Map(),
   sessions: new Map(),
   weeklyScores: new Map(),
+  proCodes: new Map(),
 };
 const db = PgPool && process.env.DATABASE_URL
   ? new PgPool({
@@ -87,16 +88,17 @@ function publicUser(user) {
     email: user.email,
     nickname: user.nickname,
     role: normalizeRole(user.role),
+    proCode: user.pro_code || user.proCode || null,
     createdAt: user.created_at || user.createdAt,
   } : null;
 }
 
 function currentWeekKey(date = new Date()) {
   const parisDate = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const reset = new Date(parisDate);
-  reset.setHours(3, 0, 0, 0);
-  if (parisDate < reset) reset.setDate(reset.getDate() - 1);
-  return reset.toISOString().slice(0, 10);
+  const period = new Date(parisDate);
+  period.setHours(3, 0, 0, 0);
+  if (parisDate < period) period.setDate(period.getDate() - 1);
+  return period.toISOString().slice(0, 10);
 }
 
 function seededNumber(seed) {
@@ -124,6 +126,19 @@ function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("base64url");
   const hash = crypto.pbkdf2Sync(password, salt, PASSWORD_ITERATIONS, 32, "sha256").toString("base64url");
   return `pbkdf2:${PASSWORD_ITERATIONS}:${salt}:${hash}`;
+}
+
+function normalizeProCode(code) {
+  return String(code || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+}
+
+function generateProCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let index = 0; index < 6; index += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
 }
 
 function verifyPassword(password, stored) {
@@ -200,6 +215,7 @@ async function initAuthStorage() {
     )
   `);
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'free'");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_code TEXT UNIQUE");
   await db.query("CREATE SEQUENCE IF NOT EXISTS users_account_number_seq START WITH 1");
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number BIGINT");
   await db.query("UPDATE users SET account_number = nextval('users_account_number_seq') WHERE account_number IS NULL");
@@ -207,7 +223,34 @@ async function initAuthStorage() {
   await db.query("ALTER TABLE users ALTER COLUMN account_number SET DEFAULT nextval('users_account_number_seq')");
   await db.query("ALTER TABLE users ALTER COLUMN account_number SET NOT NULL");
   await db.query("CREATE UNIQUE INDEX IF NOT EXISTS users_account_number_idx ON users(account_number)");
-  await db.query("UPDATE users SET role = 'admin' WHERE email = $1", [ADMIN_EMAIL]);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS pro_codes (
+      code TEXT PRIMARY KEY,
+      assigned_user_id TEXT UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      redeemed_at TIMESTAMPTZ
+    )
+  `);
+  await db.query("CREATE INDEX IF NOT EXISTS pro_codes_assigned_user_id_idx ON pro_codes(assigned_user_id)");
+  await db.query(`
+    INSERT INTO pro_codes (code)
+    VALUES ('JUL1EN')
+    ON CONFLICT (code) DO NOTHING
+  `);
+  await db.query(`
+    UPDATE users
+    SET role = 'admin',
+        pro_code = 'JUL1EN'
+    WHERE email = $1
+  `, [ADMIN_EMAIL]);
+  await db.query(`
+    UPDATE pro_codes
+    SET assigned_user_id = users.id,
+        redeemed_at = COALESCE(pro_codes.redeemed_at, NOW())
+    FROM users
+    WHERE users.email = $1 AND pro_codes.code = 'JUL1EN'
+  `, [ADMIN_EMAIL]);
   await db.query(`
     WITH duplicates AS (
       SELECT id, nickname, account_number, ROW_NUMBER() OVER (PARTITION BY LOWER(nickname) ORDER BY created_at, account_number) AS duplicate_rank
@@ -295,12 +338,13 @@ async function createUser({ email, nickname, password }) {
     nickname,
     password_hash: hashPassword(password),
     role: defaultRoleForEmail(email),
+    proCode: normalizeEmail(email) === ADMIN_EMAIL ? "JUL1EN" : null,
     createdAt: new Date().toISOString(),
   };
   if (db) {
     const result = await db.query(
-      "INSERT INTO users (id, email, nickname, password_hash, role) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-      [user.id, user.email, user.nickname, user.password_hash, user.role],
+      "INSERT INTO users (id, email, nickname, password_hash, role, pro_code) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      [user.id, user.email, user.nickname, user.password_hash, user.role, user.proCode],
     );
     const created = result.rows[0];
     const duplicates = await db.query("SELECT COUNT(*)::int AS count FROM users WHERE LOWER(nickname) = LOWER($1)", [created.nickname]);
@@ -314,6 +358,7 @@ async function createUser({ email, nickname, password }) {
   user.accountNumber = authMemory.users.size + 1;
   if (duplicateCount > 0) user.nickname = `${user.nickname} #${user.accountNumber}`;
   authMemory.users.set(user.id, user);
+  if (user.role === "admin") authMemory.proCodes.set("JUL1EN", { code: "JUL1EN", assignedUserId: user.id, redeemedAt: new Date().toISOString() });
   return user;
 }
 
@@ -363,6 +408,99 @@ async function userFromSession(sessionId) {
 async function currentUser(req) {
   const sessionId = unpackSessionCookie(parseCookies(req)[SESSION_COOKIE]);
   return userFromSession(sessionId);
+}
+
+async function findUserById(userId) {
+  if (db) {
+    const result = await db.query("SELECT * FROM users WHERE id = $1", [userId]);
+    return result.rows[0] || null;
+  }
+  return authMemory.users.get(userId) || null;
+}
+
+async function assignProCodeToUser(user, code) {
+  const cleanCode = normalizeProCode(code);
+  if (cleanCode.length !== 6) throw new Error("Code Pro invalide.");
+  if (db) {
+    const codeResult = await db.query("SELECT * FROM pro_codes WHERE code = $1", [cleanCode]);
+    const codeRow = codeResult.rows[0];
+    if (!codeRow) throw new Error("Code Pro inconnu.");
+    if (codeRow.assigned_user_id && codeRow.assigned_user_id !== user.id) throw new Error("Ce code Pro est déjà utilisé.");
+    const updated = await db.query(`
+      UPDATE users
+      SET role = CASE WHEN email = $3 THEN 'admin' ELSE 'pro' END,
+          pro_code = $1
+      WHERE id = $2
+      RETURNING *
+    `, [cleanCode, user.id, ADMIN_EMAIL]);
+    await db.query(`
+      UPDATE pro_codes
+      SET assigned_user_id = $2,
+          redeemed_at = COALESCE(redeemed_at, NOW())
+      WHERE code = $1
+    `, [cleanCode, user.id]);
+    return updated.rows[0];
+  }
+  const codeRow = authMemory.proCodes.get(cleanCode);
+  if (!codeRow) throw new Error("Code Pro inconnu.");
+  if (codeRow.assignedUserId && codeRow.assignedUserId !== user.id) throw new Error("Ce code Pro est déjà utilisé.");
+  user.role = user.email === ADMIN_EMAIL ? "admin" : "pro";
+  user.proCode = cleanCode;
+  codeRow.assignedUserId = user.id;
+  codeRow.redeemedAt = codeRow.redeemedAt || new Date().toISOString();
+  return user;
+}
+
+async function createAdminProCodes(adminUser, count = 5) {
+  const amount = Math.max(1, Math.min(20, Number(count || 5)));
+  const created = [];
+  for (let index = 0; index < amount; index += 1) {
+    let code = generateProCode();
+    if (db) {
+      while (true) {
+        try {
+          await db.query("INSERT INTO pro_codes (code, created_by) VALUES ($1, $2)", [code, adminUser.id]);
+          created.push(code);
+          break;
+        } catch (error) {
+          if (error.code !== "23505") throw error;
+          code = generateProCode();
+        }
+      }
+    } else {
+      while (authMemory.proCodes.has(code)) code = generateProCode();
+      authMemory.proCodes.set(code, { code, createdBy: adminUser.id, assignedUserId: null, createdAt: new Date().toISOString(), redeemedAt: null });
+      created.push(code);
+    }
+  }
+  return created;
+}
+
+async function listProCodes() {
+  if (db) {
+    const result = await db.query(`
+      SELECT pro_codes.code, pro_codes.created_at, pro_codes.redeemed_at,
+             users.id AS assigned_user_id, users.email AS assigned_email, users.nickname AS assigned_nickname
+      FROM pro_codes
+      LEFT JOIN users ON users.id = pro_codes.assigned_user_id
+      ORDER BY pro_codes.created_at DESC, pro_codes.code ASC
+    `);
+    return result.rows.map((row) => ({
+      code: row.code,
+      createdAt: row.created_at,
+      redeemedAt: row.redeemed_at,
+      assignedTo: row.assigned_user_id ? { id: row.assigned_user_id, email: row.assigned_email, nickname: row.assigned_nickname } : null,
+    }));
+  }
+  return [...authMemory.proCodes.values()].map((row) => {
+    const user = row.assignedUserId ? authMemory.users.get(row.assignedUserId) : null;
+    return {
+      code: row.code,
+      createdAt: row.createdAt,
+      redeemedAt: row.redeemedAt,
+      assignedTo: user ? { id: user.id, email: user.email, nickname: user.nickname } : null,
+    };
+  }).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 }
 
 async function requireAdmin(req, res) {
@@ -440,6 +578,26 @@ async function handleAuth(req, res, url) {
     return true;
   }
 
+  if (req.method === "POST" && url.pathname === "/api/auth/redeem-pro-code") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    if (normalizeRole(user.role) !== "free") {
+      sendJson(res, 400, { error: "Ce compte a déjà un accès Pro." });
+      return true;
+    }
+    const payload = await readJson(req);
+    try {
+      const updated = await assignProCodeToUser(user, payload.code);
+      sendJson(res, 200, { user: publicUser(updated) });
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+    }
+    return true;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/admin/users") {
     if (!await requireAdmin(req, res)) return true;
     const page = Math.max(1, Number(url.searchParams.get("page") || 1));
@@ -447,7 +605,7 @@ async function handleAuth(req, res, url) {
     const offset = (page - 1) * pageSize;
     if (db) {
       const [result, countResult] = await Promise.all([
-        db.query("SELECT id, account_number, email, nickname, role, created_at, last_login_at FROM users ORDER BY account_number ASC LIMIT $1 OFFSET $2", [pageSize, offset]),
+        db.query("SELECT id, account_number, email, nickname, role, pro_code, created_at, last_login_at FROM users ORDER BY account_number ASC LIMIT $1 OFFSET $2", [pageSize, offset]),
         db.query("SELECT COUNT(*)::int AS total FROM users"),
       ]);
       const total = countResult.rows[0]?.total || 0;
@@ -467,9 +625,28 @@ async function handleAuth(req, res, url) {
     const userId = decodeURIComponent(roleMatch[1]);
     const payload = await readJson(req);
     const role = normalizeRole(payload.role);
+    const target = await findUserById(userId);
+    if (!target) {
+      sendJson(res, 404, { error: "Utilisateur introuvable." });
+      return true;
+    }
+    if (normalizeEmail(target.email) === ADMIN_EMAIL || normalizeRole(target.role) === "admin") {
+      sendJson(res, 403, { error: "Le compte ADMIN ne peut pas être modifié." });
+      return true;
+    }
+    if (role === "admin") {
+      sendJson(res, 403, { error: "Impossible de créer un autre compte ADMIN." });
+      return true;
+    }
+    if (role === "pro" && !(target.pro_code || target.proCode)) {
+      const [code] = await createAdminProCodes(admin, 1);
+      const updated = await assignProCodeToUser(target, code);
+      sendJson(res, 200, { user: publicUser(updated) });
+      return true;
+    }
     if (db) {
       const result = await db.query(
-        "UPDATE users SET role = $1 WHERE id = $2 RETURNING id, account_number, email, nickname, role, created_at, last_login_at",
+        "UPDATE users SET role = $1 WHERE id = $2 RETURNING id, account_number, email, nickname, role, pro_code, created_at, last_login_at",
         [role, userId],
       );
       if (!result.rows[0]) {
@@ -479,13 +656,24 @@ async function handleAuth(req, res, url) {
       sendJson(res, 200, { user: publicUser(result.rows[0]) });
       return true;
     }
-    const user = authMemory.users.get(userId);
-    if (!user) {
-      sendJson(res, 404, { error: "Utilisateur introuvable." });
-      return true;
-    }
+    const user = target;
     user.role = role;
     sendJson(res, 200, { user: publicUser(user) });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/pro-codes") {
+    if (!await requireAdmin(req, res)) return true;
+    sendJson(res, 200, { codes: await listProCodes() });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/pro-codes/generate") {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return true;
+    const payload = await readJson(req);
+    await createAdminProCodes(admin, payload.count || 5);
+    sendJson(res, 201, { codes: await listProCodes() });
     return true;
   }
 
@@ -517,8 +705,7 @@ async function handleAuth(req, res, url) {
       return true;
     }
     const payload = await readJson(req);
-    const maxPoints = Math.max(...Object.values(competition.points)) + 500;
-    const points = Math.max(0, Math.min(maxPoints, Number(payload.points || 0)));
+    const points = Math.max(0, Math.round(Number(payload.points || 0)));
     const achievement = String(payload.achievement || "").slice(0, 32);
     const weekKey = currentWeekKey();
     if (db) {

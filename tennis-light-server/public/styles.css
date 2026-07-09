@@ -214,6 +214,35 @@ button:disabled {
   background: rgba(216, 243, 220, 0.96);
 }
 
+.pro-code-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(254, 249, 195, 0.86);
+}
+
+.pro-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.pro-code-row input {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 950;
+}
+
+.pro-code-status {
+  min-height: 1.2em;
+  margin: 0;
+  color: #7c4a03;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
 .admin-panel {
   display: grid;
   gap: 10px;
@@ -266,7 +295,7 @@ button:disabled {
 .admin-table-head,
 .admin-table-row {
   display: grid;
-  grid-template-columns: 80px minmax(140px, 1fr) minmax(220px, 1.4fr) 120px;
+  grid-template-columns: 80px minmax(140px, 1fr) minmax(220px, 1.4fr) 120px 92px;
   gap: 10px;
   align-items: center;
   border-radius: 8px;
@@ -313,6 +342,46 @@ button:disabled {
   gap: 12px;
   color: #17212b;
   font-weight: 950;
+}
+
+.admin-management-header.compact {
+  margin-top: 20px;
+}
+
+.admin-codes-panel,
+.admin-codes-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-code-head,
+.admin-code-row {
+  display: grid;
+  grid-template-columns: 120px 120px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-code-head {
+  color: #536272;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.admin-code-row {
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #17212b;
+  font-weight: 850;
+  background: rgba(236, 253, 245, 0.9);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+}
+
+.admin-code-row.used {
+  color: #64748b;
+  background: rgba(241, 245, 249, 0.92);
+  border-color: rgba(148, 163, 184, 0.4);
 }
 
 .admin-user-row {
@@ -1542,6 +1611,18 @@ h1 {
   padding: 12px;
   background: rgba(13, 43, 73, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.qualification-column {
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(13, 43, 73, 0.24);
+}
+
+.tournament-column-title {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.76);
 }
 
 .surface-bonus-pill,
