@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=91" />
+    <link rel="stylesheet" href="./styles.css?v=92" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v91</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v92</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -24,13 +24,11 @@
                 <label class="menu-field">Mot de passe
                   <input id="authPasswordInput" type="password" autocomplete="current-password" placeholder="8 caractères minimum" />
                 </label>
-                <label class="menu-field">Pseudo du compte
-                  <input id="authNicknameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Votre pseudo" />
-                </label>
                 <div class="auth-actions">
                   <button id="loginButton" class="primary-button" type="button">Connexion</button>
                   <button id="registerButton" class="small-button" type="button">Créer un compte</button>
                 </div>
+                <button id="forgotPasswordButton" class="link-button" type="button">Mot de passe oublié</button>
               </div>
               <button id="logoutButton" class="small-button hidden" type="button">Déconnexion</button>
               <button id="profileButton" class="small-button hidden" type="button">Profil joueur</button>
@@ -50,27 +48,7 @@
               </section>
             </div>
             <p class="label">Profil</p>
-            <label class="menu-field">Pseudo
-              <input id="nicknameInput" type="text" maxlength="24" placeholder="Votre pseudo" />
-            </label>
-            <div class="coach-choice-row" aria-label="Choisir son coach">
-              <button class="coach-choice active" type="button" data-menu-coach="0">
-                <img src="./assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.png" alt="Coach Ju" />
-                <span>Coach Ju</span>
-              </button>
-              <button class="coach-choice" type="button" data-menu-coach="1">
-                <img src="./assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.png" alt="Coach Max" />
-                <span>Coach Max</span>
-              </button>
-              <button class="coach-choice" type="button" data-menu-coach="2">
-                <img src="./assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.png" alt="Coach Carla" />
-                <span>Coach Carla</span>
-              </button>
-              <button class="coach-choice" type="button" data-menu-coach="3">
-                <img src="./assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.png" alt="Coach Clem" />
-                <span>Coach Clem</span>
-              </button>
-            </div>
+            <p class="lobby-empty">Le pseudo et le personnage se modifient dans la page Profil joueur.</p>
           </section>
 
           <section class="menu-panel">
@@ -134,7 +112,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v91</span></p>
+        <p class="eyebrow">Profil joueur <span>v92</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -142,6 +120,22 @@
             <button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour lobby</button>
           </div>
           <div id="profileContent" class="profile-content" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="resetPasswordScreen" class="menu-screen hidden">
+      <div class="menu-shell ranking-shell">
+        <p class="eyebrow">Réinitialisation <span>v92</span></p>
+        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+        <section class="menu-panel ranking-full-panel">
+          <p class="label">Nouveau mot de passe</p>
+          <label class="menu-field">Mot de passe
+            <input id="resetPasswordInput" type="password" autocomplete="new-password" placeholder="8 caractères minimum" />
+          </label>
+          <button id="confirmResetPasswordButton" class="primary-button" type="button">Valider</button>
+          <button id="backToLoginFromResetButton" class="small-button" type="button">Retour connexion</button>
+          <div id="resetPasswordStatus" class="lobby-empty"></div>
         </section>
       </div>
     </section>
@@ -229,6 +223,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=91"></script>
+    <script src="./app.js?v=92"></script>
   </body>
 </html>

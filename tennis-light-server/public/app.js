@@ -66,6 +66,7 @@ const SOLO_AI = {
 const MENU_STATE = {
   selectedPlayerIndex: Number(localStorage.getItem("tennisLightSelectedPlayer") || 0),
   nickname: localStorage.getItem("tennisLightNickname") || "",
+  espoirResolvedCharacterId: null,
   tournamentDifficulty: localStorage.getItem("tennisLightTournamentDifficulty") || "normal",
   lobbyTimer: null,
 };
@@ -121,6 +122,14 @@ const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+const PROFILE_CHARACTER_OPTIONS = ["tennisHope", "coachJu", "coachMax", "coachCarla", "coachClem"];
+const PROFILE_CHARACTER_IMAGES = {
+  tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
+  coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.png",
+  coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.png",
+  coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.png",
+  coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.png",
+};
 const TOURNAMENT_CHARACTER_POOL = [
   "coachJu",
   "coachMax",
@@ -1035,6 +1044,7 @@ const els = {
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
   profileScreen: document.querySelector("#profileScreen"),
+  resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
@@ -1043,6 +1053,11 @@ const els = {
   authNicknameInput: document.querySelector("#authNicknameInput"),
   loginButton: document.querySelector("#loginButton"),
   registerButton: document.querySelector("#registerButton"),
+  forgotPasswordButton: document.querySelector("#forgotPasswordButton"),
+  resetPasswordInput: document.querySelector("#resetPasswordInput"),
+  confirmResetPasswordButton: document.querySelector("#confirmResetPasswordButton"),
+  backToLoginFromResetButton: document.querySelector("#backToLoginFromResetButton"),
+  resetPasswordStatus: document.querySelector("#resetPasswordStatus"),
   logoutButton: document.querySelector("#logoutButton"),
   profileButton: document.querySelector("#profileButton"),
   proCodePanel: document.querySelector("#proCodePanel"),
@@ -1106,8 +1121,21 @@ function serverSyncParams() {
   };
 }
 
+function profileSelectedCharacterId() {
+  return AUTH_STATE.user?.selectedCharacterId || "tennisHope";
+}
+
+function playableCharacterFromProfile() {
+  const selected = profileSelectedCharacterId();
+  if (selected !== "tennisHope") return normalizeCharacterId(selected, "coachJu");
+  if (!MENU_STATE.espoirResolvedCharacterId) {
+    MENU_STATE.espoirResolvedCharacterId = COACH_OPTIONS[Math.floor(Math.random() * COACH_OPTIONS.length)] || "coachJu";
+  }
+  return MENU_STATE.espoirResolvedCharacterId;
+}
+
 function selectedCharacterId() {
-  return COACH_OPTIONS[MENU_STATE.selectedPlayerIndex] ?? "coachJu";
+  return playableCharacterFromProfile();
 }
 
 function selectedPlayerName() {
@@ -1157,7 +1185,7 @@ function escapeHtml(value) {
 }
 
 function normalizeCharacterId(characterId, fallback = "coachJu") {
-  return COACH_OPTIONS.includes(characterId) ? characterId : fallback;
+  return CHARACTERS[characterId] ? characterId : fallback;
 }
 
 function onlineProfileForSeat(seat) {
@@ -1277,6 +1305,7 @@ function applyAuthenticatedUser(user) {
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);
     if (els.nicknameInput) els.nicknameInput.value = MENU_STATE.nickname;
   }
+  MENU_STATE.espoirResolvedCharacterId = null;
   renderAuthState();
   updateAccessControls();
 }
@@ -1293,14 +1322,44 @@ async function loadAuthState() {
 async function registerAccount() {
   const email = els.authEmailInput?.value?.trim() || "";
   const password = els.authPasswordInput?.value || "";
-  const nickname = els.authNicknameInput?.value?.trim() || nicknameValue();
   renderAuthState("Création du compte...");
   try {
-    const data = await authRequest("/api/auth/register", { email, password, nickname });
+    const data = await authRequest("/api/auth/register", { email, password });
     applyAuthenticatedUser(data.user);
     if (els.authPasswordInput) els.authPasswordInput.value = "";
   } catch (error) {
     renderAuthState(error.message);
+  }
+}
+
+async function requestPasswordReset() {
+  const email = window.prompt("Adresse email du compte à récupérer :");
+  if (!email) return;
+  renderAuthState("Si ce compte existe, un lien de réinitialisation va être envoyé.");
+  try {
+    await authRequest("/api/auth/password-reset/request", { email });
+    renderAuthState("Si ce compte existe, un lien de réinitialisation va être envoyé.");
+  } catch (error) {
+    renderAuthState("Si ce compte existe, un lien de réinitialisation va être envoyé.");
+  }
+}
+
+function resetTokenFromUrl() {
+  return new URLSearchParams(window.location.search).get("reset") || "";
+}
+
+async function confirmPasswordReset() {
+  const token = resetTokenFromUrl();
+  const password = els.resetPasswordInput?.value || "";
+  if (!token) return;
+  if (els.resetPasswordStatus) els.resetPasswordStatus.textContent = "Mise à jour...";
+  try {
+    await authRequest("/api/auth/password-reset/confirm", { token, password });
+    if (els.resetPasswordStatus) els.resetPasswordStatus.textContent = "Mot de passe modifié. Retour à la connexion.";
+    window.history.replaceState({}, "", window.location.pathname);
+    setTimeout(showMenuScreen, 800);
+  } catch (error) {
+    if (els.resetPasswordStatus) els.resetPasswordStatus.textContent = error.message;
   }
 }
 
@@ -1498,6 +1557,17 @@ function profileMarkup(profile) {
   const ranking = profile?.ranking || {};
   const results = profile?.results || [];
   const aiResults = profile?.aiResults || [];
+  const unlocked = new Set(user?.unlockedCharacters || PROFILE_CHARACTER_OPTIONS);
+  unlocked.add("tennisHope");
+  const selectedProfileCharacter = user?.selectedCharacterId || "tennisHope";
+  const characterRows = PROFILE_CHARACTER_OPTIONS
+    .filter((characterId) => unlocked.has(characterId))
+    .map((characterId) => `
+      <button class="profile-character-choice ${selectedProfileCharacter === characterId ? "active" : ""}" type="button" data-profile-character="${escapeHtml(characterId)}">
+        <img src="${PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0] || CHARACTER_IMAGES.coachUnknown[0]}" alt="${escapeHtml(characterNameFromId(characterId))}" />
+        <span>${escapeHtml(characterNameFromId(characterId))}</span>
+      </button>
+    `).join("");
   const resultRows = results.length
     ? results.map((row) => {
       const won = row.achievement === "winner";
@@ -1530,6 +1600,11 @@ function profileMarkup(profile) {
         ` : ""}
       </section>
       <section class="profile-card">
+        <p class="label">Personnage</p>
+        <div class="profile-character-grid">${characterRows}</div>
+        <button id="saveProfileCharacterButton" class="primary-button" type="button">Enregistrer le personnage</button>
+      </section>
+      <section class="profile-card">
         <p class="label">Classement mondial</p>
         <div class="ranking-row current-user"><span>${Number(ranking.rank || 0) || "-"}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
@@ -1553,10 +1628,28 @@ async function loadProfile() {
     AUTH_STATE.profile = await authRequest("/api/profile");
     if (els.profileContent) els.profileContent.innerHTML = profileMarkup(AUTH_STATE.profile);
     document.querySelector("#saveProfileNicknameButton")?.addEventListener("click", saveProfileNickname);
+    document.querySelector("#saveProfileCharacterButton")?.addEventListener("click", saveProfileCharacter);
+    document.querySelectorAll("[data-profile-character]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-profile-character]").forEach((candidate) => candidate.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
     document.querySelector("#profileRedeemProCodeButton")?.addEventListener("click", redeemProfileProCode);
     document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
   } catch (error) {
     if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function saveProfileCharacter() {
+  const selected = document.querySelector("[data-profile-character].active")?.dataset.profileCharacter || "tennisHope";
+  try {
+    const data = await authRequest("/api/profile/character", { characterId: selected });
+    applyAuthenticatedUser(data.user);
+    await loadProfile();
+  } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
   }
 }
 
@@ -1633,12 +1726,18 @@ function renderCompetitions() {
           <span>${escapeHtml(competition.city || "")} · ${escapeHtml(competition.country || "")} ${escapeHtml(competition.flag || "")} · ${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)} · ${Number(competition.targetSets || 2)} sets</span>
         </div>
         <span>Gains : ${Number(bestScores[competition.id] || 0)} pts</span>
-        <button class="small-button" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}">Jouer</button>
+        <div class="weekly-competition-actions">
+          <button class="small-button" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}">Jouer</button>
+          ${savedTournamentProgress(competition.id) ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
+        </div>
       </article>
     `).join("")}
   `;
   els.weeklyCompetitionsList.querySelectorAll("[data-start-weekly-competition]").forEach((button) => {
     button.addEventListener("click", () => startWeeklyCompetition(button.dataset.startWeeklyCompetition));
+  });
+  els.weeklyCompetitionsList.querySelectorAll("[data-resume-weekly-competition]").forEach((button) => {
+    button.addEventListener("click", () => resumeWeeklyCompetition(button.dataset.resumeWeeklyCompetition));
   });
 }
 
@@ -1657,6 +1756,66 @@ async function loadCompetitions() {
 
 function weeklyCompetitionById(competitionId) {
   return (AUTH_STATE.competitions?.competitions || []).find((competition) => competition.id === competitionId) || null;
+}
+
+function currentCircuitSaveKey(competitionId) {
+  const season = Number(AUTH_STATE.competitions?.season || 1);
+  const week = Number(AUTH_STATE.competitions?.week || 1);
+  return `tennisLightTournamentSave:${season}:${week}:${competitionId}`;
+}
+
+function savedTournamentProgress(competitionId) {
+  try {
+    const raw = localStorage.getItem(currentCircuitSaveKey(competitionId));
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveTournamentProgress() {
+  if (!state.tournament?.weekly || !state.tournament.competitionId || state.tournament.stage === "complete") return;
+  const save = {
+    savedAt: new Date().toISOString(),
+    state: cloneData(state),
+    soloAi: cloneData(SOLO_AI),
+    serverSync: cloneData(SERVER_SYNC),
+  };
+  localStorage.setItem(currentCircuitSaveKey(state.tournament.competitionId), JSON.stringify(save));
+}
+
+function deleteTournamentProgress(competitionId = state.tournament?.competitionId) {
+  if (!competitionId) return;
+  localStorage.removeItem(currentCircuitSaveKey(competitionId));
+}
+
+function restoreStateSnapshot(snapshot) {
+  if (!snapshot?.state) return false;
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+  Object.assign(state, cloneData(snapshot.state));
+  Object.assign(SOLO_AI, cloneData(snapshot.soloAi || {}));
+  SOLO_AI.thinking = false;
+  SOLO_AI.executing = false;
+  SOLO_AI.timer = null;
+  SOLO_AI.nudgeTimer = null;
+  SOLO_AI.nudgeAutoTimer = null;
+  SOLO_AI.watchdogTimer = null;
+  return true;
+}
+
+function resumeWeeklyCompetition(competitionId) {
+  const saved = savedTournamentProgress(competitionId);
+  if (!saved || !restoreStateSnapshot(saved)) {
+    renderAuthState("Sauvegarde indisponible.");
+    renderCompetitions();
+    return;
+  }
+  showGameScreen();
+  applySurfaceBackground(state.tournament?.competitionSurface);
+  render();
 }
 
 async function startWeeklyCompetition(competitionId) {
@@ -1680,6 +1839,7 @@ async function startWeeklyCompetition(competitionId) {
     return;
   }
   showGameScreen();
+  applySurfaceBackground(competition.surface);
   const targetSets = Number(competition.targetSets || 2);
   startTournamentMode(targetSets, { competition });
 }
@@ -1696,10 +1856,19 @@ function updateMenuSelection() {
   });
 }
 
+function applySurfaceBackground(surface = null) {
+  document.body.classList.remove("surface-hard", "surface-grass", "surface-clay");
+  if (surface === "grass") document.body.classList.add("surface-grass");
+  if (surface === "clay") document.body.classList.add("surface-clay");
+  if (surface === "hard") document.body.classList.add("surface-hard");
+}
+
 function showGameScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
 }
 
@@ -1717,7 +1886,9 @@ function showMenuScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
   els.menuScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
   renderAuthState();
   updateMenuSelection();
   refreshLobbyRooms();
@@ -1731,8 +1902,18 @@ function showProfileScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
   els.profileScreen?.classList.remove("hidden");
   loadProfile();
+}
+
+function showResetPasswordScreen() {
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.remove("hidden");
 }
 
 function showAdminScreen() {
@@ -2142,6 +2323,7 @@ function startSoloFromMenu(mode) {
     renderAuthState("Réservé aux joueurs Pro.");
     return;
   }
+  MENU_STATE.espoirResolvedCharacterId = null;
   if (!mode.startsWith("tournament")) resetTournament();
   configureSoloOpponent();
   showGameScreen();
@@ -5141,6 +5323,7 @@ function buildWeeklySurfaceBonuses(surface, seededCharacters) {
 
 function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId) {
   const surface = weeklyCompetition.surface || "hard";
+  applySurfaceBackground(surface);
   const specialists = (SURFACE_SPECIALISTS[surface] || []).filter((characterId) => characterId !== humanCharacterId);
   const seededSpecialists = specialists.length >= 2
     ? specialists.slice(0, 2)
@@ -5563,6 +5746,7 @@ async function recordWeeklyCompetitionResult() {
   state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${qualificationPoints} points de parcours + ${bonusPoints} points bonus = ${points} points pour demain.`);
   try {
     await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement, aiResults: humanTournamentAiResults() });
+    deleteTournamentProgress();
     await loadCompetitions();
     await loadRanking();
     render();
@@ -6459,7 +6643,12 @@ function bindCenterButtons() {
 
 async function exitTournamentToLobby() {
   if (!window.confirm("Confirmez vous sortir du tournoi ?")) return;
-  if (state.tournament.weekly) await recordWeeklyCompetitionResult();
+  if (state.tournament.weekly && state.tournament.stage !== "complete") {
+    saveTournamentProgress();
+  } else if (state.tournament.weekly) {
+    await recordWeeklyCompetitionResult();
+    deleteTournamentProgress();
+  }
   resetTournament();
   showMenuScreen();
 }
@@ -6927,6 +7116,12 @@ function initMenu() {
   loadAuthState();
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
+  els.forgotPasswordButton?.addEventListener("click", requestPasswordReset);
+  els.confirmResetPasswordButton?.addEventListener("click", confirmPasswordReset);
+  els.backToLoginFromResetButton?.addEventListener("click", () => {
+    window.history.replaceState({}, "", window.location.pathname);
+    showMenuScreen();
+  });
   els.logoutButton?.addEventListener("click", logoutAccount);
   els.profileButton?.addEventListener("click", showProfileScreen);
   els.redeemProCodeButton?.addEventListener("click", redeemProCode);
@@ -6969,6 +7164,7 @@ function initMenu() {
   MENU_STATE.lobbyTimer = window.setInterval(() => {
     if (!els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
   }, 3500);
+  if (resetTokenFromUrl()) showResetPasswordScreen();
 }
 
 els.newGameButton?.addEventListener("click", newGame);

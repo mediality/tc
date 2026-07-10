@@ -58,6 +58,7 @@ const COMPETITION_DEFINITIONS = loadWorldTourDefinitions();
 const authMemory = {
   users: new Map(),
   sessions: new Map(),
+  passwordResetTokens: new Map(),
   weeklyScores: new Map(),
   proCodes: new Map(),
   circuitWeekScores: new Map(),
@@ -121,6 +122,8 @@ function publicUser(user) {
     nickname: user.nickname,
     role: normalizeRole(user.role),
     proCode: user.pro_code || user.proCode || null,
+    selectedCharacterId: user.selected_character_id || user.selectedCharacterId || "tennisHope",
+    unlockedCharacters: String(user.unlocked_characters || user.unlockedCharacters || "coachJu,coachMax,coachCarla,coachClem").split(",").filter(Boolean),
     createdAt: user.created_at || user.createdAt,
   } : null;
 }
@@ -380,6 +383,8 @@ async function initAuthStorage() {
   `);
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'free'");
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_code TEXT UNIQUE");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_character_id TEXT NOT NULL DEFAULT 'tennisHope'");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS unlocked_characters TEXT NOT NULL DEFAULT 'coachJu,coachMax,coachCarla,coachClem'");
   await db.query("CREATE SEQUENCE IF NOT EXISTS users_account_number_seq START WITH 1");
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number BIGINT");
   await db.query("UPDATE users SET account_number = nextval('users_account_number_seq') WHERE account_number IS NULL");
@@ -436,6 +441,17 @@ async function initAuthStorage() {
   `);
   await db.query("CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id)");
   await db.query("DELETE FROM sessions WHERE expires_at < NOW()");
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ
+    )
+  `);
+  await db.query("CREATE INDEX IF NOT EXISTS password_reset_tokens_user_id_idx ON password_reset_tokens(user_id)");
+  await db.query("DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used_at IS NOT NULL");
   await db.query(`
     CREATE TABLE IF NOT EXISTS weekly_competition_scores (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -673,32 +689,35 @@ async function findUserByEmail(email) {
   return [...authMemory.users.values()].find((user) => user.email === email) || null;
 }
 
-async function createUser({ email, nickname, password }) {
+function generateDefaultNickname(accountNumber) {
+  const randomPart = String(Math.floor(1000 + Math.random() * 9000));
+  return `ESPOIR#${randomPart}${accountNumber}`;
+}
+
+async function createUser({ email, password }) {
   const user = {
     id: crypto.randomUUID(),
     email,
-    nickname,
+    nickname: "ESPOIR",
     password_hash: hashPassword(password),
     role: defaultRoleForEmail(email),
     proCode: normalizeEmail(email) === ADMIN_EMAIL ? "JUL1EN" : null,
+    selectedCharacterId: "tennisHope",
+    unlockedCharacters: "coachJu,coachMax,coachCarla,coachClem",
     createdAt: new Date().toISOString(),
   };
   if (db) {
     const result = await db.query(
-      "INSERT INTO users (id, email, nickname, password_hash, role, pro_code) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-      [user.id, user.email, user.nickname, user.password_hash, user.role, user.proCode],
+      "INSERT INTO users (id, email, nickname, password_hash, role, pro_code, selected_character_id, unlocked_characters) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+      [user.id, user.email, user.nickname, user.password_hash, user.role, user.proCode, user.selectedCharacterId, user.unlockedCharacters],
     );
     const created = result.rows[0];
-    const duplicates = await db.query("SELECT COUNT(*)::int AS count FROM users WHERE LOWER(nickname) = LOWER($1)", [created.nickname]);
-    if (duplicates.rows[0]?.count > 1) {
-      const updated = await db.query("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [`${created.nickname} #${created.account_number}`, created.id]);
-      return updated.rows[0];
-    }
-    return created;
+    const nickname = generateDefaultNickname(created.account_number);
+    const updated = await db.query("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [nickname, created.id]);
+    return updated.rows[0];
   }
-  const duplicateCount = [...authMemory.users.values()].filter((item) => item.nickname.toLowerCase() === user.nickname.toLowerCase()).length;
   user.accountNumber = authMemory.users.size + 1;
-  if (duplicateCount > 0) user.nickname = `${user.nickname} #${user.accountNumber}`;
+  user.nickname = generateDefaultNickname(user.accountNumber);
   authMemory.users.set(user.id, user);
   if (user.role === "admin") authMemory.proCodes.set("JUL1EN", { code: "JUL1EN", assignedUserId: user.id, redeemedAt: new Date().toISOString() });
   return user;
@@ -793,6 +812,14 @@ async function assignProCodeToUser(user, code) {
   return user;
 }
 
+function userUnlockedCharacters(user) {
+  return String(user.unlocked_characters || user.unlockedCharacters || "coachJu,coachMax,coachCarla,coachClem").split(",").filter(Boolean);
+}
+
+function canSelectCharacter(user, characterId) {
+  return characterId === "tennisHope" || userUnlockedCharacters(user).includes(characterId);
+}
+
 async function createAdminProCodes(adminUser, count = 5) {
   const amount = Math.max(1, Math.min(20, Number(count || 5)));
   const created = [];
@@ -816,6 +843,60 @@ async function createAdminProCodes(adminUser, count = 5) {
     }
   }
   return created;
+}
+
+function passwordResetTokenHash(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+function publicBaseUrl(req) {
+  const configured = process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL;
+  if (configured) return configured.replace(/\/$/, "");
+  const proto = req.headers["x-forwarded-proto"] || "http";
+  const host = req.headers.host || `localhost:${PORT}`;
+  return `${proto}://${host}`;
+}
+
+async function createPasswordResetToken(userId) {
+  const token = crypto.randomBytes(32).toString("base64url");
+  const tokenHash = passwordResetTokenHash(token);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  if (db) {
+    await db.query("INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)", [tokenHash, userId, expiresAt]);
+  } else {
+    authMemory.passwordResetTokens.set(tokenHash, { tokenHash, userId, expiresAt, usedAt: null, createdAt: new Date().toISOString() });
+  }
+  return { token, expiresAt };
+}
+
+async function sendPasswordResetLink(email, link) {
+  if (!process.env.SMTP_HOST) {
+    console.log(`Password reset link for ${email}: ${link}`);
+    return;
+  }
+  console.log(`SMTP_HOST is configured, but no mail adapter is bundled. Password reset link for ${email}: ${link}`);
+}
+
+async function consumePasswordResetToken(token, password) {
+  const tokenHash = passwordResetTokenHash(token);
+  if (db) {
+    const result = await db.query(`
+      SELECT * FROM password_reset_tokens
+      WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()
+    `, [tokenHash]);
+    const row = result.rows[0];
+    if (!row) return null;
+    const updated = await db.query("UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING *", [hashPassword(password), row.user_id]);
+    await db.query("UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1", [tokenHash]);
+    return updated.rows[0] || null;
+  }
+  const row = authMemory.passwordResetTokens.get(tokenHash);
+  if (!row || row.usedAt || Date.parse(row.expiresAt) <= Date.now()) return null;
+  const user = authMemory.users.get(row.userId);
+  if (!user) return null;
+  user.password_hash = hashPassword(password);
+  row.usedAt = new Date().toISOString();
+  return user;
 }
 
 async function listProCodes() {
@@ -872,14 +953,9 @@ async function handleAuth(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/auth/register") {
     const payload = await readJson(req);
     const email = normalizeEmail(payload.email);
-    const nickname = normalizeNickname(payload.nickname);
     const password = String(payload.password || "");
     if (!isValidEmail(email)) {
       sendJson(res, 400, { error: "Adresse email invalide." });
-      return true;
-    }
-    if (nickname.length < 3) {
-      sendJson(res, 400, { error: "Le pseudo doit contenir au moins 3 caractères." });
       return true;
     }
     if (password.length < 8) {
@@ -890,7 +966,7 @@ async function handleAuth(req, res, url) {
       sendJson(res, 409, { error: "Un compte existe déjà avec cet email." });
       return true;
     }
-    const user = await createUser({ email, nickname, password });
+    const user = await createUser({ email, password });
     const sessionId = await createSession(user.id);
     setSessionCookie(req, res, sessionId);
     sendJson(res, 201, { user: publicUser(user) });
@@ -916,6 +992,36 @@ async function handleAuth(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/auth/logout") {
     await deleteSession(unpackSessionCookie(parseCookies(req)[SESSION_COOKIE]));
     clearSessionCookie(res);
+    sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/password-reset/request") {
+    const payload = await readJson(req);
+    const email = normalizeEmail(payload.email);
+    const user = await findUserByEmail(email);
+    if (user) {
+      const reset = await createPasswordResetToken(user.id);
+      const link = `${publicBaseUrl(req)}/?reset=${encodeURIComponent(reset.token)}`;
+      await sendPasswordResetLink(email, link);
+    }
+    sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/password-reset/confirm") {
+    const payload = await readJson(req);
+    const token = String(payload.token || "");
+    const password = String(payload.password || "");
+    if (password.length < 8) {
+      sendJson(res, 400, { error: "Le mot de passe doit contenir au moins 8 caractères." });
+      return true;
+    }
+    const user = await consumePasswordResetToken(token, password);
+    if (!user) {
+      sendJson(res, 400, { error: "Lien expiré ou déjà utilisé." });
+      return true;
+    }
     sendJson(res, 200, { ok: true });
     return true;
   }
@@ -1198,6 +1304,28 @@ async function handleAuth(req, res, url) {
       return true;
     }
     user.nickname = nickname;
+    sendJson(res, 200, { user: publicUser(user) });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/profile/character") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    const payload = await readJson(req);
+    const characterId = String(payload.characterId || "tennisHope");
+    if (!canSelectCharacter(user, characterId)) {
+      sendJson(res, 403, { error: "Personnage non disponible pour ce compte." });
+      return true;
+    }
+    if (db) {
+      const updated = await db.query("UPDATE users SET selected_character_id = $1 WHERE id = $2 RETURNING *", [characterId, user.id]);
+      sendJson(res, 200, { user: publicUser(updated.rows[0]) });
+      return true;
+    }
+    user.selectedCharacterId = characterId;
     sendJson(res, 200, { user: publicUser(user) });
     return true;
   }

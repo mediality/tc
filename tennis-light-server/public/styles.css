@@ -28,6 +28,24 @@ body {
     url("./assets/fond-jeu-TENNIS.jpg") center bottom / cover fixed;
 }
 
+body.surface-hard {
+  background:
+    linear-gradient(180deg, rgba(2, 8, 23, 0.28), rgba(2, 8, 23, 0.62)),
+    url("./assets/fond-jeu-TENNIS-HARD.jpg") center bottom / cover fixed;
+}
+
+body.surface-grass {
+  background:
+    linear-gradient(180deg, rgba(2, 8, 23, 0.28), rgba(2, 8, 23, 0.62)),
+    url("./assets/fond-jeu-TENNIS-GRASS.jpg") center bottom / cover fixed;
+}
+
+body.surface-clay {
+  background:
+    linear-gradient(180deg, rgba(2, 8, 23, 0.28), rgba(2, 8, 23, 0.62)),
+    url("./assets/fond-jeu-TENNIS-CLAY.jpg") center bottom / cover fixed;
+}
+
 button {
   border: 0;
   font: inherit;
@@ -200,6 +218,15 @@ button:disabled {
 .auth-actions {
   display: grid;
   gap: 10px;
+}
+
+.link-button {
+  width: max-content;
+  padding: 0;
+  color: #0f5f8d;
+  font-weight: 900;
+  text-decoration: underline;
+  background: transparent;
 }
 
 .auth-status {
@@ -573,6 +600,17 @@ button:disabled {
   line-height: 1.25;
 }
 
+.weekly-competition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.resume-button {
+  background: #86efac;
+}
+
 .lobby-header {
   display: flex;
   align-items: center;
@@ -671,6 +709,36 @@ button:disabled {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.profile-character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.profile-character-choice {
+  display: grid;
+  gap: 6px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 8px;
+  color: #17212b;
+  font-weight: 950;
+  background: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+}
+
+.profile-character-choice.active {
+  border-color: #0f8d68;
+  background: rgba(216, 243, 220, 0.96);
+}
+
+.profile-character-choice img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
 .profile-wide {
   grid-column: 1 / -1;
 }
@@ -723,6 +791,53 @@ button:disabled {
   }
 
   .weekly-competitions-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .menu-screen {
+    width: min(100vw - 16px, 560px);
+    padding: 18px 0;
+  }
+
+  .menu-panel {
+    padding: 12px;
+  }
+
+  .weekly-competition {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    font-size: 0.88rem;
+  }
+
+  .weekly-competition-actions {
+    justify-content: stretch;
+  }
+
+  .weekly-competition-actions .small-button,
+  .weekly-competition .small-button {
+    width: 100%;
+  }
+
+  .ranking-head,
+  .ranking-row {
+    grid-template-columns: 34px minmax(92px, 1fr) 58px 58px 58px;
+    gap: 4px;
+    padding: 7px 6px;
+    font-size: 0.72rem;
+  }
+
+  .ranking-row strong {
+    white-space: normal;
+    line-height: 1.12;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-row {
     grid-template-columns: 1fr;
   }
 }
