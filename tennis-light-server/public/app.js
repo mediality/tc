@@ -1775,7 +1775,7 @@ function savedTournamentProgress(competitionId) {
 }
 
 function saveTournamentProgress() {
-  if (!state.tournament?.weekly || !state.tournament.competitionId || state.tournament.stage === "complete") return;
+  if (!state.tournament?.weekly || !state.tournament.competitionId || state.tournament.stage === "complete") return false;
   const save = {
     savedAt: new Date().toISOString(),
     state: cloneData(state),
@@ -1786,7 +1786,13 @@ function saveTournamentProgress() {
     season: state.tournament.competitionSeason,
     week: state.tournament.competitionWeek,
   };
-  localStorage.setItem(currentCircuitSaveKey(state.tournament.competitionId, period), JSON.stringify(save));
+  try {
+    localStorage.setItem(currentCircuitSaveKey(state.tournament.competitionId, period), JSON.stringify(save));
+    return true;
+  } catch (error) {
+    state.log.unshift(`Sauvegarde locale impossible : ${error.message}`);
+    return false;
+  }
 }
 
 function deleteTournamentProgress(competitionId = state.tournament?.competitionId) {
@@ -2274,13 +2280,21 @@ function closeReturnLobbyDialog() {
 
 async function confirmReturnToLobby() {
   closeReturnLobbyDialog();
-  if (state.tournament?.weekly && state.tournament.stage !== "complete") {
-    saveTournamentProgress();
-  } else if (state.tournament?.weekly && state.tournament.stage === "complete") {
-    await recordWeeklyCompetitionResult();
-    deleteTournamentProgress();
+  try {
+    if (state.tournament?.weekly && state.tournament.stage !== "complete") {
+      saveTournamentProgress();
+    } else if (state.tournament?.weekly && state.tournament.stage === "complete") {
+      await recordWeeklyCompetitionResult();
+      deleteTournamentProgress();
+    }
+  } catch (error) {
+    state.log.unshift(`Retour lobby : ${error.message}`);
   }
-  await notifyServerLeaveRoom();
+  try {
+    await notifyServerLeaveRoom();
+  } catch (error) {
+    state.log.unshift(`Sortie du salon en ligne impossible : ${error.message}`);
+  }
   SOLO_AI.enabled = false;
   stopSoloTimers();
   leaveOnlineRoom();
@@ -2595,7 +2609,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v94",
+    version: "v95",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,

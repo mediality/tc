@@ -1,4 +1,5 @@
 const http = require("http");
+const https = require("https");
 const net = require("net");
 const tls = require("tls");
 const fs = require("fs");
@@ -996,18 +997,77 @@ async function sendSmtpMail({ to, subject, text, html }) {
   }
 }
 
-async function sendPasswordResetLink(email, link) {
-  if (!process.env.SMTP_HOST) {
-    console.log(`Password reset link for ${email}: ${link}`);
-    return;
+function sendBrevoApiMail({ to, subject, text, html }) {
+  const apiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
+  const from = process.env.SMTP_FROM || process.env.BREVO_FROM || process.env.SMTP_USER;
+  if (!apiKey || !from) {
+    throw new Error("Configuration Brevo API incomplète.");
   }
+  const fromEmail = emailFromAddress(from);
+  const fromNameMatch = String(from).match(/^(.+?)\s*</);
+  const payload = JSON.stringify({
+    sender: {
+      email: fromEmail,
+      name: fromNameMatch ? fromNameMatch[1].trim().replace(/^"|"$/g, "") : "Tennis Courts Academy",
+    },
+    to: [{ email: to }],
+    subject,
+    textContent: text,
+    htmlContent: html,
+  });
+  return new Promise((resolve, reject) => {
+    const request = https.request({
+      hostname: "api.brevo.com",
+      path: "/v3/smtp/email",
+      method: "POST",
+      headers: {
+        "api-key": apiKey,
+        "accept": "application/json",
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(payload),
+      },
+      timeout: 15000,
+    }, (response) => {
+      let body = "";
+      response.on("data", (chunk) => {
+        body += chunk.toString("utf8");
+      });
+      response.on("end", () => {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          resolve(body);
+          return;
+        }
+        reject(new Error(`Brevo API ${response.statusCode}: ${body || response.statusMessage}`));
+      });
+    });
+    request.on("timeout", () => {
+      request.destroy(new Error("Brevo API timeout"));
+    });
+    request.on("error", reject);
+    request.write(payload);
+    request.end();
+  });
+}
+
+async function sendPasswordResetLink(email, link) {
   const safeLink = smtpEscapeHtml(link);
-  await sendSmtpMail({
+  const message = {
     to: email,
     subject: "Réinitialisation du mot de passe Tennis Courts Academy",
     text: `Bonjour,\n\nCliquez sur ce lien pour réinitialiser votre mot de passe Tennis Courts Academy. Il est valable 10 minutes :\n${link}\n\nSi vous n'avez rien demandé, ignorez cet email.`,
     html: `<p>Bonjour,</p><p>Cliquez sur ce lien pour réinitialiser votre mot de passe Tennis Courts Academy. Il est valable 10 minutes :</p><p><a href="${safeLink}">${safeLink}</a></p><p>Si vous n'avez rien demandé, ignorez cet email.</p>`,
-  });
+  };
+  if (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY) {
+    await sendBrevoApiMail(message);
+    console.log(`Password reset email sent through Brevo API to ${email}`);
+    return;
+  }
+  if (!process.env.SMTP_HOST) {
+    console.log(`Password reset link for ${email}: ${link}`);
+    return;
+  }
+  await sendSmtpMail(message);
+  console.log(`Password reset email sent through SMTP to ${email}`);
 }
 
 async function consumePasswordResetToken(token, password) {
@@ -1136,7 +1196,11 @@ async function handleAuth(req, res, url) {
     if (user) {
       const reset = await createPasswordResetToken(user.id);
       const link = `${publicBaseUrl(req)}/?reset=${encodeURIComponent(reset.token)}`;
-      await sendPasswordResetLink(email, link);
+      try {
+        await sendPasswordResetLink(email, link);
+      } catch (error) {
+        console.error(`Password reset email failed for ${email}:`, error);
+      }
     }
     sendJson(res, 200, { ok: true });
     return true;
