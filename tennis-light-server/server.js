@@ -66,6 +66,7 @@ const authMemory = {
   proCodes: new Map(),
   circuitWeekScores: new Map(),
   circuitAttempts: new Map(),
+  circuitSaves: new Map(),
   circuitResults: [],
   aiResults: new Map(),
   appState: new Map(),
@@ -494,6 +495,17 @@ async function initAuthStorage() {
     )
   `);
   await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_tournament_saves (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      competition_id TEXT NOT NULL,
+      save_json JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, season_number, week_number, competition_id)
+    )
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_tournament_results (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       season_number INTEGER NOT NULL,
@@ -612,6 +624,63 @@ async function currentRetryInfo(userId) {
     retriesUsed: entries.reduce((sum, [, value]) => sum + Number(value || 0), 0),
     retryLimit: DAILY_RETRY_LIMIT,
   };
+}
+
+async function currentTournamentSaveIds(userId) {
+  const current = await circuitState();
+  if (db) {
+    const result = await db.query(
+      "SELECT competition_id FROM circuit_tournament_saves WHERE user_id = $1 AND season_number = $2 AND week_number = $3",
+      [userId, current.season, current.week],
+    );
+    return result.rows.map((row) => row.competition_id);
+  }
+  const prefix = `${userId}:${current.season}:${current.week}:`;
+  return [...authMemory.circuitSaves.keys()]
+    .filter((key) => key.startsWith(prefix))
+    .map((key) => key.split(":").pop());
+}
+
+async function getTournamentSave(userId, competitionId) {
+  const current = await circuitState();
+  if (db) {
+    const result = await db.query(
+      "SELECT save_json, updated_at FROM circuit_tournament_saves WHERE user_id = $1 AND season_number = $2 AND week_number = $3 AND competition_id = $4",
+      [userId, current.season, current.week, competitionId],
+    );
+    const row = result.rows[0];
+    return row ? { save: row.save_json, updatedAt: row.updated_at } : null;
+  }
+  const key = `${userId}:${current.season}:${current.week}:${competitionId}`;
+  return authMemory.circuitSaves.get(key) || null;
+}
+
+async function putTournamentSave(userId, competitionId, save) {
+  const current = await circuitState();
+  if (db) {
+    await db.query(`
+      INSERT INTO circuit_tournament_saves (user_id, season_number, week_number, competition_id, save_json, updated_at)
+      VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
+      ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
+        SET save_json = EXCLUDED.save_json,
+            updated_at = NOW()
+    `, [userId, current.season, current.week, competitionId, JSON.stringify(save)]);
+    return;
+  }
+  const key = `${userId}:${current.season}:${current.week}:${competitionId}`;
+  authMemory.circuitSaves.set(key, { save, updatedAt: new Date().toISOString() });
+}
+
+async function deleteTournamentSave(userId, competitionId) {
+  const current = await circuitState();
+  if (db) {
+    await db.query(
+      "DELETE FROM circuit_tournament_saves WHERE user_id = $1 AND season_number = $2 AND week_number = $3 AND competition_id = $4",
+      [userId, current.season, current.week, competitionId],
+    );
+    return;
+  }
+  authMemory.circuitSaves.delete(`${userId}:${current.season}:${current.week}:${competitionId}`);
 }
 
 async function buildRanking(page = 1, pageSize = 50, currentUser = null) {
@@ -1334,6 +1403,7 @@ async function handleAuth(req, res, url) {
       title: "Tennis Courts Pro Circuit",
       competitions: await weeklyCompetitionPayload(),
       bestScores,
+      savedTournamentIds: await currentTournamentSaveIds(user.id),
       retriesUsed: retryInfo.retriesUsed,
       retryLimit: retryInfo.retryLimit,
       retriesRemaining: Math.max(0, retryInfo.retryLimit - retryInfo.retriesUsed),
@@ -1434,6 +1504,42 @@ async function handleAuth(req, res, url) {
     await recomputeUserCircuitWeekScore(user.id, current.season, current.week);
     sendJson(res, 200, { ok: true, weekKey: current.weekKey, scoreKey, competitionId, points });
     return true;
+  }
+
+  const saveMatch = url.pathname.match(/^\/api\/competitions\/([^/]+)\/save$/);
+  if (saveMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return true;
+    const competitionId = decodeURIComponent(saveMatch[1]);
+    const competition = await competitionDefinitionById(competitionId);
+    if (!competition) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return true;
+    }
+    if (req.method === "GET") {
+      const saved = await getTournamentSave(user.id, competitionId);
+      if (!saved) {
+        sendJson(res, 404, { error: "Aucune sauvegarde disponible." });
+        return true;
+      }
+      sendJson(res, 200, saved);
+      return true;
+    }
+    if (req.method === "POST") {
+      const payload = await readJson(req);
+      if (!payload.save?.state) {
+        sendJson(res, 400, { error: "Sauvegarde invalide." });
+        return true;
+      }
+      await putTournamentSave(user.id, competitionId, payload.save);
+      sendJson(res, 200, { ok: true, competitionId });
+      return true;
+    }
+    if (req.method === "DELETE") {
+      await deleteTournamentSave(user.id, competitionId);
+      sendJson(res, 200, { ok: true, competitionId });
+      return true;
+    }
   }
 
   if (req.method === "GET" && url.pathname === "/api/ranking") {

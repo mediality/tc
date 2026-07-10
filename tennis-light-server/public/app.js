@@ -1765,6 +1765,8 @@ function currentCircuitSaveKey(competitionId, period = {}) {
 }
 
 function savedTournamentProgress(competitionId) {
+  const serverSaveIds = AUTH_STATE.competitions?.savedTournamentIds || [];
+  if (serverSaveIds.includes(competitionId)) return { server: true };
   try {
     const raw = localStorage.getItem(currentCircuitSaveKey(competitionId));
     if (!raw) return null;
@@ -1774,7 +1776,7 @@ function savedTournamentProgress(competitionId) {
   }
 }
 
-function saveTournamentProgress() {
+async function saveTournamentProgress() {
   if (!state.tournament?.weekly || !state.tournament.competitionId || state.tournament.stage === "complete") return false;
   const save = {
     savedAt: new Date().toISOString(),
@@ -1786,18 +1788,45 @@ function saveTournamentProgress() {
     season: state.tournament.competitionSeason,
     week: state.tournament.competitionWeek,
   };
+  let saved = false;
   try {
     localStorage.setItem(currentCircuitSaveKey(state.tournament.competitionId, period), JSON.stringify(save));
-    return true;
+    saved = true;
   } catch (error) {
     state.log.unshift(`Sauvegarde locale impossible : ${error.message}`);
-    return false;
   }
+  if (AUTH_STATE.user && canAccessProFeatures()) {
+    try {
+      await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/save`, { save });
+      AUTH_STATE.competitions ||= {};
+      const ids = new Set(AUTH_STATE.competitions.savedTournamentIds || []);
+      ids.add(state.tournament.competitionId);
+      AUTH_STATE.competitions.savedTournamentIds = [...ids];
+      saved = true;
+    } catch (error) {
+      state.log.unshift(`Sauvegarde serveur impossible : ${error.message}`);
+    }
+  }
+  return saved;
 }
 
-function deleteTournamentProgress(competitionId = state.tournament?.competitionId) {
+async function deleteTournamentProgress(competitionId = state.tournament?.competitionId) {
   if (!competitionId) return;
-  localStorage.removeItem(currentCircuitSaveKey(competitionId));
+  try {
+    localStorage.removeItem(currentCircuitSaveKey(competitionId));
+  } catch (error) {
+    state.log.unshift(`Suppression sauvegarde locale impossible : ${error.message}`);
+  }
+  if (AUTH_STATE.user && canAccessProFeatures()) {
+    try {
+      await fetch(`/api/competitions/${encodeURIComponent(competitionId)}/save`, { method: "DELETE" });
+      if (AUTH_STATE.competitions?.savedTournamentIds) {
+        AUTH_STATE.competitions.savedTournamentIds = AUTH_STATE.competitions.savedTournamentIds.filter((id) => id !== competitionId);
+      }
+    } catch (error) {
+      state.log.unshift(`Suppression sauvegarde serveur impossible : ${error.message}`);
+    }
+  }
 }
 
 function restoreStateSnapshot(snapshot) {
@@ -1816,8 +1845,20 @@ function restoreStateSnapshot(snapshot) {
   return true;
 }
 
-function resumeWeeklyCompetition(competitionId) {
-  const saved = savedTournamentProgress(competitionId);
+async function fetchSavedTournamentProgress(competitionId) {
+  if (AUTH_STATE.user && canAccessProFeatures()) {
+    try {
+      const data = await authRequest(`/api/competitions/${encodeURIComponent(competitionId)}/save`);
+      if (data.save) return data.save;
+    } catch (error) {
+      state.log.unshift(`Sauvegarde serveur indisponible : ${error.message}`);
+    }
+  }
+  return savedTournamentProgress(competitionId);
+}
+
+async function resumeWeeklyCompetition(competitionId) {
+  const saved = await fetchSavedTournamentProgress(competitionId);
   if (!saved || !restoreStateSnapshot(saved)) {
     renderAuthState("Sauvegarde indisponible.");
     renderCompetitions();
@@ -2282,10 +2323,10 @@ async function confirmReturnToLobby() {
   closeReturnLobbyDialog();
   try {
     if (state.tournament?.weekly && state.tournament.stage !== "complete") {
-      saveTournamentProgress();
+      await saveTournamentProgress();
     } else if (state.tournament?.weekly && state.tournament.stage === "complete") {
       await recordWeeklyCompetitionResult();
-      deleteTournamentProgress();
+      await deleteTournamentProgress();
     }
   } catch (error) {
     state.log.unshift(`Retour lobby : ${error.message}`);
@@ -2609,7 +2650,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v95",
+    version: "v96",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5776,7 +5817,7 @@ async function recordWeeklyCompetitionResult() {
   state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${qualificationPoints} points de parcours + ${bonusPoints} points bonus = ${points} points pour demain.`);
   try {
     await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement, aiResults: humanTournamentAiResults() });
-    deleteTournamentProgress();
+    await deleteTournamentProgress();
     await loadCompetitions();
     await loadRanking();
     render();
@@ -6721,10 +6762,10 @@ function startTournamentNextMatchFromCenter() {
 async function exitTournamentToLobby() {
   if (!window.confirm("Confirmez vous sortir du tournoi ?")) return;
   if (state.tournament.weekly && state.tournament.stage !== "complete") {
-    saveTournamentProgress();
+    await saveTournamentProgress();
   } else if (state.tournament.weekly) {
     await recordWeeklyCompetitionResult();
-    deleteTournamentProgress();
+    await deleteTournamentProgress();
   }
   resetTournament();
   showMenuScreen();
