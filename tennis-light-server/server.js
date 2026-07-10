@@ -1068,7 +1068,7 @@ async function sendSmtpMail({ to, subject, text, html }) {
 
 function sendBrevoApiMail({ to, subject, text, html }) {
   const apiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
-  const from = process.env.SMTP_FROM || process.env.BREVO_FROM || process.env.SMTP_USER;
+  const from = process.env.BREVO_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
   if (!apiKey || !from) {
     throw new Error("Configuration Brevo API incomplète.");
   }
@@ -1127,9 +1127,14 @@ async function sendPasswordResetLink(email, link) {
     html: `<p>Bonjour,</p><p>Cliquez sur ce lien pour réinitialiser votre mot de passe Tennis Courts Academy. Il est valable 10 minutes :</p><p><a href="${safeLink}">${safeLink}</a></p><p>Si vous n'avez rien demandé, ignorez cet email.</p>`,
   };
   if (process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY) {
-    await sendBrevoApiMail(message);
-    console.log(`Password reset email sent through Brevo API to ${email}`);
-    return;
+    try {
+      await sendBrevoApiMail(message);
+      console.log(`Password reset email sent through Brevo API to ${email}`);
+      return;
+    } catch (error) {
+      console.error(`Brevo password reset email failed for ${email}: ${error.message}`);
+      if (!process.env.SMTP_HOST) throw error;
+    }
   }
   if (!process.env.SMTP_HOST) {
     console.log(`Password reset link for ${email}: ${link}`);
