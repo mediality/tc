@@ -1,4 +1,6 @@
 const http = require("http");
+const net = require("net");
+const tls = require("tls");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -869,12 +871,143 @@ async function createPasswordResetToken(userId) {
   return { token, expiresAt };
 }
 
+function smtpReadResponse(socket) {
+  return new Promise((resolve, reject) => {
+    let buffer = "";
+    const onData = (chunk) => {
+      buffer += chunk.toString("utf8");
+      const lines = buffer.split(/\r?\n/).filter(Boolean);
+      if (!lines.length) return;
+      const last = lines[lines.length - 1];
+      if (/^\d{3} /.test(last)) {
+        cleanup();
+        resolve({ code: Number(last.slice(0, 3)), text: buffer });
+      }
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const cleanup = () => {
+      socket.off("data", onData);
+      socket.off("error", onError);
+    };
+    socket.on("data", onData);
+    socket.on("error", onError);
+  });
+}
+
+async function smtpCommand(socket, command, expectedCodes = []) {
+  socket.write(`${command}\r\n`);
+  const response = await smtpReadResponse(socket);
+  if (expectedCodes.length && !expectedCodes.includes(response.code)) {
+    throw new Error(`SMTP ${response.code}: ${response.text.trim()}`);
+  }
+  return response;
+}
+
+function connectSmtpSocket(host, port, secure) {
+  return new Promise((resolve, reject) => {
+    const socket = secure
+      ? tls.connect({ host, port, servername: host, rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED === "false" ? false : true })
+      : net.connect({ host, port });
+    socket.setTimeout(15000);
+    socket.once("connect", () => resolve(socket));
+    socket.once("secureConnect", () => resolve(socket));
+    socket.once("timeout", () => {
+      socket.destroy();
+      reject(new Error("SMTP timeout"));
+    });
+    socket.once("error", reject);
+  });
+}
+
+function emailFromAddress(value) {
+  const match = String(value || "").match(/<([^>]+)>/);
+  return (match ? match[1] : value || "").trim();
+}
+
+function smtpEscapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  }[char]));
+}
+
+async function sendSmtpMail({ to, subject, text, html }) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.SMTP_FROM || user;
+  if (!host || !user || !pass || !from) {
+    throw new Error("Configuration SMTP incomplète.");
+  }
+  const secure = port === 465;
+  let socket = await connectSmtpSocket(host, port, secure);
+  try {
+    await smtpReadResponse(socket);
+    await smtpCommand(socket, `EHLO ${process.env.SMTP_HELO || "tennis-courts-academy"}`, [250]);
+    if (!secure) {
+      await smtpCommand(socket, "STARTTLS", [220]);
+      socket = tls.connect({ socket, servername: host, rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED === "false" ? false : true });
+      await new Promise((resolve, reject) => {
+        socket.once("secureConnect", resolve);
+        socket.once("error", reject);
+      });
+      await smtpCommand(socket, `EHLO ${process.env.SMTP_HELO || "tennis-courts-academy"}`, [250]);
+    }
+    await smtpCommand(socket, "AUTH LOGIN", [334]);
+    await smtpCommand(socket, Buffer.from(user).toString("base64"), [334]);
+    await smtpCommand(socket, Buffer.from(pass).toString("base64"), [235]);
+    await smtpCommand(socket, `MAIL FROM:<${emailFromAddress(from)}>`, [250]);
+    await smtpCommand(socket, `RCPT TO:<${emailFromAddress(to)}>`, [250, 251]);
+    await smtpCommand(socket, "DATA", [354]);
+    const message = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      "MIME-Version: 1.0",
+      "Content-Type: multipart/alternative; boundary=\"tcacademy-reset\"",
+      "",
+      "--tcacademy-reset",
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: 8bit",
+      "",
+      text,
+      "",
+      "--tcacademy-reset",
+      "Content-Type: text/html; charset=utf-8",
+      "Content-Transfer-Encoding: 8bit",
+      "",
+      html,
+      "",
+      "--tcacademy-reset--",
+      ".",
+    ].join("\r\n");
+    socket.write(`${message}\r\n`);
+    await smtpReadResponse(socket);
+    await smtpCommand(socket, "QUIT", [221]);
+  } finally {
+    socket.destroy();
+  }
+}
+
 async function sendPasswordResetLink(email, link) {
   if (!process.env.SMTP_HOST) {
     console.log(`Password reset link for ${email}: ${link}`);
     return;
   }
-  console.log(`SMTP_HOST is configured, but no mail adapter is bundled. Password reset link for ${email}: ${link}`);
+  const safeLink = smtpEscapeHtml(link);
+  await sendSmtpMail({
+    to: email,
+    subject: "Réinitialisation du mot de passe Tennis Courts Academy",
+    text: `Bonjour,\n\nCliquez sur ce lien pour réinitialiser votre mot de passe Tennis Courts Academy. Il est valable 10 minutes :\n${link}\n\nSi vous n'avez rien demandé, ignorez cet email.`,
+    html: `<p>Bonjour,</p><p>Cliquez sur ce lien pour réinitialiser votre mot de passe Tennis Courts Academy. Il est valable 10 minutes :</p><p><a href="${safeLink}">${safeLink}</a></p><p>Si vous n'avez rien demandé, ignorez cet email.</p>`,
+  });
 }
 
 async function consumePasswordResetToken(token, password) {
