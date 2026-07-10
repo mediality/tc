@@ -1758,9 +1758,9 @@ function weeklyCompetitionById(competitionId) {
   return (AUTH_STATE.competitions?.competitions || []).find((competition) => competition.id === competitionId) || null;
 }
 
-function currentCircuitSaveKey(competitionId) {
-  const season = Number(AUTH_STATE.competitions?.season || 1);
-  const week = Number(AUTH_STATE.competitions?.week || 1);
+function currentCircuitSaveKey(competitionId, period = {}) {
+  const season = Number(period.season || AUTH_STATE.competitions?.season || 1);
+  const week = Number(period.week || AUTH_STATE.competitions?.week || 1);
   return `tennisLightTournamentSave:${season}:${week}:${competitionId}`;
 }
 
@@ -1782,7 +1782,11 @@ function saveTournamentProgress() {
     soloAi: cloneData(SOLO_AI),
     serverSync: cloneData(SERVER_SYNC),
   };
-  localStorage.setItem(currentCircuitSaveKey(state.tournament.competitionId), JSON.stringify(save));
+  const period = {
+    season: state.tournament.competitionSeason,
+    week: state.tournament.competitionWeek,
+  };
+  localStorage.setItem(currentCircuitSaveKey(state.tournament.competitionId, period), JSON.stringify(save));
 }
 
 function deleteTournamentProgress(competitionId = state.tournament?.competitionId) {
@@ -2270,6 +2274,12 @@ function closeReturnLobbyDialog() {
 
 async function confirmReturnToLobby() {
   closeReturnLobbyDialog();
+  if (state.tournament?.weekly && state.tournament.stage !== "complete") {
+    saveTournamentProgress();
+  } else if (state.tournament?.weekly && state.tournament.stage === "complete") {
+    await recordWeeklyCompetitionResult();
+    deleteTournamentProgress();
+  }
   await notifyServerLeaveRoom();
   SOLO_AI.enabled = false;
   stopSoloTimers();
@@ -2585,7 +2595,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v89",
+    version: "v94",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4615,10 +4625,14 @@ function clearActiveEffectsFromRemovedCard(card) {
 function markCopiedEffectOnSource(sourceCard, chosen) {
   sourceCard.copiedEffectType = chosen.effectType;
   sourceCard.copiedEffectName = chosen.name;
+  sourceCard.effectType = chosen.effectType;
+  sourceCard.effect = chosen.effect;
   if (chosen.effectType === "smashThreat") sourceCard.copiedSmashThreat = true;
   if (state.latestPlayedCard?.playedUid === sourceCard.playedUid) {
     state.latestPlayedCard.copiedEffectType = chosen.effectType;
     state.latestPlayedCard.copiedEffectName = chosen.name;
+    state.latestPlayedCard.effectType = chosen.effectType;
+    state.latestPlayedCard.effect = chosen.effect;
     if (chosen.effectType === "smashThreat") state.latestPlayedCard.copiedSmashThreat = true;
   }
 }
@@ -5361,6 +5375,8 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     competitionName: weeklyCompetition.name,
     competitionSurface: weeklyCompetition.surface,
     competitionSurfaceLabel: weeklyCompetition.surfaceLabel,
+    competitionSeason: Number(AUTH_STATE.competitions?.season || 1),
+    competitionWeek: Number(AUTH_STATE.competitions?.week || 1),
     competitionPoints: weeklyCompetition.points,
     directThreshold: weeklyCompetition.directThreshold,
     humanDirect,
@@ -6243,12 +6259,39 @@ function currentModeLabel() {
 
 function tournamentStageLabel() {
   if (state.tournament.stage === "quarter") return "quarts de finale";
+  if (state.tournament.stage === "qualif") return "qualifications";
+  if (state.tournament.stage === "readyNext") return "match suivant prêt";
   if (state.tournament.stage === "readySemi") return "demi-finale prête";
   if (state.tournament.stage === "semi") return "demi-finales";
   if (state.tournament.stage === "readyFinal") return "finale prête";
   if (state.tournament.stage === "final") return "finale";
   if (state.tournament.stage === "complete") return "terminé";
   return "tournoi";
+}
+
+function humanTournamentRoundLabel() {
+  if (!state.tournament.active) return "";
+  const current = state.tournament.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
+  const next = state.tournament.nextHumanMatchId ? tournamentMatchById(state.tournament.nextHumanMatchId) : null;
+  const round = next?.round || current?.round || state.tournament.stage;
+  if (round === "qualif") return "Qualifications";
+  if (round === "quarter") return "Quart-de-finale";
+  if (round === "semi" || round === "readySemi") return "Demi-finale";
+  if (round === "final" || round === "readyFinal") return "Finale";
+  return "";
+}
+
+function tournamentSurfaceBadgeClass() {
+  const surface = state.tournament.competitionSurface || "";
+  if (surface === "grass") return "surface-round-grass";
+  if (surface === "clay") return "surface-round-clay";
+  return "surface-round-hard";
+}
+
+function renderHumanRoundBadge() {
+  const label = humanTournamentRoundLabel();
+  if (!label) return "";
+  return `<span class="surface-round-badge ${tournamentSurfaceBadgeClass()}">${label}</span>`;
 }
 
 function renderTournamentPanel() {
@@ -6268,16 +6311,13 @@ function renderTournamentPanel() {
     <div class="tournament-header">
       <div>
         <p class="eyebrow">Compétition</p>
-        <h2>${title}</h2>
+        <h2>${title} ${renderHumanRoundBadge()}</h2>
         <span class="difficulty-reminder">${state.tournament.competitionSurfaceLabel ? `${escapeHtml(state.tournament.competitionSurfaceLabel)} · ` : ""}${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
         ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
       </button>
-      ${state.tournament.stage === "readyNext" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer le prochain match</button>' : ""}
-      ${state.tournament.stage === "readySemi" ? '<button class="primary-button tournament-semi-button" type="button" data-start-tournament-semi>Lancer la demi-finale</button>' : ""}
-      ${state.tournament.stage === "readyFinal" ? '<button class="primary-button tournament-final-button" type="button" data-start-tournament-final>Lancer la finale</button>' : ""}
     </div>
     <div class="tournament-bracket ${state.tournament.visible ? "" : "hidden"}">
       ${state.tournament.weekly && qualificationMatches.length ? `
@@ -6620,6 +6660,17 @@ function renderCenterNextSetButton() {
   if (isHumanTournamentRunOver()) {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>Sortir du tournoi</button>';
   }
+  if (state.tournament.active && state.gameOver && state.setMatch.matchOver) {
+    if (state.tournament.stage === "readyNext") {
+      return '<button class="primary-button next-exchange-button next-set-button" type="button" data-start-tournament-next-match>MATCH SUIVANT</button>';
+    }
+    if (state.tournament.stage === "readySemi") {
+      return '<button class="primary-button next-exchange-button next-set-button" type="button" data-start-tournament-next-match>DEMI-FINALE</button>';
+    }
+    if (state.tournament.stage === "readyFinal") {
+      return '<button class="primary-button next-exchange-button next-set-button" type="button" data-start-tournament-next-match>FINALE</button>';
+    }
+  }
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
   return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
 }
@@ -6638,7 +6689,19 @@ function bindCenterButtons() {
   els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
   els.centerPlayedCard.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
   els.centerPlayedCard.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
+  els.centerPlayedCard.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
   els.centerPlayedCard.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
+}
+
+function startTournamentNextMatchFromCenter() {
+  if (!state.tournament.active) return;
+  if (state.tournament.stage === "readyNext" || state.tournament.stage === "readySemi") {
+    startTournamentSemi();
+    return;
+  }
+  if (state.tournament.stage === "readyFinal") {
+    startTournamentFinal();
+  }
 }
 
 async function exitTournamentToLobby() {
