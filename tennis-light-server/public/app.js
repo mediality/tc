@@ -87,6 +87,7 @@ const AUTH_STATE = {
 const ROLE_LABELS = {
   free: "FREE",
   pro: "PRO",
+  pro_plus: "PRO+",
   admin: "ADMIN",
 };
 
@@ -106,10 +107,11 @@ const EMPTY_TOURNAMENT = {
   competitionName: null,
   competitionSurface: null,
   competitionSurfaceLabel: null,
-    competitionPoints: null,
-    matchBonusPoints: 0,
-    matchBonusDetails: [],
-    pointsRecorded: false,
+  permanentBonuses: null,
+  competitionPoints: null,
+  matchBonusPoints: 0,
+  matchBonusDetails: [],
+  pointsRecorded: false,
   stage: null,
   humanCharacterId: null,
   aiFinalistCharacterId: null,
@@ -122,7 +124,7 @@ const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
-const PROFILE_CHARACTER_OPTIONS = ["tennisHope", "coachJu", "coachMax", "coachCarla", "coachClem"];
+const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
 const PROFILE_CHARACTER_IMAGES = {
   tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
   coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.png",
@@ -152,6 +154,8 @@ const NEW_TOURNAMENT_PLAYERS = [
   "milanVerhaegen",
 ];
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
+const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
+const HUMAN_TOURNAMENT_ENTRY = "__human__";
 const SURFACE_SPECIALISTS = {
   grass: ["elianaMarquez", "kojiIwata"],
   hard: ["alessandraConti", "kjellBlomqvist"],
@@ -174,6 +178,11 @@ const SURFACE_BONUSES = {
     { id: "clayBoostPower", label: "+2 puissance pour chaque BOOST joué" },
   ],
 };
+
+const HISTORIC_PERMANENT_BONUSES = [
+  { id: "historicPermanentPlacement", label: "+1 placement permanent", placement: 1, precision: 0 },
+  { id: "historicPermanentPrecision", label: "+1 précision permanente", placement: 0, precision: 1 },
+];
 
 const CHARACTERS = {
   coachUnknown: {
@@ -1219,6 +1228,7 @@ const els = {
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
   profileScreen: document.querySelector("#profileScreen"),
+  characterScreen: document.querySelector("#characterScreen"),
   resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
@@ -1256,6 +1266,8 @@ const els = {
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
   profileContent: document.querySelector("#profileContent"),
+  characterContent: document.querySelector("#characterContent"),
+  backToProfileFromCharacterButton: document.querySelector("#backToProfileFromCharacterButton"),
   weeklyCompetitionsList: document.querySelector("#weeklyCompetitionsList"),
   nicknameInput: document.querySelector("#nicknameInput"),
   aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
@@ -1410,11 +1422,19 @@ function currentUserRole() {
 }
 
 function canAccessProFeatures() {
-  return ["pro", "admin"].includes(currentUserRole());
+  return ["pro", "pro_plus", "admin"].includes(currentUserRole());
 }
 
 function canAccessAdminFeatures() {
   return currentUserRole() === "admin";
+}
+
+function canAccessAllCharacters() {
+  return ["pro_plus", "admin"].includes(currentUserRole());
+}
+
+function profileCharacterOptionsForCurrentUser() {
+  return canAccessAllCharacters() ? FULL_PROFILE_CHARACTER_OPTIONS : PROFILE_CHARACTER_OPTIONS;
 }
 
 function updateAccessControls() {
@@ -1452,6 +1472,7 @@ function renderAuthState(message = "") {
   els.authForm?.classList.toggle("hidden", Boolean(user));
   els.logoutButton?.classList.toggle("hidden", !user);
   els.profileButton?.classList.toggle("hidden", !user);
+  els.menuScreen?.classList.toggle("auth-only", !user);
   els.proCodePanel?.classList.toggle("hidden", !user || currentUserRole() !== "free");
   els.adminNextWeekButton?.classList.toggle("hidden", !canAccessAdminFeatures());
   if (els.authNicknameInput && !els.authNicknameInput.value && MENU_STATE.nickname) {
@@ -1459,14 +1480,18 @@ function renderAuthState(message = "") {
   }
 }
 
-async function authRequest(path, payload = null) {
-  const options = payload
-    ? {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    }
-    : {};
+async function authRequest(path, payload = null, requestOptions = {}) {
+  const options = {
+    ...requestOptions,
+    headers: {
+      ...(requestOptions.headers || {}),
+    },
+  };
+  if (payload) {
+    options.method = options.method || "POST";
+    options.headers["content-type"] = "application/json";
+    options.body = JSON.stringify(payload);
+  }
   const response = await fetch(path, options);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "Action impossible pour le moment.");
@@ -1594,6 +1619,7 @@ function renderAdminUsers() {
       <span>Mail</span>
       <span>Rôle</span>
       <span>Code</span>
+      <span>Action</span>
     </div>
     ${AUTH_STATE.adminUsers.map((user) => {
       const role = normalizeUserRole(user.role);
@@ -1606,15 +1632,20 @@ function renderAdminUsers() {
           <select data-admin-role="${escapeHtml(user.id)}" aria-label="Niveau de ${escapeHtml(user.nickname || user.email)}" ${isProtectedAdmin ? "disabled" : ""}>
             <option value="free" ${role === "free" ? "selected" : ""}>FREE</option>
             <option value="pro" ${role === "pro" ? "selected" : ""}>PRO</option>
+            <option value="pro_plus" ${role === "pro_plus" ? "selected" : ""}>PRO+</option>
             ${role === "admin" ? '<option value="admin" selected>ADMIN</option>' : ""}
           </select>
           <span>${escapeHtml(user.proCode || "-")}</span>
+          <button class="small-button admin-delete-button" type="button" data-admin-delete="${escapeHtml(user.id)}" ${isProtectedAdmin ? "disabled" : ""}>Supprimer</button>
         </article>
       `;
     }).join("")}
   `;
   els.adminUsersTable.querySelectorAll("[data-admin-role]").forEach((select) => {
     select.addEventListener("change", () => updateUserRole(select.dataset.adminRole, select.value));
+  });
+  els.adminUsersTable.querySelectorAll("[data-admin-delete]").forEach((button) => {
+    button.addEventListener("click", () => deleteAdminUser(button.dataset.adminDelete));
   });
 }
 
@@ -1695,23 +1726,43 @@ async function updateUserRole(userId, role) {
   }
 }
 
+async function deleteAdminUser(userId) {
+  if (!canAccessAdminFeatures() || !userId) return;
+  const user = AUTH_STATE.adminUsers.find((item) => item.id === userId);
+  const label = user?.nickname || user?.email || "ce compte";
+  if (!window.confirm(`Supprimer définitivement ${label} ?`)) return;
+  try {
+    await authRequest(`/api/admin/users/${encodeURIComponent(userId)}`, null, { method: "DELETE" });
+    AUTH_STATE.adminUsers = AUTH_STATE.adminUsers.filter((item) => item.id !== userId);
+    renderAdminUsers();
+    updateAdminPagination();
+  } catch (error) {
+    if (els.adminUsersTable) els.adminUsersTable.insertAdjacentHTML("afterbegin", `<div class="admin-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
 function rankingMarkup() {
   const top = AUTH_STATE.ranking?.top || [];
   const current = AUTH_STATE.ranking?.currentUserRank || null;
   if (!top.length) {
     return '<div class="lobby-empty">Aucun classement disponible pour le moment.</div>';
   }
+  const profileName = (row) => `
+    <button class="ranking-name-button" type="button" data-profile-user="${escapeHtml(row.id || "")}">
+      ${escapeHtml(row.nickname)}
+    </button>
+  `;
   const rows = top.map((row, index) => `
     <div class="ranking-row">
       <span>${Number(row.rank || index + 1)}</span>
-      <strong>${escapeHtml(row.nickname)}</strong>
+      <strong>${profileName(row)}</strong>
       <span>${Number(row.score_ref || 0)}</span>
       <span>${Number(row.score_week || 0)}</span>
       <span>${Number(row.score_total || 0)}</span>
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${escapeHtml(current.nickname)}</strong><span>${Number(current.score_ref || 0)}</span><span>${Number(current.score_week || 0)}</span><span>${Number(current.score_total || 0)}</span></div>`
+    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span><span>${Number(current.score_week || 0)}</span><span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
     <div class="ranking-head"><span>#</span><span>Nom</span><span>Points</span><span>Semaine</span><span>Saison</span></div>
@@ -1721,10 +1772,26 @@ function rankingMarkup() {
   `;
 }
 
+function attachProfileLinks(container) {
+  container?.querySelectorAll("[data-profile-user]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const userId = button.dataset.profileUser;
+      if (!userId) return;
+      showProfileScreen(userId);
+    });
+  });
+}
+
 function renderRanking() {
   const markup = rankingMarkup();
-  if (els.rankingList) els.rankingList.innerHTML = markup;
-  if (els.rankingFullList) els.rankingFullList.innerHTML = markup;
+  if (els.rankingList) {
+    els.rankingList.innerHTML = markup;
+    attachProfileLinks(els.rankingList);
+  }
+  if (els.rankingFullList) {
+    els.rankingFullList.innerHTML = markup;
+    attachProfileLinks(els.rankingFullList);
+  }
 }
 
 function profileMarkup(profile) {
@@ -1732,19 +1799,13 @@ function profileMarkup(profile) {
   const ranking = profile?.ranking || {};
   const results = profile?.results || [];
   const aiResults = profile?.aiResults || [];
-  const unlocked = new Set(user?.unlockedCharacters || PROFILE_CHARACTER_OPTIONS);
-  unlocked.add("tennisHope");
+  const calendar = profile?.calendar || [];
+  const isOwnProfile = !profile?.publicProfile;
   const selectedProfileCharacter = user?.selectedCharacterId || "tennisHope";
-  const characterRows = PROFILE_CHARACTER_OPTIONS
-    .filter((characterId) => unlocked.has(characterId))
-    .map((characterId) => `
-      <button class="profile-character-choice ${selectedProfileCharacter === characterId ? "active" : ""}" type="button" data-profile-character="${escapeHtml(characterId)}">
-        <img src="${PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0] || CHARACTER_IMAGES.coachUnknown[0]}" alt="${escapeHtml(characterNameFromId(characterId))}" />
-        <span>${escapeHtml(characterNameFromId(characterId))}</span>
-      </button>
-    `).join("");
-  const resultRows = results.length
-    ? results.map((row) => {
+  const selectedCharacterImage = PROFILE_CHARACTER_IMAGES[selectedProfileCharacter] || CHARACTER_IMAGES[selectedProfileCharacter]?.[0] || CHARACTER_IMAGES.coachUnknown[0];
+  const palmaresResults = results.filter((row) => ["winner", "finalist"].includes(String(row.achievement || "").toLowerCase()));
+  const resultRows = palmaresResults.length
+    ? palmaresResults.map((row) => {
       const won = row.achievement === "winner";
       const city = row.city || "";
       const country = row.country || "";
@@ -1758,16 +1819,42 @@ function profileMarkup(profile) {
   const aiRows = aiResults.length
     ? aiResults.map((row) => `<div class="profile-row"><strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong><span>${Number(row.wins || 0)} / ${Number(row.losses || 0)}</span></div>`).join("")
     : '<div class="lobby-empty">Aucun résultat contre IA enregistré.</div>';
+  const statRows = [
+    ["Meilleur classement", user?.bestWorldRank ? `#${Number(user.bestWorldRank)}` : "-"],
+    ["Semaines n°1", Number(user?.weeksWorldNumberOne || 0)],
+    ["Semaines Top 3", Number(user?.weeksWorldTop3 || 0)],
+    ["Semaines Top 5", Number(user?.weeksWorldTop5 || 0)],
+    ["Semaines Top 10", Number(user?.weeksWorldTop10 || 0)],
+  ].map(([label, value]) => `<div class="profile-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
+  const calendarRows = calendar.length
+    ? calendar.map((item) => {
+      const title = `${item.type || item.level || "Tournoi"} - ${item.name || ""}`;
+      const place = `${item.city || ""} · ${item.country || ""} ${item.flag || ""}`;
+      let detail = "";
+      if (item.reached && item.result) {
+        detail = `${item.result.label} · ${Number(item.result.points || 0)} pts${item.result.lastOpponent ? ` · Dernier match vs ${item.result.lastOpponent}` : ""}${item.result.lastScore ? ` · ${item.result.lastScore}` : ""}`;
+      } else if (item.reached) {
+        detail = "N'a pas participé";
+      }
+      return `<div class="profile-calendar-row">
+        <strong>S${Number(item.week || 0)} · ${escapeHtml(title)}</strong>
+        <span>${escapeHtml(place)}</span>
+        ${detail ? `<em>${escapeHtml(detail)}</em>` : ""}
+      </div>`;
+    }).join("")
+    : '<div class="lobby-empty">Calendrier indisponible.</div>';
   return `
     <div class="profile-grid">
       <section class="profile-card">
         <p class="label">Compte</p>
         <div class="profile-role">${escapeHtml(ROLE_LABELS[user?.role] || "FREE")}</div>
-        <label class="menu-field">Pseudo
-          <input id="profileNicknameInput" type="text" maxlength="24" value="${escapeHtml(user?.nickname || "")}" />
-        </label>
-        <button id="saveProfileNicknameButton" class="primary-button" type="button">Modifier le pseudo</button>
-        ${user?.role === "free" ? `
+        ${isOwnProfile ? `
+          <label class="menu-field">Pseudo
+            <input id="profileNicknameInput" type="text" maxlength="24" value="${escapeHtml(user?.nickname || "")}" />
+          </label>
+          <button id="saveProfileNicknameButton" class="primary-button" type="button">Modifier le pseudo</button>
+        ` : `<h2>${escapeHtml(user?.nickname || "")}</h2>`}
+        ${isOwnProfile && user?.role === "free" ? `
           <label class="menu-field">Code Pro
             <input id="profileProCodeInput" type="text" maxlength="6" autocomplete="off" placeholder="CODE PRO" />
           </label>
@@ -1776,12 +1863,16 @@ function profileMarkup(profile) {
       </section>
       <section class="profile-card">
         <p class="label">Personnage</p>
-        <div class="profile-character-grid">${characterRows}</div>
-        <button id="saveProfileCharacterButton" class="primary-button" type="button">Enregistrer le personnage</button>
+        <div class="profile-character-summary">
+          <img src="${selectedCharacterImage}" alt="${escapeHtml(characterNameFromId(selectedProfileCharacter))}" />
+          <strong>${escapeHtml(characterNameFromId(selectedProfileCharacter))}</strong>
+        </div>
+        ${isOwnProfile ? '<button id="openCharacterPageButton" class="primary-button" type="button">Changer de personnage</button>' : ""}
       </section>
       <section class="profile-card">
         <p class="label">Classement mondial</p>
         <div class="ranking-row current-user"><span>${Number(ranking.rank || 0) || "-"}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
+        <div class="profile-stats-grid">${statRows}</div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
       <section class="profile-card profile-wide">
@@ -1792,17 +1883,64 @@ function profileMarkup(profile) {
         <p class="label">Résultats contre IA</p>
         ${aiRows}
       </section>
+      <section class="profile-card profile-wide">
+        <p class="label">Calendrier de saison</p>
+        <div class="profile-calendar">${calendarRows}</div>
+      </section>
     </div>
   `;
 }
 
-async function loadProfile() {
+async function loadProfile(userId = null) {
   if (!AUTH_STATE.user) return;
   if (els.profileContent) els.profileContent.innerHTML = '<div class="lobby-empty">Chargement du profil...</div>';
   try {
-    AUTH_STATE.profile = await authRequest("/api/profile");
-    if (els.profileContent) els.profileContent.innerHTML = profileMarkup(AUTH_STATE.profile);
-    document.querySelector("#saveProfileNicknameButton")?.addEventListener("click", saveProfileNickname);
+    const ownProfile = !userId || userId === AUTH_STATE.user?.id;
+    const profile = ownProfile ? await authRequest("/api/profile") : await authRequest(`/api/profiles/${encodeURIComponent(userId)}`);
+    if (ownProfile) AUTH_STATE.profile = profile;
+    if (els.profileContent) els.profileContent.innerHTML = profileMarkup(profile);
+    if (ownProfile) {
+      document.querySelector("#saveProfileNicknameButton")?.addEventListener("click", saveProfileNickname);
+      document.querySelector("#openCharacterPageButton")?.addEventListener("click", showCharacterScreen);
+      document.querySelector("#profileRedeemProCodeButton")?.addEventListener("click", redeemProfileProCode);
+    }
+    document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
+  } catch (error) {
+    if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function characterPageMarkup(profile) {
+  const user = profile?.user || AUTH_STATE.user;
+  const options = profileCharacterOptionsForCurrentUser();
+  const selectedProfileCharacter = options.includes(user?.selectedCharacterId) ? user.selectedCharacterId : options[0] || "coachJu";
+  const characterRows = options.map((characterId) => {
+    const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0] || CHARACTER_IMAGES.coachUnknown[0];
+    return `
+      <button class="profile-character-choice ${selectedProfileCharacter === characterId ? "active" : ""}" type="button" data-profile-character="${escapeHtml(characterId)}">
+        <img src="${image}" alt="${escapeHtml(characterNameFromId(characterId))}" />
+        <span>${escapeHtml(characterNameFromId(characterId))}</span>
+      </button>
+    `;
+  }).join("");
+  const roleHint = canAccessAllCharacters()
+    ? "Tous les personnages sont disponibles pour ce compte."
+    : "Les comptes Free et Pro peuvent choisir parmi les 4 coachs.";
+  return `
+    <div class="profile-card profile-wide">
+      <p class="label">${escapeHtml(roleHint)}</p>
+      <div class="profile-character-grid character-screen-grid">${characterRows}</div>
+      <button id="saveProfileCharacterButton" class="primary-button" type="button">Enregistrer le personnage</button>
+    </div>
+  `;
+}
+
+async function loadCharacterPage() {
+  if (!AUTH_STATE.user) return;
+  if (els.characterContent) els.characterContent.innerHTML = '<div class="lobby-empty">Chargement des personnages...</div>';
+  try {
+    AUTH_STATE.profile = AUTH_STATE.profile || await authRequest("/api/profile");
+    if (els.characterContent) els.characterContent.innerHTML = characterPageMarkup(AUTH_STATE.profile);
     document.querySelector("#saveProfileCharacterButton")?.addEventListener("click", saveProfileCharacter);
     document.querySelectorAll("[data-profile-character]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -1810,10 +1948,8 @@ async function loadProfile() {
         button.classList.add("active");
       });
     });
-    document.querySelector("#profileRedeemProCodeButton")?.addEventListener("click", redeemProfileProCode);
-    document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
   } catch (error) {
-    if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+    if (els.characterContent) els.characterContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -1822,9 +1958,10 @@ async function saveProfileCharacter() {
   try {
     const data = await authRequest("/api/profile/character", { characterId: selected });
     applyAuthenticatedUser(data.user);
-    await loadProfile();
+    AUTH_STATE.profile = null;
+    await loadCharacterPage();
   } catch (error) {
-    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
+    if (els.characterContent) els.characterContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
   }
 }
 
@@ -1892,9 +2029,15 @@ function renderCompetitions() {
   }
   const retriesUsed = Number(AUTH_STATE.competitions?.retriesUsed || 0);
   const retryLimit = Number(AUTH_STATE.competitions?.retryLimit || 5);
+  const nextUpdateText = formatCountdown(AUTH_STATE.competitions?.nextUpdateAt);
   els.weeklyCompetitionsList.innerHTML = `
-    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit}</div>
-    ${competitions.map((competition) => `
+    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit} · Prochaine semaine : ${escapeHtml(nextUpdateText)}</div>
+    ${competitions.map((competition) => {
+      const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competition.id);
+      const canReplay = !alreadyPlayed || retriesUsed < retryLimit;
+      const label = alreadyPlayed ? "Rejouer" : "Jouer";
+      const replayClass = alreadyPlayed ? "replay-button" : "";
+      return `
       <article class="weekly-competition">
         <div>
           <strong>${escapeHtml(competition.type || competition.name)} - ${escapeHtml(competition.name)}</strong>
@@ -1902,11 +2045,12 @@ function renderCompetitions() {
         </div>
         <span>Gains : ${Number(bestScores[competition.id] || 0)} pts</span>
         <div class="weekly-competition-actions">
-          <button class="small-button" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}">Jouer</button>
+          <button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>
           ${savedTournamentProgress(competition.id) ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
         </div>
       </article>
-    `).join("")}
+    `;
+    }).join("")}
   `;
   els.weeklyCompetitionsList.querySelectorAll("[data-start-weekly-competition]").forEach((button) => {
     button.addEventListener("click", () => startWeeklyCompetition(button.dataset.startWeeklyCompetition));
@@ -1914,6 +2058,17 @@ function renderCompetitions() {
   els.weeklyCompetitionsList.querySelectorAll("[data-resume-weekly-competition]").forEach((button) => {
     button.addEventListener("click", () => resumeWeeklyCompetition(button.dataset.resumeWeeklyCompetition));
   });
+}
+
+function formatCountdown(isoValue) {
+  if (!isoValue) return "--:--:--";
+  const ms = new Date(isoValue).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return "bientôt";
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
 }
 
 async function loadCompetitions() {
@@ -2094,6 +2249,7 @@ function showGameScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
 }
@@ -2103,6 +2259,7 @@ function showRankingScreen() {
   els.adminScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
   els.rankingScreen?.classList.remove("hidden");
   loadRanking();
 }
@@ -2112,6 +2269,7 @@ function showMenuScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.menuScreen?.classList.remove("hidden");
   applySurfaceBackground(null);
@@ -2122,15 +2280,28 @@ function showMenuScreen() {
   loadCompetitions();
 }
 
-function showProfileScreen() {
+function showProfileScreen(userId = null) {
   if (!AUTH_STATE.user) return;
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
   els.profileScreen?.classList.remove("hidden");
-  loadProfile();
+  loadProfile(typeof userId === "string" ? userId : null);
+}
+
+function showCharacterScreen() {
+  if (!AUTH_STATE.user) return;
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.remove("hidden");
+  loadCharacterPage();
 }
 
 function showResetPasswordScreen() {
@@ -2138,6 +2309,7 @@ function showResetPasswordScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.resetPasswordScreen?.classList.remove("hidden");
 }
@@ -2148,6 +2320,7 @@ function showAdminScreen() {
   els.gameApp?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
   els.adminScreen?.classList.remove("hidden");
   AUTH_STATE.adminPage = 1;
   loadAdminUsers();
@@ -2716,6 +2889,7 @@ function createPlayer(name, characterId, nickname = name) {
     freeBoostNextSourceUid: null,
     endBonuses: [],
     surfaceBonus: null,
+    permanentBonuses: [],
     passed: false,
   };
 }
@@ -2834,7 +3008,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v96",
+    version: "v99",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -2908,6 +3082,9 @@ function newGame(options = {}) {
     player.surfaceBonus = state.tournament.active && state.tournament.surfaceBonuses
       ? state.tournament.surfaceBonuses[player.characterId] ?? null
       : null;
+    player.permanentBonuses = state.tournament.active && state.tournament.permanentBonuses
+      ? cloneData(state.tournament.permanentBonuses[player.characterId] ?? [])
+      : [];
   });
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
@@ -3172,8 +3349,11 @@ function getCardStats(player, card, boosted) {
   const aiDifficulty = tournamentAiDifficultyForPlayer(player);
   const aiStatBonus = aiDifficulty === "champion" || aiDifficulty === "hardcore" ? 1 : 0;
   const aiPowerBonus = aiDifficulty === "hardcore" && !isRemise(card) ? 1 : 0;
+  const permanentPrecisionBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.precision || 0), 0);
+  const permanentPlacementBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.placement || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus;
-  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + aiStatBonus;
+  precision += permanentPrecisionBonus;
+  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + aiStatBonus + permanentPlacementBonus;
   let surfacePowerBonus = 0;
   if (!isRemise(card) && player.surfaceBonus?.id === "grassPowerVolleySmash" && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && player.surfaceBonus?.id === "hardPrecisePower" && precision > 3) surfacePowerBonus += 1;
@@ -3543,16 +3723,16 @@ function chooseSoloPlacementDefenseAction(playerIndex) {
 
   const escapeEffect = chooseSoloBoostEscapeEffect(playerIndex);
   const directCoup = chooseSoloNormalCoup(playerIndex);
+  const counterBoost = chooseSoloBoostPlay(playerIndex);
   const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
 
   if (escapeEffect && shouldUseSoloBoostEscapeEffect(playerIndex, escapeEffect, directCoup, defensePlan)) {
     return { type: "effect", card: escapeEffect };
   }
 
-  if (directCoup) return { type: "normal", card: directCoup };
-
-  const counterBoost = chooseSoloBoostPlay(playerIndex);
   if (counterBoost) return { type: "boost", card: counterBoost.card, sacrifice: counterBoost.sacrifice };
+
+  if (directCoup) return { type: "normal", card: directCoup };
 
   if (defensePlan?.remises.length) {
     return { type: "remise", card: defensePlan.remises[0] };
@@ -4316,7 +4496,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     opponent: playerLogInfo(state.players[opponentIndex]),
     constraints: constraintsLogInfo(),
   };
-  const answeredBoostConstraint = state.mandatoryPlacement && state.mandatoryPlacementReason === "boost";
+  const answeredBoostConstraint = !boosted && Boolean(state.lastCard?.boosted || (state.mandatoryPlacement && state.mandatoryPlacementReason === "boost"));
   if (answeredBoostConstraint && !boosted) {
     state.turnCannotOpenBoost[playerIndex] = true;
   }
@@ -4559,13 +4739,15 @@ function commitEndTurn(playerIndex) {
   const opponent = state.players[opponentIndex];
   const preparedPlacement = turnEndPlacement(playerIndex);
   const finalRemise = finalRemisePlayedThisTurn(playerIndex);
-  const opensBoost = Boolean(state.lastCard && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]);
+  const answeredBoostConstraint = Boolean(state.lastCard?.boosted || state.mandatoryPlacementReason === "boost");
+  const opensBoost = Boolean(state.lastCard && !answeredBoostConstraint && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]);
   recordAction("end_turn", {
     playerIndex,
     opponentIndex,
     playerName: player.name,
     preparedPlacement,
     opensBoost,
+    answeredBoostConstraint,
     constraintsBefore: constraintsLogInfo(),
     player: playerLogInfo(player),
     opponent: playerLogInfo(opponent),
@@ -4982,6 +5164,17 @@ function resolveEffectChoice(chosenPlayedUid) {
   };
   state.log.unshift(`${player.name} choisit l'effet de ${chosen.name}.`);
   markCopiedEffectOnSource(sourceCard, chosen);
+  const chosenEffectType = chosen.copiedEffectType || chosen.effectType;
+  if (chosenEffectType === "choosePlayedEffect" || chosenEffectType === "gainPowerAndChooseAnyPlayedEffect") {
+    sourceCard.effectType = "choosePlayedEffect";
+    sourceCard.copiedEffectType = "choosePlayedEffect";
+    sourceCard.effect = chosen.effect;
+    state.pendingEffectChoice = { playerIndex, sourcePlayedUid: sourceCard.playedUid, shotsOnly: true };
+    state.log.unshift(`${player.name} doit maintenant choisir l'effet à dupliquer.`);
+    setEffectNotice("appliqué", chosen, "Effet de duplication choisi : choisissez maintenant l'effet copié.");
+    render();
+    return;
+  }
   applyEffect(playerIndex, effectCard);
   setEffectNotice("appliqué", chosen, `Effet choisi via ${sourceCard.name}: ${chosen.effect}`);
   if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
@@ -5048,11 +5241,17 @@ function flipCharacter(player) {
   }
 }
 
+function characterEffectLogMarker(effect) {
+  const side = String(effect?.side || "").toLowerCase().includes("rose") ? "rose" : "blue";
+  return `[[tc-effect-${side}:${effect?.label || "Effet personnage"}]]`;
+}
+
 function applyCharacterEffect(playerIndex, playedCard) {
   const player = state.players[playerIndex];
   const character = characterOf(player);
   const effect = currentCharacterEffect(player);
   flipCharacter(player);
+  state.log.unshift(`${character.name} active ${characterEffectLogMarker(effect)}.`);
 
   if (effect.type === "drawCard") {
     const count = effect.count ?? 1;
@@ -5622,7 +5821,8 @@ function startTournamentMode(targetSets = 2, options = {}) {
     startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
     return;
   }
-  const { positions } = buildTournamentRound16Positions(humanCharacterId);
+  const { positions } = buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
+  const permanentBonuses = buildHistoricPermanentBonuses(positions);
   state.tournament = {
     active: true,
     visible: false,
@@ -5631,6 +5831,9 @@ function startTournamentMode(targetSets = 2, options = {}) {
     weekly: Boolean(weeklyCompetition),
     competitionId: weeklyCompetition?.id || null,
     competitionName: weeklyCompetition?.name || null,
+    competitionCity: weeklyCompetition?.city || null,
+    competitionCountry: weeklyCompetition?.country || null,
+    competitionFlag: weeklyCompetition?.flag || null,
     competitionSurface: weeklyCompetition?.surface || null,
     competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
     competitionPoints: weeklyCompetition?.points || null,
@@ -5640,18 +5843,20 @@ function startTournamentMode(targetSets = 2, options = {}) {
     stage: "quarter",
     targetSets,
     humanCharacterId,
+    humanEntry: HUMAN_TOURNAMENT_ENTRY,
     aiFinalistCharacterId: null,
     currentMatch: "qfHuman",
     nextHumanMatchId: null,
     championCharacterId: null,
     weeklyPositions: positions,
     surfaceBonuses: {},
-    matches: buildWeeklyTournamentMatches(positions, humanCharacterId, targetSets),
+    permanentBonuses,
+    matches: buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets),
   };
   refreshTournamentDerivedSlots();
   const firstHumanMatch = nextHumanTournamentMatch();
   state.tournament.currentMatch = firstHumanMatch?.id || null;
-  SOLO_AI.characterId = opponentCharacterInMatch(firstHumanMatch, humanCharacterId);
+  SOLO_AI.characterId = opponentCharacterInMatch(firstHumanMatch, HUMAN_TOURNAMENT_ENTRY);
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = firstHumanMatch?.id || null;
   state.tournament.stage = firstHumanMatch?.round || "round16";
@@ -5671,6 +5876,22 @@ function randomSurfaceBonus(surface) {
   return options[Math.floor(Math.random() * options.length)] || null;
 }
 
+function randomHistoricPermanentBonus() {
+  const bonus = HISTORIC_PERMANENT_BONUSES[Math.floor(Math.random() * HISTORIC_PERMANENT_BONUSES.length)];
+  return bonus ? { ...bonus } : null;
+}
+
+function buildHistoricPermanentBonuses(entries = []) {
+  const bonuses = {};
+  for (const entry of entries) {
+    const characterId = tournamentEntryCharacterId(entry);
+    if (!HISTORIC_TOURNAMENT_PLAYERS.includes(characterId)) continue;
+    const bonus = randomHistoricPermanentBonus();
+    if (bonus) bonuses[characterId] = [bonus];
+  }
+  return bonuses;
+}
+
 function buildWeeklySurfaceBonuses(surface, seededCharacters) {
   const bonuses = {};
   for (const characterId of seededCharacters) {
@@ -5680,19 +5901,21 @@ function buildWeeklySurfaceBonuses(surface, seededCharacters) {
   return bonuses;
 }
 
-function buildTournamentRound16Positions(humanCharacterId) {
-  const historicPlayers = HISTORIC_TOURNAMENT_PLAYERS.filter((characterId) => characterId !== humanCharacterId);
-  const seededHistorics = shuffle(historicPlayers).slice(0, 2);
-  const remainingHistorics = historicPlayers.filter((characterId) => !seededHistorics.includes(characterId));
-  const neededNewPlayers = Math.max(0, 14 - (1 + remainingHistorics.length));
-  const newDraw = shuffle(NEW_TOURNAMENT_PLAYERS.filter((characterId) => characterId !== humanCharacterId)).slice(0, neededNewPlayers);
-  const field = shuffle([humanCharacterId, ...remainingHistorics, ...newDraw]).slice(0, 14);
+function buildTournamentRound16Positions(humanCharacterId, surface = "hard") {
+  const preferredSeeds = SURFACE_SPECIALISTS[surface] || SURFACE_SPECIALISTS.hard || [];
+  const seededHistorics = [
+    ...preferredSeeds.filter((characterId) => HISTORIC_TOURNAMENT_PLAYERS.includes(characterId)),
+    ...shuffle(HISTORIC_TOURNAMENT_PLAYERS.filter((characterId) => !preferredSeeds.includes(characterId))),
+  ].slice(0, 2);
+  const remainingHistorics = HISTORIC_TOURNAMENT_PLAYERS.filter((characterId) => !seededHistorics.includes(characterId));
+  const newDraw = shuffle(NEW_TOURNAMENT_PLAYERS).slice(0, 9);
+  const field = shuffle([HUMAN_TOURNAMENT_ENTRY, ...remainingHistorics, ...newDraw]).slice(0, 14);
   const positions = Array(17).fill(null);
   positions[1] = seededHistorics[0];
   positions[16] = seededHistorics[1];
   const middlePositions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
   middlePositions.forEach((position, index) => {
-    positions[position] = field[index] || shuffle(NEW_TOURNAMENT_PLAYERS.filter((characterId) => !positions.includes(characterId) && characterId !== humanCharacterId))[0] || humanCharacterId;
+    positions[position] = field[index] || shuffle(NEW_TOURNAMENT_PLAYERS.filter((characterId) => !positions.includes(characterId)))[0] || HUMAN_TOURNAMENT_ENTRY;
   });
   return { positions, seededHistorics };
 }
@@ -5700,8 +5923,9 @@ function buildTournamentRound16Positions(humanCharacterId) {
 function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId) {
   const surface = weeklyCompetition.surface || "hard";
   applySurfaceBackground(surface);
-  const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId);
+  const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, surface);
   const surfaceBonuses = buildWeeklySurfaceBonuses(surface, seededHistorics);
+  const permanentBonuses = buildHistoricPermanentBonuses(positions);
   state.tournament = {
     active: true,
     visible: false,
@@ -5710,6 +5934,9 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     weekly: true,
     competitionId: weeklyCompetition.id,
     competitionName: weeklyCompetition.name,
+    competitionCity: weeklyCompetition.city,
+    competitionCountry: weeklyCompetition.country,
+    competitionFlag: weeklyCompetition.flag,
     competitionSurface: weeklyCompetition.surface,
     competitionSurfaceLabel: weeklyCompetition.surfaceLabel,
     competitionSeason: Number(AUTH_STATE.competitions?.season || 1),
@@ -5721,18 +5948,20 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     stage: "weekly",
     targetSets,
     humanCharacterId,
+    humanEntry: HUMAN_TOURNAMENT_ENTRY,
     aiFinalistCharacterId: null,
     currentMatch: null,
     nextHumanMatchId: null,
     championCharacterId: null,
     weeklyPositions: positions,
     surfaceBonuses,
-    matches: buildWeeklyTournamentMatches(positions, humanCharacterId, targetSets),
+    permanentBonuses,
+    matches: buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets),
   };
   refreshWeeklyTournamentDerivedSlots();
   let firstHumanMatch = nextHumanTournamentMatch();
   state.tournament.currentMatch = firstHumanMatch?.id || null;
-  SOLO_AI.characterId = opponentCharacterInMatch(firstHumanMatch, humanCharacterId);
+  SOLO_AI.characterId = opponentCharacterInMatch(firstHumanMatch, HUMAN_TOURNAMENT_ENTRY);
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.stage = firstHumanMatch?.round || "weekly";
   state.tournament.currentMatch = firstHumanMatch?.id || null;
@@ -5740,7 +5969,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
   render();
 }
 
-function buildWeeklyTournamentMatches(positions, humanCharacterId, targetSets) {
+function buildWeeklyTournamentMatches(positions, humanEntry, targetSets) {
   const match = (id, label, round, playerA, playerB) => ({
     id,
     label,
@@ -5750,8 +5979,8 @@ function buildWeeklyTournamentMatches(positions, humanCharacterId, targetSets) {
     winner: null,
     score: null,
     liveScore: null,
-    playable: playerA === humanCharacterId || playerB === humanCharacterId,
-    simulated: playerA !== humanCharacterId && playerB !== humanCharacterId,
+    playable: playerA === humanEntry || playerB === humanEntry,
+    simulated: playerA !== humanEntry && playerB !== humanEntry,
     hiddenWinner: null,
     hiddenSetScores: null,
     revealedSetScores: [],
@@ -5809,8 +6038,16 @@ function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tourname
 }
 
 function aiTournamentStrength(characterId) {
+  const isHistoric = HISTORIC_TOURNAMENT_PLAYERS.includes(characterId);
+  const surface = state.tournament?.competitionSurface || "hard";
+  const isSeeded = (SURFACE_SPECIALISTS[surface] || []).includes(characterId);
+  const permanentBonuses = state.tournament?.permanentBonuses?.[characterId] ?? [];
+  const surfaceBonus = state.tournament?.surfaceBonuses?.[characterId] ? 4 : 0;
+  const historicBonus = isHistoric ? 8 : 0;
+  const seededBonus = isSeeded ? 4 : 0;
+  const permanentBonus = permanentBonuses.length ? 3 : 0;
   const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
-  return base + Math.floor(Math.random() * 17);
+  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + Math.floor(Math.random() * 17);
 }
 
 function randomMatchSetScoresForWinner(winnerIndex, targetSets = 2) {
@@ -5839,13 +6076,30 @@ function tournamentMatchById(matchId) {
   return state.tournament.matches.find((match) => match.id === matchId);
 }
 
-function opponentCharacterInMatch(match, humanCharacterId = state.tournament.humanCharacterId) {
+function humanTournamentEntry() {
+  return state.tournament.humanEntry || HUMAN_TOURNAMENT_ENTRY;
+}
+
+function isHumanTournamentEntry(entry) {
+  return entry === humanTournamentEntry() || (!state.tournament.humanEntry && entry === state.tournament.humanCharacterId);
+}
+
+function tournamentEntryCharacterId(entry) {
+  return isHumanTournamentEntry(entry) ? state.tournament.humanCharacterId : entry;
+}
+
+function tournamentWinnerEntryFromMatchWinner(winnerIndex) {
+  return winnerIndex === 0 ? humanTournamentEntry() : state.players[winnerIndex]?.characterId;
+}
+
+function opponentCharacterInMatch(match, humanEntry = humanTournamentEntry()) {
   if (!match) return randomAiCharacterId();
-  return match.playerA === humanCharacterId ? match.playerB : match.playerA;
+  const opponentEntry = match.playerA === humanEntry ? match.playerB : match.playerA;
+  return tournamentEntryCharacterId(opponentEntry);
 }
 
 function nextHumanTournamentMatch() {
-  const human = state.tournament.humanCharacterId;
+  const human = humanTournamentEntry();
   return state.tournament.matches.find((match) => {
     if (match.winner || match.score) return false;
     if (match.playerA !== human && match.playerB !== human) return false;
@@ -5859,7 +6113,7 @@ function setMatchPlayers(match, playerA, playerB) {
   const wasReady = Boolean(match.playerA && match.playerB);
   match.playerA = playerA ?? null;
   match.playerB = playerB ?? null;
-  match.playable = match.playerA === state.tournament.humanCharacterId || match.playerB === state.tournament.humanCharacterId;
+  match.playable = isHumanTournamentEntry(match.playerA) || isHumanTournamentEntry(match.playerB);
   match.simulated = Boolean(match.playerA && match.playerB && !match.playable);
   if (!wasReady && match.simulated) {
     match.hiddenWinner = null;
@@ -5935,16 +6189,16 @@ function handleTournamentMatchComplete() {
 function handleWeeklyTournamentMatchComplete() {
   const match = tournamentMatchById(state.tournament.currentMatch);
   if (!match || match.winner) return;
-  const winnerCharacterId = state.players[state.setMatch.matchWinner]?.characterId;
-  match.winner = winnerCharacterId;
+  const winnerEntry = tournamentWinnerEntryFromMatchWinner(state.setMatch.matchWinner);
+  match.winner = winnerEntry;
   match.score = tournamentCompletedSetScore();
   match.liveScore = null;
   addHumanMatchPerformanceBonus(match);
   refreshWeeklyTournamentDerivedSlots();
   revealNextTournamentAiSet();
   refreshWeeklyTournamentDerivedSlots();
-  const human = state.tournament.humanCharacterId;
-  if (winnerCharacterId !== human) {
+  const human = humanTournamentEntry();
+  if (winnerEntry !== human) {
     completeWeeklyTournamentAfterHumanLoss();
     recordWeeklyCompetitionResult();
     render();
@@ -5963,7 +6217,7 @@ function handleWeeklyTournamentMatchComplete() {
   state.tournament.stage = "readyNext";
   state.tournament.currentMatch = null;
   state.tournament.nextHumanMatchId = nextMatch.id;
-  state.log.unshift(`Prochain match : ${characterNameFromId(human)} contre ${characterNameFromId(opponentCharacterInMatch(nextMatch, human))}.`);
+  state.log.unshift(`Prochain match : ${nicknameValue()} contre ${characterNameFromId(opponentCharacterInMatch(nextMatch, human))}.`);
 }
 
 function completeWeeklyTournamentAfterHumanLoss() {
@@ -5991,7 +6245,7 @@ function completeWeeklyTournamentAfterHumanLoss() {
 
 function humanTournamentAchievement() {
   if (!state.tournament.active) return null;
-  const human = state.tournament.humanCharacterId;
+  const human = humanTournamentEntry();
   const final = tournamentMatchById("final");
   if (state.tournament.championCharacterId === human) return "winner";
   if (state.tournament.weekly) {
@@ -6001,7 +6255,7 @@ function humanTournamentAchievement() {
     if (last.round === "final") return last.winner === human ? "winner" : "finalist";
     if (last.round === "semi") return "semi";
     if (last.round === "quarter") return "quarter";
-    if (last.round === "round16" || last.round === "qualif") return "qualif";
+    if (last.round === "round16" || last.round === "qualif") return "round16";
     return null;
   }
   const semiHuman = tournamentMatchById("semiHuman");
@@ -6014,7 +6268,7 @@ function humanTournamentAchievement() {
 
 function humanIndexInMatch(match) {
   if (!match) return null;
-  const human = state.tournament.humanCharacterId;
+  const human = humanTournamentEntry();
   if (match.playerA === human) return 0;
   if (match.playerB === human) return 1;
   return null;
@@ -6040,7 +6294,7 @@ function humanMatchPerformanceBonus(match, setScores = state.setMatch.completedS
       lostSets += 1;
     }
   }
-  if (match.winner === state.tournament.humanCharacterId && lostSets === 0 && wonSets > 0) {
+  if (match.winner === humanTournamentEntry() && lostSets === 0 && wonSets > 0) {
     points += 5;
     details.push("Victoire sans perdre de set: +5");
   }
@@ -6076,11 +6330,11 @@ function humanTournamentPoints() {
 
 function humanTournamentAiResults() {
   if (!state.tournament.weekly) return [];
-  const human = state.tournament.humanCharacterId;
+  const human = humanTournamentEntry();
   return state.tournament.matches
     .filter((match) => match.score && match.winner && (match.playerA === human || match.playerB === human))
     .map((match) => {
-      const aiCharacterId = match.playerA === human ? match.playerB : match.playerA;
+      const aiCharacterId = tournamentEntryCharacterId(match.playerA === human ? match.playerB : match.playerA);
       return {
         aiCharacterId,
         result: match.winner === human ? "win" : "loss",
@@ -6089,14 +6343,35 @@ function humanTournamentAiResults() {
     .filter((item) => item.aiCharacterId);
 }
 
+function humanTournamentLastMatchSummary() {
+  const human = humanTournamentEntry();
+  const matches = (state.tournament.matches || []).filter((match) => match.score && (match.playerA === human || match.playerB === human));
+  const match = matches.at(-1);
+  if (!match) return { lastOpponent: "", lastScore: "" };
+  const opponentEntry = match.playerA === human ? match.playerB : match.playerA;
+  const lastOpponent = tournamentPlayerLabel(opponentEntry);
+  const lastScore = Array.isArray(match.score)
+    ? match.score.map((score) => Array.isArray(score) ? score.join("/") : String(score)).join(" - ")
+    : String(match.score || "");
+  return { lastOpponent, lastScore };
+}
+
 async function recordWeeklyCompetitionResult() {
   if (!state.tournament.weekly || state.tournament.pointsRecorded || !state.tournament.competitionId) return;
   const { achievement, points, qualificationPoints, bonusPoints } = humanTournamentPoints();
   if (!achievement) return;
   state.tournament.pointsRecorded = true;
+  const lastMatch = humanTournamentLastMatchSummary();
   state.log.unshift(`${state.tournament.competitionName} : résultat ${achievement}, ${qualificationPoints} points de parcours + ${bonusPoints} points bonus = ${points} points pour demain.`);
   try {
-    await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, { points, achievement, aiResults: humanTournamentAiResults() });
+    await authRequest(`/api/competitions/${encodeURIComponent(state.tournament.competitionId)}/score`, {
+      points,
+      achievement,
+      roundReached: achievement,
+      lastOpponent: lastMatch.lastOpponent,
+      lastScore: lastMatch.lastScore,
+      aiResults: humanTournamentAiResults(),
+    });
     await deleteTournamentProgress();
     await loadCompetitions();
     await loadRanking();
@@ -6133,7 +6408,7 @@ function startTournamentFinal() {
   }
   if (!state.tournament.active || state.tournament.stage !== "readyFinal") return;
   const final = tournamentMatchById("final");
-  final.playerA = state.tournament.humanCharacterId;
+  final.playerA = humanTournamentEntry();
   final.playerB = state.tournament.aiFinalistCharacterId;
   state.tournament.stage = "final";
   state.tournament.currentMatch = "final";
@@ -6156,7 +6431,7 @@ function startWeeklyNextMatch() {
   state.tournament.nextHumanMatchId = null;
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  SOLO_AI.characterId = opponentCharacterInMatch(match, state.tournament.humanCharacterId);
+  SOLO_AI.characterId = opponentCharacterInMatch(match, humanTournamentEntry());
   startMatchMode(state.tournament.targetSets ?? 2, { keepSoloOpponent: true });
   state.tournament.stage = match.round;
   state.tournament.currentMatch = match.id;
@@ -6645,6 +6920,9 @@ function renderTournamentPanel() {
     return;
   }
   const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
+  const locationText = state.tournament.weekly
+    ? [state.tournament.competitionCity, state.tournament.competitionCountry, state.tournament.competitionFlag].filter(Boolean).join(" · ")
+    : "";
   const round16Matches = state.tournament.matches.filter((match) => match.round === "round16");
   const qualificationMatches = state.tournament.matches.filter((match) => match.round === "qualif");
   const quarterMatches = state.tournament.matches.filter((match) => match.round === "quarter");
@@ -6657,6 +6935,7 @@ function renderTournamentPanel() {
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
         <span class="difficulty-reminder">${state.tournament.competitionSurfaceLabel ? `${escapeHtml(state.tournament.competitionSurfaceLabel)} · ` : ""}${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
+        ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
         ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
@@ -6709,15 +6988,14 @@ function renderTournamentMatch(match, isFinal = false) {
   const playerB = match.playerB ? tournamentPlayerLabel(match.playerB) : unknownLabel;
   const scoreText = match.score || match.liveScore || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
-  const human = state.tournament.humanCharacterId;
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
-      <div class="tournament-player-row ${revealedWinner === match.playerA ? "winner" : ""} ${match.playerA === human ? "human-player" : ""}">
+      <div class="tournament-player-row ${revealedWinner === match.playerA ? "winner" : ""} ${isHumanTournamentEntry(match.playerA) ? "human-player" : ""}">
         <span>${playerA}</span>
         ${revealedWinner === match.playerA ? "<strong>✓</strong>" : ""}
       </div>
-      <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""} ${match.playerB === human ? "human-player" : ""}">
+      <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""} ${isHumanTournamentEntry(match.playerB) ? "human-player" : ""}">
         <span>${playerB}</span>
         ${revealedWinner === match.playerB ? "<strong>✓</strong>" : ""}
       </div>
@@ -6726,10 +7004,10 @@ function renderTournamentMatch(match, isFinal = false) {
   `;
 }
 
-function tournamentPlayerLabel(characterId) {
-  return characterId === state.tournament.humanCharacterId
+function tournamentPlayerLabel(entry) {
+  return isHumanTournamentEntry(entry)
     ? nicknameValue()
-    : characterNameFromId(characterId);
+    : characterNameFromId(entry);
 }
 
 function toggleTournamentPanel() {
@@ -6905,8 +7183,12 @@ function renderCharacterCard(player, playerIndex) {
   const aiNudge = playerIndex === SOLO_AI.playerIndex && state.activePlayer === playerIndex && !state.gameOver && !SERVER_SYNC.enabled && SOLO_AI.nudgeVisible
     ? '<button class="ai-nudge-button" type="button" data-force-ai-turn onclick="window.forceSoloAITurn?.()" onpointerdown="window.forceSoloAITurn?.()">Coach Max à jouer</button>'
     : "";
-  const surfaceBonus = player.surfaceBonus
-    ? `<div class="surface-bonus-reminder">${escapeHtml(player.surfaceBonus.label)}</div>`
+  const bonusReminders = [
+    player.surfaceBonus,
+    ...(player.permanentBonuses ?? []),
+  ].filter(Boolean);
+  const surfaceBonus = bonusReminders.length
+    ? `<div class="surface-bonus-stack">${bonusReminders.map((bonus) => `<div class="surface-bonus-reminder">${escapeHtml(bonus.label)}</div>`).join("")}</div>`
     : "";
   return `
     <div class="character-zone">
@@ -7027,7 +7309,7 @@ function renderCenterNextSetButton() {
 
 function isHumanTournamentRunOver() {
   if (!state.tournament.active || !state.gameOver || !state.setMatch.matchOver) return false;
-  const human = state.tournament.humanCharacterId;
+  const human = humanTournamentEntry();
   if (state.tournament.championCharacterId === human) return true;
   if (state.tournament.stage !== "complete") return false;
   const playedHumanMatches = state.tournament.matches.filter((match) => match.score && (match.playerA === human || match.playerB === human));
@@ -7277,8 +7559,14 @@ function renderPlayedCard(card) {
   `;
 }
 
+function formatLogLine(line) {
+  return escapeHtml(line)
+    .replace(/\[\[tc-effect-blue:([^\]]+)\]\]/g, '<strong class="log-effect-blue">$1</strong>')
+    .replace(/\[\[tc-effect-rose:([^\]]+)\]\]/g, '<strong class="log-effect-rose">$1</strong>');
+}
+
 function renderLog() {
-  els.log.innerHTML = state.log.slice(0, 14).map((line) => `<p>${line}</p>`).join("");
+  els.log.innerHTML = state.log.slice(0, 14).map((line) => `<p>${formatLogLine(line)}</p>`).join("");
 }
 
 function renderBoostModal() {
@@ -7558,6 +7846,7 @@ function initMenu() {
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
+  els.backToProfileFromCharacterButton?.addEventListener("click", showProfileScreen);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);

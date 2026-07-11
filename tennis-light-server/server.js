@@ -21,7 +21,14 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const PASSWORD_ITERATIONS = 210000;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
-const USER_ROLES = new Set(["free", "pro", "admin"]);
+const USER_ROLES = new Set(["free", "pro", "pro_plus", "admin"]);
+const COACH_CHARACTER_IDS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+const HISTORIC_CHARACTER_IDS = ["theoBriancourt", "alessandraConti", "saharaJackson", "kjellBlomqvist", "kojiIwata", "elianaMarquez"];
+const NEW_CHARACTER_IDS = [
+  "jonasFalkenried", "yunaSeo", "ikerSalvat", "loganBrooks", "kavyaSaran", "zariaCampbell",
+  "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen",
+];
+const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
 const SURFACES = ["grass", "hard", "clay"];
 const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 const CIRCUIT_SEASON_LENGTH = 20;
@@ -105,6 +112,25 @@ function normalizeNickname(nickname) {
   return String(nickname || "").trim().slice(0, 24);
 }
 
+function comparableNickname(nickname) {
+  return String(nickname || "")
+    .trim()
+    .toLocaleLowerCase("fr-FR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+const RESERVED_NICKNAMES = new Set([
+  "Julien",
+  "Julien Casta",
+  "Julien Castagnoli",
+  "Julien Vendaume",
+  "Novax Djocovid",
+  "Julien C",
+  "Le créateur",
+  "Créateur",
+].map(comparableNickname));
+
 function normalizeRole(role) {
   const value = String(role || "").trim().toLowerCase();
   return USER_ROLES.has(value) ? value : "free";
@@ -112,6 +138,14 @@ function normalizeRole(role) {
 
 function defaultRoleForEmail(email) {
   return normalizeEmail(email) === ADMIN_EMAIL ? "admin" : "free";
+}
+
+function canUseReservedNickname(user) {
+  return normalizeRole(user?.role) === "admin" || normalizeEmail(user?.email) === ADMIN_EMAIL;
+}
+
+function isReservedNickname(nickname) {
+  return RESERVED_NICKNAMES.has(comparableNickname(nickname));
 }
 
 function isValidEmail(email) {
@@ -127,7 +161,12 @@ function publicUser(user) {
     role: normalizeRole(user.role),
     proCode: user.pro_code || user.proCode || null,
     selectedCharacterId: user.selected_character_id || user.selectedCharacterId || "tennisHope",
-    unlockedCharacters: String(user.unlocked_characters || user.unlockedCharacters || "coachJu,coachMax,coachCarla,coachClem").split(",").filter(Boolean),
+    unlockedCharacters: userUnlockedCharacters(user),
+    bestWorldRank: user.best_world_rank || user.bestWorldRank || null,
+    weeksWorldNumberOne: user.weeks_world_number_one || user.weeksWorldNumberOne || 0,
+    weeksWorldTop3: user.weeks_world_top3 || user.weeksWorldTop3 || 0,
+    weeksWorldTop5: user.weeks_world_top5 || user.weeksWorldTop5 || 0,
+    weeksWorldTop10: user.weeks_world_top10 || user.weeksWorldTop10 || 0,
     createdAt: user.created_at || user.createdAt,
   } : null;
 }
@@ -138,6 +177,14 @@ function currentWeekKey(date = new Date()) {
   period.setHours(3, 0, 0, 0);
   if (parisDate < period) period.setDate(period.getDate() - 1);
   return period.toISOString().slice(0, 10);
+}
+
+function nextCircuitUpdateAt(date = new Date()) {
+  const parisDate = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const next = new Date(parisDate);
+  next.setHours(3, 0, 0, 0);
+  if (parisDate >= next) next.setDate(next.getDate() + 1);
+  return next.toISOString();
 }
 
 function loadWorldTourDefinitions() {
@@ -227,6 +274,43 @@ async function setAppStateValue(key, value) {
   authMemory.appState.set(key, String(value));
 }
 
+async function updateRankingMilestonesForWeek(season, week) {
+  if (!db) return;
+  const refWeeks = previousCircuitWeeks(week);
+  await db.query(`
+    WITH week_scores AS (
+      SELECT users.id AS user_id,
+        COALESCE(SUM(circuit_week_scores.points) FILTER (WHERE circuit_week_scores.week_number = ANY($2::int[])), 0)::int AS score_ref,
+        COALESCE(SUM(circuit_week_scores.points) FILTER (WHERE circuit_week_scores.week_number = $3), 0)::int AS score_week,
+        COALESCE(SUM(circuit_week_scores.points), 0)::int AS score_total,
+        users.account_number
+      FROM users
+      LEFT JOIN circuit_week_scores
+        ON circuit_week_scores.user_id = users.id
+        AND circuit_week_scores.season_number = $1
+      GROUP BY users.id, users.account_number
+    ),
+    ranked AS (
+      SELECT user_id,
+        ROW_NUMBER() OVER (
+          ORDER BY score_ref DESC, score_week DESC, score_total DESC, account_number ASC
+        ) AS rank
+      FROM week_scores
+    )
+    UPDATE users
+    SET best_world_rank = CASE
+          WHEN users.best_world_rank IS NULL THEN ranked.rank
+          ELSE LEAST(users.best_world_rank, ranked.rank)
+        END,
+        weeks_world_number_one = users.weeks_world_number_one + CASE WHEN ranked.rank = 1 THEN 1 ELSE 0 END,
+        weeks_world_top3 = users.weeks_world_top3 + CASE WHEN ranked.rank <= 3 THEN 1 ELSE 0 END,
+        weeks_world_top5 = users.weeks_world_top5 + CASE WHEN ranked.rank <= 5 THEN 1 ELSE 0 END,
+        weeks_world_top10 = users.weeks_world_top10 + CASE WHEN ranked.rank <= 10 THEN 1 ELSE 0 END
+    FROM ranked
+    WHERE users.id = ranked.user_id
+  `, [season, refWeeks, week]);
+}
+
 async function circuitState() {
   const periodKey = currentWeekKey();
   let storedPeriod = await getAppStateValue("circuit_period_key", null);
@@ -241,6 +325,7 @@ async function circuitState() {
     const current = new Date(`${periodKey}T03:00:00+02:00`);
     const elapsedDays = Math.max(1, Math.round((current - previous) / 86400000));
     for (let index = 0; index < elapsedDays; index += 1) {
+      await updateRankingMilestonesForWeek(season, week);
       week += 1;
       if (week > CIRCUIT_SEASON_LENGTH) {
         week = 1;
@@ -256,6 +341,7 @@ async function circuitState() {
 
 async function advanceCircuitWeek() {
   const current = await circuitState();
+  await updateRankingMilestonesForWeek(current.season, current.week);
   let week = current.week + 1;
   let season = current.season;
   if (week > CIRCUIT_SEASON_LENGTH) {
@@ -424,6 +510,11 @@ async function initAuthStorage() {
     FROM users
     WHERE users.email = $1 AND pro_codes.code = 'JUL1EN'
   `, [ADMIN_EMAIL]);
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS best_world_rank INTEGER");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS weeks_world_number_one INTEGER NOT NULL DEFAULT 0");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS weeks_world_top3 INTEGER NOT NULL DEFAULT 0");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS weeks_world_top5 INTEGER NOT NULL DEFAULT 0");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS weeks_world_top10 INTEGER NOT NULL DEFAULT 0");
   await db.query(`
     WITH duplicates AS (
       SELECT id, nickname, account_number, ROW_NUMBER() OVER (PARTITION BY LOWER(nickname) ORDER BY created_at, account_number) AS duplicate_rank
@@ -525,6 +616,9 @@ async function initAuthStorage() {
   await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT ''");
   await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT ''");
   await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS flag TEXT NOT NULL DEFAULT ''");
+  await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS round_reached TEXT NOT NULL DEFAULT ''");
+  await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS last_opponent TEXT NOT NULL DEFAULT ''");
+  await db.query("ALTER TABLE circuit_tournament_results ADD COLUMN IF NOT EXISTS last_score TEXT NOT NULL DEFAULT ''");
   await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_ai_results (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -753,6 +847,82 @@ async function registerCircuitAiResults(userId, results = []) {
   }
 }
 
+function normalizeTournamentAchievement(value) {
+  const key = String(value || "").trim().toLowerCase();
+  if (key === "winner" || key === "vainqueur") return "winner";
+  if (key === "finalist" || key === "finaliste") return "finalist";
+  if (key === "semi" || key === "demi-finale") return "semi";
+  if (key === "quarter" || key === "quart de finale") return "quarter";
+  if (key === "round16" || key === "8e de finale" || key === "qualif" || key === "qualification") return "round16";
+  return key || "round16";
+}
+
+function achievementLabel(value) {
+  const key = normalizeTournamentAchievement(value);
+  return {
+    winner: "VAINQUEUR",
+    finalist: "FINALISTE",
+    semi: "DEMI-FINALE",
+    quarter: "QUART DE FINALE",
+    round16: "8e DE FINALE",
+  }[key] || "8e DE FINALE";
+}
+
+function seasonCalendar(current, rows = []) {
+  const resultByCompetition = new Map(rows.map((row) => [row.competition_id || row.competitionId, row]));
+  return COMPETITION_DEFINITIONS
+    .filter((competition) => competition.week >= 1 && competition.week <= CIRCUIT_SEASON_LENGTH)
+    .sort((a, b) => a.week - b.week || a.slot - b.slot)
+    .map((competition) => {
+      const reached = Number(competition.week) < Number(current.week) || Number(competition.week) === Number(current.week);
+      const result = resultByCompetition.get(competition.id) || null;
+      return {
+        ...competition,
+        reached,
+        result: result ? {
+          achievement: normalizeTournamentAchievement(result.achievement || result.round_reached || result.roundReached),
+          label: achievementLabel(result.achievement || result.round_reached || result.roundReached),
+          points: Number(result.points || 0),
+          lastOpponent: result.last_opponent || result.lastOpponent || "",
+          lastScore: result.last_score || result.lastScore || "",
+        } : null,
+      };
+    });
+}
+
+async function profilePayload(user, viewer = user) {
+  const ranking = await buildRanking(1, 50, viewer || user);
+  const current = await circuitState();
+  let results = [];
+  let aiResults = [];
+  if (db) {
+    const resultRows = await db.query(`
+      SELECT season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points, round_reached, last_opponent, last_score
+      FROM circuit_tournament_results
+      WHERE user_id = $1
+      ORDER BY season_number DESC, week_number DESC, updated_at DESC
+    `, [user.id]);
+    results = resultRows.rows;
+    const aiRows = await db.query("SELECT ai_character_id, wins, losses FROM circuit_ai_results WHERE user_id = $1 ORDER BY ai_character_id", [user.id]);
+    aiResults = aiRows.rows;
+  } else {
+    results = authMemory.circuitResults.filter((row) => row.userId === user.id);
+    aiResults = [...authMemory.aiResults.entries()]
+      .filter(([key]) => key.startsWith(`${user.id}:`))
+      .map(([key, value]) => ({ ai_character_id: key.split(":").pop(), ...value }));
+  }
+  const fullRanking = await buildRanking(1, 100000, user);
+  return {
+    user: publicUser(user),
+    publicProfile: viewer?.id !== user.id,
+    ranking: fullRanking.currentUserRank,
+    circuit: { season: current.season, week: current.week },
+    results,
+    aiResults,
+    calendar: seasonCalendar(current, results),
+  };
+}
+
 async function findUserByEmail(email) {
   if (db) {
     const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -763,14 +933,15 @@ async function findUserByEmail(email) {
 
 function generateDefaultNickname(accountNumber) {
   const randomPart = String(Math.floor(1000 + Math.random() * 9000));
-  return `ESPOIR#${randomPart}${accountNumber}`;
+  return `Player${randomPart}${accountNumber}`;
 }
 
-async function createUser({ email, password }) {
+async function createUser({ email, password, nickname: requestedNickname }) {
+  const initialNickname = normalizeNickname(requestedNickname);
   const user = {
     id: crypto.randomUUID(),
     email,
-    nickname: "ESPOIR",
+    nickname: initialNickname || "Player",
     password_hash: hashPassword(password),
     role: defaultRoleForEmail(email),
     proCode: normalizeEmail(email) === ADMIN_EMAIL ? "JUL1EN" : null,
@@ -784,12 +955,12 @@ async function createUser({ email, password }) {
       [user.id, user.email, user.nickname, user.password_hash, user.role, user.proCode, user.selectedCharacterId, user.unlockedCharacters],
     );
     const created = result.rows[0];
-    const nickname = generateDefaultNickname(created.account_number);
+    const nickname = initialNickname && (!isReservedNickname(initialNickname) || canUseReservedNickname(created)) ? initialNickname : generateDefaultNickname(created.account_number);
     const updated = await db.query("UPDATE users SET nickname = $1 WHERE id = $2 RETURNING *", [nickname, created.id]);
     return updated.rows[0];
   }
   user.accountNumber = authMemory.users.size + 1;
-  user.nickname = generateDefaultNickname(user.accountNumber);
+  user.nickname = initialNickname && (!isReservedNickname(initialNickname) || canUseReservedNickname(user)) ? initialNickname : generateDefaultNickname(user.accountNumber);
   authMemory.users.set(user.id, user);
   if (user.role === "admin") authMemory.proCodes.set("JUL1EN", { code: "JUL1EN", assignedUserId: user.id, redeemedAt: new Date().toISOString() });
   return user;
@@ -885,11 +1056,16 @@ async function assignProCodeToUser(user, code) {
 }
 
 function userUnlockedCharacters(user) {
-  return String(user.unlocked_characters || user.unlockedCharacters || "coachJu,coachMax,coachCarla,coachClem").split(",").filter(Boolean);
+  const role = normalizeRole(user?.role);
+  if (role === "admin" || role === "pro_plus") return ALL_PROFILE_CHARACTER_IDS;
+  return COACH_CHARACTER_IDS;
 }
 
 function canSelectCharacter(user, characterId) {
-  return characterId === "tennisHope" || userUnlockedCharacters(user).includes(characterId);
+  const role = normalizeRole(user?.role);
+  if (characterId === "tennisHope") return true;
+  if ((role === "admin" || role === "pro_plus") && ALL_PROFILE_CHARACTER_IDS.includes(characterId)) return true;
+  return COACH_CHARACTER_IDS.includes(characterId);
 }
 
 async function createAdminProCodes(adminUser, count = 5) {
@@ -1204,7 +1380,7 @@ async function requireAdmin(req, res) {
 
 async function requirePro(req, res) {
   const user = await currentUser(req);
-  if (!user || !["pro", "admin"].includes(normalizeRole(user.role))) {
+  if (!user || !["pro", "pro_plus", "admin"].includes(normalizeRole(user.role))) {
     sendJson(res, 403, { error: "Compte Pro requis." });
     return null;
   }
@@ -1233,7 +1409,7 @@ async function handleAuth(req, res, url) {
       sendJson(res, 409, { error: "Un compte existe déjà avec cet email." });
       return true;
     }
-    const user = await createUser({ email, password });
+    const user = await createUser({ email, password, nickname: payload.nickname });
     const sessionId = await createSession(user.id);
     setSessionCookie(req, res, sessionId);
     sendJson(res, 201, { user: publicUser(user) });
@@ -1381,6 +1557,31 @@ async function handleAuth(req, res, url) {
     return true;
   }
 
+  const deleteUserMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
+  if (req.method === "DELETE" && deleteUserMatch) {
+    if (!await requireAdmin(req, res)) return true;
+    const userId = decodeURIComponent(deleteUserMatch[1]);
+    const target = await findUserById(userId);
+    if (!target) {
+      sendJson(res, 404, { error: "Utilisateur introuvable." });
+      return true;
+    }
+    if (normalizeEmail(target.email) === ADMIN_EMAIL || normalizeRole(target.role) === "admin") {
+      sendJson(res, 403, { error: "Le compte ADMIN ne peut pas être supprimé." });
+      return true;
+    }
+    if (db) {
+      await db.query("DELETE FROM users WHERE id = $1", [userId]);
+    } else {
+      authMemory.users.delete(userId);
+      for (const [sessionId, session] of authMemory.sessions.entries()) {
+        if (session.userId === userId) authMemory.sessions.delete(sessionId);
+      }
+    }
+    sendJson(res, 200, { ok: true, deletedUserId: userId });
+    return true;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/admin/pro-codes") {
     if (!await requireAdmin(req, res)) return true;
     sendJson(res, 200, { codes: await listProCodes() });
@@ -1407,6 +1608,7 @@ async function handleAuth(req, res, url) {
       scoreKey: circuitScoreKey(current),
       title: "Tennis Courts Pro Circuit",
       competitions: await weeklyCompetitionPayload(),
+      nextUpdateAt: nextCircuitUpdateAt(),
       bestScores,
       savedTournamentIds: await currentTournamentSaveIds(user.id),
       retriesUsed: retryInfo.retriesUsed,
@@ -1466,7 +1668,10 @@ async function handleAuth(req, res, url) {
     }
     const payload = await readJson(req);
     const points = Math.max(0, Math.round(Number(payload.points || 0)));
-    const achievement = String(payload.achievement || "").slice(0, 32);
+    const achievement = normalizeTournamentAchievement(payload.achievement);
+    const roundReached = normalizeTournamentAchievement(payload.roundReached || payload.achievement);
+    const lastOpponent = String(payload.lastOpponent || "").slice(0, 80);
+    const lastScore = String(payload.lastScore || "").slice(0, 80);
     const current = await circuitState();
     const scoreKey = circuitScoreKey(current);
     if (db) {
@@ -1477,33 +1682,32 @@ async function handleAuth(req, res, url) {
           SET points = GREATEST(weekly_competition_scores.points, EXCLUDED.points),
               updated_at = CASE WHEN EXCLUDED.points > weekly_competition_scores.points THEN NOW() ELSE weekly_competition_scores.updated_at END
       `, [user.id, scoreKey, competitionId, points]);
-      if (achievement === "winner" || achievement === "finalist") {
-        await db.query(`
-          INSERT INTO circuit_tournament_results
-            (user_id, season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-          ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
-            SET achievement = CASE
-                WHEN circuit_tournament_results.achievement = 'winner' THEN 'winner'
-                WHEN EXCLUDED.achievement = 'winner' THEN 'winner'
-                ELSE EXCLUDED.achievement
-              END,
-              points = GREATEST(circuit_tournament_results.points, EXCLUDED.points),
-              city = EXCLUDED.city,
-              country = EXCLUDED.country,
-              flag = EXCLUDED.flag,
-              updated_at = NOW()
-        `, [user.id, current.season, current.week, competitionId, competition.name, competition.type, competition.city, competition.country, competition.flag, achievement, points]);
-      }
+      await db.query(`
+        INSERT INTO circuit_tournament_results
+          (user_id, season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points, round_reached, last_opponent, last_score, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+        ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
+          SET achievement = CASE
+              WHEN circuit_tournament_results.achievement = 'winner' THEN 'winner'
+              WHEN EXCLUDED.achievement = 'winner' THEN 'winner'
+              ELSE EXCLUDED.achievement
+            END,
+            points = GREATEST(circuit_tournament_results.points, EXCLUDED.points),
+            round_reached = EXCLUDED.round_reached,
+            last_opponent = EXCLUDED.last_opponent,
+            last_score = EXCLUDED.last_score,
+            city = EXCLUDED.city,
+            country = EXCLUDED.country,
+            flag = EXCLUDED.flag,
+            updated_at = NOW()
+      `, [user.id, current.season, current.week, competitionId, competition.name, competition.type, competition.city, competition.country, competition.flag, achievement, points, roundReached, lastOpponent, lastScore]);
     } else {
       const key = `${user.id}:${scoreKey}:${competitionId}`;
       const previous = authMemory.weeklyScores.get(key)?.points || 0;
       authMemory.weeklyScores.set(key, { points: Math.max(previous, points), achievement, updatedAt: new Date().toISOString() });
-      if (achievement === "winner" || achievement === "finalist") {
-        const filtered = authMemory.circuitResults.filter((row) => !(row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId));
-        filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, city: competition.city, country: competition.country, flag: competition.flag, achievement, points });
-        authMemory.circuitResults = filtered;
-      }
+      const filtered = authMemory.circuitResults.filter((row) => !(row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId));
+      filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, city: competition.city, country: competition.country, flag: competition.flag, achievement, points, roundReached, lastOpponent, lastScore });
+      authMemory.circuitResults = filtered;
     }
     await registerCircuitAiResults(user.id, payload.aiResults);
     await recomputeUserCircuitWeekScore(user.id, current.season, current.week);
@@ -1561,26 +1765,23 @@ async function handleAuth(req, res, url) {
       sendJson(res, 401, { error: "Connexion requise." });
       return true;
     }
-    const ranking = await buildRanking(1, 50, user);
-    let results = [];
-    let aiResults = [];
-    if (db) {
-      const resultRows = await db.query(`
-        SELECT season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points
-        FROM circuit_tournament_results
-        WHERE user_id = $1
-        ORDER BY season_number DESC, week_number DESC, updated_at DESC
-      `, [user.id]);
-      results = resultRows.rows;
-      const aiRows = await db.query("SELECT ai_character_id, wins, losses FROM circuit_ai_results WHERE user_id = $1 ORDER BY ai_character_id", [user.id]);
-      aiResults = aiRows.rows;
-    } else {
-      results = authMemory.circuitResults.filter((row) => row.userId === user.id);
-      aiResults = [...authMemory.aiResults.entries()]
-        .filter(([key]) => key.startsWith(`${user.id}:`))
-        .map(([key, value]) => ({ ai_character_id: key.split(":").pop(), ...value }));
+    sendJson(res, 200, await profilePayload(user, user));
+    return true;
+  }
+
+  const publicProfileMatch = url.pathname.match(/^\/api\/profiles\/([^/]+)$/);
+  if (req.method === "GET" && publicProfileMatch) {
+    const viewer = await currentUser(req);
+    if (!viewer) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
     }
-    sendJson(res, 200, { user: publicUser(user), ranking: ranking.currentUserRank, circuit: { season: ranking.season, week: ranking.week }, results, aiResults });
+    const target = await findUserById(decodeURIComponent(publicProfileMatch[1]));
+    if (!target) {
+      sendJson(res, 404, { error: "Profil introuvable." });
+      return true;
+    }
+    sendJson(res, 200, await profilePayload(target, viewer));
     return true;
   }
 
@@ -1594,6 +1795,10 @@ async function handleAuth(req, res, url) {
     const nickname = normalizeNickname(payload.nickname);
     if (!nickname) {
       sendJson(res, 400, { error: "Pseudo invalide." });
+      return true;
+    }
+    if (isReservedNickname(nickname) && !canUseReservedNickname(user)) {
+      sendJson(res, 403, { error: "Ce pseudo est réservé." });
       return true;
     }
     if (db) {
@@ -1648,10 +1853,12 @@ async function handleAuth(req, res, url) {
 }
 
 function normalizeCharacterId(characterId, fallback = "coachJu") {
-  return COACH_IDS.has(characterId) ? characterId : fallback;
+  return ALL_PROFILE_CHARACTER_IDS.includes(characterId) ? characterId : fallback;
 }
 
 function publicBaseUrl(req) {
+  const configured = process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL;
+  if (configured) return configured.replace(/\/$/, "");
   const proto = req.headers["x-forwarded-proto"] || "http";
   const host = req.headers["x-forwarded-host"] || req.headers.host;
   return `${proto}://${host}`;
@@ -1780,7 +1987,7 @@ function publicRoomInfo(req, room) {
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile")) && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/profiles/")) && await handleAuth(req, res, url)) {
     return;
   }
 
