@@ -100,7 +100,11 @@
           <section class="menu-panel ranking-panel restricted-pro" data-required-role="pro">
             <div class="lobby-header">
               <p class="label">Classement Tennis Courts</p>
-              <button id="refreshRankingButton" class="small-button" type="button">Actualiser</button>
+              <div id="rankingSortControls" class="ranking-sort-controls" aria-label="Trier le classement">
+                <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
+                <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
+                <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
+              </div>
             </div>
             <div id="rankingList" class="ranking-list" aria-live="polite"></div>
             <button id="openRankingPageButton" class="small-button full-ranking-button" type="button">Voir le classement général</button>
@@ -162,6 +166,11 @@
             <p class="label">Tennis Courts Academy</p>
             <button id="backToLobbyFromRankingButton" class="small-button" type="button">Retour lobby</button>
           </div>
+          <div class="ranking-sort-controls" aria-label="Trier le classement général">
+            <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
+            <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
+            <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
+          </div>
           <div id="rankingFullList" class="ranking-list ranking-full-list" aria-live="polite"></div>
         </section>
       </div>
@@ -204,7 +213,13 @@
               <div class="admin-inline-actions">
                 <button id="adminNextWeekButton" class="small-button" type="button">Semaine suivante</button>
                 <button id="adminRestartSeasonButton" class="small-button danger-button" type="button">Relancer la saison</button>
+                <button id="adminRestartSeasonOneButton" class="small-button danger-button season-one-button" type="button">Restart Saison 1</button>
               </div>
+            </div>
+            <div class="ranking-sort-controls" aria-label="Trier le classement administrateur">
+              <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
+              <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
+              <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
             </div>
             <div id="adminRankingList" class="ranking-list admin-ranking-list" aria-live="polite"></div>
           </div>

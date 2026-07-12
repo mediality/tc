@@ -80,6 +80,7 @@ const AUTH_STATE = {
   adminTotalPages: 1,
   ranking: null,
   rankingPage: 1,
+  rankingSort: "points",
   competitions: null,
   profile: null,
 };
@@ -1261,9 +1262,9 @@ const els = {
   adminNextPageButton: document.querySelector("#adminNextPageButton"),
   adminNextWeekButton: document.querySelector("#adminNextWeekButton"),
   adminRestartSeasonButton: document.querySelector("#adminRestartSeasonButton"),
+  adminRestartSeasonOneButton: document.querySelector("#adminRestartSeasonOneButton"),
   adminRankingList: document.querySelector("#adminRankingList"),
   adminPageInfo: document.querySelector("#adminPageInfo"),
-  refreshRankingButton: document.querySelector("#refreshRankingButton"),
   openRankingPageButton: document.querySelector("#openRankingPageButton"),
   backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
   backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
@@ -1624,7 +1625,7 @@ function renderAdminUsers() {
       <span>Rôle</span>
       <span>Code</span>
       <span>Saison</span>
-      <span>Ajouter</span>
+      <span>Classement</span>
       <span>Action</span>
     </div>
     ${AUTH_STATE.adminUsers.map((user) => {
@@ -1643,10 +1644,7 @@ function renderAdminUsers() {
           </select>
           <span>${escapeHtml(user.proCode || "-")}</span>
           <span>${Number(user.scoreTotal || 0)} pts</span>
-          <span class="admin-points-control">
-            <input type="number" min="1" step="1" inputmode="numeric" placeholder="+ pts" data-admin-points-input="${escapeHtml(user.id)}" />
-            <button class="small-button" type="button" data-admin-points="${escapeHtml(user.id)}">OK</button>
-          </span>
+          <button class="small-button" type="button" data-admin-profile="${escapeHtml(user.id)}">Modifier</button>
           <button class="small-button admin-delete-button" type="button" data-admin-delete="${escapeHtml(user.id)}" ${isProtectedAdmin ? "disabled" : ""}>Supprimer</button>
         </article>
       `;
@@ -1658,8 +1656,8 @@ function renderAdminUsers() {
   els.adminUsersTable.querySelectorAll("[data-admin-delete]").forEach((button) => {
     button.addEventListener("click", () => deleteAdminUser(button.dataset.adminDelete));
   });
-  els.adminUsersTable.querySelectorAll("[data-admin-points]").forEach((button) => {
-    button.addEventListener("click", () => addManualSeasonPoints(button.dataset.adminPoints));
+  els.adminUsersTable.querySelectorAll("[data-admin-profile]").forEach((button) => {
+    button.addEventListener("click", () => showProfileScreen(button.dataset.adminProfile));
   });
 }
 
@@ -1791,10 +1789,10 @@ function rankingMarkup() {
     `;
   };
   const weekCell = (row) => {
-    const rank = Number(row.rank || 0);
+    const rank = Number(row.points_rank || row.rank || 0);
     const projectedRank = Number(row.projected_rank || rank || 0);
     const trendClass = projectedRank && rank && projectedRank > rank ? " ranking-projection-down" : "";
-    const projection = projectedRank ? `<span class="ranking-projection${trendClass}">(#${projectedRank})</span>` : "";
+    const projection = projectedRank ? `<span class="ranking-projection${trendClass}">(${projectedRank})</span>` : "";
     return `<span><strong>${Number(row.score_week || 0)}</strong> ${projection}</span>`;
   };
   const rows = top.map((row, index) => `
@@ -1810,7 +1808,7 @@ function rankingMarkup() {
     ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span>${weekCell(current)}<span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
-    <div class="ranking-head"><span>#</span><span>Nom</span><span>Points (S-4)</span><span>Semaine</span><span>Saison</span></div>
+    <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-points-heading">Points <small>(S-4)</small></span><span>Semaine</span><span>Saison</span></div>
     ${rows}
     ${currentRow}
     <div class="ranking-meta">Saison ${Number(AUTH_STATE.ranking?.season || 1)} · Semaine ${Number(AUTH_STATE.ranking?.week || 1)}</div>
@@ -1841,12 +1839,16 @@ function renderRanking() {
     els.adminRankingList.innerHTML = markup;
     attachProfileLinks(els.adminRankingList);
   }
+  document.querySelectorAll("[data-ranking-sort]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.rankingSort === AUTH_STATE.rankingSort);
+  });
 }
 
 function profileMarkup(profile) {
   const user = profile?.user || AUTH_STATE.user;
   const ranking = profile?.ranking || {};
   const results = profile?.results || [];
+  const honors = profile?.honors || [];
   const aiResults = profile?.aiResults || [];
   const calendar = profile?.calendar || [];
   const isOwnProfile = !profile?.publicProfile;
@@ -1865,6 +1867,20 @@ function profileMarkup(profile) {
       </div>`;
     }).join("")
     : '<div class="lobby-empty">Aucune victoire ou finale enregistrée.</div>';
+  const honorRows = honors.length
+    ? honors.map((honor) => `<div class="profile-row profile-honor-row">
+        <strong>${escapeHtml(honor.label || "Distinction")}</strong>
+        <span>Saison ${Number(honor.season_number || 0)} · Semaine ${Number(honor.week_number || 0)}</span>
+      </div>`).join("")
+    : "";
+  const adminScoreRows = profile?.viewerIsAdmin && profile?.adminScores?.periods?.length
+    ? profile.adminScores.periods.map((period) => `
+        <label class="admin-score-period">
+          <span>${escapeHtml(period.label)} · Saison ${Number(period.season)} · Semaine ${Number(period.week)}</span>
+          <input type="number" min="0" step="1" inputmode="numeric" value="${Number(period.points || 0)}" data-profile-score-key="${escapeHtml(period.key)}" />
+        </label>
+      `).join("")
+    : "";
   const aiRows = aiResults.length
     ? aiResults.map((row) => `<div class="profile-row"><strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong><span>${Number(row.wins || 0)} / ${Number(row.losses || 0)}</span></div>`).join("")
     : '<div class="lobby-empty">Aucun résultat contre IA enregistré.</div>';
@@ -1925,9 +1941,18 @@ function profileMarkup(profile) {
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
       <section class="profile-card profile-wide">
-        <p class="label">Victoires et finales Tennis Courts Pro Circuit</p>
+        <p class="label">Palmarès</p>
         ${resultRows}
+        ${honorRows}
       </section>
+      ${profile?.viewerIsAdmin ? `<section class="profile-card profile-wide admin-profile-tools">
+        <p class="label">Administration du joueur</p>
+        <div class="admin-score-periods">${adminScoreRows}</div>
+        <div class="admin-inline-actions">
+          <button id="saveProfileRankingScoresButton" class="primary-button" type="button" data-profile-admin-user="${escapeHtml(user?.id || "")}">Enregistrer les points</button>
+          <button id="resetProfileCareerButton" class="small-button danger-button" type="button" data-profile-admin-user="${escapeHtml(user?.id || "")}">Réinitialiser palmarès et classement</button>
+        </div>
+      </section>` : ""}
       <section class="profile-card profile-wide">
         <p class="label">Résultats contre IA</p>
         ${aiRows}
@@ -1954,8 +1979,39 @@ async function loadProfile(userId = null) {
       document.querySelector("#profileRedeemProCodeButton")?.addEventListener("click", redeemProfileProCode);
     }
     document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
+    document.querySelector("#saveProfileRankingScoresButton")?.addEventListener("click", saveProfileRankingScores);
+    document.querySelector("#resetProfileCareerButton")?.addEventListener("click", resetProfileCareer);
   } catch (error) {
     if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function saveProfileRankingScores(event) {
+  if (!canAccessAdminFeatures()) return;
+  const userId = event.currentTarget?.dataset.profileAdminUser;
+  if (!userId) return;
+  const periods = Array.from(document.querySelectorAll("[data-profile-score-key]")).map((input) => ({
+    key: input.dataset.profileScoreKey,
+    points: Math.max(0, Math.round(Number(input.value || 0))),
+  }));
+  try {
+    await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/ranking-scores`, { periods });
+    await loadProfile(userId);
+    await loadRanking(1);
+  } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
+async function resetProfileCareer(event) {
+  if (!canAccessAdminFeatures()) return;
+  const userId = event.currentTarget?.dataset.profileAdminUser;
+  if (!userId || !window.confirm("Réinitialiser définitivement le palmarès et les statistiques de classement mondial de ce joueur ?")) return;
+  try {
+    await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/reset-career`, {});
+    await loadProfile(userId);
+  } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
   }
 }
 
@@ -2068,6 +2124,28 @@ async function adminRestartCurrentSeason() {
   }
 }
 
+async function adminRestartSeasonOne() {
+  if (!canAccessAdminFeatures()) return;
+  if (!window.confirm("RESTART SAISON 1 : réinitialiser la saison, les palmarès et les statistiques mondiales ? Les quatre semaines de référence humaines seront conservées comme historique avant la saison 1.")) return;
+  if (!window.confirm("Confirmer une seconde fois le redémarrage complet de la SAISON 1 ?")) return;
+  renderAuthState("Redémarrage de la saison 1...");
+  try {
+    await authRequest("/api/admin/circuit/restart-season-one", {});
+    AUTH_STATE.rankingSort = "points";
+    await loadCompetitions();
+    await loadRanking(1);
+    await loadAdminUsers(1);
+    renderAuthState("Saison 1 redémarrée.");
+  } catch (error) {
+    renderAuthState(error.message);
+  }
+}
+
+function changeRankingSort(sortBy) {
+  AUTH_STATE.rankingSort = ["points", "week", "season"].includes(sortBy) ? sortBy : "points";
+  loadRanking(1);
+}
+
 async function loadRanking(page = AUTH_STATE.rankingPage || 1) {
   if (!canAccessProFeatures()) {
     if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
@@ -2075,7 +2153,7 @@ async function loadRanking(page = AUTH_STATE.rankingPage || 1) {
   }
   try {
     AUTH_STATE.rankingPage = page;
-    const data = await authRequest(`/api/ranking?page=${encodeURIComponent(page)}&pageSize=50`);
+    const data = await authRequest(`/api/ranking?page=${encodeURIComponent(page)}&pageSize=50&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
     AUTH_STATE.ranking = data;
     renderRanking();
   } catch (error) {
@@ -8064,7 +8142,10 @@ function initMenu() {
   els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
   els.adminNextWeekButton?.addEventListener("click", adminAdvanceCircuitWeek);
   els.adminRestartSeasonButton?.addEventListener("click", adminRestartCurrentSeason);
-  els.refreshRankingButton?.addEventListener("click", loadRanking);
+  els.adminRestartSeasonOneButton?.addEventListener("click", adminRestartSeasonOne);
+  document.querySelectorAll("[data-ranking-sort]").forEach((button) => {
+    button.addEventListener("click", () => changeRankingSort(button.dataset.rankingSort));
+  });
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);

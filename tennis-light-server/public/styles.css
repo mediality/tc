@@ -731,6 +731,9 @@ button:disabled {
 }
 
 .ranking-projection {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 0.68em;
   font-weight: 500;
   color: #536272;
 }
@@ -763,6 +766,70 @@ button:disabled {
   font-size: 0.75rem;
   font-weight: 850;
   text-align: right;
+}
+
+.ranking-points-heading {
+  display: grid;
+  line-height: 1.05;
+}
+
+.ranking-points-heading small {
+  font-size: 0.72em;
+  font-weight: 850;
+}
+
+.ranking-sort-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ranking-sort-controls .active {
+  color: #fff;
+  background: #167d62;
+}
+
+.season-one-button {
+  color: #fff;
+  background: #b91c1c;
+  border-color: #7f1d1d;
+}
+
+.admin-profile-tools {
+  border: 2px solid rgba(185, 28, 28, 0.35);
+}
+
+.admin-score-periods {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-score-period {
+  display: grid;
+  gap: 6px;
+  color: #536272;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.admin-score-period input {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid rgba(99, 115, 129, 0.28);
+  border-radius: 8px;
+  padding: 0 8px;
+  color: #17212b;
+  font: inherit;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.profile-honor-row {
+  margin-top: 6px;
+  border-left: 5px solid #f4c430;
 }
 
 .profile-grid {
@@ -998,6 +1065,10 @@ button:disabled {
 
   .profile-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-score-periods {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
