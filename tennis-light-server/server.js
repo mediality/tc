@@ -72,6 +72,7 @@ const SURFACES = ["grass", "hard", "clay"];
 const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 const CIRCUIT_SEASON_LENGTH = 20;
 const DAILY_RETRY_LIMIT = 5;
+const ADMIN_MANUAL_COMPETITION_ID = "__admin_manual_season_points__";
 const WORLD_TOUR_CSV = path.join(__dirname, "world-tour.csv");
 const COUNTRY_FLAGS = {
   Allemagne: "🇩🇪", Argentine: "🇦🇷", Australie: "🇦🇺", Autriche: "🇦🇹", Belgique: "🇧🇪",
@@ -209,6 +210,17 @@ function publicUser(user) {
     weeksWorldTop10: user.weeks_world_top10 || user.weeksWorldTop10 || 0,
     createdAt: user.created_at || user.createdAt,
   } : null;
+}
+
+function adminPublicUser(user) {
+  const base = publicUser(user);
+  if (!base) return null;
+  return {
+    ...base,
+    scoreRef: Number(user.score_ref || user.scoreRef || 0),
+    scoreWeek: Number(user.score_week || user.scoreWeek || 0),
+    scoreTotal: Number(user.score_total || user.scoreTotal || 0),
+  };
 }
 
 function parisDateParts(date = new Date()) {
@@ -418,19 +430,19 @@ function seededRandom(seed) {
   return hash.readUInt32BE(0) / 0xffffffff;
 }
 
-function aiMatchStrength(characterId, competition, season, week, slot, bonusTopIds = []) {
-  let score = seededRandom(`${characterId}:${competition.id}:${season}:${week}:${slot}`);
+function aiMatchStrength(characterId, competition, season, week, slot, bonusTopIds = [], simulationNonce = "") {
+  let score = seededRandom(`${simulationNonce}:${characterId}:${competition.id}:${season}:${week}:${slot}`);
   if (HISTORIC_CHARACTER_IDS.includes(characterId)) score += 0.18;
   if (bonusTopIds.includes(characterId)) score += 0.12;
   if (AI_SURFACE_PREFERENCES[characterId] === competition.surface) score += 0.16;
   return score;
 }
 
-function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []) {
+function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = [], simulationNonce = "") {
   const ranked = CIRCUIT_AI_CHARACTER_IDS
     .map((characterId) => ({
       characterId,
-      strength: aiMatchStrength(characterId, competition, season, week, competition.slot, bonusTopIds),
+      strength: aiMatchStrength(characterId, competition, season, week, competition.slot, bonusTopIds, simulationNonce),
     }))
     .sort((a, b) => b.strength - a.strength || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"));
   const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
@@ -473,22 +485,117 @@ async function topAiIdsForReference(season, week, limit = 8) {
     .map((entry) => entry.characterId);
 }
 
+function maxWeeklyTournamentPoints(week) {
+  return COMPETITION_DEFINITIONS
+    .filter((competition) => competition.week === week)
+    .reduce((sum, competition) => {
+      const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
+      return sum + (table.winner || 0);
+    }, 0);
+}
+
+async function aiCircuitStandingsForBoost(season, week) {
+  const refWeeks = previousCircuitWeeks(week);
+  let rows = [];
+  if (db) {
+    const result = await db.query(`
+      SELECT ai_character_id,
+        COALESCE(SUM(points) FILTER (WHERE week_number = ANY($2::int[])), 0)::int AS score_ref,
+        COALESCE(SUM(points), 0)::int AS score_total
+      FROM circuit_ai_week_scores
+      WHERE season_number = $1
+      GROUP BY ai_character_id
+    `, [season, refWeeks]);
+    const byId = new Map(result.rows.map((row) => [row.ai_character_id, row]));
+    rows = CIRCUIT_AI_CHARACTER_IDS.map((characterId) => {
+      const stored = byId.get(characterId);
+      return {
+        characterId,
+        scoreRef: Number(stored?.score_ref || 0),
+        scoreTotal: Number(stored?.score_total || 0),
+      };
+    });
+  } else {
+    rows = CIRCUIT_AI_CHARACTER_IDS.map((characterId) => ({
+      characterId,
+      scoreRef: refWeeks.reduce((sum, refWeek) => (
+        sum + (authMemory.circuitAiWeekScores?.get(`${season}:${refWeek}:${characterId}`) || 0)
+      ), 0),
+      scoreTotal: Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
+        .reduce((sum, weekNumber) => (
+          sum + (authMemory.circuitAiWeekScores?.get(`${season}:${weekNumber}:${characterId}`) || 0)
+        ), 0),
+    }));
+  }
+  const sortByRef = [...rows].sort((a, b) => b.scoreRef - a.scoreRef || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"));
+  const worldTopIds = sortByRef.slice(0, 3).map((entry) => entry.characterId);
+  const worldTopSet = new Set(worldTopIds);
+  const seasonTopIds = [...rows]
+    .filter((entry) => !worldTopSet.has(entry.characterId))
+    .sort((a, b) => b.scoreTotal - a.scoreTotal || b.scoreRef - a.scoreRef || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"))
+    .slice(0, 3)
+    .map((entry) => entry.characterId);
+  return { rows, worldTopIds, seasonTopIds };
+}
+
+function applyAiWeeklyPerformanceCoefficients(totals, standings, maxSem) {
+  if (!maxSem) return totals;
+  const worldTopSet = new Set(standings.worldTopIds || []);
+  const seasonTopSet = new Set(standings.seasonTopIds || []);
+  const standingById = new Map((standings.rows || []).map((entry) => [entry.characterId, entry]));
+  const adjusted = new Map();
+  const cappedCandidates = [];
+  for (const [characterId, points] of totals) {
+    const multiplier = worldTopSet.has(characterId) || seasonTopSet.has(characterId) ? 2 : 1.5;
+    const boostedPoints = Math.round(points * multiplier);
+    adjusted.set(characterId, Math.min(boostedPoints, maxSem));
+    if (boostedPoints > maxSem) {
+      const standing = standingById.get(characterId) || { scoreRef: 0, scoreTotal: 0 };
+      cappedCandidates.push({
+        characterId,
+        boostedPoints,
+        scoreRef: standing.scoreRef || 0,
+        scoreTotal: standing.scoreTotal || 0,
+      });
+    }
+  }
+  cappedCandidates
+    .sort((a, b) => b.scoreRef - a.scoreRef
+      || b.scoreTotal - a.scoreTotal
+      || b.boostedPoints - a.boostedPoints
+      || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"))
+    .forEach((entry, index) => {
+      adjusted.set(entry.characterId, Math.max(0, maxSem - (index * 200)));
+    });
+  return adjusted;
+}
+
 async function simulateAiCircuitWeek(season, week, options = {}) {
   const competitions = COMPETITION_DEFINITIONS.filter((competition) => competition.week === week);
   const bonusTopIds = options.bonusTopIds || [];
+  let simulationNonce = options.simulationNonce || await getAppStateValue("ai_simulation_nonce", null);
+  if (!simulationNonce) {
+    simulationNonce = makeToken();
+    await setAppStateValue("ai_simulation_nonce", simulationNonce);
+  }
   const totals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
   competitions.forEach((competition) => {
-    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds);
+    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce);
     awards.forEach((points, characterId) => {
       totals.set(characterId, (totals.get(characterId) || 0) + points);
     });
   });
+  const standings = await aiCircuitStandingsForBoost(season, week);
+  const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, maxWeeklyTournamentPoints(week));
   if (db) {
     await db.query("DELETE FROM circuit_ai_week_scores WHERE season_number = $1 AND week_number = $2", [season, week]);
-    for (const [characterId, points] of totals) {
+    for (const [characterId, points] of adjustedTotals) {
       await db.query(`
         INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points)
         VALUES ($1, $2, $3, $4)
+        ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
+          SET points = EXCLUDED.points,
+              updated_at = NOW()
       `, [characterId, season, week, points]);
     }
     return;
@@ -497,7 +604,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
   for (const characterId of CIRCUIT_AI_CHARACTER_IDS) {
     authMemory.circuitAiWeekScores.delete(`${season}:${week}:${characterId}`);
   }
-  for (const [characterId, points] of totals) {
+  for (const [characterId, points] of adjustedTotals) {
     authMemory.circuitAiWeekScores.set(`${season}:${week}:${characterId}`, points);
   }
 }
@@ -506,7 +613,7 @@ async function ensureAiCircuitWeekSimulated(season, week, options = {}) {
   const marker = `ai_simulated_${season}_${week}`;
   if (!options.force && await getAppStateValue(marker, null)) return;
   const bonusTopIds = options.bonusTopIds || await topAiIdsForReference(season, week, 8);
-  await simulateAiCircuitWeek(season, week, { bonusTopIds });
+  await simulateAiCircuitWeek(season, week, { bonusTopIds, simulationNonce: options.simulationNonce });
   await setAppStateValue(marker, new Date().toISOString());
 }
 
@@ -557,6 +664,7 @@ async function restartCurrentSeason() {
   const current = await circuitState();
   const season = current.season;
   const retainedWeeks = [17, 18, 19, 20];
+  const simulationNonce = makeToken();
   if (db) {
     await db.query("DELETE FROM circuit_tournament_results WHERE season_number = $1", [season]);
     await db.query("DELETE FROM weekly_competition_scores");
@@ -584,12 +692,13 @@ async function restartCurrentSeason() {
   await setAppStateValue("circuit_season_number", season);
   await setAppStateValue("circuit_week_number", 1);
   await setAppStateValue("circuit_period_key", currentWeekKey());
+  await setAppStateValue("ai_simulation_nonce", simulationNonce);
   for (const weekNumber of retainedWeeks) {
-    await simulateAiCircuitWeek(season, weekNumber, { bonusTopIds: [] });
+    await simulateAiCircuitWeek(season, weekNumber, { bonusTopIds: [], simulationNonce });
     await setAppStateValue(`ai_simulated_${season}_${weekNumber}`, new Date().toISOString());
   }
   const topAiIds = await topAiIdsForReference(season, 1, 8);
-  await simulateAiCircuitWeek(season, 1, { bonusTopIds: topAiIds });
+  await simulateAiCircuitWeek(season, 1, { bonusTopIds: topAiIds, simulationNonce });
   await setAppStateValue(`ai_simulated_${season}_1`, new Date().toISOString());
   return { weekKey: currentWeekKey(), week: 1, season, nextUpdateAt: nextCircuitUpdateAt() };
 }
@@ -1794,18 +1903,106 @@ async function handleAuth(req, res, url) {
     const page = Math.max(1, Number(url.searchParams.get("page") || 1));
     const pageSize = 50;
     const offset = (page - 1) * pageSize;
+    const current = await circuitState();
+    const refWeeks = previousCircuitWeeks(current.week);
     if (db) {
       const [result, countResult] = await Promise.all([
-        db.query("SELECT id, account_number, email, nickname, role, pro_code, created_at, last_login_at FROM users ORDER BY account_number ASC LIMIT $1 OFFSET $2", [pageSize, offset]),
+        db.query(`
+          WITH scores AS (
+            SELECT user_id,
+              COALESCE(SUM(points) FILTER (WHERE week_number = ANY($2::int[])), 0)::int AS score_ref,
+              COALESCE(SUM(points) FILTER (WHERE week_number = $3), 0)::int AS score_week,
+              COALESCE(SUM(points), 0)::int AS score_total
+            FROM circuit_week_scores
+            WHERE season_number = $1
+            GROUP BY user_id
+          )
+          SELECT users.id, users.account_number, users.email, users.nickname, users.role, users.pro_code, users.created_at, users.last_login_at,
+            COALESCE(scores.score_ref, 0)::int AS score_ref,
+            COALESCE(scores.score_week, 0)::int AS score_week,
+            COALESCE(scores.score_total, 0)::int AS score_total
+          FROM users
+          LEFT JOIN scores ON scores.user_id = users.id
+          ORDER BY users.account_number ASC
+          LIMIT $4 OFFSET $5
+        `, [current.season, refWeeks, current.week, pageSize, offset]),
         db.query("SELECT COUNT(*)::int AS total FROM users"),
       ]);
       const total = countResult.rows[0]?.total || 0;
-      sendJson(res, 200, { users: result.rows.map(publicUser), page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
+      sendJson(res, 200, { users: result.rows.map(adminPublicUser), page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
       return true;
     }
     const allUsers = [...authMemory.users.values()].sort((a, b) => (a.accountNumber || 0) - (b.accountNumber || 0));
-    const users = allUsers.slice(offset, offset + pageSize);
-    sendJson(res, 200, { users: users.map(publicUser), page, pageSize, total: allUsers.length, totalPages: Math.max(1, Math.ceil(allUsers.length / pageSize)) });
+    const users = allUsers.slice(offset, offset + pageSize).map((user) => ({
+      ...user,
+      scoreRef: refWeeks.reduce((sum, weekNumber) => sum + (authMemory.circuitWeekScores.get(`${user.id}:${current.season}:${weekNumber}`) || 0), 0),
+      scoreWeek: authMemory.circuitWeekScores.get(`${user.id}:${current.season}:${current.week}`) || 0,
+      scoreTotal: Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
+        .reduce((sum, weekNumber) => sum + (authMemory.circuitWeekScores.get(`${user.id}:${current.season}:${weekNumber}`) || 0), 0),
+    }));
+    sendJson(res, 200, { users: users.map(adminPublicUser), page, pageSize, total: allUsers.length, totalPages: Math.max(1, Math.ceil(allUsers.length / pageSize)) });
+    return true;
+  }
+
+  const seasonPointsMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/season-points$/);
+  if (req.method === "POST" && seasonPointsMatch) {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return true;
+    const userId = decodeURIComponent(seasonPointsMatch[1]);
+    const target = await findUserById(userId);
+    if (!target) {
+      sendJson(res, 404, { error: "Utilisateur introuvable." });
+      return true;
+    }
+    const payload = await readJson(req);
+    const points = Math.max(0, Math.round(Number(payload.points || 0)));
+    if (!points) {
+      sendJson(res, 400, { error: "Indique un nombre de points supérieur à 0." });
+      return true;
+    }
+    const current = await circuitState();
+    const scoreKey = circuitScoreKey(current);
+    if (db) {
+      await db.query(`
+        INSERT INTO weekly_competition_scores (user_id, week_key, competition_id, points, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (user_id, week_key, competition_id) DO UPDATE
+          SET points = weekly_competition_scores.points + EXCLUDED.points,
+              updated_at = NOW()
+      `, [userId, scoreKey, ADMIN_MANUAL_COMPETITION_ID, points]);
+      await recomputeUserCircuitWeekScore(userId, current.season, current.week);
+      const refreshed = await db.query(`
+        WITH scores AS (
+          SELECT user_id,
+            COALESCE(SUM(points) FILTER (WHERE week_number = ANY($2::int[])), 0)::int AS score_ref,
+            COALESCE(SUM(points) FILTER (WHERE week_number = $3), 0)::int AS score_week,
+            COALESCE(SUM(points), 0)::int AS score_total
+          FROM circuit_week_scores
+          WHERE season_number = $1 AND user_id = $4
+          GROUP BY user_id
+        )
+        SELECT users.*, COALESCE(scores.score_ref, 0)::int AS score_ref,
+          COALESCE(scores.score_week, 0)::int AS score_week,
+          COALESCE(scores.score_total, 0)::int AS score_total
+        FROM users
+        LEFT JOIN scores ON scores.user_id = users.id
+        WHERE users.id = $4
+      `, [current.season, previousCircuitWeeks(current.week), current.week, userId]);
+      sendJson(res, 200, { user: adminPublicUser(refreshed.rows[0]), addedPoints: points });
+      return true;
+    }
+    const key = `${userId}:${scoreKey}:${ADMIN_MANUAL_COMPETITION_ID}`;
+    const previous = authMemory.weeklyScores.get(key)?.points || 0;
+    authMemory.weeklyScores.set(key, { points: previous + points, achievement: "admin", updatedAt: new Date().toISOString() });
+    await recomputeUserCircuitWeekScore(userId, current.season, current.week);
+    const updated = {
+      ...target,
+      scoreRef: previousCircuitWeeks(current.week).reduce((sum, weekNumber) => sum + (authMemory.circuitWeekScores.get(`${userId}:${current.season}:${weekNumber}`) || 0), 0),
+      scoreWeek: authMemory.circuitWeekScores.get(`${userId}:${current.season}:${current.week}`) || 0,
+      scoreTotal: Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
+        .reduce((sum, weekNumber) => sum + (authMemory.circuitWeekScores.get(`${userId}:${current.season}:${weekNumber}`) || 0), 0),
+    };
+    sendJson(res, 200, { user: adminPublicUser(updated), addedPoints: points });
     return true;
   }
 

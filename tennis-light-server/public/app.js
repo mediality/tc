@@ -1623,6 +1623,8 @@ function renderAdminUsers() {
       <span>Mail</span>
       <span>Rôle</span>
       <span>Code</span>
+      <span>Saison</span>
+      <span>Ajouter</span>
       <span>Action</span>
     </div>
     ${AUTH_STATE.adminUsers.map((user) => {
@@ -1640,6 +1642,11 @@ function renderAdminUsers() {
             ${role === "admin" ? '<option value="admin" selected>ADMIN</option>' : ""}
           </select>
           <span>${escapeHtml(user.proCode || "-")}</span>
+          <span>${Number(user.scoreTotal || 0)} pts</span>
+          <span class="admin-points-control">
+            <input type="number" min="1" step="1" inputmode="numeric" placeholder="+ pts" data-admin-points-input="${escapeHtml(user.id)}" />
+            <button class="small-button" type="button" data-admin-points="${escapeHtml(user.id)}">OK</button>
+          </span>
           <button class="small-button admin-delete-button" type="button" data-admin-delete="${escapeHtml(user.id)}" ${isProtectedAdmin ? "disabled" : ""}>Supprimer</button>
         </article>
       `;
@@ -1650,6 +1657,9 @@ function renderAdminUsers() {
   });
   els.adminUsersTable.querySelectorAll("[data-admin-delete]").forEach((button) => {
     button.addEventListener("click", () => deleteAdminUser(button.dataset.adminDelete));
+  });
+  els.adminUsersTable.querySelectorAll("[data-admin-points]").forEach((button) => {
+    button.addEventListener("click", () => addManualSeasonPoints(button.dataset.adminPoints));
   });
 }
 
@@ -1740,6 +1750,25 @@ async function deleteAdminUser(userId) {
     AUTH_STATE.adminUsers = AUTH_STATE.adminUsers.filter((item) => item.id !== userId);
     renderAdminUsers();
     updateAdminPagination();
+  } catch (error) {
+    if (els.adminUsersTable) els.adminUsersTable.insertAdjacentHTML("afterbegin", `<div class="admin-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
+async function addManualSeasonPoints(userId) {
+  if (!canAccessAdminFeatures() || !userId) return;
+  const input = Array.from(els.adminUsersTable?.querySelectorAll("[data-admin-points-input]") || [])
+    .find((element) => element.dataset.adminPointsInput === userId);
+  const points = Math.max(0, Math.round(Number(input?.value || 0)));
+  if (!points) {
+    input?.focus();
+    return;
+  }
+  try {
+    const data = await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/season-points`, { points });
+    AUTH_STATE.adminUsers = AUTH_STATE.adminUsers.map((user) => user.id === userId ? data.user : user);
+    renderAdminUsers();
+    await loadRanking();
   } catch (error) {
     if (els.adminUsersTable) els.adminUsersTable.insertAdjacentHTML("afterbegin", `<div class="admin-empty">${escapeHtml(error.message)}</div>`);
   }
