@@ -29,6 +29,45 @@ const NEW_CHARACTER_IDS = [
   "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen",
 ];
 const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
+const CIRCUIT_AI_CHARACTER_IDS = [...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
+const AI_CHARACTER_NAMES = {
+  theoBriancourt: "Theo Briancourt",
+  alessandraConti: "Alessandra Conti",
+  saharaJackson: "Sahara Jackson",
+  kjellBlomqvist: "Kjell Blomqvist",
+  kojiIwata: "Koji Iwata",
+  elianaMarquez: "Eliana Marquez",
+  jonasFalkenried: "Jonas Falkenried",
+  yunaSeo: "Yuna Seo",
+  ikerSalvat: "Iker Salvat",
+  loganBrooks: "Logan Brooks",
+  kavyaSaran: "Kavya Saran",
+  zariaCampbell: "Zaria Campbell",
+  renAoshima: "Ren Aoshima",
+  yasmineElMansouri: "Yasmine El Mansouri",
+  daanVermeer: "Daan Vermeer",
+  lukasEberhardt: "Lukas Eberhardt",
+  milanVerhaegen: "Milan Verhaegen",
+};
+const AI_SURFACE_PREFERENCES = {
+  theoBriancourt: "hard",
+  alessandraConti: "clay",
+  saharaJackson: "grass",
+  kjellBlomqvist: "hard",
+  kojiIwata: "clay",
+  elianaMarquez: "clay",
+  jonasFalkenried: "hard",
+  yunaSeo: "hard",
+  ikerSalvat: "clay",
+  loganBrooks: "grass",
+  kavyaSaran: "hard",
+  zariaCampbell: "grass",
+  renAoshima: "hard",
+  yasmineElMansouri: "clay",
+  daanVermeer: "grass",
+  lukasEberhardt: "clay",
+  milanVerhaegen: "grass",
+};
 const SURFACES = ["grass", "hard", "clay"];
 const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 const CIRCUIT_SEASON_LENGTH = 20;
@@ -72,6 +111,7 @@ const authMemory = {
   weeklyScores: new Map(),
   proCodes: new Map(),
   circuitWeekScores: new Map(),
+  circuitAiWeekScores: new Map(),
   circuitAttempts: new Map(),
   circuitSaves: new Map(),
   circuitResults: [],
@@ -171,20 +211,78 @@ function publicUser(user) {
   } : null;
 }
 
+function parisDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+}
+
+function parisOffsetMs(date = new Date()) {
+  const parts = parisDateParts(date);
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - date.getTime();
+}
+
+function parisLocalDateToUtc(year, month, day, hour, minute = 0, second = 0) {
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  return new Date(utcGuess - parisOffsetMs(new Date(utcGuess)));
+}
+
+function circuitUpdateBoundariesAround(date = new Date(), dayRadius = 18) {
+  const parts = parisDateParts(date);
+  const center = Date.UTC(parts.year, parts.month - 1, parts.day);
+  const boundaries = [];
+  for (let offset = -dayRadius; offset <= dayRadius; offset += 1) {
+    const localDate = new Date(center + offset * 86400000);
+    const year = localDate.getUTCFullYear();
+    const month = localDate.getUTCMonth() + 1;
+    const day = localDate.getUTCDate();
+    const weekday = localDate.getUTCDay();
+    if (weekday === 3) boundaries.push(parisLocalDateToUtc(year, month, day, 14, 0, 0));
+    if (weekday === 0) boundaries.push(parisLocalDateToUtc(year, month, day, 2, 0, 0));
+  }
+  return boundaries.sort((a, b) => a - b);
+}
+
+function previousCircuitBoundaryAt(date = new Date()) {
+  const boundaries = circuitUpdateBoundariesAround(date);
+  return boundaries.filter((boundary) => boundary <= date).pop() || boundaries[0] || date;
+}
+
+function nextCircuitBoundaryAt(date = new Date()) {
+  const boundaries = circuitUpdateBoundariesAround(date);
+  return boundaries.find((boundary) => boundary > date) || boundaries[boundaries.length - 1] || date;
+}
+
 function currentWeekKey(date = new Date()) {
-  const parisDate = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const period = new Date(parisDate);
-  period.setHours(3, 0, 0, 0);
-  if (parisDate < period) period.setDate(period.getDate() - 1);
-  return period.toISOString().slice(0, 10);
+  return previousCircuitBoundaryAt(date).toISOString();
 }
 
 function nextCircuitUpdateAt(date = new Date()) {
-  const parisDate = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const next = new Date(parisDate);
-  next.setHours(3, 0, 0, 0);
-  if (parisDate >= next) next.setDate(next.getDate() + 1);
-  return next.toISOString();
+  return nextCircuitBoundaryAt(date).toISOString();
+}
+
+function countCircuitBoundariesBetween(storedKey, currentKey) {
+  const start = new Date(storedKey);
+  const end = new Date(currentKey);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) return 1;
+  const boundaries = circuitUpdateBoundariesAround(end, 80);
+  return Math.max(1, boundaries.filter((boundary) => boundary > start && boundary <= end).length);
 }
 
 function loadWorldTourDefinitions() {
@@ -311,6 +409,107 @@ async function updateRankingMilestonesForWeek(season, week) {
   `, [season, refWeeks, week]);
 }
 
+function aiCharacterName(characterId) {
+  return AI_CHARACTER_NAMES[characterId] || characterId;
+}
+
+function seededRandom(seed) {
+  const hash = crypto.createHash("sha256").update(String(seed)).digest();
+  return hash.readUInt32BE(0) / 0xffffffff;
+}
+
+function aiMatchStrength(characterId, competition, season, week, slot, bonusTopIds = []) {
+  let score = seededRandom(`${characterId}:${competition.id}:${season}:${week}:${slot}`);
+  if (HISTORIC_CHARACTER_IDS.includes(characterId)) score += 0.18;
+  if (bonusTopIds.includes(characterId)) score += 0.12;
+  if (AI_SURFACE_PREFERENCES[characterId] === competition.surface) score += 0.16;
+  return score;
+}
+
+function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []) {
+  const ranked = CIRCUIT_AI_CHARACTER_IDS
+    .map((characterId) => ({
+      characterId,
+      strength: aiMatchStrength(characterId, competition, season, week, competition.slot, bonusTopIds),
+    }))
+    .sort((a, b) => b.strength - a.strength || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"));
+  const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
+  const awards = new Map();
+  ranked.forEach((entry, index) => {
+    let points = 0;
+    if (index === 0) points = table.winner || 0;
+    else if (index === 1) points = table.finalist || 0;
+    else if (index < 4) points = table.semi || 0;
+    else if (index < 8) points = table.quarter || 0;
+    else points = table.qualif || 0;
+    awards.set(entry.characterId, (awards.get(entry.characterId) || 0) + points);
+  });
+  return awards;
+}
+
+async function topAiIdsForReference(season, week, limit = 8) {
+  const refWeeks = previousCircuitWeeks(week);
+  if (db) {
+    const result = await db.query(`
+      SELECT ai_character_id, COALESCE(SUM(points), 0)::int AS score_ref
+      FROM circuit_ai_week_scores
+      WHERE season_number = $1 AND week_number = ANY($2::int[])
+      GROUP BY ai_character_id
+      ORDER BY score_ref DESC, ai_character_id ASC
+      LIMIT $3
+    `, [season, refWeeks, limit]);
+    return result.rows.map((row) => row.ai_character_id);
+  }
+  return CIRCUIT_AI_CHARACTER_IDS
+    .map((characterId) => ({
+      characterId,
+      scoreRef: refWeeks.reduce((sum, refWeek) => {
+        const stored = authMemory.circuitAiWeekScores?.get(`${season}:${refWeek}:${characterId}`) || 0;
+        return sum + stored;
+      }, 0),
+    }))
+    .sort((a, b) => b.scoreRef - a.scoreRef || a.characterId.localeCompare(b.characterId))
+    .slice(0, limit)
+    .map((entry) => entry.characterId);
+}
+
+async function simulateAiCircuitWeek(season, week, options = {}) {
+  const competitions = COMPETITION_DEFINITIONS.filter((competition) => competition.week === week);
+  const bonusTopIds = options.bonusTopIds || [];
+  const totals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
+  competitions.forEach((competition) => {
+    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds);
+    awards.forEach((points, characterId) => {
+      totals.set(characterId, (totals.get(characterId) || 0) + points);
+    });
+  });
+  if (db) {
+    await db.query("DELETE FROM circuit_ai_week_scores WHERE season_number = $1 AND week_number = $2", [season, week]);
+    for (const [characterId, points] of totals) {
+      await db.query(`
+        INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points)
+        VALUES ($1, $2, $3, $4)
+      `, [characterId, season, week, points]);
+    }
+    return;
+  }
+  authMemory.circuitAiWeekScores = authMemory.circuitAiWeekScores || new Map();
+  for (const characterId of CIRCUIT_AI_CHARACTER_IDS) {
+    authMemory.circuitAiWeekScores.delete(`${season}:${week}:${characterId}`);
+  }
+  for (const [characterId, points] of totals) {
+    authMemory.circuitAiWeekScores.set(`${season}:${week}:${characterId}`, points);
+  }
+}
+
+async function ensureAiCircuitWeekSimulated(season, week, options = {}) {
+  const marker = `ai_simulated_${season}_${week}`;
+  if (!options.force && await getAppStateValue(marker, null)) return;
+  const bonusTopIds = options.bonusTopIds || await topAiIdsForReference(season, week, 8);
+  await simulateAiCircuitWeek(season, week, { bonusTopIds });
+  await setAppStateValue(marker, new Date().toISOString());
+}
+
 async function circuitState() {
   const periodKey = currentWeekKey();
   let storedPeriod = await getAppStateValue("circuit_period_key", null);
@@ -321,10 +520,8 @@ async function circuitState() {
     await setAppStateValue("circuit_week_number", week);
     await setAppStateValue("circuit_season_number", season);
   } else if (storedPeriod !== periodKey) {
-    const previous = new Date(`${storedPeriod}T03:00:00+02:00`);
-    const current = new Date(`${periodKey}T03:00:00+02:00`);
-    const elapsedDays = Math.max(1, Math.round((current - previous) / 86400000));
-    for (let index = 0; index < elapsedDays; index += 1) {
+    const elapsedPeriods = countCircuitBoundariesBetween(storedPeriod, periodKey);
+    for (let index = 0; index < elapsedPeriods; index += 1) {
       await updateRankingMilestonesForWeek(season, week);
       week += 1;
       if (week > CIRCUIT_SEASON_LENGTH) {
@@ -336,7 +533,8 @@ async function circuitState() {
     await setAppStateValue("circuit_week_number", week);
     await setAppStateValue("circuit_season_number", season);
   }
-  return { weekKey: periodKey, week, season };
+  await ensureAiCircuitWeekSimulated(season, week);
+  return { weekKey: periodKey, week, season, nextUpdateAt: nextCircuitUpdateAt() };
 }
 
 async function advanceCircuitWeek() {
@@ -351,7 +549,49 @@ async function advanceCircuitWeek() {
   await setAppStateValue("circuit_week_number", week);
   await setAppStateValue("circuit_season_number", season);
   await setAppStateValue("circuit_period_key", currentWeekKey());
-  return { weekKey: currentWeekKey(), week, season };
+  await ensureAiCircuitWeekSimulated(season, week, { force: true });
+  return { weekKey: currentWeekKey(), week, season, nextUpdateAt: nextCircuitUpdateAt() };
+}
+
+async function restartCurrentSeason() {
+  const current = await circuitState();
+  const season = current.season;
+  const retainedWeeks = [17, 18, 19, 20];
+  if (db) {
+    await db.query("DELETE FROM circuit_tournament_results WHERE season_number = $1", [season]);
+    await db.query("DELETE FROM weekly_competition_scores");
+    await db.query("DELETE FROM circuit_attempts WHERE season_number = $1", [season]);
+    await db.query("DELETE FROM circuit_tournament_saves WHERE season_number = $1", [season]);
+    await db.query("DELETE FROM circuit_week_scores WHERE season_number = $1 AND NOT (week_number = ANY($2::int[]))", [season, retainedWeeks]);
+    await db.query("DELETE FROM circuit_ai_week_scores WHERE season_number = $1", [season]);
+    await db.query("DELETE FROM app_state WHERE key LIKE 'ai_simulated_%'");
+  } else {
+    authMemory.circuitResults = [];
+    authMemory.weeklyScores.clear();
+    authMemory.circuitAttempts.clear();
+    authMemory.circuitSaves.clear();
+    for (const key of Array.from(authMemory.circuitWeekScores.keys())) {
+      const [, keySeason, keyWeek] = key.match(/^([^:]+):(\d+):(\d+)$/) || [];
+      if (Number(keySeason) === season && !retainedWeeks.includes(Number(keyWeek))) {
+        authMemory.circuitWeekScores.delete(key);
+      }
+    }
+    authMemory.circuitAiWeekScores.clear();
+    for (const key of Array.from(authMemory.appState.keys())) {
+      if (key.startsWith("ai_simulated_")) authMemory.appState.delete(key);
+    }
+  }
+  await setAppStateValue("circuit_season_number", season);
+  await setAppStateValue("circuit_week_number", 1);
+  await setAppStateValue("circuit_period_key", currentWeekKey());
+  for (const weekNumber of retainedWeeks) {
+    await simulateAiCircuitWeek(season, weekNumber, { bonusTopIds: [] });
+    await setAppStateValue(`ai_simulated_${season}_${weekNumber}`, new Date().toISOString());
+  }
+  const topAiIds = await topAiIdsForReference(season, 1, 8);
+  await simulateAiCircuitWeek(season, 1, { bonusTopIds: topAiIds });
+  await setAppStateValue(`ai_simulated_${season}_1`, new Date().toISOString());
+  return { weekKey: currentWeekKey(), week: 1, season, nextUpdateAt: nextCircuitUpdateAt() };
 }
 
 function circuitScoreKey(current) {
@@ -575,6 +815,16 @@ async function initAuthStorage() {
     )
   `);
   await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_ai_week_scores (
+      ai_character_id TEXT NOT NULL,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      points INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (ai_character_id, season_number, week_number)
+    )
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_attempts (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       season_number INTEGER NOT NULL,
@@ -781,7 +1031,7 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null) {
   const current = await circuitState();
   const refWeeks = previousCircuitWeeks(current.week);
   if (db) {
-    const result = await db.query(`
+    const humanResult = await db.query(`
       WITH week_scores AS (
         SELECT user_id,
           COALESCE(SUM(points) FILTER (WHERE week_number = ANY($2::int[])), 0)::int AS score_ref,
@@ -790,25 +1040,45 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null) {
         FROM circuit_week_scores
         WHERE season_number = $1
         GROUP BY user_id
-      ),
-      ranked AS (
-        SELECT users.id, users.account_number, users.nickname,
+      )
+      SELECT users.id::text AS id, users.account_number, users.nickname,
           COALESCE(week_scores.score_ref, 0)::int AS score_ref,
           COALESCE(week_scores.score_week, 0)::int AS score_week,
           COALESCE(week_scores.score_total, 0)::int AS score_total,
-          ROW_NUMBER() OVER (
-            ORDER BY COALESCE(week_scores.score_ref, 0) DESC,
-                     COALESCE(week_scores.score_week, 0) DESC,
-                     COALESCE(week_scores.score_total, 0) DESC,
-                     users.account_number ASC
-          ) AS rank
-        FROM users
-        LEFT JOIN week_scores ON week_scores.user_id = users.id
-      )
-      SELECT * FROM ranked
-      ORDER BY rank ASC
+          FALSE AS is_ai
+      FROM users
+      LEFT JOIN week_scores ON week_scores.user_id = users.id
     `, [current.season, refWeeks, current.week]);
-    const rows = result.rows;
+    const aiResult = await db.query(`
+      SELECT ai_character_id,
+        COALESCE(SUM(points) FILTER (WHERE week_number = ANY($2::int[])), 0)::int AS score_ref,
+        COALESCE(SUM(points) FILTER (WHERE week_number = $3), 0)::int AS score_week,
+        COALESCE(SUM(points), 0)::int AS score_total
+      FROM circuit_ai_week_scores
+      WHERE season_number = $1
+      GROUP BY ai_character_id
+    `, [current.season, refWeeks, current.week]);
+    const aiRowsById = new Map(aiResult.rows.map((row) => [row.ai_character_id, row]));
+    const rows = [
+      ...humanResult.rows,
+      ...CIRCUIT_AI_CHARACTER_IDS.map((characterId) => {
+        const scores = aiRowsById.get(characterId) || {};
+        return {
+          id: `ai:${characterId}`,
+          account_number: null,
+          nickname: aiCharacterName(characterId),
+          score_ref: Number(scores.score_ref || 0),
+          score_week: Number(scores.score_week || 0),
+          score_total: Number(scores.score_total || 0),
+          is_ai: true,
+        };
+      }),
+    ].sort((a, b) => (
+      Number(b.score_ref || 0) - Number(a.score_ref || 0)
+      || Number(b.score_week || 0) - Number(a.score_week || 0)
+      || Number(b.score_total || 0) - Number(a.score_total || 0)
+      || String(a.nickname || "").localeCompare(String(b.nickname || ""), "fr")
+    )).map((row, index) => ({ ...row, rank: index + 1 }));
     const offset = (page - 1) * pageSize;
     const pageRows = rows.slice(offset, offset + pageSize);
     const currentUserRank = currentUser ? rows.find((row) => row.id === currentUser.id) || null : null;
@@ -823,7 +1093,33 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null) {
       currentUserRank,
     };
   }
-  return { ...current, refWeeks, page, pageSize, totalPlayers: 0, totalPages: 1, top: [], currentUserRank: null };
+  const aiRows = CIRCUIT_AI_CHARACTER_IDS.map((characterId) => {
+    const scoreRef = refWeeks.reduce((sum, weekNumber) => sum + (authMemory.circuitAiWeekScores.get(`${current.season}:${weekNumber}:${characterId}`) || 0), 0);
+    const scoreWeek = authMemory.circuitAiWeekScores.get(`${current.season}:${current.week}:${characterId}`) || 0;
+    const scoreTotal = Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
+      .reduce((sum, weekNumber) => sum + (authMemory.circuitAiWeekScores.get(`${current.season}:${weekNumber}:${characterId}`) || 0), 0);
+    return {
+      id: `ai:${characterId}`,
+      account_number: null,
+      nickname: aiCharacterName(characterId),
+      score_ref: scoreRef,
+      score_week: scoreWeek,
+      score_total: scoreTotal,
+      is_ai: true,
+    };
+  }).sort((a, b) => b.score_ref - a.score_ref || b.score_week - a.score_week || a.nickname.localeCompare(b.nickname, "fr"))
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+  const offset = (page - 1) * pageSize;
+  return {
+    ...current,
+    refWeeks,
+    page,
+    pageSize,
+    totalPlayers: aiRows.length,
+    totalPages: Math.max(1, Math.ceil(aiRows.length / pageSize)),
+    top: aiRows.slice(offset, offset + pageSize),
+    currentUserRank: null,
+  };
 }
 
 async function registerCircuitAiResults(userId, results = []) {
@@ -1846,6 +2142,12 @@ async function handleAuth(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/admin/circuit/next-week") {
     if (!await requireAdmin(req, res)) return true;
     sendJson(res, 200, await advanceCircuitWeek());
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/circuit/restart-season") {
+    if (!await requireAdmin(req, res)) return true;
+    sendJson(res, 200, await restartCurrentSeason());
     return true;
   }
 

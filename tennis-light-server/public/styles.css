@@ -618,7 +618,24 @@ button:disabled {
 }
 
 .resume-button {
-  background: #86efac;
+  color: #fff;
+  background: #16a34a;
+}
+
+.danger-button {
+  color: #fff;
+  background: #b91c1c;
+}
+
+.admin-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ranking-ai-name {
+  color: #475569;
 }
 
 .lobby-header {

@@ -84,6 +84,8 @@ const AUTH_STATE = {
   profile: null,
 };
 
+let weeklyCountdownTimer = null;
+
 const ROLE_LABELS = {
   free: "FREE",
   pro: "PRO",
@@ -1258,6 +1260,8 @@ const els = {
   adminPrevPageButton: document.querySelector("#adminPrevPageButton"),
   adminNextPageButton: document.querySelector("#adminNextPageButton"),
   adminNextWeekButton: document.querySelector("#adminNextWeekButton"),
+  adminRestartSeasonButton: document.querySelector("#adminRestartSeasonButton"),
+  adminRankingList: document.querySelector("#adminRankingList"),
   adminPageInfo: document.querySelector("#adminPageInfo"),
   refreshRankingButton: document.querySelector("#refreshRankingButton"),
   openRankingPageButton: document.querySelector("#openRankingPageButton"),
@@ -1747,11 +1751,16 @@ function rankingMarkup() {
   if (!top.length) {
     return '<div class="lobby-empty">Aucun classement disponible pour le moment.</div>';
   }
-  const profileName = (row) => `
-    <button class="ranking-name-button" type="button" data-profile-user="${escapeHtml(row.id || "")}">
-      ${escapeHtml(row.nickname)}
-    </button>
-  `;
+  const profileName = (row) => {
+    if (row.is_ai || String(row.id || "").startsWith("ai:")) {
+      return `<span class="ranking-ai-name">${escapeHtml(row.nickname)}</span>`;
+    }
+    return `
+      <button class="ranking-name-button" type="button" data-profile-user="${escapeHtml(row.id || "")}">
+        ${escapeHtml(row.nickname)}
+      </button>
+    `;
+  };
   const rows = top.map((row, index) => `
     <div class="ranking-row">
       <span>${Number(row.rank || index + 1)}</span>
@@ -1776,7 +1785,7 @@ function attachProfileLinks(container) {
   container?.querySelectorAll("[data-profile-user]").forEach((button) => {
     button.addEventListener("click", () => {
       const userId = button.dataset.profileUser;
-      if (!userId) return;
+      if (!userId || userId.startsWith("ai:")) return;
       showProfileScreen(userId);
     });
   });
@@ -1791,6 +1800,10 @@ function renderRanking() {
   if (els.rankingFullList) {
     els.rankingFullList.innerHTML = markup;
     attachProfileLinks(els.rankingFullList);
+  }
+  if (els.adminRankingList) {
+    els.adminRankingList.innerHTML = markup;
+    attachProfileLinks(els.adminRankingList);
   }
 }
 
@@ -1993,12 +2006,27 @@ async function redeemProfileProCode() {
 
 async function adminAdvanceCircuitWeek() {
   if (!canAccessAdminFeatures()) return;
+  if (!window.confirm("Passer à la semaine suivante du circuit ? Cette action est immédiate.")) return;
   renderAuthState("Passage à la semaine suivante...");
   try {
     await authRequest("/api/admin/circuit/next-week", {});
     await loadCompetitions();
     await loadRanking(1);
     renderAuthState("Semaine suivante activée.");
+  } catch (error) {
+    renderAuthState(error.message);
+  }
+}
+
+async function adminRestartCurrentSeason() {
+  if (!canAccessAdminFeatures()) return;
+  if (!window.confirm("Relancer la saison en cours ? Les palmarès et calendriers humains de la saison seront remis à zéro, mais les points des 4 dernières semaines seront conservés.")) return;
+  renderAuthState("Relance de la saison...");
+  try {
+    await authRequest("/api/admin/circuit/restart-season", {});
+    await loadCompetitions();
+    await loadRanking(1);
+    renderAuthState("Saison relancée.");
   } catch (error) {
     renderAuthState(error.message);
   }
@@ -2029,9 +2057,8 @@ function renderCompetitions() {
   }
   const retriesUsed = Number(AUTH_STATE.competitions?.retriesUsed || 0);
   const retryLimit = Number(AUTH_STATE.competitions?.retryLimit || 5);
-  const nextUpdateText = formatCountdown(AUTH_STATE.competitions?.nextUpdateAt);
   els.weeklyCompetitionsList.innerHTML = `
-    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit} · Prochaine semaine : ${escapeHtml(nextUpdateText)}</div>
+    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit} · Prochaine semaine : <span id="weeklyCountdown">${escapeHtml(formatCountdown(AUTH_STATE.competitions?.nextUpdateAt))}</span></div>
     ${competitions.map((competition) => {
       const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competition.id);
       const canReplay = !alreadyPlayed || retriesUsed < retryLimit;
@@ -2058,6 +2085,7 @@ function renderCompetitions() {
   els.weeklyCompetitionsList.querySelectorAll("[data-resume-weekly-competition]").forEach((button) => {
     button.addEventListener("click", () => resumeWeeklyCompetition(button.dataset.resumeWeeklyCompetition));
   });
+  startWeeklyCountdown();
 }
 
 function formatCountdown(isoValue) {
@@ -2069,6 +2097,21 @@ function formatCountdown(isoValue) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function startWeeklyCountdown() {
+  window.clearInterval(weeklyCountdownTimer);
+  const tick = () => {
+    const target = document.querySelector("#weeklyCountdown");
+    if (!target) {
+      window.clearInterval(weeklyCountdownTimer);
+      weeklyCountdownTimer = null;
+      return;
+    }
+    target.textContent = formatCountdown(AUTH_STATE.competitions?.nextUpdateAt);
+  };
+  tick();
+  weeklyCountdownTimer = window.setInterval(tick, 1000);
 }
 
 async function loadCompetitions() {
@@ -2865,8 +2908,10 @@ function createPlayer(name, characterId, nickname = name) {
     played: [],
     nextPrecisionBonus: 0,
     nextPrecisionSources: [],
-    nextPlacementBonus: 0,
-    nextPlacementSources: [],
+  nextPlacementBonus: 0,
+  nextPlacementSources: [],
+  nextAnyPlacementBonus: 0,
+  nextAnyPlacementSources: [],
     nextDiscount: 0,
     nextDiscountSources: [],
     nextExtraCost: 0,
@@ -3003,12 +3048,13 @@ function absorbServerLogs(logs = []) {
 }
 
 function exportLogsFile() {
+  if (SERVER_SYNC.enabled && !canAccessAdminFeatures()) return;
   const detailedActions = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
   const exchangeResults = getStoredMatchLogs();
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v99",
+    version: "v100",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3299,6 +3345,12 @@ function addNextPlacementBonus(player, value, sourceUid = null) {
   if (sourceUid) player.nextPlacementSources.push({ sourceUid, value });
 }
 
+function addNextAnyPlacementBonus(player, value, sourceUid = null) {
+  player.nextAnyPlacementSources = player.nextAnyPlacementSources ?? [];
+  player.nextAnyPlacementBonus = (player.nextAnyPlacementBonus ?? 0) + value;
+  if (sourceUid) player.nextAnyPlacementSources.push({ sourceUid, value });
+}
+
 function addNextDiscount(player, value, sourceUid = null) {
   player.nextDiscountSources = player.nextDiscountSources ?? [];
   player.nextDiscount += value;
@@ -3320,7 +3372,14 @@ function clearNextShotBonuses(player) {
   player.nextPrecisionSources = [];
   player.nextPlacementBonus = 0;
   player.nextPlacementSources = [];
+  player.nextAnyPlacementBonus = 0;
+  player.nextAnyPlacementSources = [];
   player.nextPowerMultiplier = 1;
+}
+
+function clearNextAnyCardBonuses(player) {
+  player.nextAnyPlacementBonus = 0;
+  player.nextAnyPlacementSources = [];
 }
 
 function removeSourcedNextBonus(player, key, sourceKey, sourceUid) {
@@ -3353,7 +3412,7 @@ function getCardStats(player, card, boosted) {
   const permanentPlacementBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.placement || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus;
   precision += permanentPrecisionBonus;
-  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + aiStatBonus + permanentPlacementBonus;
+  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + aiStatBonus + permanentPlacementBonus;
   let surfacePowerBonus = 0;
   if (!isRemise(card) && player.surfaceBonus?.id === "grassPowerVolleySmash" && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && player.surfaceBonus?.id === "hardPrecisePower" && precision > 3) surfacePowerBonus += 1;
@@ -3372,11 +3431,6 @@ function getCardStats(player, card, boosted) {
     for (const bonus of player.exchangeAfterFamilyPlacementBonuses ?? []) {
       if (previousShot?.family === bonus.afterFamily) placement += bonus.value ?? 0;
     }
-  }
-  for (const bonus of player.placementPerOpponentLowPowerCardBonuses ?? []) {
-    const threshold = bonus.threshold ?? 5;
-    const lowPowerCards = opponent?.played.filter((playedCard) => !playedCard.removed && (playedCard.cardPowerGained ?? playedCard.powerGained ?? playedCard.power ?? 0) < threshold).length ?? 0;
-    placement += lowPowerCards * (bonus.value ?? 0);
   }
   return {
     power: (basePower + aiPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1)),
@@ -3543,6 +3597,7 @@ async function startOnlineGame() {
 }
 
 function toggleRevealAiCards() {
+  if (SERVER_SYNC.enabled && !canAccessAdminFeatures()) return;
   if (!SOLO_AI.enabled || !state.gameOver) return;
   state.revealAiCards = !state.revealAiCards;
   render();
@@ -3725,6 +3780,10 @@ function chooseSoloPlacementDefenseAction(playerIndex) {
   const directCoup = chooseSoloNormalCoup(playerIndex);
   const counterBoost = chooseSoloBoostPlay(playerIndex);
   const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
+
+  if (counterBoost && (state.mandatoryPlacementReason === "boost" || Math.random() < 0.35)) {
+    return { type: "boost", card: counterBoost.card, sacrifice: counterBoost.sacrifice };
+  }
 
   if (escapeEffect && shouldUseSoloBoostEscapeEffect(playerIndex, escapeEffect, directCoup, defensePlan)) {
     return { type: "effect", card: escapeEffect };
@@ -4211,7 +4270,7 @@ function chooseSoloRemiseDefensePlan(playerIndex) {
       options.push({
         remises: subset,
         coup: null,
-        score: 42 + remisePlacement - overPlacement * 2 - remiseCost * 8,
+        score: 42 + remisePlacement - overPlacement * 2 - remiseCost * 8 + aiScoreNoise(),
       });
     }
     for (const coup of player.hand.filter((card) => !isRemise(card) && !subset.some((remise) => remise.uid === card.uid))) {
@@ -4223,7 +4282,7 @@ function chooseSoloRemiseDefensePlan(playerIndex) {
       options.push({
         remises: subset,
         coup,
-        score: 50 + soloPlayableCoupScore(playerIndex, coup) + totalPlacement - overPlacement * 2 - remiseCost * 8,
+        score: 50 + soloPlayableCoupScore(playerIndex, coup) + totalPlacement - overPlacement * 2 - remiseCost * 8 + aiScoreNoise(),
       });
     }
   }
@@ -4358,7 +4417,7 @@ function chooseSoloNormalCoup(playerIndex) {
   const player = state.players[playerIndex];
   return player.hand
     .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
-    .sort((a, b) => soloPlayableCoupScore(playerIndex, b) - soloPlayableCoupScore(playerIndex, a))[0] ?? null;
+    .sort((a, b) => (soloPlayableCoupScore(playerIndex, b) + aiScoreNoise()) - (soloPlayableCoupScore(playerIndex, a) + aiScoreNoise()))[0] ?? null;
 }
 
 function soloPlayableCoupScore(playerIndex, card) {
@@ -4401,7 +4460,23 @@ function soloCardScore(playerIndex, card, boosted = false) {
   if (card.effectType === "gainEndurance") score += 1;
   if (card.effectType === "drawCard") score += 1.2;
   if (card.effectType === "limitOpponentFamilies") score += 1.4;
+  if (SOLO_AI.style === "expert" && !boosted && state.boostAvailableFor !== playerIndex && opensLikelyBoostWindowForOpponent(playerIndex, card)) {
+    score -= state.players[playerIndex].endurance <= 2 ? 8 : 3;
+  }
   return score;
+}
+
+function aiScoreNoise(scale = 1.4) {
+  return SOLO_AI.style === "expert" ? (Math.random() - 0.5) * scale : 0;
+}
+
+function opensLikelyBoostWindowForOpponent(playerIndex, card) {
+  if (!state.lastCard || state.turnIgnoresPlacement[playerIndex] || state.turnCannotOpenBoost[playerIndex]) return false;
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (opponent.hand.length < 2 || opponent.endurance <= 0) return false;
+  const totalPlacement = totalTurnPlacement(playerIndex, card, false);
+  return totalPlacement < state.lastCard.precision && !expertCanDefendBoostWithCards(playerIndex, player.hand.filter((item) => item.uid !== card.uid), player.endurance - effectiveCost(player, card), state.lastCard.precision);
 }
 
 function soloBoostScore(playerIndex, card) {
@@ -4467,6 +4542,23 @@ function applySurfaceBonusAfterPlay(playerIndex, playedCard, costPaid) {
   }
 }
 
+function applyOpponentLowPowerCharacterTriggers(cardOwnerIndex, playedCard) {
+  const opponentIndex = opponentOf(cardOwnerIndex);
+  const opponent = state.players[opponentIndex];
+  const watchers = opponent.placementPerOpponentLowPowerCardBonuses ?? [];
+  if (!watchers.length || !playedCard?.playedUid) return;
+  const playedPower = playedCard.cardPowerGained ?? playedCard.powerGained ?? playedCard.power ?? 0;
+  for (const watcher of watchers) {
+    watcher.seenPlayedUids = watcher.seenPlayedUids ?? [];
+    if (watcher.seenPlayedUids.includes(playedCard.playedUid)) continue;
+    watcher.seenPlayedUids.push(playedCard.playedUid);
+    if (playedPower < (watcher.threshold ?? 5)) {
+      addNextAnyPlacementBonus(opponent, watcher.value ?? 2, watcher.sourceUid);
+      state.log.unshift(`${opponent.name} gagne +${watcher.value ?? 2} placement sur sa prochaine carte : l'adversaire vient de jouer une carte à puissance inférieure à ${watcher.threshold ?? 5}.`);
+    }
+  }
+}
+
 function setEffectNotice(status, card, message) {
   state.effectNotice = {
     status,
@@ -4518,6 +4610,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]);
 
   player.endurance -= cost;
+  clearNextAnyCardBonuses(player);
   if (endsTurn) {
     clearNextShotBonuses(player);
   }
@@ -4561,6 +4654,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
   applySurfaceBonusAfterPlay(playerIndex, playedCard, cost);
+  applyOpponentLowPowerCharacterTriggers(playerIndex, playedCard);
 
   recordAction("play_card", {
     playerIndex,
@@ -4849,6 +4943,11 @@ function applyEffect(playerIndex, card) {
       state.log.unshift(`${opponent.name} devra jouer ${card.effectFamilies.join(", ")} au prochain coup.`);
       break;
     case "discardOpponent":
+      if (opponent.protectedFromRemoval) {
+        state.log.unshift(`${opponent.name} est protégé : sa main ne peut pas être attaquée.`);
+        setEffectNotice("sans effet", card, `${opponent.name} est protégé jusqu'à la fin de l'échange.`);
+        break;
+      }
       if (opponent.hand.length > 0) {
         const discarded = opponent.hand.splice(Math.floor(Math.random() * opponent.hand.length), 1)[0];
         state.log.unshift(`${opponent.name} défausse ${discarded.name}.`);
@@ -5035,12 +5134,14 @@ function clearActiveEffectsFromRemovedCard(card) {
   for (const player of state.players) {
     const removedPrecision = removeSourcedNextBonus(player, "nextPrecisionBonus", "nextPrecisionSources", card.playedUid);
     const removedPlacement = removeSourcedNextBonus(player, "nextPlacementBonus", "nextPlacementSources", card.playedUid);
+    const removedAnyPlacement = removeSourcedNextBonus(player, "nextAnyPlacementBonus", "nextAnyPlacementSources", card.playedUid);
     const removedDiscount = removeSourcedNextBonus(player, "nextDiscount", "nextDiscountSources", card.playedUid);
     const removedExtraCost = removeSourcedNextBonus(player, "nextExtraCost", "nextExtraCostSources", card.playedUid);
     const removedExchangePrecision = removeSourcedNextBonus(player, "exchangePrecisionBonus", "exchangePrecisionSources", card.playedUid);
     const removedExchangePlacement = removeSourcedNextBonus(player, "exchangePlacementBonus", "exchangePlacementSources", card.playedUid);
     if (removedPrecision) state.log.unshift(`Le bonus +${removedPrecision} précision créé par ${card.name} est annulé.`);
     if (removedPlacement) state.log.unshift(`Le bonus +${removedPlacement} placement créé par ${card.name} est annulé.`);
+    if (removedAnyPlacement) state.log.unshift(`Le bonus +${removedAnyPlacement} placement sur la prochaine carte créé par ${card.name} est annulé.`);
     if (removedDiscount) state.log.unshift(`Le bonus -${removedDiscount} endurance créé par ${card.name} est annulé.`);
     if (removedExtraCost) state.log.unshift(`Le malus +${removedExtraCost} endurance créé par ${card.name} est annulé.`);
     if (removedExchangePrecision) state.log.unshift(`Le bonus permanent +${removedExchangePrecision} précision créé par ${card.name} est annulé.`);
@@ -5420,9 +5521,15 @@ function applyCharacterEffect(playerIndex, playedCard) {
   }
 
   if (effect.type === "placementPerOpponentLowPowerCard") {
+    const opponent = state.players[opponentOf(playerIndex)];
     player.placementPerOpponentLowPowerCardBonuses = [
       ...(player.placementPerOpponentLowPowerCardBonuses ?? []),
-      { sourceUid: playedCard.playedUid, threshold: effect.threshold ?? 5, value: effect.value ?? 2 },
+      {
+        sourceUid: playedCard.playedUid,
+        threshold: effect.threshold ?? 5,
+        value: effect.value ?? 2,
+        seenPlayedUids: (opponent?.played ?? []).map((card) => card.playedUid).filter(Boolean),
+      },
     ];
     state.log.unshift(`${character.name} (${effect.side}) : ${effect.label}.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
@@ -5480,6 +5587,11 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
   if (effect.type === "drawRandomOpponentHand") {
     const opponent = state.players[opponentOf(playerIndex)];
+    if (opponent.protectedFromRemoval) {
+      state.log.unshift(`${character.name} (${effect.side}) : ${opponent.name} est protégé, sa main ne peut pas être attaquée.`);
+      setEffectNotice("coach", { name: character.name }, `${opponent.name} est protégé jusqu'à la fin de l'échange.`);
+      return false;
+    }
     if (!opponent.hand.length) {
       state.log.unshift(`${character.name} (${effect.side}) : la main adverse est vide.`);
       setEffectNotice("coach", { name: character.name }, "Main adverse vide.");
@@ -6850,10 +6962,13 @@ function ensureSoloAIForSet() {
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
   if (els.revealAiButton) {
-    const canReveal = SOLO_AI.enabled && state.gameOver;
+    const canReveal = SOLO_AI.enabled && state.gameOver && (!SERVER_SYNC.enabled || canAccessAdminFeatures());
     els.revealAiButton.classList.toggle("hidden", !canReveal);
     els.revealAiButton.classList.toggle("active", state.revealAiCards);
     els.revealAiButton.textContent = state.revealAiCards ? "Cartes révélées" : "Révéler les cartes";
+  }
+  if (els.exportLogsButton) {
+    els.exportLogsButton.classList.toggle("hidden", SERVER_SYNC.enabled && !canAccessAdminFeatures());
   }
 }
 
@@ -7028,7 +7143,7 @@ function renderServerSyncPanel() {
     panel.className = "sync-panel";
     document.querySelector(".topbar")?.append(panel);
   }
-  const inviteUrl = SERVER_SYNC.inviteUrl ?? "";
+  const inviteUrl = canAccessAdminFeatures() ? (SERVER_SYNC.inviteUrl ?? "") : "";
   const localPlayer = state.players[SERVER_SYNC.seat];
   const localLabel = localPlayer ? `${localPlayer.nickname ?? localPlayer.name} · ${localPlayer.name}` : `Siège ${SERVER_SYNC.seat + 1}`;
   panel.innerHTML = `
@@ -7386,6 +7501,7 @@ function activeEffectBadges(playerIndex) {
   const badges = [];
   if (player.nextPrecisionBonus) badges.push({ text: `Prochain coup: +${player.nextPrecisionBonus} précision`, type: "effect" });
   if (player.nextPlacementBonus) badges.push({ text: `Prochain coup: +${player.nextPlacementBonus} placement`, type: "effect" });
+  if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte: +${player.nextAnyPlacementBonus} placement`, type: "effect" });
   if (player.nextDiscount) badges.push({ text: `Prochain coup: -${player.nextDiscount} endurance`, type: "effect" });
   if (player.nextExtraCost) badges.push({ text: `Prochain coup: +${player.nextExtraCost} endurance`, type: "effect" });
   if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain coup: puissance x${player.nextPowerMultiplier}`, type: "effect" });
@@ -7433,6 +7549,7 @@ function renderPlayerPanel(playerIndex, root) {
         ${state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : ""}
         ${player.nextPrecisionBonus ? `<span class="badge">+${player.nextPrecisionBonus} précision</span>` : ""}
         ${player.nextPlacementBonus ? `<span class="badge">+${player.nextPlacementBonus} placement</span>` : ""}
+        ${player.nextAnyPlacementBonus ? `<span class="badge">+${player.nextAnyPlacementBonus} placement prochaine carte</span>` : ""}
         ${player.nextDiscount ? `<span class="badge">-${player.nextDiscount} coût</span>` : ""}
         ${player.nextExtraCost ? `<span class="badge">+${player.nextExtraCost} coût</span>` : ""}
         ${(player.nextPowerMultiplier ?? 1) > 1 ? `<span class="badge">x${player.nextPowerMultiplier} puissance</span>` : ""}
@@ -7842,6 +7959,7 @@ function initMenu() {
   els.adminPrevPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage - 1));
   els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
   els.adminNextWeekButton?.addEventListener("click", adminAdvanceCircuitWeek);
+  els.adminRestartSeasonButton?.addEventListener("click", adminRestartCurrentSeason);
   els.refreshRankingButton?.addEventListener("click", loadRanking);
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);

@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=99" />
+    <link rel="stylesheet" href="./styles.css?v=100" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v99</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v100</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -92,7 +92,6 @@
           <section class="menu-panel weekly-circuit-panel restricted-pro" data-required-role="pro">
             <div class="lobby-header">
               <p class="label">Tennis Courts Pro Circuit</p>
-              <button id="adminNextWeekButton" class="small-button hidden" type="button">Semaine suivante</button>
             </div>
             <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
             <p class="access-note">Réservé aux joueurs Pro.</p>
@@ -112,7 +111,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v99</span></p>
+        <p class="eyebrow">Profil joueur <span>v100</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -126,7 +125,7 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v99</span></p>
+        <p class="eyebrow">Personnage <span>v100</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -140,7 +139,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v99</span></p>
+        <p class="eyebrow">Réinitialisation <span>v100</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -156,7 +155,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v99</span></p>
+        <p class="eyebrow">Classement général <span>v100</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -170,7 +169,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v99</span></p>
+        <p class="eyebrow">Administration <span>v100</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -196,6 +195,19 @@
             </div>
             <div id="adminProCodesList" class="admin-codes-list" aria-live="polite"></div>
           </div>
+          <div class="admin-codes-panel admin-circuit-panel">
+            <div class="admin-management-header compact">
+              <div>
+                <p class="label">Circuit mondial</p>
+                <h2>Classement complet</h2>
+              </div>
+              <div class="admin-inline-actions">
+                <button id="adminNextWeekButton" class="small-button" type="button">Semaine suivante</button>
+                <button id="adminRestartSeasonButton" class="small-button danger-button" type="button">Relancer la saison</button>
+              </div>
+            </div>
+            <div id="adminRankingList" class="ranking-list admin-ranking-list" aria-live="polite"></div>
+          </div>
         </section>
       </div>
     </section>
@@ -203,7 +215,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v99</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v100</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">
@@ -237,6 +249,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=99"></script>
+    <script src="./app.js?v=100"></script>
   </body>
 </html>
