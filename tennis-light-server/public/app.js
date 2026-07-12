@@ -1790,20 +1790,27 @@ function rankingMarkup() {
       </button>
     `;
   };
+  const weekCell = (row) => {
+    const rank = Number(row.rank || 0);
+    const projectedRank = Number(row.projected_rank || rank || 0);
+    const trendClass = projectedRank && rank && projectedRank > rank ? " ranking-projection-down" : "";
+    const projection = projectedRank ? `<span class="ranking-projection${trendClass}">(#${projectedRank})</span>` : "";
+    return `<span><strong>${Number(row.score_week || 0)}</strong> ${projection}</span>`;
+  };
   const rows = top.map((row, index) => `
     <div class="ranking-row">
       <span>${Number(row.rank || index + 1)}</span>
       <strong>${profileName(row)}</strong>
       <span>${Number(row.score_ref || 0)}</span>
-      <span>${Number(row.score_week || 0)}</span>
+      ${weekCell(row)}
       <span>${Number(row.score_total || 0)}</span>
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span><span>${Number(current.score_week || 0)}</span><span>${Number(current.score_total || 0)}</span></div>`
+    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span>${weekCell(current)}<span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
-    <div class="ranking-head"><span>#</span><span>Nom</span><span>Points</span><span>Semaine</span><span>Saison</span></div>
+    <div class="ranking-head"><span>#</span><span>Nom</span><span>Points (S-4)</span><span>Semaine</span><span>Saison</span></div>
     ${rows}
     ${currentRow}
     <div class="ranking-meta">Saison ${Number(AUTH_STATE.ranking?.season || 1)} · Semaine ${Number(AUTH_STATE.ranking?.week || 1)}</div>
@@ -3083,7 +3090,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v100",
+    version: "v102",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5962,8 +5969,9 @@ function startTournamentMode(targetSets = 2, options = {}) {
     startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
     return;
   }
-  const { positions } = buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
-  const permanentBonuses = buildHistoricPermanentBonuses(positions);
+  const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
+  const dynamicBonusIds = previousWeekDynamicBonusIds();
+  const permanentBonuses = addDynamicPermanentBonuses(buildHistoricPermanentBonuses(positions), dynamicBonusIds);
   state.tournament = {
     active: true,
     visible: false,
@@ -5992,6 +6000,8 @@ function startTournamentMode(targetSets = 2, options = {}) {
     weeklyPositions: positions,
     surfaceBonuses: {},
     permanentBonuses,
+    seededCharacters: seededHistorics,
+    dynamicBonusIds,
     matches: buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets),
   };
   refreshTournamentDerivedSlots();
@@ -6010,6 +6020,32 @@ function startTournamentMode(targetSets = 2, options = {}) {
 function currentRankingTotalPoints() {
   const current = AUTH_STATE.ranking?.currentUserRank;
   return Number(current?.score_ref || 0);
+}
+
+function tournamentRankingEntries() {
+  const rows = [...(AUTH_STATE.ranking?.top || [])];
+  const current = AUTH_STATE.ranking?.currentUserRank;
+  if (current && !rows.some((row) => row.id === current.id)) rows.push(current);
+  return rows
+    .map((row) => {
+      if (row.is_ai || String(row.id || "").startsWith("ai:")) {
+        return { entry: String(row.id).replace(/^ai:/, ""), rank: Number(row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
+      }
+      if (AUTH_STATE.user && String(row.id) === String(AUTH_STATE.user.id)) {
+        return { entry: HUMAN_TOURNAMENT_ENTRY, rank: Number(row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"));
+}
+
+function previousWeekDynamicBonusIds() {
+  return tournamentRankingEntries()
+    .filter((entry) => entry.entry !== HUMAN_TOURNAMENT_ENTRY && TOURNAMENT_CHARACTER_POOL.includes(entry.entry))
+    .sort((a, b) => b.previousWeek - a.previousWeek || a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"))
+    .slice(0, 4)
+    .map((entry) => entry.entry);
 }
 
 function randomSurfaceBonus(surface) {
@@ -6033,6 +6069,23 @@ function buildHistoricPermanentBonuses(entries = []) {
   return bonuses;
 }
 
+function addDynamicPermanentBonuses(permanentBonuses, dynamicBonusIds = []) {
+  const bonuses = cloneData(permanentBonuses || {});
+  for (const characterId of dynamicBonusIds) {
+    if (!characterId || characterId === HUMAN_TOURNAMENT_ENTRY) continue;
+    bonuses[characterId] = [
+      ...(bonuses[characterId] || []),
+      {
+        id: "previousWeekMomentum",
+        label: "Dynamique",
+        description: "Top 4 semaine precedente : +1 precision",
+        precision: 1,
+      },
+    ];
+  }
+  return bonuses;
+}
+
 function buildWeeklySurfaceBonuses(surface, seededCharacters) {
   const bonuses = {};
   for (const characterId of seededCharacters) {
@@ -6050,13 +6103,24 @@ function buildTournamentRound16Positions(humanCharacterId, surface = "hard") {
   ].slice(0, 2);
   const remainingHistorics = HISTORIC_TOURNAMENT_PLAYERS.filter((characterId) => !seededHistorics.includes(characterId));
   const newDraw = shuffle(NEW_TOURNAMENT_PLAYERS).slice(0, 9);
-  const field = shuffle([HUMAN_TOURNAMENT_ENTRY, ...remainingHistorics, ...newDraw]).slice(0, 14);
+  const field = [HUMAN_TOURNAMENT_ENTRY, ...remainingHistorics, ...newDraw].slice(0, 14);
   const positions = Array(17).fill(null);
   positions[1] = seededHistorics[0];
   positions[16] = seededHistorics[1];
+  const rankedEntries = tournamentRankingEntries()
+    .map((entry) => entry.entry)
+    .filter((entry, index, array) => field.includes(entry) && !seededHistorics.includes(entry) && array.indexOf(entry) === index);
+  const protectedPositions = [8, 9, 12, 5, 13, 4];
+  protectedPositions.forEach((position, index) => {
+    const entry = rankedEntries[index];
+    if (entry) positions[position] = entry;
+  });
+  const used = new Set(positions.filter(Boolean));
+  const remainingField = shuffle(field.filter((entry) => !used.has(entry)));
   const middlePositions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-  middlePositions.forEach((position, index) => {
-    positions[position] = field[index] || shuffle(NEW_TOURNAMENT_PLAYERS.filter((characterId) => !positions.includes(characterId)))[0] || HUMAN_TOURNAMENT_ENTRY;
+  middlePositions.forEach((position) => {
+    if (positions[position]) return;
+    positions[position] = remainingField.shift() || shuffle(NEW_TOURNAMENT_PLAYERS.filter((characterId) => !positions.includes(characterId)))[0] || HUMAN_TOURNAMENT_ENTRY;
   });
   return { positions, seededHistorics };
 }
@@ -6066,7 +6130,8 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
   applySurfaceBackground(surface);
   const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, surface);
   const surfaceBonuses = buildWeeklySurfaceBonuses(surface, seededHistorics);
-  const permanentBonuses = buildHistoricPermanentBonuses(positions);
+  const dynamicBonusIds = previousWeekDynamicBonusIds();
+  const permanentBonuses = addDynamicPermanentBonuses(buildHistoricPermanentBonuses(positions), dynamicBonusIds);
   state.tournament = {
     active: true,
     visible: false,
@@ -6097,6 +6162,8 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     weeklyPositions: positions,
     surfaceBonuses,
     permanentBonuses,
+    seededCharacters: seededHistorics,
+    dynamicBonusIds,
     matches: buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets),
   };
   refreshWeeklyTournamentDerivedSlots();
@@ -6183,12 +6250,13 @@ function aiTournamentStrength(characterId) {
   const surface = state.tournament?.competitionSurface || "hard";
   const isSeeded = (SURFACE_SPECIALISTS[surface] || []).includes(characterId);
   const permanentBonuses = state.tournament?.permanentBonuses?.[characterId] ?? [];
+  const dynamicBonus = (state.tournament?.dynamicBonusIds || []).includes(characterId) ? 5 : 0;
   const surfaceBonus = state.tournament?.surfaceBonuses?.[characterId] ? 4 : 0;
   const historicBonus = isHistoric ? 8 : 0;
   const seededBonus = isSeeded ? 4 : 0;
   const permanentBonus = permanentBonuses.length ? 3 : 0;
   const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
-  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + Math.floor(Math.random() * 17);
+  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + dynamicBonus + Math.floor(Math.random() * 17);
 }
 
 function randomMatchSetScoresForWinner(winnerIndex, targetSets = 2) {
@@ -6445,6 +6513,13 @@ function humanMatchPerformanceBonus(match, setScores = state.setMatch.completedS
 function addHumanMatchPerformanceBonus(match) {
   if (!state.tournament.weekly || !match || match.performanceBonusRecorded) return;
   const bonus = humanMatchPerformanceBonus(match);
+  const human = humanTournamentEntry();
+  const opponentEntry = match.playerA === human ? match.playerB : match.playerA;
+  const opponentCharacterId = tournamentEntryCharacterId(opponentEntry);
+  if (match.winner === human && (state.tournament.seededCharacters || []).includes(opponentCharacterId)) {
+    bonus.points += 200;
+    bonus.details.push("Victoire contre une tete de serie: +200");
+  }
   match.performanceBonusRecorded = true;
   match.performanceBonusPoints = bonus.points;
   match.performanceBonusDetails = bonus.details;

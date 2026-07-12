@@ -730,6 +730,15 @@ button:disabled {
   min-width: 0;
 }
 
+.ranking-projection {
+  font-weight: 500;
+  color: #536272;
+}
+
+.ranking-projection-down {
+  color: #d83a35;
+}
+
 .ranking-name-button {
   appearance: none;
   border: 0;
