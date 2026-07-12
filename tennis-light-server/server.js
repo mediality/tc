@@ -23,7 +23,10 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
 const USER_ROLES = new Set(["free", "pro", "pro_plus", "admin"]);
 const COACH_CHARACTER_IDS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
-const HISTORIC_CHARACTER_IDS = ["theoBriancourt", "alessandraConti", "saharaJackson", "kjellBlomqvist", "kojiIwata", "elianaMarquez"];
+const HISTORIC_CHARACTER_IDS = [
+  "theoBriancourt", "alessandraConti", "saharaJackson", "kjellBlomqvist", "kojiIwata", "elianaMarquez",
+  "bryanGoodwin", "calvinBrentwood", "javierRamirez", "petraEckermann",
+];
 const NEW_CHARACTER_IDS = [
   "jonasFalkenried", "yunaSeo", "ikerSalvat", "loganBrooks", "kavyaSaran", "zariaCampbell",
   "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen",
@@ -37,6 +40,10 @@ const AI_CHARACTER_NAMES = {
   kjellBlomqvist: "Kjell Blomqvist",
   kojiIwata: "Koji Iwata",
   elianaMarquez: "Eliana Marquez",
+  bryanGoodwin: "Bryan Goodwin",
+  calvinBrentwood: "Calvin Brentwood",
+  javierRamirez: "Javier Ramirez",
+  petraEckermann: "Petra Eckermann",
   jonasFalkenried: "Jonas Falkenried",
   yunaSeo: "Yuna Seo",
   ikerSalvat: "Iker Salvat",
@@ -56,6 +63,10 @@ const AI_SURFACE_PREFERENCES = {
   kjellBlomqvist: "hard",
   kojiIwata: "clay",
   elianaMarquez: "clay",
+  bryanGoodwin: "hard",
+  calvinBrentwood: "grass",
+  javierRamirez: "clay",
+  petraEckermann: "hard",
   jonasFalkenried: "hard",
   yunaSeo: "hard",
   ikerSalvat: "clay",
@@ -542,24 +553,64 @@ function aiMatchStrength(characterId, competition, season, week, slot, bonusTopI
   return score;
 }
 
-function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = [], simulationNonce = "") {
-  const ranked = CIRCUIT_AI_CHARACTER_IDS
-    .map((characterId) => ({
-      characterId,
-      strength: aiMatchStrength(characterId, competition, season, week, competition.slot, bonusTopIds, simulationNonce),
-    }))
-    .sort((a, b) => b.strength - a.strength || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"));
+function deterministicShuffle(items, seed) {
+  return [...items]
+    .map((item) => ({ item, order: seededRandom(`${seed}:${item}`) }))
+    .sort((a, b) => a.order - b.order || String(a.item).localeCompare(String(b.item), "fr"))
+    .map((entry) => entry.item);
+}
+
+function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = [], simulationNonce = "", rankingOrder = []) {
+  const rankById = new Map(rankingOrder.map((characterId, index) => [characterId, index + 1]));
+  const rankOf = (characterId) => rankById.get(characterId) || 99999;
+  const byRanking = (a, b) => rankOf(a) - rankOf(b) || aiCharacterName(a).localeCompare(aiCharacterName(b), "fr");
+  const specialists = CIRCUIT_AI_CHARACTER_IDS
+    .filter((characterId) => AI_SURFACE_PREFERENCES[characterId] === competition.surface)
+    .sort(byRanking);
+  const seeds = specialists.slice(0, 2);
+  if (seeds.length < 2) {
+    seeds.push(...CIRCUIT_AI_CHARACTER_IDS.filter((id) => !seeds.includes(id)).sort(byRanking).slice(0, 2 - seeds.length));
+  }
+  const positions = Array(17).fill(null);
+  positions[1] = seeds[0];
+  positions[16] = seeds[1];
+  const protectedPositions = [8, 9, 12, 5, 13, 4];
+  const protectedPlayers = CIRCUIT_AI_CHARACTER_IDS.filter((id) => !seeds.includes(id)).sort(byRanking).slice(0, 6);
+  protectedPlayers.forEach((characterId, index) => { positions[protectedPositions[index]] = characterId; });
+  const used = new Set(positions.filter(Boolean));
+  const remaining = CIRCUIT_AI_CHARACTER_IDS.filter((id) => !used.has(id)).sort(byRanking);
+  const selected = [
+    ...remaining.slice(0, 5),
+    ...deterministicShuffle(remaining.slice(5), `${simulationNonce}:${competition.id}:${season}:${week}:draw`).slice(0, 3),
+  ];
+  const openPositions = [2, 3, 6, 7, 10, 11, 14, 15];
+  deterministicShuffle(selected, `${simulationNonce}:${competition.id}:${season}:${week}:positions`)
+    .forEach((characterId, index) => { positions[openPositions[index]] = characterId; });
+
   const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
   const awards = new Map();
-  ranked.forEach((entry, index) => {
-    let points = 0;
-    if (index === 0) points = table.winner || 0;
-    else if (index === 1) points = table.finalist || 0;
-    else if (index < 4) points = table.semi || 0;
-    else if (index < 8) points = table.quarter || 0;
-    else points = table.qualif || 0;
-    awards.set(entry.characterId, (awards.get(entry.characterId) || 0) + points);
-  });
+  const playRound = (players, roundLabel, loserPoints) => {
+    const winners = [];
+    for (let index = 0; index < players.length; index += 2) {
+      const playerA = players[index];
+      const playerB = players[index + 1];
+      const strengthA = aiMatchStrength(playerA, competition, season, week, `${roundLabel}:${index}`, bonusTopIds, simulationNonce);
+      const strengthB = aiMatchStrength(playerB, competition, season, week, `${roundLabel}:${index + 1}`, bonusTopIds, simulationNonce);
+      const chanceA = strengthA / Math.max(0.001, strengthA + strengthB);
+      const roll = seededRandom(`${simulationNonce}:${competition.id}:${season}:${week}:${roundLabel}:${index}:winner`);
+      const winner = roll < chanceA ? playerA : playerB;
+      const loser = winner === playerA ? playerB : playerA;
+      awards.set(loser, loserPoints || 0);
+      winners.push(winner);
+    }
+    return winners;
+  };
+  const round16 = positions.slice(1);
+  const quarterFinalists = playRound(round16, "round16", table.qualif || 0);
+  const semiFinalists = playRound(quarterFinalists, "quarter", table.quarter || 0);
+  const finalists = playRound(semiFinalists, "semi", table.semi || 0);
+  const winner = playRound(finalists, "final", table.finalist || 0)[0];
+  if (winner) awards.set(winner, table.winner || 0);
   return awards;
 }
 
@@ -715,13 +766,13 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
     await setAppStateValue("ai_simulation_nonce", simulationNonce);
   }
   const totals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
+  const standings = await aiCircuitStandingsForBoost(season, week);
   competitions.forEach((competition) => {
-    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce);
+    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds);
     awards.forEach((points, characterId) => {
       totals.set(characterId, (totals.get(characterId) || 0) + points);
     });
   });
-  const standings = await aiCircuitStandingsForBoost(season, week);
   const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, maxWeeklyTournamentPoints(week));
   if (db) {
     await db.query("DELETE FROM circuit_ai_week_scores WHERE season_number = $1 AND week_number = $2", [season, week]);

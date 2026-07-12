@@ -1,4 +1,4 @@
-Tennis Courts Light - version serveur
+Tennis Courts Academy - version serveur v104
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.

@@ -142,6 +142,10 @@ const HISTORIC_TOURNAMENT_PLAYERS = [
   "kjellBlomqvist",
   "kojiIwata",
   "elianaMarquez",
+  "bryanGoodwin",
+  "calvinBrentwood",
+  "javierRamirez",
+  "petraEckermann",
 ];
 const NEW_TOURNAMENT_PLAYERS = [
   "jonasFalkenried",
@@ -160,9 +164,9 @@ const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNA
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const HUMAN_TOURNAMENT_ENTRY = "__human__";
 const SURFACE_SPECIALISTS = {
-  grass: ["elianaMarquez", "kojiIwata"],
-  hard: ["alessandraConti", "kjellBlomqvist"],
-  clay: ["saharaJackson", "theoBriancourt"],
+  grass: ["saharaJackson", "calvinBrentwood", "loganBrooks", "zariaCampbell", "daanVermeer", "milanVerhaegen"],
+  hard: ["theoBriancourt", "kjellBlomqvist", "bryanGoodwin", "petraEckermann", "jonasFalkenried", "yunaSeo", "kavyaSaran", "renAoshima"],
+  clay: ["alessandraConti", "kojiIwata", "elianaMarquez", "javierRamirez", "ikerSalvat", "yasmineElMansouri", "lukasEberhardt"],
 };
 const SURFACE_BONUSES = {
   grass: [
@@ -185,6 +189,7 @@ const SURFACE_BONUSES = {
 const HISTORIC_PERMANENT_BONUSES = [
   { id: "historicPermanentPlacement", label: "+1 placement permanent", placement: 1, precision: 0 },
   { id: "historicPermanentPrecision", label: "+1 précision permanente", placement: 0, precision: 1 },
+  { id: "historicPermanentPower", label: "+1 puissance permanente", placement: 0, precision: 0, power: 1 },
 ];
 
 const CHARACTERS = {
@@ -267,6 +272,34 @@ const CHARACTERS = {
     effects: [
       { side: "Bleu", label: "Regarde la main adverse", type: "peekOpponentHand" },
       { side: "Rose", label: "Double la puissance de votre prochain coup", type: "nextPowerMultiplier", value: 2 },
+    ],
+  },
+  bryanGoodwin: {
+    name: "Bryan Goodwin",
+    effects: [
+      { side: "Bleu", label: "Le prochain Coup adverse rapporte 2 puissance maximum", type: "opponentNextPowerCap", value: 2 },
+      { side: "Rose", label: "+2 puissance sur tous vos Coups droits joués dans cet échange", type: "exchangeFamilyPowerBonus", families: ["Coup droit"], value: 2 },
+    ],
+  },
+  calvinBrentwood: {
+    name: "Calvin Brentwood",
+    effects: [
+      { side: "Bleu", label: "+1 puissance sur vos Smash, Volées et Passing jusqu'à la fin de l'échange", type: "exchangeFamilyPowerBonus", families: ["Smash", "Volée", "Passing"], value: 1 },
+      { side: "Rose", label: "Pioche 1 carte et récupère 1 endurance", type: "gainEnduranceAndDraw", endurance: 1, draw: 1 },
+    ],
+  },
+  javierRamirez: {
+    name: "Javier Ramirez",
+    effects: [
+      { side: "Bleu", label: "+1 placement jusqu'à la fin de l'échange", type: "exchangePlacementBonus", value: 1 },
+      { side: "Rose", label: "+1 endurance et +1 puissance", type: "gainEnduranceAndPower", endurance: 1, power: 1 },
+    ],
+  },
+  petraEckermann: {
+    name: "Petra Eckermann",
+    effects: [
+      { side: "Bleu", label: "Annule l'effet de la prochaine carte adverse", type: "cancelNextOpponentEffect" },
+      { side: "Rose", label: "Supprime une carte Coup jouée par l'adversaire", type: "removeOpponentPlayedChoice", shotsOnly: true },
     ],
   },
   jonasFalkenried: {
@@ -397,6 +430,22 @@ const CHARACTER_IMAGES = {
     "assets/cards/_0013_MARQUEZ.png",
     "assets/cards/_0012_MARQUEZ-VERSO.png",
   ],
+  bryanGoodwin: [
+    "assets/cards/HISTO4-Bryan-Goodwin.png",
+    "assets/cards/HISTO4-Bryan-Goodwin-VERSO.png",
+  ],
+  calvinBrentwood: [
+    "assets/cards/HISTO4-Calvin-Brentwood.png",
+    "assets/cards/HISTO4-Calvin-Brentwood-VERSO.png",
+  ],
+  javierRamirez: [
+    "assets/cards/HISTO4-Javier-Ramirez.png",
+    "assets/cards/HISTO4-Javier-Ramirez-VERSO.png",
+  ],
+  petraEckermann: [
+    "assets/cards/HISTO4-Petra-Eckermann.png",
+    "assets/cards/HISTO4-Petra-Eckermann-VERSO.png",
+  ],
   jonasFalkenried: [
     "assets/cards/TC-new-Jonas-Falkenried.png",
     "assets/cards/TC-new-Jonas-Falkenried-VERSO.png",
@@ -483,6 +532,22 @@ const MATCH_RESULT_IMAGES = {
   elianaMarquez: {
     win: "assets/cards/_0011_MARQUEZ-WIN.png",
     lose: "assets/cards/_0010_MARQUEZ-LOSE.png",
+  },
+  bryanGoodwin: {
+    win: "assets/cards/HISTO4-Bryan-Goodwin-WIN.png",
+    lose: "assets/cards/HISTO4-Bryan-Goodwin-LOSE.png",
+  },
+  calvinBrentwood: {
+    win: "assets/cards/HISTO4-Calvin-Brentwood-WIN.png",
+    lose: "assets/cards/HISTO4-Calvin-Brentwood-LOSE.png",
+  },
+  javierRamirez: {
+    win: "assets/cards/HISTO4-Javier-Ramirez-WIN.png",
+    lose: "assets/cards/HISTO4-Javier-Ramirez-LOSE.png",
+  },
+  petraEckermann: {
+    win: "assets/cards/HISTO4-Petra-Eckermann-WIN.png",
+    lose: "assets/cards/HISTO4-Petra-Eckermann-LOSE.png",
   },
   jonasFalkenried: {
     win: "assets/cards/Illu-Jonas-Falkenried.png",
@@ -3031,6 +3096,8 @@ function createPlayer(name, characterId, nickname = name) {
     nextExtraCost: 0,
     nextExtraCostSources: [],
     nextPowerMultiplier: 1,
+    nextPowerCap: null,
+    nextPowerCapSourceUid: null,
     exchangePrecisionBonus: 0,
     exchangePrecisionSources: [],
     exchangePlacementBonus: 0,
@@ -3168,7 +3235,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v102",
+    version: "v104",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3238,12 +3305,15 @@ function newGame(options = {}) {
       createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, nicknameValue()),
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
-  state.players.forEach((player) => {
+  state.players.forEach((player, playerIndex) => {
+    const tournamentEntry = state.tournament.active && playerIndex === 0
+      ? HUMAN_TOURNAMENT_ENTRY
+      : player.characterId;
     player.surfaceBonus = state.tournament.active && state.tournament.surfaceBonuses
-      ? state.tournament.surfaceBonuses[player.characterId] ?? null
+      ? state.tournament.surfaceBonuses[tournamentEntry] ?? null
       : null;
     player.permanentBonuses = state.tournament.active && state.tournament.permanentBonuses
-      ? cloneData(state.tournament.permanentBonuses[player.characterId] ?? [])
+      ? cloneData(state.tournament.permanentBonuses[tournamentEntry] ?? [])
       : [];
   });
   state.players[0].hand = deck.splice(0, HAND_SIZE);
@@ -3489,6 +3559,8 @@ function clearNextShotBonuses(player) {
   player.nextAnyPlacementBonus = 0;
   player.nextAnyPlacementSources = [];
   player.nextPowerMultiplier = 1;
+  player.nextPowerCap = null;
+  player.nextPowerCapSourceUid = null;
 }
 
 function clearNextAnyCardBonuses(player) {
@@ -3524,6 +3596,7 @@ function getCardStats(player, card, boosted) {
   const aiPowerBonus = aiDifficulty === "hardcore" && !isRemise(card) ? 1 : 0;
   const permanentPrecisionBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.precision || 0), 0);
   const permanentPlacementBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.placement || 0), 0);
+  const permanentPowerBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus;
   precision += permanentPrecisionBonus;
   let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + aiStatBonus + permanentPlacementBonus;
@@ -3546,8 +3619,10 @@ function getCardStats(player, card, boosted) {
       if (previousShot?.family === bonus.afterFamily) placement += bonus.value ?? 0;
     }
   }
+  let power = (basePower + aiPowerBonus + permanentPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
+  if (!isRemise(card) && player.nextPowerCap != null) power = Math.min(power, Number(player.nextPowerCap));
   return {
-    power: (basePower + aiPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1)),
+    power,
     precision,
     placement,
   };
@@ -5121,10 +5196,10 @@ function openRemoveChoice(playerIndex, sourceCard) {
   state.log.unshift(`${state.players[playerIndex].name} doit choisir une carte adverse à supprimer.`);
 }
 
-function removableOpponentCards(opponentIndex) {
+function removableOpponentCards(opponentIndex, shotsOnly = false) {
   const opponent = state.players[opponentIndex];
   if (opponent.protectedFromRemoval) return [];
-  return opponent.played.filter((card) => !card.removed);
+  return opponent.played.filter((card) => !card.removed && (!shotsOnly || isShot(card)));
 }
 
 function removalTargetScore(card) {
@@ -5142,18 +5217,18 @@ function removalTargetScore(card) {
 }
 
 function bestRemovalTargetFor(playerIndex) {
-  return removableOpponentCards(opponentOf(playerIndex))
+  return removableOpponentCards(opponentOf(playerIndex), Boolean(state.pendingRemoveChoice?.shotsOnly))
     .sort((a, b) => removalTargetScore(b) - removalTargetScore(a))[0] ?? null;
 }
 
 function resolveRemoveChoice(targetPlayedUid) {
   if (!state.pendingRemoveChoice) return;
-  const { playerIndex, opponentIndex, sourcePlayedUid } = state.pendingRemoveChoice;
+  const { playerIndex, opponentIndex, sourcePlayedUid, shotsOnly } = state.pendingRemoveChoice;
   if (!canUseSeat(playerIndex)) return;
   markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
-  const target = removableOpponentCards(opponentIndex).find((card) => card.playedUid === targetPlayedUid);
+  const target = removableOpponentCards(opponentIndex, Boolean(shotsOnly)).find((card) => card.playedUid === targetPlayedUid);
   state.pendingRemoveChoice = null;
   if (!sourceCard || !target) {
     state.log.unshift("Choix de suppression impossible.");
@@ -5246,6 +5321,11 @@ function removeOpponentPlayed(opponentIndex, targetPlayedUid) {
 
 function clearActiveEffectsFromRemovedCard(card) {
   for (const player of state.players) {
+    if (player.nextPowerCapSourceUid === card.playedUid) {
+      player.nextPowerCap = null;
+      player.nextPowerCapSourceUid = null;
+      state.log.unshift(`La limitation de puissance créée par ${card.name} est annulée.`);
+    }
     const removedPrecision = removeSourcedNextBonus(player, "nextPrecisionBonus", "nextPrecisionSources", card.playedUid);
     const removedPlacement = removeSourcedNextBonus(player, "nextPlacementBonus", "nextPlacementSources", card.playedUid);
     const removedAnyPlacement = removeSourcedNextBonus(player, "nextAnyPlacementBonus", "nextAnyPlacementSources", card.playedUid);
@@ -5572,6 +5652,16 @@ function applyCharacterEffect(playerIndex, playedCard) {
     return false;
   }
 
+  if (effect.type === "opponentNextPowerCap") {
+    const value = effect.value ?? 2;
+    const opponent = state.players[opponentOf(playerIndex)];
+    opponent.nextPowerCap = value;
+    opponent.nextPowerCapSourceUid = playedCard.playedUid;
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain Coup de ${opponent.name} rapportera ${value} puissance maximum.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
   if (effect.type === "opponentNextExtraCost") {
     const value = effect.value ?? 1;
     const opponent = state.players[opponentOf(playerIndex)];
@@ -5688,12 +5778,12 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
   if (effect.type === "removeOpponentPlayedChoice") {
     const opponentIndex = opponentOf(playerIndex);
-    if (!removableOpponentCards(opponentIndex).length) {
+    if (!removableOpponentCards(opponentIndex, Boolean(effect.shotsOnly)).length) {
       state.log.unshift(`${character.name} (${effect.side}) : aucune carte adverse engagée à défausser.`);
       setEffectNotice("coach", { name: character.name }, "Aucune carte adverse engagée disponible.");
       return false;
     }
-    state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: playedCard.playedUid };
+    state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: playedCard.playedUid, shotsOnly: Boolean(effect.shotsOnly) };
     state.log.unshift(`${character.name} (${effect.side}) : ${player.name} choisit une carte adverse engagée à défausser.`);
     setEffectNotice("coach", { name: character.name }, effect.label);
     return true;
@@ -6041,7 +6131,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
   resetTournament();
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  SOLO_AI.difficulty = normalizeAiDifficulty(weeklyCompetition?.difficulty || selectedTournamentDifficulty());
+  SOLO_AI.difficulty = "normal";
   const humanCharacterId = selectedCharacterId();
   if (weeklyCompetition) {
     startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
@@ -6049,7 +6139,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
   }
   const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
   const dynamicBonusIds = previousWeekDynamicBonusIds();
-  const permanentBonuses = addDynamicPermanentBonuses(buildHistoricPermanentBonuses(positions), dynamicBonusIds);
+  const permanentBonuses = buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
   state.tournament = {
     active: true,
     visible: false,
@@ -6120,9 +6210,11 @@ function tournamentRankingEntries() {
 
 function previousWeekDynamicBonusIds() {
   return tournamentRankingEntries()
-    .filter((entry) => entry.entry !== HUMAN_TOURNAMENT_ENTRY && TOURNAMENT_CHARACTER_POOL.includes(entry.entry))
+    .filter((entry) => entry.entry !== HUMAN_TOURNAMENT_ENTRY
+      && TOURNAMENT_CHARACTER_POOL.includes(entry.entry)
+      && !HISTORIC_TOURNAMENT_PLAYERS.includes(entry.entry))
     .sort((a, b) => b.previousWeek - a.previousWeek || a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"))
-    .slice(0, 4)
+    .slice(0, 2)
     .map((entry) => entry.entry);
 }
 
@@ -6143,6 +6235,47 @@ function buildHistoricPermanentBonuses(entries = []) {
     if (!HISTORIC_TOURNAMENT_PLAYERS.includes(characterId)) continue;
     const bonus = randomHistoricPermanentBonus();
     if (bonus) bonuses[characterId] = [bonus];
+  }
+  return bonuses;
+}
+
+function addPermanentBonus(target, entry, bonus) {
+  if (!entry || !bonus) return;
+  target[entry] = [...(target[entry] || []), { ...bonus }];
+}
+
+function buildTournamentPermanentBonuses(entries = [], seededEntries = [], dynamicBonusIds = []) {
+  const bonuses = {};
+  const ranked = tournamentRankingEntries();
+  const worldLeader = ranked.find((entry) => entry.rank === 1)?.entry || null;
+  const seeded = new Set(seededEntries);
+  const usedEntries = new Set(entries.filter(Boolean));
+
+  if (worldLeader && usedEntries.has(worldLeader) && !seeded.has(worldLeader)) {
+    addPermanentBonus(bonuses, worldLeader, {
+      id: "worldNumberOnePermanent",
+      label: "Numéro 1 mondial : +2 précision / +2 placement",
+      precision: 2,
+      placement: 2,
+    });
+  }
+
+  for (const entry of seededEntries) {
+    addPermanentBonus(bonuses, entry, {
+      id: "seededPermanent",
+      label: "Tête de série : +1 précision / +1 placement",
+      precision: 1,
+      placement: 1,
+    });
+  }
+
+  for (const entry of usedEntries) {
+    const characterId = entry === HUMAN_TOURNAMENT_ENTRY ? selectedCharacterId() : entry;
+    const eligibleHistoric = HISTORIC_TOURNAMENT_PLAYERS.includes(characterId);
+    const eligibleMomentum = dynamicBonusIds.includes(entry);
+    if ((!eligibleHistoric && !eligibleMomentum) || entry === worldLeader || seeded.has(entry)) continue;
+    const bonus = randomHistoricPermanentBonus();
+    if (bonus) addPermanentBonus(bonuses, entry, bonus);
   }
   return bonuses;
 }
@@ -6174,32 +6307,46 @@ function buildWeeklySurfaceBonuses(surface, seededCharacters) {
 }
 
 function buildTournamentRound16Positions(humanCharacterId, surface = "hard") {
-  const preferredSeeds = SURFACE_SPECIALISTS[surface] || SURFACE_SPECIALISTS.hard || [];
-  const seededHistorics = [
-    ...preferredSeeds.filter((characterId) => HISTORIC_TOURNAMENT_PLAYERS.includes(characterId)),
-    ...shuffle(HISTORIC_TOURNAMENT_PLAYERS.filter((characterId) => !preferredSeeds.includes(characterId))),
-  ].slice(0, 2);
-  const remainingHistorics = HISTORIC_TOURNAMENT_PLAYERS.filter((characterId) => !seededHistorics.includes(characterId));
-  const newDraw = shuffle(NEW_TOURNAMENT_PLAYERS).slice(0, 9);
-  const field = [HUMAN_TOURNAMENT_ENTRY, ...remainingHistorics, ...newDraw].slice(0, 14);
+  const ranked = tournamentRankingEntries();
+  const rankByEntry = new Map(ranked.map((entry) => [entry.entry, entry.rank]));
+  const rankOf = (entry) => rankByEntry.get(entry) ?? 99999;
+  const humanIsSpecialist = (SURFACE_SPECIALISTS[surface] || []).includes(humanCharacterId);
+  const allEntries = [...TOURNAMENT_CHARACTER_POOL, HUMAN_TOURNAMENT_ENTRY];
+  const specialistEntries = [
+    ...(SURFACE_SPECIALISTS[surface] || []).filter((entry) => TOURNAMENT_CHARACTER_POOL.includes(entry)),
+    ...(humanIsSpecialist ? [HUMAN_TOURNAMENT_ENTRY] : []),
+  ];
+  const seededHistorics = [...new Set(specialistEntries)]
+    .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"))
+    .slice(0, 2);
+  if (seededHistorics.length < 2) {
+    const fallbacks = allEntries
+      .filter((entry) => !seededHistorics.includes(entry))
+      .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"));
+    seededHistorics.push(...fallbacks.slice(0, 2 - seededHistorics.length));
+  }
   const positions = Array(17).fill(null);
   positions[1] = seededHistorics[0];
   positions[16] = seededHistorics[1];
-  const rankedEntries = tournamentRankingEntries()
-    .map((entry) => entry.entry)
-    .filter((entry, index, array) => field.includes(entry) && !seededHistorics.includes(entry) && array.indexOf(entry) === index);
+  const rankedEntries = allEntries
+    .filter((entry) => !seededHistorics.includes(entry))
+    .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"));
   const protectedPositions = [8, 9, 12, 5, 13, 4];
-  protectedPositions.forEach((position, index) => {
-    const entry = rankedEntries[index];
-    if (entry) positions[position] = entry;
-  });
+  rankedEntries.slice(0, 6).forEach((entry, index) => { positions[protectedPositions[index]] = entry; });
   const used = new Set(positions.filter(Boolean));
-  const remainingField = shuffle(field.filter((entry) => !used.has(entry)));
-  const middlePositions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-  middlePositions.forEach((position) => {
-    if (positions[position]) return;
-    positions[position] = remainingField.shift() || shuffle(NEW_TOURNAMENT_PLAYERS.filter((characterId) => !positions.includes(characterId)))[0] || HUMAN_TOURNAMENT_ENTRY;
-  });
+  const humanAlreadyPlaced = used.has(HUMAN_TOURNAMENT_ENTRY);
+  const remainingAi = TOURNAMENT_CHARACTER_POOL
+    .filter((entry) => !used.has(entry))
+    .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"));
+  const automaticCount = humanAlreadyPlaced ? 2 : 1;
+  const automatic = remainingAi.slice(0, automaticCount);
+  const randomCount = 6;
+  const randomDraw = shuffle(remainingAi.slice(automaticCount)).slice(0, randomCount);
+  const finalEntries = humanAlreadyPlaced
+    ? [...automatic, ...randomDraw]
+    : [HUMAN_TOURNAMENT_ENTRY, ...automatic, ...randomDraw];
+  const remainingPositions = [2, 3, 6, 7, 10, 11, 14, 15];
+  shuffle(finalEntries).forEach((entry, index) => { positions[remainingPositions[index]] = entry; });
   return { positions, seededHistorics };
 }
 
@@ -6209,7 +6356,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
   const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, surface);
   const surfaceBonuses = buildWeeklySurfaceBonuses(surface, seededHistorics);
   const dynamicBonusIds = previousWeekDynamicBonusIds();
-  const permanentBonuses = addDynamicPermanentBonuses(buildHistoricPermanentBonuses(positions), dynamicBonusIds);
+  const permanentBonuses = buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
   state.tournament = {
     active: true,
     visible: false,
@@ -6325,8 +6472,7 @@ function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tourname
 
 function aiTournamentStrength(characterId) {
   const isHistoric = HISTORIC_TOURNAMENT_PLAYERS.includes(characterId);
-  const surface = state.tournament?.competitionSurface || "hard";
-  const isSeeded = (SURFACE_SPECIALISTS[surface] || []).includes(characterId);
+  const isSeeded = (state.tournament?.seededCharacters || []).includes(characterId);
   const permanentBonuses = state.tournament?.permanentBonuses?.[characterId] ?? [];
   const dynamicBonus = (state.tournament?.dynamicBonusIds || []).includes(characterId) ? 5 : 0;
   const surfaceBonus = state.tournament?.surfaceBonuses?.[characterId] ? 4 : 0;
@@ -7970,10 +8116,10 @@ function renderCoachChoiceModal() {
 function renderRemoveChoiceModal() {
   document.querySelector(".remove-choice-backdrop")?.remove();
   if (!state.pendingRemoveChoice) return;
-  const { playerIndex, opponentIndex } = state.pendingRemoveChoice;
+  const { playerIndex, opponentIndex, shotsOnly } = state.pendingRemoveChoice;
   if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
   if (SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex) return;
-  const choices = removableOpponentCards(opponentIndex);
+  const choices = removableOpponentCards(opponentIndex, Boolean(shotsOnly));
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop remove-choice-backdrop";
   backdrop.innerHTML = `
