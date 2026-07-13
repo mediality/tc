@@ -164,9 +164,9 @@ const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNA
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const HUMAN_TOURNAMENT_ENTRY = "__human__";
 const SURFACE_SPECIALISTS = {
-  grass: ["saharaJackson", "calvinBrentwood", "loganBrooks", "zariaCampbell", "daanVermeer", "milanVerhaegen"],
-  hard: ["theoBriancourt", "kjellBlomqvist", "bryanGoodwin", "petraEckermann", "jonasFalkenried", "yunaSeo", "kavyaSaran", "renAoshima"],
-  clay: ["alessandraConti", "kojiIwata", "elianaMarquez", "javierRamirez", "ikerSalvat", "yasmineElMansouri", "lukasEberhardt"],
+  grass: ["kojiIwata", "elianaMarquez", "calvinBrentwood"],
+  hard: ["petraEckermann", "bryanGoodwin", "alessandraConti", "kjellBlomqvist"],
+  clay: ["saharaJackson", "javierRamirez", "theoBriancourt"],
 };
 const SURFACE_BONUSES = {
   grass: [
@@ -2237,22 +2237,23 @@ function renderCompetitions() {
   const retriesUsed = Number(AUTH_STATE.competitions?.retriesUsed || 0);
   const retryLimit = Number(AUTH_STATE.competitions?.retryLimit || 5);
   els.weeklyCompetitionsList.innerHTML = `
-    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit} · Prochaine semaine : <span id="weeklyCountdown">${escapeHtml(formatCountdown(AUTH_STATE.competitions?.nextUpdateAt))}</span></div>
+    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit} · <span id="weeklyCountdown">${escapeHtml(formatCountdown(AUTH_STATE.competitions?.nextUpdateAt))}</span></div>
     ${competitions.map((competition) => {
       const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competition.id);
       const canReplay = !alreadyPlayed || retriesUsed < retryLimit;
       const label = alreadyPlayed ? "Rejouer" : "Jouer";
       const replayClass = alreadyPlayed ? "replay-button" : "";
+      const saved = savedTournamentProgress(competition.id);
       return `
       <article class="weekly-competition">
         <div>
           <strong>${escapeHtml(competition.type || competition.name)} - ${escapeHtml(competition.name)}</strong>
-          <span>${escapeHtml(competition.city || "")} · ${escapeHtml(competition.country || "")} ${escapeHtml(competition.flag || "")} · ${escapeHtml(competition.surfaceLabel)} · ${tournamentDifficultyLabel(competition.difficulty)} · ${Number(competition.targetSets || 2)} sets</span>
+          <span>${escapeHtml(competition.city || "")} · ${escapeHtml(competition.country || "")} ${escapeHtml(competition.flag || "")} · ${escapeHtml(competition.surfaceLabel)} · ${Number(competition.targetSets || 2)} sets</span>
         </div>
         <span>Gains : ${Number(bestScores[competition.id] || 0)} pts</span>
         <div class="weekly-competition-actions">
-          <button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>
-          ${savedTournamentProgress(competition.id) ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
+          ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
+          ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
         </div>
       </article>
     `;
@@ -2268,14 +2269,16 @@ function renderCompetitions() {
 }
 
 function formatCountdown(isoValue) {
-  if (!isoValue) return "--:--:--";
+  if (!isoValue) return "Prochaine semaine : --";
   const ms = new Date(isoValue).getTime() - Date.now();
-  if (!Number.isFinite(ms) || ms <= 0) return "bientôt";
+  if (!Number.isFinite(ms) || ms <= 0) return "Prochaine semaine bientôt";
   const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+  const dayText = days ? `${days} jour${days > 1 ? "s" : ""} ` : "";
+  return `Prochaine semaine dans ${dayText}${hours}h ${minutes}m ${seconds}s`;
 }
 
 function startWeeklyCountdown() {
@@ -3079,6 +3082,7 @@ function createPlayer(name, characterId, nickname = name) {
     nickname,
     characterId,
     characterSide: 0,
+    worldRank: null,
     roseEnduranceAwarded: false,
     endurance: STARTING_ENDURANCE,
     power: 0,
@@ -3235,7 +3239,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v104",
+    version: "v105",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3315,7 +3319,21 @@ function newGame(options = {}) {
     player.permanentBonuses = state.tournament.active && state.tournament.permanentBonuses
       ? cloneData(state.tournament.permanentBonuses[tournamentEntry] ?? [])
       : [];
+    player.worldRank = state.tournament.active
+      ? tournamentWorldRankForEntry(tournamentEntry)
+      : null;
   });
+  if (state.tournament.active && !SERVER_SYNC.enabled) {
+    const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
+    if (headToHead) {
+      const targetIndex = headToHead.target === "human" ? 0 : 1;
+      state.players[targetIndex].permanentBonuses.push({
+        id: "headToHeadPlacement",
+        label: headToHead.label,
+        placement: headToHead.placement,
+      });
+    }
+  }
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
@@ -6181,7 +6199,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
   state.tournament.stage = firstHumanMatch?.round || "round16";
   const tournamentLabel = weeklyCompetition?.name || (targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
   const surfaceText = weeklyCompetition?.surfaceLabel ? ` · ${weeklyCompetition.surfaceLabel}` : "";
-  state.log.unshift(`${tournamentLabel}${surfaceText} ${tournamentDifficultyLabel(SOLO_AI.difficulty)} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}.`);
+  state.log.unshift(`${tournamentLabel}${surfaceText} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}.`);
   render();
 }
 
@@ -6197,15 +6215,35 @@ function tournamentRankingEntries() {
   return rows
     .map((row) => {
       if (row.is_ai || String(row.id || "").startsWith("ai:")) {
-        return { entry: String(row.id).replace(/^ai:/, ""), rank: Number(row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
+        return { entry: String(row.id).replace(/^ai:/, ""), rank: Number(row.points_rank || row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
       }
       if (AUTH_STATE.user && String(row.id) === String(AUTH_STATE.user.id)) {
-        return { entry: HUMAN_TOURNAMENT_ENTRY, rank: Number(row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
+        return { entry: HUMAN_TOURNAMENT_ENTRY, rank: Number(row.points_rank || row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
       }
       return null;
     })
     .filter(Boolean)
     .sort((a, b) => a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"));
+}
+
+function tournamentWorldRankForEntry(entry) {
+  return tournamentRankingEntries().find((row) => row.entry === entry)?.rank ?? null;
+}
+
+function tournamentHeadToHeadBonus(aiCharacterId) {
+  const row = (AUTH_STATE.profile?.aiResults || []).find((result) => (
+    String(result.ai_character_id || result.aiCharacterId || "") === String(aiCharacterId || "")
+  ));
+  const wins = Number(row?.wins || 0);
+  const losses = Number(row?.losses || 0);
+  const matches = wins + losses;
+  if (matches <= 5) return null;
+  const winRatio = (wins / matches) * 100;
+  if (winRatio > 90) return { target: "human", placement: 2, label: "Domination : +2 placement" };
+  if (winRatio > 70) return { target: "human", placement: 1, label: "Ascendant : +1 placement" };
+  if (winRatio < 20) return { target: "ai", placement: 2, label: "Bête noire : +2 placement" };
+  if (winRatio < 30) return { target: "ai", placement: 1, label: "Ascendant : +1 placement" };
+  return null;
 }
 
 function previousWeekDynamicBonusIds() {
@@ -6310,12 +6348,9 @@ function buildTournamentRound16Positions(humanCharacterId, surface = "hard") {
   const ranked = tournamentRankingEntries();
   const rankByEntry = new Map(ranked.map((entry) => [entry.entry, entry.rank]));
   const rankOf = (entry) => rankByEntry.get(entry) ?? 99999;
-  const humanIsSpecialist = (SURFACE_SPECIALISTS[surface] || []).includes(humanCharacterId);
   const allEntries = [...TOURNAMENT_CHARACTER_POOL, HUMAN_TOURNAMENT_ENTRY];
-  const specialistEntries = [
-    ...(SURFACE_SPECIALISTS[surface] || []).filter((entry) => TOURNAMENT_CHARACTER_POOL.includes(entry)),
-    ...(humanIsSpecialist ? [HUMAN_TOURNAMENT_ENTRY] : []),
-  ];
+  const specialistEntries = (SURFACE_SPECIALISTS[surface] || [])
+    .filter((entry) => TOURNAMENT_CHARACTER_POOL.includes(entry));
   const seededHistorics = [...new Set(specialistEntries)]
     .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"))
     .slice(0, 2);
@@ -6737,13 +6772,6 @@ function humanMatchPerformanceBonus(match, setScores = state.setMatch.completedS
 function addHumanMatchPerformanceBonus(match) {
   if (!state.tournament.weekly || !match || match.performanceBonusRecorded) return;
   const bonus = humanMatchPerformanceBonus(match);
-  const human = humanTournamentEntry();
-  const opponentEntry = match.playerA === human ? match.playerB : match.playerA;
-  const opponentCharacterId = tournamentEntryCharacterId(opponentEntry);
-  if (match.winner === human && (state.tournament.seededCharacters || []).includes(opponentCharacterId)) {
-    bonus.points += 200;
-    bonus.details.push("Victoire contre une tete de serie: +200");
-  }
   match.performanceBonusRecorded = true;
   match.performanceBonusPoints = bonus.points;
   match.performanceBonusDetails = bonus.details;
@@ -7308,7 +7336,7 @@ function currentModeLabel() {
   if (state.tournament.active) {
     const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
     const surface = state.tournament.competitionSurfaceLabel ? ` · ${state.tournament.competitionSurfaceLabel}` : "";
-    return `${title}${surface} · ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentStageLabel()}`;
+    return `${title}${surface} · ${tournamentStageLabel()}`;
   }
   if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
   if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
@@ -7377,7 +7405,7 @@ function renderTournamentPanel() {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        <span class="difficulty-reminder">${state.tournament.competitionSurfaceLabel ? `${escapeHtml(state.tournament.competitionSurfaceLabel)} · ` : ""}${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
+        ${state.tournament.competitionSurfaceLabel ? `<span class="difficulty-reminder">${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
         ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
         ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
       </div>
@@ -7626,7 +7654,11 @@ function renderCharacterCard(player, playerIndex) {
   const aiNudge = playerIndex === SOLO_AI.playerIndex && state.activePlayer === playerIndex && !state.gameOver && !SERVER_SYNC.enabled && SOLO_AI.nudgeVisible
     ? '<button class="ai-nudge-button" type="button" data-force-ai-turn onclick="window.forceSoloAITurn?.()" onpointerdown="window.forceSoloAITurn?.()">Coach Max à jouer</button>'
     : "";
+  const worldRankReminder = state.tournament.active && [1, 2, 3].includes(Number(player.worldRank))
+    ? { label: `N°${Number(player.worldRank)} mondial` }
+    : null;
   const bonusReminders = [
+    worldRankReminder,
     player.surfaceBonus,
     ...(player.permanentBonuses ?? []),
   ].filter(Boolean);

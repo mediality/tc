@@ -57,12 +57,12 @@ const AI_CHARACTER_NAMES = {
   milanVerhaegen: "Milan Verhaegen",
 };
 const AI_SURFACE_PREFERENCES = {
-  theoBriancourt: "hard",
-  alessandraConti: "clay",
-  saharaJackson: "grass",
+  theoBriancourt: "clay",
+  alessandraConti: "hard",
+  saharaJackson: "clay",
   kjellBlomqvist: "hard",
-  kojiIwata: "clay",
-  elianaMarquez: "clay",
+  kojiIwata: "grass",
+  elianaMarquez: "grass",
   bryanGoodwin: "hard",
   calvinBrentwood: "grass",
   javierRamirez: "clay",
@@ -78,6 +78,11 @@ const AI_SURFACE_PREFERENCES = {
   daanVermeer: "grass",
   lukasEberhardt: "clay",
   milanVerhaegen: "grass",
+};
+const TOURNAMENT_SEED_CANDIDATES = {
+  grass: ["kojiIwata", "elianaMarquez", "calvinBrentwood"],
+  hard: ["petraEckermann", "bryanGoodwin", "alessandraConti", "kjellBlomqvist"],
+  clay: ["saharaJackson", "javierRamirez", "theoBriancourt"],
 };
 const SURFACES = ["grass", "hard", "clay"];
 const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
@@ -124,6 +129,7 @@ const authMemory = {
   proCodes: new Map(),
   circuitWeekScores: new Map(),
   circuitAiWeekScores: new Map(),
+  circuitAiHumanBonuses: new Map(),
   circuitAttempts: new Map(),
   circuitSaves: new Map(),
   circuitResults: [],
@@ -416,9 +422,9 @@ async function updateRankingMilestonesForWeek(season, week) {
     ),
     ai_scores AS (
       SELECT CONCAT('ai:', ai_character_id) AS user_id,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_week,
-        COALESCE(SUM(points) FILTER (WHERE season_number = $3), 0)::int AS score_total,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_week,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE season_number = $3), 0)::int AS score_total,
         ai_character_id AS nickname
       FROM circuit_ai_week_scores
       GROUP BY ai_character_id
@@ -460,9 +466,9 @@ async function updateRankingMilestonesForWeek(season, week) {
     ),
     ai_scores AS (
       SELECT CONCAT('ai:', ai_character_id) AS user_id, ai_character_id AS nickname,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_week,
-        COALESCE(SUM(points) FILTER (WHERE season_number = $3), 0)::int AS score_total
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_week,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE season_number = $3), 0)::int AS score_total
       FROM circuit_ai_week_scores GROUP BY ai_character_id
     ),
     ranked AS (
@@ -564,8 +570,8 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
   const rankById = new Map(rankingOrder.map((characterId, index) => [characterId, index + 1]));
   const rankOf = (characterId) => rankById.get(characterId) || 99999;
   const byRanking = (a, b) => rankOf(a) - rankOf(b) || aiCharacterName(a).localeCompare(aiCharacterName(b), "fr");
-  const specialists = CIRCUIT_AI_CHARACTER_IDS
-    .filter((characterId) => AI_SURFACE_PREFERENCES[characterId] === competition.surface)
+  const specialists = (TOURNAMENT_SEED_CANDIDATES[competition.surface] || [])
+    .filter((characterId) => CIRCUIT_AI_CHARACTER_IDS.includes(characterId))
     .sort(byRanking);
   const seeds = specialists.slice(0, 2);
   if (seeds.length < 2) {
@@ -619,7 +625,7 @@ async function topAiIdsForReference(season, week, limit = 8) {
   const refPeriodKeys = refPeriods.map((period) => period.key);
   if (db) {
     const result = await db.query(`
-      SELECT ai_character_id, COALESCE(SUM(points), 0)::int AS score_ref
+      SELECT ai_character_id, COALESCE(SUM(points + COALESCE(human_win_bonus, 0)), 0)::int AS score_ref
       FROM circuit_ai_week_scores
       WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])
       GROUP BY ai_character_id
@@ -663,9 +669,9 @@ async function aiCircuitStandingsForBoost(season, week) {
   if (db) {
     const result = await db.query(`
       SELECT ai_character_id,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_previous_week,
-        COALESCE(SUM(points) FILTER (WHERE season_number = $3), 0)::int AS score_total
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_previous_week,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE season_number = $3), 0)::int AS score_total
       FROM circuit_ai_week_scores
       GROUP BY ai_character_id
     `, [refPeriodKeys, previousPeriodKey, season]);
@@ -683,10 +689,12 @@ async function aiCircuitStandingsForBoost(season, week) {
     rows = CIRCUIT_AI_CHARACTER_IDS.map((characterId) => ({
       characterId,
       scoreRef: sumMemoryAiPeriodScores(authMemory.circuitAiWeekScores, characterId, refPeriods),
-      scorePreviousWeek: authMemory.circuitAiWeekScores?.get(`${previousPeriodKey}:${characterId}`) || 0,
+      scorePreviousWeek: previousPeriodKey
+        ? memoryAiWeekScore(characterId, ...previousPeriodKey.split(":").map(Number))
+        : 0,
       scoreTotal: Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
         .reduce((sum, weekNumber) => (
-          sum + (authMemory.circuitAiWeekScores?.get(`${season}:${weekNumber}:${characterId}`) || 0)
+          sum + memoryAiWeekScore(characterId, season, weekNumber)
         ), 0),
     }));
   }
@@ -773,26 +781,32 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
       totals.set(characterId, (totals.get(characterId) || 0) + points);
     });
   });
-  const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, maxWeeklyTournamentPoints(week));
+  const maxSem = maxWeeklyTournamentPoints(week);
+  const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, maxSem);
   if (db) {
-    await db.query("DELETE FROM circuit_ai_week_scores WHERE season_number = $1 AND week_number = $2", [season, week]);
     for (const [characterId, points] of adjustedTotals) {
       await db.query(`
-        INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points, human_win_bonus)
+        VALUES ($1, $2, $3, $4, 0)
         ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
           SET points = EXCLUDED.points,
+              human_win_bonus = LEAST(
+                circuit_ai_week_scores.human_win_bonus,
+                GREATEST(0, $5 - EXCLUDED.points)
+              ),
               updated_at = NOW()
-      `, [characterId, season, week, points]);
+      `, [characterId, season, week, points, maxSem]);
     }
     return;
   }
   authMemory.circuitAiWeekScores = authMemory.circuitAiWeekScores || new Map();
-  for (const characterId of CIRCUIT_AI_CHARACTER_IDS) {
-    authMemory.circuitAiWeekScores.delete(`${season}:${week}:${characterId}`);
-  }
   for (const [characterId, points] of adjustedTotals) {
-    authMemory.circuitAiWeekScores.set(`${season}:${week}:${characterId}`, points);
+    const key = `${season}:${week}:${characterId}`;
+    authMemory.circuitAiWeekScores.set(key, points);
+    authMemory.circuitAiHumanBonuses.set(
+      key,
+      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), Math.max(0, maxSem - points)),
+    );
   }
 }
 
@@ -874,6 +888,7 @@ async function restartCurrentSeason() {
       }
     }
     authMemory.circuitAiWeekScores.clear();
+    authMemory.circuitAiHumanBonuses.clear();
     for (const key of Array.from(authMemory.appState.keys())) {
       if (key.startsWith("ai_simulated_")) authMemory.appState.delete(key);
     }
@@ -948,6 +963,7 @@ async function restartSeasonOne() {
     authMemory.circuitSaves.clear();
     authMemory.circuitWeekScores = preserved;
     authMemory.circuitAiWeekScores.clear();
+    authMemory.circuitAiHumanBonuses.clear();
     for (const key of Array.from(authMemory.appState.keys())) {
       if (key.startsWith("ai_simulated_") || key.startsWith("ranking_milestones_") || key.startsWith("season_finalized_")) authMemory.appState.delete(key);
     }
@@ -1020,7 +1036,16 @@ function sumMemoryUserPeriodScores(map, userId, periods) {
 }
 
 function sumMemoryAiPeriodScores(map, characterId, periods) {
-  return periods.reduce((sum, period) => sum + (map.get(`${period.season}:${period.week}:${characterId}`) || 0), 0);
+  return periods.reduce((sum, period) => {
+    const key = `${period.season}:${period.week}:${characterId}`;
+    return sum + Number(map.get(key) || 0) + Number(authMemory.circuitAiHumanBonuses.get(key) || 0);
+  }, 0);
+}
+
+function memoryAiWeekScore(characterId, season, week) {
+  const key = `${season}:${week}:${characterId}`;
+  return Number(authMemory.circuitAiWeekScores.get(key) || 0)
+    + Number(authMemory.circuitAiHumanBonuses.get(key) || 0);
 }
 
 function hashPassword(password) {
@@ -1241,6 +1266,10 @@ async function initAuthStorage() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (ai_character_id, season_number, week_number)
     )
+  `);
+  await db.query(`
+    ALTER TABLE circuit_ai_week_scores
+    ADD COLUMN IF NOT EXISTS human_win_bonus INTEGER NOT NULL DEFAULT 0
   `);
   await db.query(`
     UPDATE users
@@ -1549,11 +1578,11 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
     `, [refPeriodKeys, currentPeriodKey, nextRefPeriodKeys, previousPeriodKey, current.season]);
     const aiResult = await db.query(`
       SELECT ai_character_id,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_week,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($3::text[])), 0)::int AS score_next_ref,
-        COALESCE(SUM(points) FILTER (WHERE CONCAT(season_number, ':', week_number) = $4), 0)::int AS score_previous_week,
-        COALESCE(SUM(points) FILTER (WHERE season_number = $5), 0)::int AS score_total
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($1::text[])), 0)::int AS score_ref,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = $2), 0)::int AS score_week,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = ANY($3::text[])), 0)::int AS score_next_ref,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE CONCAT(season_number, ':', week_number) = $4), 0)::int AS score_previous_week,
+        COALESCE(SUM(points + COALESCE(human_win_bonus, 0)) FILTER (WHERE season_number = $5), 0)::int AS score_total
       FROM circuit_ai_week_scores
       GROUP BY ai_character_id
     `, [refPeriodKeys, currentPeriodKey, nextRefPeriodKeys, previousPeriodKey, current.season]);
@@ -1637,11 +1666,12 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
   }));
   const aiRows = CIRCUIT_AI_CHARACTER_IDS.map((characterId) => {
     const scoreRef = sumMemoryAiPeriodScores(authMemory.circuitAiWeekScores, characterId, refPeriods);
-    const scoreWeek = authMemory.circuitAiWeekScores.get(`${current.season}:${current.week}:${characterId}`) || 0;
+    const scoreWeek = memoryAiWeekScore(characterId, current.season, current.week);
     const scoreNextRef = sumMemoryAiPeriodScores(authMemory.circuitAiWeekScores, characterId, nextRefPeriods);
-    const scorePreviousWeek = authMemory.circuitAiWeekScores.get(`${previousPeriodKey}:${characterId}`) || 0;
+    const [previousSeason, previousWeek] = previousPeriodKey.split(":").map(Number);
+    const scorePreviousWeek = memoryAiWeekScore(characterId, previousSeason, previousWeek);
     const scoreTotal = Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
-      .reduce((sum, weekNumber) => sum + (authMemory.circuitAiWeekScores.get(`${current.season}:${weekNumber}:${characterId}`) || 0), 0);
+      .reduce((sum, weekNumber) => sum + memoryAiWeekScore(characterId, current.season, weekNumber), 0);
     return {
       id: `ai:${characterId}`,
       account_number: null,
@@ -1708,6 +1738,42 @@ async function registerCircuitAiResults(userId, results = []) {
       const key = `${userId}:${aiCharacterId}`;
       const current = authMemory.aiResults.get(key) || { wins: 0, losses: 0 };
       authMemory.aiResults.set(key, { wins: current.wins + (won ? 1 : 0), losses: current.losses + (won ? 0 : 1) });
+    }
+  }
+}
+
+async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
+  const winsByAi = new Map();
+  for (const item of Array.isArray(results) ? results : []) {
+    const aiCharacterId = String(item.aiCharacterId || "").slice(0, 48);
+    if (!aiCharacterId || item.result !== "loss") continue;
+    winsByAi.set(aiCharacterId, (winsByAi.get(aiCharacterId) || 0) + 1);
+  }
+  if (!winsByAi.size) return;
+  const maxSem = maxWeeklyTournamentPoints(week);
+  for (const [aiCharacterId, wins] of winsByAi) {
+    const increment = Math.min(250, wins * 25);
+    if (db) {
+      await db.query(`
+        INSERT INTO circuit_ai_week_scores
+          (ai_character_id, season_number, week_number, points, human_win_bonus)
+        VALUES ($1, $2, $3, 0, LEAST(250, $4, $5))
+        ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
+          SET human_win_bonus = LEAST(
+                250,
+                GREATEST(0, $5 - circuit_ai_week_scores.points),
+                circuit_ai_week_scores.human_win_bonus + EXCLUDED.human_win_bonus
+              ),
+              updated_at = NOW()
+      `, [aiCharacterId, season, week, increment, maxSem]);
+    } else {
+      const key = `${season}:${week}:${aiCharacterId}`;
+      const basePoints = Number(authMemory.circuitAiWeekScores.get(key) || 0);
+      const previousBonus = Number(authMemory.circuitAiHumanBonuses.get(key) || 0);
+      authMemory.circuitAiHumanBonuses.set(
+        key,
+        Math.min(250, previousBonus + increment, Math.max(0, maxSem - basePoints)),
+      );
     }
   }
 }
@@ -2733,6 +2799,7 @@ async function handleAuth(req, res, url) {
       authMemory.circuitResults = filtered;
     }
     await registerCircuitAiResults(user.id, payload.aiResults);
+    await registerCircuitAiHumanWinBonuses(payload.aiResults, current.season, current.week);
     await recomputeUserCircuitWeekScore(user.id, current.season, current.week);
     sendJson(res, 200, { ok: true, weekKey: current.weekKey, scoreKey, competitionId, points });
     return true;
