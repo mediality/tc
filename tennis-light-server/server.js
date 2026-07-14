@@ -3102,7 +3102,19 @@ function friendlyAiName(characterId) {
 }
 
 function makeFriendlyMatch(id, label, round, playerA = null, playerB = null) {
-  return { id, label, round, playerA, playerB, winner: null, score: null };
+  return {
+    id,
+    label,
+    round,
+    playerA,
+    playerB,
+    winner: null,
+    score: null,
+    liveScore: null,
+    liveState: null,
+    liveParticipantId: null,
+    liveUpdatedAt: null,
+  };
 }
 
 function friendlyEntryPublic(tournament, entry) {
@@ -3118,6 +3130,59 @@ function friendlyEntryPublic(tournament, entry) {
     } : { entry, type: "human", nickname: "Joueur", characterId: "coachJu" };
   }
   return { entry, type: "ai", nickname: friendlyAiName(entry), characterId: entry };
+}
+
+function friendlyMatchIsWatchable(match) {
+  return Boolean(
+    match
+    && !match.winner
+    && match.liveState
+    && match.liveUpdatedAt
+    && Date.now() - match.liveUpdatedAt < 10000
+  );
+}
+
+function sanitizeFriendlySpectatorState(remoteState) {
+  if (!remoteState || typeof remoteState !== "object") return null;
+  let safeState;
+  try {
+    safeState = JSON.parse(JSON.stringify(remoteState));
+  } catch (error) {
+    return null;
+  }
+  safeState.players = Array.isArray(safeState.players)
+    ? safeState.players.map((player, playerIndex) => {
+      const handSize = Array.isArray(player?.hand) ? player.hand.length : 0;
+      return {
+        ...player,
+        hand: Array.from({ length: handSize }, (_, cardIndex) => ({
+          id: "spectator-hidden",
+          uid: `spectator-hidden-${playerIndex}-${cardIndex}`,
+          name: "Carte face cachée",
+          family: "Carte cachée",
+          subtitle: "Carte cachée",
+          cost: 0,
+          power: 0,
+          precision: 0,
+          placement: 0,
+          effect: "",
+          effectType: null,
+          boostPower: 0,
+          boostPrecision: 0,
+        })),
+        knownOpponentHand: null,
+      };
+    })
+    : [];
+  safeState.deck = [];
+  safeState.turnSnapshot = null;
+  safeState.pendingBoost = null;
+  safeState.pendingEffectChoice = null;
+  safeState.pendingCoachChoice = null;
+  safeState.pendingRemoveChoice = null;
+  safeState.pendingEndTurnAfterChoice = null;
+  safeState.revealAiCards = false;
+  return safeState;
 }
 
 function publicFriendlyTournamentInfo(req, tournament, participant = null) {
@@ -3139,7 +3204,16 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null) {
     })),
     entries: (tournament.entries || []).map((entry) => friendlyEntryPublic(tournament, entry)),
     matches: (tournament.matches || []).map((match) => ({
-      ...match,
+      id: match.id,
+      label: match.label,
+      round: match.round,
+      playerA: match.playerA,
+      playerB: match.playerB,
+      winner: match.winner,
+      score: match.score,
+      liveScore: match.liveScore || null,
+      liveUpdatedAt: match.liveUpdatedAt || null,
+      watchable: friendlyMatchIsWatchable(match),
       playerAInfo: friendlyEntryPublic(tournament, match.playerA),
       playerBInfo: friendlyEntryPublic(tournament, match.playerB),
       winnerInfo: friendlyEntryPublic(tournament, match.winner),
@@ -3464,6 +3538,71 @@ async function handleApi(req, res) {
     return;
   }
 
+  const friendlyLiveMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/matches\/([^/]+)\/live$/);
+  if (req.method === "POST" && friendlyLiveMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyLiveMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    const match = tournament?.matches.find((item) => item.id === friendlyLiveMatch[2]);
+    const entry = participant ? friendlyParticipantEntry(participant.id) : null;
+    if (!tournament || !participant || tournament.status !== "playing" || !match || match.winner) {
+      sendJson(res, 404, { error: "Match indisponible." });
+      return;
+    }
+    if (match.round !== tournament.round || (match.playerA !== entry && match.playerB !== entry)) {
+      sendJson(res, 403, { error: "Ce joueur ne participe pas à ce match." });
+      return;
+    }
+    const currentStreamIsFresh = match.liveParticipantId && Date.now() - Number(match.liveUpdatedAt || 0) < 5000;
+    if (currentStreamIsFresh && match.liveParticipantId !== participant.id) {
+      sendJson(res, 409, { error: "Une diffusion est déjà active pour ce match." });
+      return;
+    }
+    const safeState = sanitizeFriendlySpectatorState(payload.state);
+    if (!safeState) {
+      sendJson(res, 400, { error: "État de match invalide." });
+      return;
+    }
+    match.liveScore = String(payload.liveScore || "0/0").slice(0, 100);
+    match.liveState = safeState;
+    match.liveParticipantId = participant.id;
+    match.liveUpdatedAt = Date.now();
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, {
+      ok: true,
+      liveScore: match.liveScore,
+      liveUpdatedAt: match.liveUpdatedAt,
+    });
+    return;
+  }
+
+  const friendlyWatchMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/matches\/([^/]+)\/watch$/);
+  if (req.method === "GET" && friendlyWatchMatch) {
+    const tournament = friendlyTournaments.get(friendlyWatchMatch[1]);
+    const participant = participantForToken(tournament, url.searchParams.get("participantId"), url.searchParams.get("token"));
+    const match = tournament?.matches.find((item) => item.id === friendlyWatchMatch[2]);
+    if (!tournament || !participant || !match) {
+      sendJson(res, 404, { error: "Match introuvable." });
+      return;
+    }
+    const active = friendlyMatchIsWatchable(match);
+    sendJson(res, 200, {
+      active,
+      liveScore: match.liveScore || null,
+      liveUpdatedAt: match.liveUpdatedAt || null,
+      state: active ? match.liveState : null,
+      match: {
+        id: match.id,
+        label: match.label,
+        playerA: friendlyEntryPublic(tournament, match.playerA),
+        playerB: friendlyEntryPublic(tournament, match.playerB),
+        winner: friendlyEntryPublic(tournament, match.winner),
+        score: match.score || null,
+      },
+    });
+    return;
+  }
+
   const friendlyResultMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/matches\/([^/]+)\/result$/);
   if (req.method === "POST" && friendlyResultMatch) {
     const payload = await readJson(req);
@@ -3481,6 +3620,10 @@ async function handleApi(req, res) {
     }
     match.winner = String(payload.winner || "") === match.playerB ? match.playerB : match.playerA;
     match.score = String(payload.score || "").slice(0, 80);
+    match.liveScore = match.score;
+    match.liveState = null;
+    match.liveParticipantId = null;
+    match.liveUpdatedAt = Date.now();
     tournament.ready = tournament.ready || {};
     tournament.nextReady = tournament.nextReady || {};
     delete tournament.nextReady[participant.id];

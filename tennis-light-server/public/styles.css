@@ -342,6 +342,57 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.friendly-bracket-live-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  min-height: 34px;
+}
+
+.friendly-bracket-live-row .friendly-live-score {
+  color: #b91c1c;
+  font-weight: 950;
+}
+
+.friendly-bracket-live-row .friendly-watch-button {
+  flex: 0 0 auto;
+  color: #fff;
+  background: #0369a1;
+}
+
+.spectator-live-banner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+  border: 2px solid #0e7490;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #0f172a;
+  background: #ecfeff;
+  font-weight: 850;
+}
+
+.spectator-live-banner strong {
+  color: #0e7490;
+}
+
+.top-actions .spectator-quit-button {
+  color: #fff;
+  background: #b91c1c;
+}
+
+body.spectator-mode .game-app button:not(#spectatorQuitButton) {
+  display: none !important;
+}
+
+body.spectator-mode .player-panel {
+  cursor: default;
+}
+
 .menu-panel {
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
@@ -1203,6 +1254,11 @@ button:disabled {
 
   .friendly-lobby-action-panel {
     grid-template-columns: 1fr;
+  }
+
+  .spectator-live-banner {
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 
   .lobby-room {

@@ -61,6 +61,17 @@ const FRIENDLY_TOURNAMENT = {
   waitingForNextRound: false,
   inMatch: false,
   canStart: false,
+  streamTimer: null,
+  lastStreamPayload: "",
+};
+
+const SPECTATOR_MODE = {
+  enabled: false,
+  matchId: null,
+  matchLabel: "",
+  liveScore: "",
+  pollTimer: null,
+  lastTournamentPayload: null,
 };
 
 const SOLO_AI = {
@@ -1058,6 +1069,7 @@ const els = {
   newGameButton: document.querySelector("#newGameButton"),
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
+  spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   menuScreen: document.querySelector("#menuScreen"),
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
@@ -2980,6 +2992,10 @@ function friendlyEntryCharacterId(entry) {
 
 function applyFriendlyTournamentState(payload, currentMatch = null) {
   if (!payload) return;
+  if (SPECTATOR_MODE.enabled) {
+    SPECTATOR_MODE.lastTournamentPayload = payload;
+    return;
+  }
   FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator || payload.creatorParticipantId === FRIENDLY_TOURNAMENT.participantId);
   FRIENDLY_TOURNAMENT.entry = payload.participant?.entry || FRIENDLY_TOURNAMENT.entry;
   FRIENDLY_TOURNAMENT.canStart = Boolean(payload.canStart || (payload.status === "waiting" && (payload.participantCount || payload.participants?.length || 0) >= 2));
@@ -2991,7 +3007,9 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     playerB: match.playerB,
     winner: match.winner,
     score: match.score,
-    liveScore: null,
+    liveScore: match.liveScore || null,
+    liveUpdatedAt: match.liveUpdatedAt || null,
+    watchable: Boolean(match.watchable),
     playable: match.playerA === FRIENDLY_TOURNAMENT.entry || match.playerB === FRIENDLY_TOURNAMENT.entry,
     simulated: false,
   }));
@@ -3041,6 +3059,43 @@ function startFriendlyTournamentMatch(match) {
   state.tournament.currentMatch = match.id;
   state.log.unshift(`${match.label} : ${nicknameValue()} contre ${tournamentPlayerLabel(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA)}.`);
   render();
+  window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
+  FRIENDLY_TOURNAMENT.lastStreamPayload = "";
+  publishFriendlyTournamentLiveState();
+  FRIENDLY_TOURNAMENT.streamTimer = window.setInterval(publishFriendlyTournamentLiveState, 900);
+}
+
+function friendlyLiveScoreText(match = tournamentMatchById(state.tournament.currentMatch)) {
+  if (!match || !state.setMatch?.enabled) return "0/0 · EN DIRECT";
+  const scores = tournamentCompletedSetScoresForMatch(match);
+  if (!state.setMatch.matchOver && Array.isArray(state.setMatch.score)) {
+    const current = [...state.setMatch.score];
+    scores.push(match.playerB === FRIENDLY_TOURNAMENT.entry ? [current[1], current[0]] : current);
+  }
+  return `${formatSetScores(scores) || "0/0"} · EN DIRECT`;
+}
+
+async function publishFriendlyTournamentLiveState() {
+  if (!FRIENDLY_TOURNAMENT.enabled || !FRIENDLY_TOURNAMENT.inMatch || SPECTATOR_MODE.enabled) return;
+  const match = tournamentMatchById(state.tournament.currentMatch);
+  if (!match || state.setMatch.matchOver) return;
+  const streamState = exportSyncState();
+  const liveScore = friendlyLiveScoreText(match);
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(match.id)}/live`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        liveScore,
+        state: streamState,
+      }),
+    });
+    if (response.ok) FRIENDLY_TOURNAMENT.lastStreamPayload = liveScore;
+  } catch (error) {
+    // La partie continue localement si la diffusion est momentanément indisponible.
+  }
 }
 
 function renderFriendlyLobbyScreen() {
@@ -3083,7 +3138,10 @@ function renderFriendlyLobbyScreen() {
               <span>${escapeHtml(match.label)}</span>
               <strong>${escapeHtml(tournamentPlayerLabel(match.playerA) || "À déterminer")}</strong>
               <strong>${escapeHtml(tournamentPlayerLabel(match.playerB) || "À déterminer")}</strong>
-              <span>${match.score ? escapeHtml(match.score) : match.winner ? "Terminé" : "En attente"}</span>
+              <div class="friendly-bracket-live-row">
+                <span class="${match.liveScore && !match.winner ? "friendly-live-score" : ""}">${match.score ? escapeHtml(match.score) : match.liveScore ? escapeHtml(match.liveScore) : match.winner ? "Terminé" : "En attente"}</span>
+                ${match.watchable ? `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>` : ""}
+              </div>
             </article>
           `).join("")}
         </div>
@@ -3093,6 +3151,69 @@ function renderFriendlyLobbyScreen() {
   const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
   if (startButton && !startDisabled) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
   els.friendlyLobbyContent.querySelector("[data-leave-friendly-tournament]")?.addEventListener("click", leaveFriendlyTournamentLobby);
+  els.friendlyLobbyContent.querySelectorAll("[data-watch-friendly-match]").forEach((button) => {
+    button.addEventListener("click", () => startFriendlySpectator(button.dataset.watchFriendlyMatch));
+  });
+}
+
+function startFriendlySpectator(matchId) {
+  if (!FRIENDLY_TOURNAMENT.enabled || FRIENDLY_TOURNAMENT.inMatch || !matchId) return;
+  const match = tournamentMatchById(matchId);
+  if (!match?.watchable) return;
+  SPECTATOR_MODE.enabled = true;
+  SPECTATOR_MODE.matchId = matchId;
+  SPECTATOR_MODE.matchLabel = match.label || "Match en cours";
+  SPECTATOR_MODE.liveScore = match.liveScore || "";
+  SPECTATOR_MODE.lastTournamentPayload = null;
+  SOLO_AI.enabled = false;
+  document.body.classList.add("spectator-mode");
+  showGameScreen();
+  pollFriendlySpectatorState();
+  window.clearInterval(SPECTATOR_MODE.pollTimer);
+  SPECTATOR_MODE.pollTimer = window.setInterval(pollFriendlySpectatorState, 700);
+}
+
+async function pollFriendlySpectatorState() {
+  if (!SPECTATOR_MODE.enabled || !SPECTATOR_MODE.matchId) return;
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(SPECTATOR_MODE.matchId)}/watch?participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId)}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token)}`);
+    if (!response.ok) throw new Error("watch failed");
+    const data = await response.json();
+    if (!data.active || !data.state) {
+      quitFriendlySpectator(true);
+      return;
+    }
+    SPECTATOR_MODE.matchLabel = data.match?.label || SPECTATOR_MODE.matchLabel;
+    SPECTATOR_MODE.liveScore = data.liveScore || SPECTATOR_MODE.liveScore;
+    for (const key of SYNC_STATE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(data.state, key)) state[key] = cloneData(data.state[key]);
+    }
+    state.pendingBoost = null;
+    state.pendingEffectChoice = null;
+    state.pendingCoachChoice = null;
+    state.pendingRemoveChoice = null;
+    state.pendingEndTurnAfterChoice = null;
+    SOLO_AI.enabled = false;
+    showGameScreen();
+    render();
+  } catch (error) {
+    quitFriendlySpectator(true);
+  }
+}
+
+function quitFriendlySpectator(matchEnded = false) {
+  window.clearInterval(SPECTATOR_MODE.pollTimer);
+  SPECTATOR_MODE.enabled = false;
+  SPECTATOR_MODE.matchId = null;
+  SPECTATOR_MODE.matchLabel = "";
+  SPECTATOR_MODE.liveScore = "";
+  document.body.classList.remove("spectator-mode");
+  showFriendlyLobbyScreen();
+  if (matchEnded) MENU_STATE.lobbyNotice = "Le match regardé est terminé.";
+  const latestTournament = SPECTATOR_MODE.lastTournamentPayload;
+  SPECTATOR_MODE.lastTournamentPayload = null;
+  if (latestTournament) applyFriendlyTournamentState(latestTournament, null);
+  else pollFriendlyTournament();
 }
 
 function friendlyLobbyStatusText() {
@@ -3168,6 +3289,10 @@ async function leaveFriendlyTournamentLobby() {
     // Même si le serveur ne répond plus, on revient au lobby local.
   }
   window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
+  window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
+  window.clearInterval(SPECTATOR_MODE.pollTimer);
+  SPECTATOR_MODE.enabled = false;
+  document.body.classList.remove("spectator-mode");
   FRIENDLY_TOURNAMENT.enabled = false;
   FRIENDLY_TOURNAMENT.id = null;
   FRIENDLY_TOURNAMENT.participantId = null;
@@ -3414,7 +3539,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v118",
+    version: "v119",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -3698,6 +3823,7 @@ function activePlayer() {
 }
 
 function canUseSeat(playerIndex) {
+  if (SPECTATOR_MODE.enabled) return false;
   if (SERVER_SYNC.enabled) return SERVER_SYNC.ready && onlineRoomReady() && playerIndex === SERVER_SYNC.seat;
   if (SOLO_AI.enabled) return playerIndex !== SOLO_AI.playerIndex || (playerIndex === SOLO_AI.playerIndex && SOLO_AI.executing);
   return true;
@@ -7133,6 +7259,7 @@ function handleFriendlyTournamentMatchComplete() {
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
+  window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
   reportFriendlyTournamentResult(match);
   FRIENDLY_TOURNAMENT.inMatch = false;
   state.tournament.currentMatch = null;
@@ -7779,6 +7906,7 @@ function closeBoostModal() {
 function render() {
   ensureSoloAIForSet();
   renderModeButtons();
+  renderSpectatorBanner();
   renderResultPanel();
   renderTournamentPanel();
   renderTutorialOverlay();
@@ -7794,9 +7922,39 @@ function render() {
   renderCoachChoiceModal();
   renderRemoveChoiceModal();
   renderWaitingRoomModal();
-  scheduleServerSync();
-  scheduleSoloAINudge();
-  maybeRunSoloAI();
+  applySpectatorControls();
+  if (!SPECTATOR_MODE.enabled) {
+    scheduleServerSync();
+    scheduleSoloAINudge();
+    maybeRunSoloAI();
+  }
+}
+
+function renderSpectatorBanner() {
+  let banner = document.querySelector("#spectatorLiveBanner");
+  if (!SPECTATOR_MODE.enabled) {
+    banner?.remove();
+    return;
+  }
+  if (!banner) {
+    banner = document.createElement("section");
+    banner.id = "spectatorLiveBanner";
+    banner.className = "spectator-live-banner";
+    els.tournamentPanel?.before(banner);
+  }
+  banner.innerHTML = `
+    <strong>MODE VISIONNEUSE</strong>
+    <span>${escapeHtml(SPECTATOR_MODE.matchLabel || "Match en cours")} · ${escapeHtml(SPECTATOR_MODE.liveScore || "Score en direct")}</span>
+    <span>Mains masquées · aucune action possible</span>
+  `;
+}
+
+function applySpectatorControls() {
+  document.body.classList.toggle("spectator-mode", SPECTATOR_MODE.enabled);
+  if (!SPECTATOR_MODE.enabled || !els.gameApp) return;
+  els.gameApp.querySelectorAll("button").forEach((button) => {
+    button.disabled = button !== els.spectatorQuitButton;
+  });
 }
 
 function renderTutorialOverlay() {
@@ -7844,7 +8002,7 @@ function tutorialActionLabel(action) {
 }
 
 function ensureSoloAIForSet() {
-  if (SERVER_SYNC.enabled || state.gameOver || !state.setMatch.enabled) return;
+  if (SPECTATOR_MODE.enabled || SERVER_SYNC.enabled || state.gameOver || !state.setMatch.enabled) return;
   if (!SOLO_AI.enabled) {
     SOLO_AI.enabled = true;
     SOLO_AI.thinking = false;
@@ -7860,18 +8018,21 @@ function ensureSoloAIForSet() {
 
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
+  els.spectatorQuitButton?.classList.toggle("hidden", !SPECTATOR_MODE.enabled);
+  els.returnLobbyButton?.classList.toggle("hidden", SPECTATOR_MODE.enabled);
   if (els.revealAiButton) {
-    const canReveal = SOLO_AI.enabled && state.gameOver && (!SERVER_SYNC.enabled || canAccessAdminFeatures());
+    const canReveal = !SPECTATOR_MODE.enabled && SOLO_AI.enabled && state.gameOver && (!SERVER_SYNC.enabled || canAccessAdminFeatures());
     els.revealAiButton.classList.toggle("hidden", !canReveal);
     els.revealAiButton.classList.toggle("active", state.revealAiCards);
     els.revealAiButton.textContent = state.revealAiCards ? "Cartes révélées" : "Révéler les cartes";
   }
   if (els.exportLogsButton) {
-    els.exportLogsButton.classList.toggle("hidden", SERVER_SYNC.enabled && !canAccessAdminFeatures());
+    els.exportLogsButton.classList.toggle("hidden", SPECTATOR_MODE.enabled || (SERVER_SYNC.enabled && !canAccessAdminFeatures()));
   }
 }
 
 function currentModeLabel() {
+  if (SPECTATOR_MODE.enabled) return `MODE VISIONNEUSE · ${SPECTATOR_MODE.matchLabel || "match en cours"}`;
   if (SERVER_SYNC.enabled) {
     const format = SERVER_SYNC.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     return `Mode en ligne · ${format}`;
@@ -8137,16 +8298,18 @@ function renderTournamentMatch(match, isFinal = false) {
   const playerB = match.playerB ? tournamentPlayerLabel(match.playerB) : unknownLabel;
   const scoreText = match.score || match.liveScore || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
+  const playerAWon = Boolean(revealedWinner && revealedWinner === match.playerA);
+  const playerBWon = Boolean(revealedWinner && revealedWinner === match.playerB);
   return `
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
-      <div class="tournament-player-row ${revealedWinner === match.playerA ? "winner" : ""} ${isHumanTournamentEntry(match.playerA) ? "human-player" : ""}">
+      <div class="tournament-player-row ${playerAWon ? "winner" : ""} ${isHumanTournamentEntry(match.playerA) ? "human-player" : ""}">
         <span>${playerA}</span>
-        ${revealedWinner === match.playerA ? "<strong>✓</strong>" : ""}
+        ${playerAWon ? "<strong>✓</strong>" : ""}
       </div>
-      <div class="tournament-player-row ${revealedWinner === match.playerB ? "winner" : ""} ${isHumanTournamentEntry(match.playerB) ? "human-player" : ""}">
+      <div class="tournament-player-row ${playerBWon ? "winner" : ""} ${isHumanTournamentEntry(match.playerB) ? "human-player" : ""}">
         <span>${playerB}</span>
-        ${revealedWinner === match.playerB ? "<strong>✓</strong>" : ""}
+        ${playerBWon ? "<strong>✓</strong>" : ""}
       </div>
       ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
@@ -8155,6 +8318,7 @@ function renderTournamentMatch(match, isFinal = false) {
 
 function tournamentPlayerLabel(entry) {
   if (state.tournament?.friendly) {
+    if (!entry) return "";
     const info = friendlyEntryInfo(entry);
     return info?.nickname || characterNameFromId(friendlyEntryCharacterId(entry));
   }
@@ -8640,11 +8804,11 @@ function renderPlayerPanel(playerIndex, root) {
 
 function renderCard(playerIndex, card) {
   const player = state.players[playerIndex];
-  const isHidden = SERVER_SYNC.enabled
+  const isHidden = SPECTATOR_MODE.enabled || (SERVER_SYNC.enabled
     ? playerIndex !== SERVER_SYNC.seat
     : SOLO_AI.enabled
       ? playerIndex === SOLO_AI.playerIndex && !(state.gameOver && state.revealAiCards)
-      : playerIndex !== state.activePlayer && !state.gameOver;
+      : playerIndex !== state.activePlayer && !state.gameOver);
   const effectModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "effect", false);
   const placementModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "placement", false);
   const normalAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "normal", false);
@@ -9050,9 +9214,11 @@ function initMenu() {
 
 els.newGameButton?.addEventListener("click", newGame);
 els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
+els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
 document.addEventListener("click", (event) => {
+  if (SPECTATOR_MODE.enabled) return;
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;
   const playButton = target?.closest("[data-play]");
   if (playButton instanceof HTMLButtonElement && !playButton.disabled) {
