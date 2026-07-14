@@ -3188,6 +3188,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     active: true,
     visible: true,
     friendly: true,
+    league: payload.format === "league",
     difficulty: "normal",
     competitionName: `Tournoi amical en ligne · ${payload.format === "league" ? "LEAGUE" : "CLASSIC"}`,
     stage: payload.round || "waiting",
@@ -3197,6 +3198,10 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     friendlySettingsLocked: Boolean(payload.settingsLocked),
     friendlyGroups: payload.groups || { A: [], B: [] },
     friendlyStandings: payload.standings || { A: [], B: [] },
+    leagueGroups: {
+      A: (payload.groups?.A || []).map((player) => player.entry).filter(Boolean),
+      B: (payload.groups?.B || []).map((player) => player.entry).filter(Boolean),
+    },
     humanCharacterId: selectedCharacterId(),
     humanEntry: FRIENDLY_TOURNAMENT.entry,
     currentMatch: FRIENDLY_TOURNAMENT.inMatch ? state.tournament?.currentMatch ?? null : null,
@@ -3312,6 +3317,55 @@ async function publishFriendlyTournamentLiveState() {
   }
 }
 
+function renderFriendlyLobbyMatchCard(match) {
+  const status = match.score || match.liveScore || (match.winner ? "Terminé" : "En attente");
+  return `
+    <article class="friendly-bracket-card ${match.winner ? "completed" : ""}">
+      <span>${escapeHtml(match.label)}</span>
+      <strong>${escapeHtml(tournamentPlayerLabel(match.playerA) || "À déterminer")}</strong>
+      <strong>${escapeHtml(tournamentPlayerLabel(match.playerB) || "À déterminer")}</strong>
+      <div class="friendly-bracket-live-row">
+        <span class="${match.liveScore && !match.winner ? "friendly-live-score" : ""}">${escapeHtml(status)}</span>
+        ${match.watchable ? `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+function renderFriendlyLeagueSchedule(matches) {
+  if (!matches.length) return "";
+  const dayRows = [1, 2, 3].map((day) => `
+    <div class="friendly-league-day-row">
+      <h3>Journée ${day}</h3>
+      <div class="friendly-league-day-matches">
+        ${matches.filter((match) => Number(match.day) === day).map(renderFriendlyLobbyMatchCard).join("")}
+      </div>
+    </div>
+  `).join("");
+  const semiMatches = matches.filter((match) => match.round === "semi");
+  const final = matches.find((match) => match.round === "final");
+  return `
+    <section class="friendly-league-schedule">
+      <p class="label">Calendrier LEAGUE</p>
+      ${dayRows}
+      <div class="friendly-league-knockout-row">
+        <div>
+          <h3>Demies</h3>
+          <div class="friendly-league-knockout-matches">${semiMatches.map(renderFriendlyLobbyMatchCard).join("")}</div>
+        </div>
+        <div>
+          <h3>Finale</h3>
+          <div class="friendly-league-knockout-matches">${final ? renderFriendlyLobbyMatchCard(final) : ""}</div>
+        </div>
+        <div class="friendly-league-champion">
+          <h3>Vainqueur</h3>
+          <strong>${escapeHtml(tournamentPlayerLabel(state.tournament.championCharacterId) || "À déterminer")}</strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderFriendlyLobbyScreen() {
   if (!els.friendlyLobbyContent || !state.tournament?.friendly) return;
   const participants = state.tournament.friendlyParticipants || [];
@@ -3334,11 +3388,17 @@ function renderFriendlyLobbyScreen() {
         ${["A", "B"].map((groupName) => `
           <article class="friendly-league-group">
             <h3>Groupe ${groupName}</h3>
-            ${(standings[groupName]?.length ? standings[groupName] : (leagueGroups[groupName] || []).map((player, index) => ({ player, position: index + 1, played: 0, wins: 0, points: 0 }))).map((row) => `
+            ${(standings[groupName]?.length ? standings[groupName] : (leagueGroups[groupName] || []).map((player, index) => ({ player, position: index + 1, played: 0, wins: 0, points: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0 }))).map((row) => `
               <div class="friendly-standing-row">
                 <span>${Number(row.position || 0)}</span>
                 <strong>${escapeHtml(row.player?.nickname || "Joueur")}</strong>
-                <span>${Number(row.played || 0)} J · ${Number(row.wins || 0)} V · ${Number(row.points || 0)} pts</span>
+                <div class="friendly-standing-details">
+                  <span>${Number(row.played || 0)} J</span>
+                  <span>${Number(row.wins || 0)} V</span>
+                  <strong>${Number(row.points || 0)} pt${Number(row.points || 0) > 1 ? "s" : ""}</strong>
+                  <span>Sets ${Number(row.setsWon || 0)}/${Number(row.setsLost || 0)} (${formatLeagueDifference(row.setDifference ?? Number(row.setsWon || 0) - Number(row.setsLost || 0))})</span>
+                  <span>Jeux ${Number(row.gamesWon || 0)}/${Number(row.gamesLost || 0)} (${formatLeagueDifference(row.gameDifference ?? Number(row.gamesWon || 0) - Number(row.gamesLost || 0))})</span>
+                </div>
               </div>
             `).join("")}
           </article>
@@ -3398,21 +3458,12 @@ function renderFriendlyLobbyScreen() {
       </div>
     </section>
     ${leagueGroupMarkup}
-    ${matches.length ? `
+    ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
+    ${matches.length && format !== "league" ? `
       <section>
-        <p class="label">${format === "league" ? "Rencontres LEAGUE et phases finales" : "Tableau CLASSIC"}</p>
+        <p class="label">Tableau CLASSIC</p>
         <div class="friendly-bracket-grid">
-          ${matches.map((match) => `
-            <article class="friendly-bracket-card">
-              <span>${escapeHtml(match.label)}</span>
-              <strong>${escapeHtml(tournamentPlayerLabel(match.playerA) || "À déterminer")}</strong>
-              <strong>${escapeHtml(tournamentPlayerLabel(match.playerB) || "À déterminer")}</strong>
-              <div class="friendly-bracket-live-row">
-                <span class="${match.liveScore && !match.winner ? "friendly-live-score" : ""}">${match.score ? escapeHtml(match.score) : match.liveScore ? escapeHtml(match.liveScore) : match.winner ? "Terminé" : "En attente"}</span>
-                ${match.watchable ? `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>` : ""}
-              </div>
-            </article>
-          `).join("")}
+          ${matches.map(renderFriendlyLobbyMatchCard).join("")}
         </div>
       </section>
     ` : ""}
@@ -3930,7 +3981,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v122",
+    version: "v123",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -7020,25 +7071,57 @@ function leagueCompletedGroupDays() {
 }
 
 function leagueStandings(group, throughDay = 3) {
+  if (state.tournament.friendly) {
+    return (state.tournament.friendlyStandings?.[group] || []).map((row) => ({
+      entry: row.entry || row.player?.entry,
+      points: Number(row.points || 0),
+      played: Number(row.played || 0),
+      wins: Number(row.wins || 0),
+      losses: Number(row.losses || 0),
+      setsWon: Number(row.setsWon || 0),
+      setsLost: Number(row.setsLost || 0),
+      gamesWon: Number(row.gamesWon || 0),
+      gamesLost: Number(row.gamesLost || 0),
+      setDifference: Number(row.setDifference || 0),
+      gameDifference: Number(row.gameDifference || 0),
+      worldRank: Number(row.worldRank || 999999),
+    }));
+  }
   const rows = new Map((state.tournament.leagueGroups?.[group] || []).map((entry) => [entry, {
     entry,
     points: 0,
+    played: 0,
+    wins: 0,
+    losses: 0,
     setsWon: 0,
     setsLost: 0,
     gamesWon: 0,
     gamesLost: 0,
+    worldRank: tournamentWorldRankForEntry(entry) ?? 999999,
   }]));
   for (const match of leagueGroupMatches(group)) {
     if (!match.score || !match.winner || Number(match.day || 0) > throughDay) continue;
     const setScores = match.revealedSetScores?.length ? match.revealedSetScores : parseTournamentScore(match.score);
-    applyLeagueMatchStats(rows.get(match.playerA), rows.get(match.playerB), setScores);
-    rows.get(match.winner).points += 1;
+    const playerAStats = rows.get(match.playerA);
+    const playerBStats = rows.get(match.playerB);
+    applyLeagueMatchStats(playerAStats, playerBStats, setScores);
+    playerAStats.played += 1;
+    playerBStats.played += 1;
+    const winnerStats = rows.get(match.winner);
+    const loserStats = match.winner === match.playerA ? playerBStats : playerAStats;
+    winnerStats.points += 1;
+    winnerStats.wins += 1;
+    loserStats.losses += 1;
   }
-  return [...rows.values()].sort((a, b) => (
+  return [...rows.values()].map((row) => ({
+    ...row,
+    setDifference: row.setsWon - row.setsLost,
+    gameDifference: row.gamesWon - row.gamesLost,
+  })).sort((a, b) => (
     b.points - a.points
-    || (b.setsWon - b.setsLost) - (a.setsWon - a.setsLost)
-    || (b.gamesWon - b.gamesLost) - (a.gamesWon - a.gamesLost)
-    || tournamentPlayerLabel(a.entry).localeCompare(tournamentPlayerLabel(b.entry), "fr")
+    || b.setDifference - a.setDifference
+    || b.gameDifference - a.gameDifference
+    || a.worldRank - b.worldRank
   ));
 }
 
@@ -8496,9 +8579,9 @@ async function publishProfileActivity() {
 }
 
 function tournamentStageLabel() {
-  if (state.tournament.stage === "day1") return "journée 1";
-  if (state.tournament.stage === "day2") return "journée 2";
-  if (state.tournament.stage === "day3") return "journée 3";
+  if (state.tournament.stage === "day1" || state.tournament.stage === "group1") return "journée 1";
+  if (state.tournament.stage === "day2" || state.tournament.stage === "group2") return "journée 2";
+  if (state.tournament.stage === "day3" || state.tournament.stage === "group3") return "journée 3";
   if (state.tournament.stage === "round16") return "8es de finale";
   if (state.tournament.stage === "quarter") return "quarts de finale";
   if (state.tournament.stage === "qualif") return "qualifications";
@@ -8516,9 +8599,9 @@ function humanTournamentRoundLabel() {
   const current = state.tournament.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
   const next = state.tournament.nextHumanMatchId ? tournamentMatchById(state.tournament.nextHumanMatchId) : null;
   const round = next?.round || current?.round || state.tournament.stage;
-  if (round === "day1") return "Journée 1";
-  if (round === "day2") return "Journée 2";
-  if (round === "day3") return "Journée 3";
+  if (round === "day1" || round === "group1") return "Journée 1";
+  if (round === "day2" || round === "group2") return "Journée 2";
+  if (round === "day3" || round === "group3") return "Journée 3";
   if (round === "round16") return "8e de finale";
   if (round === "qualif") return "Qualifications";
   if (round === "quarter") return "Quart-de-finale";
@@ -8677,17 +8760,19 @@ function renderLeagueTournamentPanel(title, final, champion) {
     `;
   };
   const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
+  const friendlyStatus = state.tournament.friendly ? renderFriendlyTournamentStatus() : "";
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        <span class="difficulty-reminder">CLASSIC reste disponible séparément</span>
+        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4</span>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
       </button>
     </div>
+    ${friendlyStatus}
     <div class="league-board ${state.tournament.visible ? "" : "hidden"}">
       <div class="league-standings-grid">
         ${renderLeagueStandingsTable("A", completedDays)}
@@ -8718,20 +8803,27 @@ function renderLeagueTournamentPanel(title, final, champion) {
   els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
 }
 
+function formatLeagueDifference(value) {
+  const number = Number(value || 0);
+  return number > 0 ? `+${number}` : String(number);
+}
+
 function renderLeagueStandingsTable(group, throughDay = 0) {
   const rows = leagueStandings(group, throughDay);
   return `
     <section class="league-standings">
       <span class="tournament-round-label">Groupe ${group}</span>
       <div class="league-standings-head">
-        <span>Joueur</span><span>Pts</span><span>Sets</span><span>Jeux</span>
+        <span>Joueur</span><span>J</span><span>V</span><span>Pts</span><span>Sets +/-</span><span>Jeux +/-</span>
       </div>
       ${rows.map((row, index) => `
         <div class="league-standings-row ${index < 2 && throughDay >= 3 ? "qualified" : ""} ${isHumanTournamentEntry(row.entry) ? "human-player" : ""}">
           <span>${index + 1}. ${tournamentPlayerLabel(row.entry)}</span>
+          <span>${Number(row.played || 0)}</span>
+          <span>${Number(row.wins || 0)}</span>
           <strong>${row.points}</strong>
-          <span>${row.setsWon}/${row.setsLost}</span>
-          <span>${row.gamesWon}/${row.gamesLost}</span>
+          <span>${row.setsWon}/${row.setsLost} (${formatLeagueDifference(row.setDifference ?? row.setsWon - row.setsLost)})</span>
+          <span>${row.gamesWon}/${row.gamesLost} (${formatLeagueDifference(row.gameDifference ?? row.gamesWon - row.gamesLost)})</span>
         </div>
       `).join("")}
     </section>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const base = process.env.TEST_BASE_URL || "http://localhost:3022";
+const base = process.env.TEST_BASE_URL || "http://localhost:3023";
 
 async function request(session, path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -17,7 +17,7 @@ async function register(email, nickname) {
   const session = { cookie: "", user: null };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v122!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v123!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -88,20 +88,42 @@ async function reportCurrentMatches(accessByPlayer, expectedRound) {
     const winner = match.playerA === access.entry ? match.playerA : match.playerB;
     const { response, data } = await request(player, `/api/friendly-tournaments/${access.id}/matches/${match.id}/result`, {
       method: "POST",
-      body: JSON.stringify({ participantId: access.participantId, token: access.token, winner, score: "6/3 - 6/4" }),
+      body: JSON.stringify({ participantId: access.participantId, token: access.token, winner, score: "6/3 - 6/4 - 6/2" }),
     });
     assert.equal(response.status, 200, data.error);
     if (index === 0) assert.equal(data.tournament.round, expectedRound, `${expectedRound} ne doit pas avancer apres un seul resultat`);
   }
 }
 
+function assertLeagueStandings(tournament) {
+  for (const group of ["A", "B"]) {
+    const rows = tournament.standings[group];
+    assert.equal(rows.length, 4);
+    for (const row of rows) {
+      assert.equal(row.points, row.wins, "une victoire doit rapporter exactement 1 point");
+      assert.equal(row.setDifference, row.setsWon - row.setsLost);
+      assert.equal(row.gameDifference, row.gamesWon - row.gamesLost);
+      assert.ok(Number.isFinite(row.worldRank));
+    }
+    for (let index = 1; index < rows.length; index += 1) {
+      const previous = rows[index - 1];
+      const current = rows[index];
+      const correctlyOrdered = previous.points > current.points
+        || (previous.points === current.points && previous.setDifference > current.setDifference)
+        || (previous.points === current.points && previous.setDifference === current.setDifference && previous.gameDifference > current.gameDifference)
+        || (previous.points === current.points && previous.setDifference === current.setDifference && previous.gameDifference === current.gameDifference && previous.worldRank <= current.worldRank);
+      assert.equal(correctlyOrdered, true, "le classement LEAGUE doit respecter tous les departages");
+    }
+  }
+}
+
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v122-a-${stamp}@example.test`, "Alpha"),
-  register(`v122-b-${stamp}@example.test`, "Bravo"),
-  register(`v122-c-${stamp}@example.test`, "Charlie"),
-  register(`v122-d-${stamp}@example.test`, "Delta"),
+  register(`v123-a-${stamp}@example.test`, "Alpha"),
+  register(`v123-b-${stamp}@example.test`, "Bravo"),
+  register(`v123-c-${stamp}@example.test`, "Charlie"),
+  register(`v123-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
 
@@ -154,11 +176,17 @@ assert.equal(locked.response.status, 409);
 
 const activePlayers = [[players[0], host], [players[1], guest1], [players[2], guest2]];
 await reportCurrentMatches(activePlayers, "group1");
-assert.equal((await tournamentState(players[0], host)).data.tournament.round, "group2");
+const afterDay1 = (await tournamentState(players[0], host)).data.tournament;
+assert.equal(afterDay1.round, "group2");
+assertLeagueStandings(afterDay1);
 await reportCurrentMatches(activePlayers, "group2");
-assert.equal((await tournamentState(players[0], host)).data.tournament.round, "group3");
+const afterDay2 = (await tournamentState(players[0], host)).data.tournament;
+assert.equal(afterDay2.round, "group3");
+assertLeagueStandings(afterDay2);
 await reportCurrentMatches(activePlayers, "group3");
-assert.equal((await tournamentState(players[0], host)).data.tournament.round, "semi");
+const afterDay3 = (await tournamentState(players[0], host)).data.tournament;
+assert.equal(afterDay3.round, "semi");
+assertLeagueStandings(afterDay3);
 
 const deletePlaying = await request(admin, `/api/lobby/friendly-tournaments/${host.id}/admin-delete`, { method: "POST" });
 assert.equal(deletePlaying.response.status, 200, deletePlaying.data.error);
@@ -203,4 +231,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v122 smoke test: OK");
+console.log("v123 smoke test: OK");

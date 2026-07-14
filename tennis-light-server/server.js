@@ -3504,25 +3504,79 @@ function buildFriendlyLeagueMatches(groups) {
   return matches;
 }
 
+function parseFriendlySetScores(score = "") {
+  return [...String(score).matchAll(/(\d+)\s*\/\s*(\d+)/g)]
+    .map((match) => [Number(match[1]), Number(match[2])]);
+}
+
+function friendlySetIsComplete(gamesA, gamesB) {
+  const high = Math.max(gamesA, gamesB);
+  const low = Math.min(gamesA, gamesB);
+  return (high >= 6 && high - low >= 2) || (high === 7 && low === 6);
+}
+
+function applyFriendlyLeagueScore(playerAStats, playerBStats, score) {
+  for (const [gamesA, gamesB] of parseFriendlySetScores(score)) {
+    playerAStats.gamesWon += gamesA;
+    playerAStats.gamesLost += gamesB;
+    playerBStats.gamesWon += gamesB;
+    playerBStats.gamesLost += gamesA;
+    if (!friendlySetIsComplete(gamesA, gamesB)) continue;
+    if (gamesA > gamesB) {
+      playerAStats.setsWon += 1;
+      playerBStats.setsLost += 1;
+    } else {
+      playerBStats.setsWon += 1;
+      playerAStats.setsLost += 1;
+    }
+  }
+}
+
 function friendlyLeagueStandings(tournament) {
   if ((tournament?.format || "classic") !== "league") return { A: [], B: [] };
   const result = {};
   for (const groupName of ["A", "B"]) {
     const entries = tournament.groups?.[groupName] || [];
-    result[groupName] = entries.map((entry, groupIndex) => {
-      const matches = (tournament.matches || []).filter((match) => match.group === groupName && (match.playerA === entry || match.playerB === entry));
-      const completed = matches.filter((match) => match.winner);
-      const wins = completed.filter((match) => match.winner === entry).length;
-      return {
+    const rows = new Map(entries.map((entry, groupIndex) => [entry, {
         entry,
         player: friendlyEntryPublic(tournament, entry),
-        played: completed.length,
-        wins,
-        losses: completed.length - wins,
-        points: wins * 3,
-        seed: Number(tournament.seedRanks?.[entry] || groupIndex + 1),
-      };
-    }).sort((a, b) => b.points - a.points || b.wins - a.wins || a.seed - b.seed)
+        played: 0,
+        wins: 0,
+        losses: 0,
+        points: 0,
+        setsWon: 0,
+        setsLost: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        worldRank: Number(tournament.seedRanks?.[entry] || 999999 + groupIndex),
+      }]));
+    for (const match of (tournament.matches || []).filter((item) => item.group === groupName && item.winner)) {
+      const playerAStats = rows.get(match.playerA);
+      const playerBStats = rows.get(match.playerB);
+      if (!playerAStats || !playerBStats) continue;
+      playerAStats.played += 1;
+      playerBStats.played += 1;
+      if (match.winner === match.playerA) {
+        playerAStats.wins += 1;
+        playerBStats.losses += 1;
+        playerAStats.points += 1;
+      } else {
+        playerBStats.wins += 1;
+        playerAStats.losses += 1;
+        playerBStats.points += 1;
+      }
+      applyFriendlyLeagueScore(playerAStats, playerBStats, match.score || match.liveScore || "");
+    }
+    result[groupName] = [...rows.values()].map((row) => ({
+      ...row,
+      setDifference: row.setsWon - row.setsLost,
+      gameDifference: row.gamesWon - row.gamesLost,
+    })).sort((a, b) => (
+      b.points - a.points
+      || b.setDifference - a.setDifference
+      || b.gameDifference - a.gameDifference
+      || a.worldRank - b.worldRank
+    ))
       .map((row, index) => ({ ...row, position: index + 1 }));
   }
   return result;
@@ -3538,8 +3592,7 @@ async function buildFriendlyTournamentBracket(tournament) {
   const entries = [...humanEntries, ...aiEntries];
   while (entries.length < 8) entries.push(CIRCUIT_AI_CHARACTER_IDS[entries.length % CIRCUIT_AI_CHARACTER_IDS.length]);
   const fullEntries = entries.slice(0, 8);
-  let rankedEntries = null;
-  if (tournament.distribution === "ranking") rankedEntries = await rankFriendlyEntries(tournament, fullEntries);
+  const rankedEntries = await rankFriendlyEntries(tournament, fullEntries);
   if (tournament.format === "league") {
     if (tournament.distribution === "ranking") {
       tournament.groups = {
@@ -3583,11 +3636,21 @@ function friendlyEntryIsHuman(entry) {
   return String(entry || "").startsWith("human:");
 }
 
-function simulateFriendlyScore() {
-  const scores = [[6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
-  const first = scores[Math.floor(Math.random() * scores.length)];
-  const second = scores[Math.floor(Math.random() * scores.length)];
-  return `${first[0]}/${first[1]} - ${second[0]}/${second[1]}`;
+function simulateFriendlyScore(winnerIsPlayerA, targetSets = 2) {
+  const winningScores = [[6, 1], [6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
+  const losingScores = [[3, 6], [4, 6], [5, 7], [6, 7]];
+  const scores = [];
+  let winnerSets = 0;
+  let loserSets = 0;
+  while (winnerSets < targetSets) {
+    const winnerLosesSet = loserSets < targetSets - 1 && winnerSets < targetSets - 1 && Math.random() < 0.25;
+    const pool = winnerLosesSet ? losingScores : winningScores;
+    const score = pool[Math.floor(Math.random() * pool.length)];
+    if (winnerLosesSet) loserSets += 1;
+    else winnerSets += 1;
+    scores.push(winnerIsPlayerA ? score : [score[1], score[0]]);
+  }
+  return scores.map(([gamesA, gamesB]) => `${gamesA}/${gamesB}`).join(" - ");
 }
 
 function simulateFriendlyAiOnlyMatches(tournament) {
@@ -3596,7 +3659,7 @@ function simulateFriendlyAiOnlyMatches(tournament) {
     if (match.round !== tournament.round) continue;
     if (friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB)) continue;
     match.winner = Math.random() < 0.5 ? match.playerA : match.playerB;
-    match.score = simulateFriendlyScore();
+    match.score = simulateFriendlyScore(match.winner === match.playerA, Number(tournament.targetSets || 2));
   }
 }
 

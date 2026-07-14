@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v122
+Tennis Courts Academy - version serveur v123
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -12,6 +12,8 @@ Le serveur affiche un menu/lobby commun :
 - choisir avant le lancement un tournoi CLASSIC ou LEAGUE, en 2 ou 3 sets gagnants
 - repartir les joueurs aleatoirement, selon le classement mondial ou en separant les humains
 - jouer la LEAGUE en 2 groupes de 4, journee par journee, puis demi-finales et finale
+- afficher la LEAGUE en journees 1, 2 et 3, puis demies, finale et vainqueur dans le jeu et le salon
+- classer la LEAGUE avec 1 point par victoire, puis les differences de sets, de jeux et le classement mondial
 - exclure un joueur du salon avant le lancement lorsque l'on est l'hote
 - lancer le tournoi des que 2 joueurs sont presents, puis completer le tableau a 8 avec les IA
 - suivre les scores des matchs humains en direct dans le salon du tournoi
