@@ -2828,7 +2828,7 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
       </div>
       <div class="lobby-room-actions">
         <button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>
-        ${canAccessAdminFeatures() ? `<button class="small-button danger-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
+        ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
       </div>
     </article>
   `).join("");
@@ -3059,10 +3059,6 @@ function renderFriendlyLobbyScreen() {
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
-    <div class="friendly-lobby-action-panel">
-      <button class="primary-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER</button>
-      <button class="small-button danger-button" type="button" data-leave-friendly-tournament>SORTIR</button>
-    </div>
     <section>
       <p class="label">Joueurs humains</p>
       <div class="friendly-player-grid">
@@ -3072,6 +3068,10 @@ function renderFriendlyLobbyScreen() {
             <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.eliminated ? " · Éliminé" : ""}</span>
           </article>
         `).join("")}
+      </div>
+      <div class="friendly-lobby-action-panel friendly-lobby-player-actions">
+        <button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER</button>
+        <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>SORTIR</button>
       </div>
     </section>
     ${matches.length ? `
@@ -3414,7 +3414,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v117",
+    version: "v118",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,

@@ -3234,6 +3234,10 @@ function simulateFriendlyAiOnlyMatches(tournament) {
 }
 
 function refreshFriendlyTournamentSlots(tournament) {
+  if (tournament.status === "waiting") {
+    tournament.round = "waiting";
+    return;
+  }
   const byId = new Map(tournament.matches.map((match) => [match.id, match]));
   const qf1 = byId.get("qf1");
   const qf2 = byId.get("qf2");
