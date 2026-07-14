@@ -3253,6 +3253,7 @@ function friendlyEntryPublic(tournament, entry) {
       characterId: participant.characterId,
       eliminated: Boolean(participant.eliminated),
       left: Boolean(participant.leftAt),
+      away: Boolean(participant.awayAt),
     } : { entry, type: "human", nickname: "Joueur", characterId: "coachJu" };
   }
   return { entry, type: "ai", nickname: friendlyAiName(entry), characterId: entry };
@@ -3260,6 +3261,24 @@ function friendlyEntryPublic(tournament, entry) {
 
 function activeFriendlyParticipants(tournament) {
   return (tournament?.participants || []).filter((participant) => !participant.leftAt && !participant.kickedAt);
+}
+
+function friendlyDisconnectedPlayersForMatch(tournament, match) {
+  if (!match) return [];
+  return activeFriendlyParticipants(tournament)
+    .filter((participant) => (
+      participant.awayAt
+      && participant.reconnectDeadline
+      && participant.reconnectMatchId === match.id
+      && (friendlyParticipantEntry(participant.id) === match.playerA || friendlyParticipantEntry(participant.id) === match.playerB)
+    ))
+    .map((participant) => ({
+      participantId: participant.id,
+      entry: friendlyParticipantEntry(participant.id),
+      nickname: participant.nickname,
+      deadline: Number(participant.reconnectDeadline),
+      graceSeconds: Number(participant.reconnectGraceSeconds || 20),
+    }));
 }
 
 function transferFriendlyTournamentCreator(tournament) {
@@ -3343,6 +3362,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       characterId: item.characterId,
       isCreator: item.id === tournament.creatorParticipantId,
       eliminated: Boolean(item.eliminated),
+      away: Boolean(item.awayAt),
     })),
     entries: (tournament.entries || []).map((entry) => friendlyEntryPublic(tournament, entry)),
     matches: (tournament.matches || []).map((match) => ({
@@ -3363,6 +3383,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       group: match.group || null,
       day: match.day || null,
       humanVsHuman: friendlyEntryIsHuman(match.playerA) && friendlyEntryIsHuman(match.playerB),
+      disconnectedPlayers: friendlyDisconnectedPlayersForMatch(tournament, match),
     })),
     groups: {
       A: (tournament.groups?.A || []).map((entry) => friendlyEntryPublic(tournament, entry)),
@@ -3384,9 +3405,12 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
   };
 }
 
-function publicFriendlyLobbyInfo(req, tournament) {
+function publicFriendlyLobbyInfo(req, tournament, user = null) {
   const activeParticipants = activeFriendlyParticipants(tournament);
   const creator = activeParticipants.find((item) => item.id === tournament.creatorParticipantId) || activeParticipants[0];
+  const currentParticipant = user
+    ? activeParticipants.find((item) => String(item.userId) === String(user.id)) || null
+    : null;
   return {
     id: tournament.id,
     status: tournament.status,
@@ -3399,6 +3423,9 @@ function publicFriendlyLobbyInfo(req, tournament) {
     format: tournament.format || "classic",
     targetSets: Number(tournament.targetSets || 2),
     distribution: tournament.distribution || "random",
+    canResume: Boolean(currentParticipant && tournament.status === "playing"),
+    resumeInMatch: Boolean(currentParticipant && currentFriendlyMatchForParticipant(tournament, currentParticipant.id)),
+    reconnectDeadline: Number(currentParticipant?.reconnectDeadline || 0) || null,
     participants: activeParticipants.map((item) => ({
       nickname: item.nickname,
       characterId: item.characterId,
@@ -3796,6 +3823,70 @@ function friendlyEntryHasLeft(tournament, entry) {
   return Boolean(participant?.leftAt);
 }
 
+function cloneFriendlyMatchState(remoteState) {
+  if (!remoteState || typeof remoteState !== "object") return null;
+  try {
+    return JSON.parse(JSON.stringify(remoteState));
+  } catch (error) {
+    return null;
+  }
+}
+
+function markFriendlyParticipantPresent(participant) {
+  if (!participant) return false;
+  const wasAway = Boolean(participant.awayAt || participant.reconnectDeadline || participant.reconnectMatchId);
+  participant.awayAt = null;
+  participant.reconnectDeadline = null;
+  participant.reconnectMatchId = null;
+  participant.reconnectGraceSeconds = null;
+  participant.disconnectScore = null;
+  return wasAway;
+}
+
+function forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) {
+  if (!tournament || !match || !participant || match.winner) return false;
+  const entry = friendlyParticipantEntry(participant.id);
+  if (match.playerA !== entry && match.playerB !== entry) return false;
+  match.winner = match.playerA === entry ? match.playerB : match.playerA;
+  const scoreAtDeparture = String(participant.disconnectScore || match.liveScore || "0/0")
+    .replace(/\s*·\s*EN DIRECT\s*$/i, "")
+    .slice(0, 80);
+  match.score = `${scoreAtDeparture || "0/0"} · FORFAIT`;
+  match.liveScore = match.score;
+  match.liveState = null;
+  match.liveParticipantId = null;
+  match.liveUpdatedAt = Date.now();
+  match.forfeitParticipantId = participant.id;
+  match.resumeState = null;
+  participant.graceExpiredAt = Date.now();
+  participant.reconnectDeadline = null;
+  participant.reconnectMatchId = null;
+  participant.reconnectGraceSeconds = null;
+  participant.disconnectScore = null;
+  tournament.updatedAt = Date.now();
+  return true;
+}
+
+function resolveFriendlyReconnectTimeouts(tournament, now = Date.now()) {
+  if (!tournament || tournament.status !== "playing") return false;
+  let changed = false;
+  for (const participant of activeFriendlyParticipants(tournament)) {
+    const deadline = Number(participant.reconnectDeadline || 0);
+    if (!participant.awayAt || !deadline || deadline > now) continue;
+    const match = (tournament.matches || []).find((item) => item.id === participant.reconnectMatchId) || null;
+    if (match?.winner) {
+      participant.reconnectDeadline = null;
+      participant.reconnectMatchId = null;
+      participant.reconnectGraceSeconds = null;
+      participant.disconnectScore = null;
+      changed = true;
+      continue;
+    }
+    changed = forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) || changed;
+  }
+  return changed;
+}
+
 function resolveFriendlyDepartedForfeits(tournament) {
   for (const match of tournament.matches || []) {
     if (match.winner || !match.playerA || !match.playerB) continue;
@@ -3917,7 +4008,11 @@ function publicFriendlyCurrentMatch(tournament, participantId) {
   if (!match) return null;
   const participant = tournament.participants.find((item) => item.id === participantId);
   const access = friendlyHumanMatchAccess(tournament, match, participant);
-  if (!access) return { ...match, humanVsHuman: false };
+  if (!access) return {
+    ...match,
+    humanVsHuman: false,
+    resumeState: cloneFriendlyMatchState(match.resumeState),
+  };
   return {
     ...match,
     humanVsHuman: true,
@@ -4006,15 +4101,21 @@ async function handleApi(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/lobby") {
-    if (!await requirePro(req, res)) return;
+    const user = await requirePro(req, res);
+    if (!user) return;
     const openRooms = [...rooms.values()]
       .filter((room) => room.status === "waiting")
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((room) => publicRoomInfo(req, room));
     const tournaments = [...friendlyTournaments.values()]
       .filter((tournament) => tournament.status === "waiting" || tournament.status === "playing")
+      .map((tournament) => {
+        resolveFriendlyReconnectTimeouts(tournament);
+        refreshFriendlyTournamentSlots(tournament);
+        return tournament;
+      })
       .sort((a, b) => b.createdAt - a.createdAt)
-      .map((tournament) => publicFriendlyLobbyInfo(req, tournament));
+      .map((tournament) => publicFriendlyLobbyInfo(req, tournament, user));
     sendJson(res, 200, { rooms: openRooms, tournaments });
     return;
   }
@@ -4066,6 +4167,7 @@ async function handleApi(req, res) {
   }
 
   const friendlyJoinMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/join$/);
+  const friendlyResumeMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/resume$/);
   const friendlySpectateMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/spectate$/);
   const friendlyAdminDeleteMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/admin-delete$/);
   if (req.method === "POST" && friendlyAdminDeleteMatch) {
@@ -4078,6 +4180,34 @@ async function handleApi(req, res) {
     }
     friendlyTournaments.delete(tournament.id);
     sendJson(res, 200, { ok: true, closed: true });
+    return;
+  }
+
+  if (req.method === "POST" && friendlyResumeMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return;
+    const tournament = friendlyTournaments.get(friendlyResumeMatch[1]);
+    if (!tournament || tournament.status !== "playing") {
+      sendJson(res, 404, { error: "Ce tournoi ne peut plus être repris." });
+      return;
+    }
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
+    const participant = activeFriendlyParticipants(tournament)
+      .find((item) => String(item.userId) === String(user.id)) || null;
+    if (!participant) {
+      sendJson(res, 403, { error: "Vous n'êtes pas inscrit à ce tournoi." });
+      return;
+    }
+    markFriendlyParticipantPresent(participant);
+    participant.token = makeToken();
+    participant.resumedAt = Date.now();
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, {
+      tournament: publicFriendlyTournamentInfo(req, tournament, participant),
+      playerUrl: friendlyTournamentUrl(req, tournament.id, participant.id, participant.token),
+      resumedInMatch: Boolean(currentFriendlyMatchForParticipant(tournament, participant.id)),
+    });
     return;
   }
 
@@ -4255,45 +4385,62 @@ async function handleApi(req, res) {
       });
       return;
     }
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     const entry = friendlyParticipantEntry(participant.id);
-    let forfeitedMatch = null;
-    if (tournament.status === "playing") {
-      forfeitedMatch = tournament.matches.find((match) => (
-        !match.winner
-        && match.round === tournament.round
-        && (match.playerA === entry || match.playerB === entry)
-      )) || null;
-      if (forfeitedMatch) {
-        forfeitedMatch.winner = forfeitedMatch.playerA === entry ? forfeitedMatch.playerB : forfeitedMatch.playerA;
-        const scoreAtDeparture = String(payload.score || forfeitedMatch.liveScore || "0/0").replace(/\s*·\s*EN DIRECT\s*$/i, "").slice(0, 80);
-        forfeitedMatch.score = `${scoreAtDeparture || "0/0"} · FORFAIT`;
-        forfeitedMatch.liveScore = forfeitedMatch.score;
-        forfeitedMatch.liveState = null;
-        forfeitedMatch.liveParticipantId = null;
-        forfeitedMatch.liveUpdatedAt = Date.now();
-        forfeitedMatch.forfeitParticipantId = participant.id;
+    const currentMatch = tournament.matches.find((match) => (
+      !match.winner
+      && match.round === tournament.round
+      && (match.playerA === entry || match.playerB === entry)
+    )) || null;
+    const now = Date.now();
+    participant.awayAt = now;
+    participant.disconnectScore = String(payload.score || currentMatch?.liveScore || "0/0")
+      .replace(/\s*·\s*EN DIRECT\s*$/i, "")
+      .slice(0, 80);
+    let graceSeconds = null;
+    if (currentMatch) {
+      const humanVsHuman = friendlyMatchIsHumanVsHuman(currentMatch);
+      graceSeconds = humanVsHuman ? 20 : 10;
+      participant.reconnectMatchId = currentMatch.id;
+      participant.reconnectGraceSeconds = graceSeconds;
+      participant.reconnectDeadline = now + (graceSeconds * 1000);
+      if (humanVsHuman) {
+        const access = friendlyHumanMatchAccess(tournament, currentMatch, participant);
+        const canStoreState = access
+          && payload.state
+          && Number(payload.baseRevision) === Number(access.session.revision || 0)
+          && !validateFriendlyHumanSyncState(tournament, currentMatch, payload.state);
+        if (canStoreState) {
+          access.session.state = cloneFriendlyMatchState(payload.state);
+          access.session.revision += 1;
+          access.session.updatedAt = now;
+          currentMatch.liveScore = friendlyHumanScoreText(payload.state, true);
+          currentMatch.liveState = sanitizeFriendlySpectatorState(payload.state);
+          currentMatch.liveUpdatedAt = now;
+        }
+      } else if (payload.state) {
+        currentMatch.resumeState = cloneFriendlyMatchState(payload.state);
+        currentMatch.liveScore = String(payload.score || currentMatch.liveScore || "0/0").slice(0, 100);
+        currentMatch.liveState = sanitizeFriendlySpectatorState(payload.state);
+        currentMatch.liveUpdatedAt = now;
       }
+    } else {
+      participant.reconnectMatchId = null;
+      participant.reconnectGraceSeconds = null;
+      participant.reconnectDeadline = null;
     }
-    participant.leftAt = Date.now();
-    participant.eliminated = true;
-    participant.token = null;
     tournament.updatedAt = Date.now();
-    for (const readyState of Object.values(tournament.ready || {})) delete readyState?.[participant.id];
-    delete tournament.nextReady?.[participant.id];
-    if (participant.id === tournament.creatorParticipantId) transferFriendlyTournamentCreator(tournament);
-    const remainingParticipants = activeFriendlyParticipants(tournament);
-    if (!remainingParticipants.length) {
-      friendlyTournaments.delete(tournament.id);
-      sendJson(res, 200, { ok: true, closed: true, forfeited: Boolean(forfeitedMatch) });
-      return;
-    }
-    if (tournament.status === "playing") refreshFriendlyTournamentSlots(tournament);
     sendJson(res, 200, {
       ok: true,
       closed: false,
-      forfeited: Boolean(forfeitedMatch),
-      score: forfeitedMatch?.score || null,
-      participantCount: remainingParticipants.length,
+      paused: true,
+      resumeAllowed: true,
+      graceSeconds,
+      reconnectDeadline: participant.reconnectDeadline || null,
+      inMatch: Boolean(currentMatch),
+      score: participant.disconnectScore || null,
+      participantCount: activeFriendlyParticipants(tournament).length,
       creatorParticipantId: tournament.creatorParticipantId,
       tournament: publicFriendlyTournamentInfo(req, tournament, null),
     });
@@ -4303,6 +4450,8 @@ async function handleApi(req, res) {
   const friendlyStateMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)$/);
   if (req.method === "GET" && friendlyStateMatch) {
     const tournament = friendlyTournaments.get(friendlyStateMatch[1]);
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     const kickedParticipant = tournament?.participants.find((item) => (
       item.kickedAt
       && item.id === url.searchParams.get("participantId")
@@ -4318,7 +4467,6 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Tournoi introuvable." });
       return;
     }
-    refreshFriendlyTournamentSlots(tournament);
     sendJson(res, 200, {
       tournament: publicFriendlyTournamentInfo(req, tournament, participant, spectator),
       currentMatch: participant ? publicFriendlyCurrentMatch(tournament, participant.id) : null,
@@ -4420,6 +4568,7 @@ async function handleApi(req, res) {
       sendJson(res, 400, { error: "État de match invalide." });
       return;
     }
+    match.resumeState = cloneFriendlyMatchState(payload.state);
     match.liveScore = String(payload.liveScore || "0/0").slice(0, 100);
     match.liveState = safeState;
     match.liveParticipantId = participant.id;
@@ -4510,6 +4659,14 @@ async function handleApi(req, res) {
     match.liveState = null;
     match.liveParticipantId = null;
     match.liveUpdatedAt = Date.now();
+    match.resumeState = null;
+    for (const matchParticipant of activeFriendlyParticipants(tournament)) {
+      if (matchParticipant.reconnectMatchId !== match.id) continue;
+      matchParticipant.reconnectDeadline = null;
+      matchParticipant.reconnectMatchId = null;
+      matchParticipant.reconnectGraceSeconds = null;
+      matchParticipant.disconnectScore = null;
+    }
     tournament.ready = tournament.ready || {};
     tournament.nextReady = tournament.nextReady || {};
     delete tournament.nextReady[participant.id];

@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v127
+Tennis Courts Academy - version serveur v128
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -23,7 +23,12 @@ Le serveur affiche un menu/lobby commun :
 - lancer le tournoi des que 2 joueurs sont presents, puis completer le tableau a 8 avec les IA
 - suivre les scores des matchs humains en direct dans le CLUB HOUSE du tournoi
 - regarder un match en mode visionneuse avec les deux mains masquees et aucune action de jeu possible
-- quitter definitivement un tournoi sans fermer le CLUB HOUSE tant qu'un autre joueur reste present
+- quitter temporairement un tournoi sans perdre son inscription ni fermer le CLUB HOUSE
+- reprendre depuis le lobby un match en cours ou revenir attendre dans le CLUB HOUSE
+- conserver exactement le score et l'etat d'un match interrompu avant la reconnexion
+- accorder 20 secondes pour revenir dans un match humain et 10 secondes contre une IA avant le forfait
+- afficher a l'adversaire humain un decompte dynamique pendant la reconnexion
+- proteger le vainqueur d'un match humain contre une reponse reseau tardive qui pourrait l'ejecter du tournoi
 - transferer automatiquement le role d'hote au joueur suivant lorsque l'hote quitte
 - enregistrer le score au moment d'un abandon en match, puis declarer le joueur forfait
 - afficher le Top 20 dans le lobby et le classement complet par pages de 25 joueurs

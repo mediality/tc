@@ -317,6 +317,7 @@ button:disabled {
 }
 
 .lobby-room-actions .friendly-spectator-button,
+.lobby-room-actions .friendly-resume-button,
 .profile-watch-button {
   color: #fff;
   background: #0f8d68;
@@ -3277,6 +3278,34 @@ h1 {
   color: #b91c1c;
   font-size: 4rem;
   line-height: 1.1;
+}
+
+.friendly-disconnect-modal {
+  width: min(480px, 100%);
+  text-align: center;
+}
+
+.friendly-disconnect-modal > p:not(.label) {
+  color: #425466;
+  font-weight: 750;
+}
+
+.friendly-disconnect-countdown {
+  display: grid;
+  grid-template-columns: 1fr 84px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+  border-radius: 8px;
+  padding: 14px;
+  color: #7f1d1d;
+  background: #fee2e2;
+  font-weight: 900;
+}
+
+.friendly-disconnect-countdown strong {
+  font-size: 2.8rem;
+  line-height: 1;
 }
 
 .waiting-room-modal {
