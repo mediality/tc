@@ -193,9 +193,25 @@ button:disabled {
 }
 
 .online-lobby-panel,
+.lobby-poster-panel,
 .weekly-circuit-panel,
 .ranking-panel {
   grid-column: 1 / -1;
+}
+
+.lobby-poster-panel {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 18px 44px rgba(2, 8, 23, 0.22);
+}
+
+.lobby-poster-panel img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1000 / 563;
+  object-fit: cover;
 }
 
 .menu-panel {

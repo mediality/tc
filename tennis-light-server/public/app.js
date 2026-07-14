@@ -571,48 +571,48 @@ const MATCH_RESULT_IMAGES = {
     lose: "assets/cards/HISTO4-Petra-Eckermann-LOSE.png",
   },
   jonasFalkenried: {
-    win: "assets/cards/Illu-Jonas-Falkenried.png",
-    lose: "assets/cards/Illu-Jonas-Falkenried.png",
+    win: "assets/cards/TC-result-Jonas-Falkenried-WIN.png",
+    lose: "assets/cards/TC-result-Jonas-Falkenried-LOSE.png",
   },
   yunaSeo: {
-    win: "assets/cards/Illu-Yuna-Seo.png",
-    lose: "assets/cards/Illu-Yuna-Seo.png",
+    win: "assets/cards/TC-result-Yuna-Seo-WIN.png",
+    lose: "assets/cards/TC-result-Yuna-Seo-LOSE.png",
   },
   ikerSalvat: {
-    win: "assets/cards/Illu-Iker-Salvat.png",
-    lose: "assets/cards/Illu-Iker-Salvat.png",
+    win: "assets/cards/TC-result-Iker-Salvat-WIN.png",
+    lose: "assets/cards/TC-result-Iker-Salvat-LOSE.png",
   },
   loganBrooks: {
-    win: "assets/cards/Illu-Logan-Brooks.png",
-    lose: "assets/cards/Illu-Logan-Brooks.png",
+    win: "assets/cards/TC-result-Logan-Brooks-WIN.png",
+    lose: "assets/cards/TC-result-Logan-Brooks-LOSE.png",
   },
   kavyaSaran: {
-    win: "assets/cards/Illu-Kavya-Saran.png",
-    lose: "assets/cards/Illu-Kavya-Saran.png",
+    win: "assets/cards/TC-result-Kavya-Saran-WIN.png",
+    lose: "assets/cards/TC-result-Kavya-Saran-LOSE.png",
   },
   zariaCampbell: {
-    win: "assets/cards/Illu-Zaria-Campbell.png",
-    lose: "assets/cards/Illu-Zaria-Campbell.png",
+    win: "assets/cards/TC-result-Zaria-Campbell-WIN.png",
+    lose: "assets/cards/TC-result-Zaria-Campbell-LOSE.png",
   },
   renAoshima: {
-    win: "assets/cards/Illu-Ren-Aoshima.png",
-    lose: "assets/cards/Illu-Ren-Aoshima.png",
+    win: "assets/cards/TC-result-Ren-Aoshima-WIN.png",
+    lose: "assets/cards/TC-result-Ren-Aoshima-LOSE.png",
   },
   yasmineElMansouri: {
-    win: "assets/cards/Illu-Yasmine-El-Mansouri.png",
-    lose: "assets/cards/Illu-Yasmine-El-Mansouri.png",
+    win: "assets/cards/TC-result-Yasmine-El-Mansouri-WIN.png",
+    lose: "assets/cards/TC-result-Yasmine-El-Mansouri-LOSE.png",
   },
   daanVermeer: {
-    win: "assets/cards/Illu-Daan-Vermeer.png",
-    lose: "assets/cards/Illu-Daan-Vermeer.png",
+    win: "assets/cards/TC-result-Daan-Vermeer-WIN.png",
+    lose: "assets/cards/TC-result-Daan-Vermeer-LOSE.png",
   },
   lukasEberhardt: {
-    win: "assets/cards/Illu-Lukas-Eberhardt.png",
-    lose: "assets/cards/Illu-Lukas-Eberhardt.png",
+    win: "assets/cards/TC-result-Lukas-Eberhardt-WIN.png",
+    lose: "assets/cards/TC-result-Lukas-Eberhardt-LOSE.png",
   },
   milanVerhaegen: {
-    win: "assets/cards/Illu-Milan-Verhaegen.png",
-    lose: "assets/cards/Illu-Milan-Verhaegen.png",
+    win: "assets/cards/TC-result-Milan-Verhaegen-WIN.png",
+    lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.png",
   },
 };
 
@@ -3282,7 +3282,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v106",
+    version: "v107",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
