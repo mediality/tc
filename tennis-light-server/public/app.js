@@ -3027,11 +3027,12 @@ function renderFriendlyLobbyScreen() {
         <h1>Tournoi amical</h1>
         <p>${participants.length}/4 humains · lancement possible dès 2 joueurs · Classic 2 sets</p>
       </div>
-      ${FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" ? `
-        <button class="primary-button" type="button" data-start-friendly-tournament ${canStart ? "" : "disabled"}>
-          ${canStart ? "LANCER" : "EN ATTENTE"}
-        </button>
-      ` : ""}
+      <div class="friendly-lobby-actions">
+        ${FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" ? `
+          <button class="primary-button" type="button" data-start-friendly-tournament ${canStart ? "" : "disabled"}>LANCER</button>
+        ` : ""}
+        <button class="small-button danger-button" type="button" data-leave-friendly-tournament>SORTIR</button>
+      </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
     <section>
@@ -3063,6 +3064,7 @@ function renderFriendlyLobbyScreen() {
   `;
   const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
   if (startButton && !waitingForPlayers) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
+  els.friendlyLobbyContent.querySelector("[data-leave-friendly-tournament]")?.addEventListener("click", leaveFriendlyTournamentLobby);
 }
 
 function friendlyLobbyStatusText() {
@@ -3085,6 +3087,13 @@ async function pollFriendlyTournament() {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}?participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId)}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token)}`);
+    if (response.status === 404) {
+      window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
+      FRIENDLY_TOURNAMENT.enabled = false;
+      resetTournament();
+      showMenuScreen();
+      return;
+    }
     if (!response.ok) throw new Error("poll failed");
     const data = await response.json();
     applyFriendlyTournamentState(data.tournament, data.currentMatch);
@@ -3100,6 +3109,7 @@ async function startFriendlyTournamentFromLobby() {
     renderFriendlyLobbyScreen();
     return;
   }
+  if (!window.confirm("Lancer le tournoi maintenant ? Plus aucun autre joueur ne pourra rejoindre le salon.")) return;
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
       method: "POST",
@@ -3114,6 +3124,27 @@ async function startFriendlyTournamentFromLobby() {
     state.log.unshift("Impossible de lancer le tournoi amical.");
     render();
   }
+}
+
+async function leaveFriendlyTournamentLobby() {
+  if (!FRIENDLY_TOURNAMENT.enabled) return;
+  if (!window.confirm("Sortir du salon et supprimer ce tournoi ?")) return;
+  try {
+    await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/leave`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token }),
+    });
+  } catch (error) {
+    // Même si le serveur ne répond plus, on revient au lobby local.
+  }
+  window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
+  FRIENDLY_TOURNAMENT.enabled = false;
+  FRIENDLY_TOURNAMENT.id = null;
+  FRIENDLY_TOURNAMENT.participantId = null;
+  FRIENDLY_TOURNAMENT.token = null;
+  resetTournament();
+  showMenuScreen();
 }
 
 async function reportFriendlyTournamentResult(matchOverride = null) {
@@ -3354,7 +3385,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v115",
+    version: "v116",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,

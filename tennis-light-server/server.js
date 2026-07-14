@@ -3416,6 +3416,20 @@ async function handleApi(req, res) {
     return;
   }
 
+  const friendlyLeaveMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/leave$/);
+  if (req.method === "POST" && friendlyLeaveMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyLeaveMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant) {
+      sendJson(res, 200, { ok: true, closed: true });
+      return;
+    }
+    friendlyTournaments.delete(tournament.id);
+    sendJson(res, 200, { ok: true, closed: true });
+    return;
+  }
+
   const friendlyStateMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)$/);
   if (req.method === "GET" && friendlyStateMatch) {
     const tournament = friendlyTournaments.get(friendlyStateMatch[1]);
