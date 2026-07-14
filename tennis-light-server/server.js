@@ -15,6 +15,7 @@ try {
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const rooms = new Map();
+const friendlyTournaments = new Map();
 const COACH_IDS = new Set(["coachJu", "coachMax", "coachCarla", "coachClem"]);
 const SESSION_COOKIE = "tc_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -2972,6 +2973,10 @@ function playerUrl(req, roomId, seat, token, isHost = false) {
   return `${publicBaseUrl(req)}/?room=${encodeURIComponent(roomId)}&seat=${seat}&token=${encodeURIComponent(token)}${isHost ? "&host=1" : ""}`;
 }
 
+function friendlyTournamentUrl(req, tournamentId, participantId, token) {
+  return `${publicBaseUrl(req)}/?friendlyTournament=${encodeURIComponent(tournamentId)}&participant=${encodeURIComponent(participantId)}&token=${encodeURIComponent(token)}`;
+}
+
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
@@ -3088,6 +3093,217 @@ function publicRoomInfo(req, room) {
   };
 }
 
+function friendlyParticipantEntry(participantId) {
+  return `human:${participantId}`;
+}
+
+function friendlyAiName(characterId) {
+  return AI_CHARACTER_NAMES[characterId] || characterId;
+}
+
+function makeFriendlyMatch(id, label, round, playerA = null, playerB = null) {
+  return { id, label, round, playerA, playerB, winner: null, score: null };
+}
+
+function friendlyEntryPublic(tournament, entry) {
+  if (!entry) return null;
+  if (String(entry).startsWith("human:")) {
+    const participant = tournament.participants.find((item) => friendlyParticipantEntry(item.id) === entry);
+    return participant ? {
+      entry,
+      type: "human",
+      participantId: participant.id,
+      nickname: participant.nickname,
+      characterId: participant.characterId,
+    } : { entry, type: "human", nickname: "Joueur", characterId: "coachJu" };
+  }
+  return { entry, type: "ai", nickname: friendlyAiName(entry), characterId: entry };
+}
+
+function publicFriendlyTournamentInfo(req, tournament, participant = null) {
+  return {
+    id: tournament.id,
+    status: tournament.status,
+    createdAt: tournament.createdAt,
+    updatedAt: tournament.updatedAt,
+    creatorParticipantId: tournament.creatorParticipantId,
+    participantCount: tournament.participants.length,
+    maxParticipants: 4,
+    canStart: tournament.status === "waiting" && tournament.participants.length >= 2,
+    participants: tournament.participants.map((item) => ({
+      id: item.id,
+      nickname: item.nickname,
+      characterId: item.characterId,
+      isCreator: item.id === tournament.creatorParticipantId,
+      eliminated: Boolean(item.eliminated),
+    })),
+    entries: (tournament.entries || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+    matches: (tournament.matches || []).map((match) => ({
+      ...match,
+      playerAInfo: friendlyEntryPublic(tournament, match.playerA),
+      playerBInfo: friendlyEntryPublic(tournament, match.playerB),
+      winnerInfo: friendlyEntryPublic(tournament, match.winner),
+    })),
+    round: tournament.round,
+    champion: tournament.champion || null,
+    championInfo: friendlyEntryPublic(tournament, tournament.champion),
+    ready: tournament.ready || {},
+    participant: participant ? {
+      id: participant.id,
+      token: participant.token,
+      isCreator: participant.id === tournament.creatorParticipantId,
+      entry: friendlyParticipantEntry(participant.id),
+    } : null,
+  };
+}
+
+function publicFriendlyLobbyInfo(req, tournament) {
+  return {
+    id: tournament.id,
+    status: tournament.status,
+    createdAt: tournament.createdAt,
+    updatedAt: tournament.updatedAt,
+    creatorNickname: tournament.participants[0]?.nickname || "Joueur",
+    participantCount: tournament.participants.length,
+    maxParticipants: 4,
+    canStart: tournament.status === "waiting" && tournament.participants.length >= 2,
+    participants: tournament.participants.map((item) => ({
+      nickname: item.nickname,
+      characterId: item.characterId,
+      isCreator: item.id === tournament.creatorParticipantId,
+    })),
+  };
+}
+
+function participantForToken(tournament, participantId, token) {
+  return tournament?.participants.find((item) => item.id === participantId && item.token === token) || null;
+}
+
+function userHasWaitingFriendlyTournament(userId) {
+  return [...friendlyTournaments.values()].some((tournament) => (
+    tournament.status === "waiting"
+    && tournament.participants.some((item) => String(item.userId) === String(userId))
+  ));
+}
+
+function buildFriendlyTournamentBracket(tournament) {
+  const humanEntries = tournament.participants.map((item) => friendlyParticipantEntry(item.id));
+  const usedCharacters = new Set(tournament.participants.map((item) => item.characterId));
+  const aiEntries = CIRCUIT_AI_CHARACTER_IDS
+    .filter((characterId) => !usedCharacters.has(characterId))
+    .slice(0, Math.max(0, 8 - humanEntries.length));
+  const entries = Array(8).fill(null);
+  [0, 2, 4, 6].forEach((position, index) => {
+    if (humanEntries[index]) entries[position] = humanEntries[index];
+  });
+  let aiIndex = 0;
+  for (let index = 0; index < entries.length; index += 1) {
+    if (!entries[index]) {
+      entries[index] = aiEntries[aiIndex] || CIRCUIT_AI_CHARACTER_IDS[aiIndex % CIRCUIT_AI_CHARACTER_IDS.length];
+      aiIndex += 1;
+    }
+  }
+  tournament.entries = entries;
+  tournament.matches = [
+    makeFriendlyMatch("qf1", "Quart de finale 1", "quarter", tournament.entries[0], tournament.entries[1]),
+    makeFriendlyMatch("qf2", "Quart de finale 2", "quarter", tournament.entries[2], tournament.entries[3]),
+    makeFriendlyMatch("qf3", "Quart de finale 3", "quarter", tournament.entries[4], tournament.entries[5]),
+    makeFriendlyMatch("qf4", "Quart de finale 4", "quarter", tournament.entries[6], tournament.entries[7]),
+    makeFriendlyMatch("semi1", "Demi-finale 1", "semi"),
+    makeFriendlyMatch("semi2", "Demi-finale 2", "semi"),
+    makeFriendlyMatch("final", "Finale", "final"),
+  ];
+  tournament.round = "quarter";
+  simulateFriendlyAiOnlyMatches(tournament);
+}
+
+function friendlyEntryIsHuman(entry) {
+  return String(entry || "").startsWith("human:");
+}
+
+function simulateFriendlyScore() {
+  const scores = [[6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
+  const first = scores[Math.floor(Math.random() * scores.length)];
+  const second = scores[Math.floor(Math.random() * scores.length)];
+  return `${first[0]}/${first[1]} - ${second[0]}/${second[1]}`;
+}
+
+function simulateFriendlyAiOnlyMatches(tournament) {
+  for (const match of tournament.matches) {
+    if (match.winner || !match.playerA || !match.playerB) continue;
+    if (friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB)) continue;
+    match.winner = Math.random() < 0.5 ? match.playerA : match.playerB;
+    match.score = simulateFriendlyScore();
+  }
+}
+
+function refreshFriendlyTournamentSlots(tournament) {
+  const byId = new Map(tournament.matches.map((match) => [match.id, match]));
+  const qf1 = byId.get("qf1");
+  const qf2 = byId.get("qf2");
+  const qf3 = byId.get("qf3");
+  const qf4 = byId.get("qf4");
+  const semi1 = byId.get("semi1");
+  const semi2 = byId.get("semi2");
+  const final = byId.get("final");
+  if (semi1 && qf1?.winner && qf2?.winner && !semi1.playerA && !semi1.playerB) {
+    semi1.playerA = qf1.winner;
+    semi1.playerB = qf2.winner;
+  }
+  if (semi2 && qf3?.winner && qf4?.winner && !semi2.playerA && !semi2.playerB) {
+    semi2.playerA = qf3.winner;
+    semi2.playerB = qf4.winner;
+  }
+  simulateFriendlyAiOnlyMatches(tournament);
+  if (semi1 && semi1.winner && semi2 && semi2.winner && !final?.playerA && !final?.playerB) {
+    // handled just below
+  }
+  if (final && semi1?.winner && semi2?.winner && !final.playerA && !final.playerB) {
+    final.playerA = semi1.winner;
+    final.playerB = semi2.winner;
+  }
+  simulateFriendlyAiOnlyMatches(tournament);
+  if (final?.winner) {
+    tournament.status = "complete";
+    tournament.round = "complete";
+    tournament.champion = final.winner;
+  } else if (final?.playerA && final?.playerB) {
+    tournament.round = "final";
+  } else if (semi1?.playerA || semi2?.playerA) {
+    tournament.round = "semi";
+  } else {
+    tournament.round = "quarter";
+  }
+}
+
+function currentFriendlyMatchForParticipant(tournament, participantId) {
+  const entry = friendlyParticipantEntry(participantId);
+  if (!friendlyRoundReadyForPlay(tournament)) return null;
+  return (tournament.matches || []).find((match) => (
+    !match.winner
+    && match.playerA
+    && match.playerB
+    && (match.playerA === entry || match.playerB === entry)
+    && (match.playerA === entry || !friendlyEntryIsHuman(match.playerA))
+  )) || null;
+}
+
+function friendlyRoundReadyForPlay(tournament) {
+  if (tournament.status !== "playing") return false;
+  if (tournament.round === "quarter") return true;
+  if (tournament.round === "complete") return false;
+  const aliveParticipantIds = new Set();
+  for (const match of tournament.matches || []) {
+    if (match.round !== tournament.round || match.winner || !match.playerA || !match.playerB) continue;
+    for (const entry of [match.playerA, match.playerB]) {
+      if (friendlyEntryIsHuman(entry)) aliveParticipantIds.add(String(entry).replace(/^human:/, ""));
+    }
+  }
+  if (!aliveParticipantIds.size) return true;
+  const ready = tournament.ready?.[tournament.round] || {};
+  return [...aliveParticipantIds].every((participantId) => ready[participantId]);
+}
+
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -3101,7 +3317,170 @@ async function handleApi(req, res) {
       .filter((room) => room.status === "waiting")
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((room) => publicRoomInfo(req, room));
-    sendJson(res, 200, { rooms: openRooms });
+    const tournaments = [...friendlyTournaments.values()]
+      .filter((tournament) => tournament.status === "waiting")
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((tournament) => publicFriendlyLobbyInfo(req, tournament));
+    sendJson(res, 200, { rooms: openRooms, tournaments });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/lobby/friendly-tournaments") {
+    const user = await requirePro(req, res);
+    if (!user) return;
+    if (userHasWaitingFriendlyTournament(user.id)) {
+      sendJson(res, 409, { error: "Vous êtes déjà dans un tournoi en attente." });
+      return;
+    }
+    const payload = await readJson(req);
+    let tournamentId = makeId(3);
+    while (friendlyTournaments.has(tournamentId)) tournamentId = makeId(3);
+    const participantId = makeId(4);
+    const participant = {
+      id: participantId,
+      token: makeToken(),
+      userId: user.id,
+      nickname: String(user.nickname || payload.nickname || "Joueur").slice(0, 24),
+      characterId: normalizeCharacterId(payload.characterId, "coachJu"),
+      joinedAt: Date.now(),
+    };
+    const tournament = {
+      id: tournamentId,
+      status: "waiting",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      creatorParticipantId: participantId,
+      participants: [participant],
+      entries: [],
+      matches: [],
+      round: "waiting",
+      ready: {},
+      champion: null,
+    };
+    friendlyTournaments.set(tournamentId, tournament);
+    sendJson(res, 201, {
+      tournament: publicFriendlyTournamentInfo(req, tournament, participant),
+      playerUrl: friendlyTournamentUrl(req, tournament.id, participant.id, participant.token),
+    });
+    return;
+  }
+
+  const friendlyJoinMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/join$/);
+  if (req.method === "POST" && friendlyJoinMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return;
+    const tournament = friendlyTournaments.get(friendlyJoinMatch[1]);
+    if (!tournament || tournament.status !== "waiting") {
+      sendJson(res, 404, { error: "Tournoi indisponible." });
+      return;
+    }
+    if (tournament.participants.length >= 4) {
+      sendJson(res, 409, { error: "Tournoi complet." });
+      return;
+    }
+    if (tournament.participants.some((item) => String(item.userId) === String(user.id))) {
+      sendJson(res, 409, { error: "Vous êtes déjà dans ce tournoi." });
+      return;
+    }
+    const payload = await readJson(req);
+    const participant = {
+      id: makeId(4),
+      token: makeToken(),
+      userId: user.id,
+      nickname: String(user.nickname || payload.nickname || "Joueur").slice(0, 24),
+      characterId: normalizeCharacterId(payload.characterId, "coachJu"),
+      joinedAt: Date.now(),
+    };
+    tournament.participants.push(participant);
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, {
+      tournament: publicFriendlyTournamentInfo(req, tournament, participant),
+      playerUrl: friendlyTournamentUrl(req, tournament.id, participant.id, participant.token),
+    });
+    return;
+  }
+
+  const friendlyStartMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/start$/);
+  if (req.method === "POST" && friendlyStartMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyStartMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    if (participant.id !== tournament.creatorParticipantId) {
+      sendJson(res, 403, { error: "Seul le créateur peut lancer le tournoi." });
+      return;
+    }
+    if (tournament.status !== "waiting" || tournament.participants.length < 2) {
+      sendJson(res, 409, { error: "Le tournoi ne peut pas démarrer." });
+      return;
+    }
+    tournament.status = "playing";
+    tournament.updatedAt = Date.now();
+    buildFriendlyTournamentBracket(tournament);
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
+  const friendlyStateMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)$/);
+  if (req.method === "GET" && friendlyStateMatch) {
+    const tournament = friendlyTournaments.get(friendlyStateMatch[1]);
+    const participant = participantForToken(tournament, url.searchParams.get("participantId"), url.searchParams.get("token"));
+    if (!tournament || !participant) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    refreshFriendlyTournamentSlots(tournament);
+    sendJson(res, 200, {
+      tournament: publicFriendlyTournamentInfo(req, tournament, participant),
+      currentMatch: currentFriendlyMatchForParticipant(tournament, participant.id),
+    });
+    return;
+  }
+
+  const friendlyResultMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/matches\/([^/]+)\/result$/);
+  if (req.method === "POST" && friendlyResultMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyResultMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant || tournament.status !== "playing") {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    const match = tournament.matches.find((item) => item.id === friendlyResultMatch[2]);
+    const entry = friendlyParticipantEntry(participant.id);
+    if (!match || match.winner || (match.playerA !== entry && match.playerB !== entry)) {
+      sendJson(res, 409, { error: "Match indisponible." });
+      return;
+    }
+    if (match.playerA !== entry && friendlyEntryIsHuman(match.playerA)) {
+      sendJson(res, 403, { error: "Ce match est joué par l'autre qualifié." });
+      return;
+    }
+    match.winner = String(payload.winner || "") === match.playerB ? match.playerB : match.playerA;
+    match.score = String(payload.score || "").slice(0, 80);
+    tournament.ready = {};
+    tournament.updatedAt = Date.now();
+    refreshFriendlyTournamentSlots(tournament);
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
+  const friendlyReadyMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/ready$/);
+  if (req.method === "POST" && friendlyReadyMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyReadyMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    tournament.ready[tournament.round] = tournament.ready[tournament.round] || {};
+    tournament.ready[tournament.round][participant.id] = true;
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
     return;
   }
 

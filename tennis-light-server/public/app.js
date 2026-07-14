@@ -47,6 +47,20 @@ const SERVER_SYNC = {
   revision: 0,
 };
 
+const FRIENDLY_TOURNAMENT = {
+  enabled: false,
+  id: null,
+  participantId: null,
+  token: null,
+  isCreator: false,
+  entry: null,
+  currentMatchId: null,
+  lastReportedMatchId: null,
+  readyRound: null,
+  pollTimer: null,
+  waitingForNextRound: false,
+};
+
 const SOLO_AI = {
   enabled: false,
   playerIndex: 1,
@@ -1096,6 +1110,7 @@ const els = {
   coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
   refreshLobbyButton: document.querySelector("#refreshLobbyButton"),
   createLobbyRoomButton: document.querySelector("#createLobbyRoomButton"),
+  createFriendlyTournamentButton: document.querySelector("#createFriendlyTournamentButton"),
   onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
   lobbyRooms: document.querySelector("#lobbyRooms"),
   revealAiButton: document.querySelector("#revealAiButton"),
@@ -1127,6 +1142,16 @@ function serverSyncParams() {
     seat: Number(params.get("seat")),
     isHost: params.get("host") === "1",
     targetSets: params.has("targetSets") ? Number(params.get("targetSets")) : null,
+  };
+}
+
+function friendlyTournamentParams() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("friendlyTournament") || !params.has("participant") || !params.has("token")) return null;
+  return {
+    id: params.get("friendlyTournament"),
+    participantId: params.get("participant"),
+    token: params.get("token"),
   };
 }
 
@@ -2766,13 +2791,22 @@ async function startSoloFromMenu(mode) {
   }
 }
 
-function renderLobbyRooms(rooms = []) {
+function renderLobbyRooms(rooms = [], tournaments = []) {
   if (!els.lobbyRooms) return;
-  if (!rooms.length) {
+  if (!rooms.length && !tournaments.length) {
     els.lobbyRooms.innerHTML = '<div class="lobby-empty">Aucune partie ouverte pour le moment.</div>';
     return;
   }
-  els.lobbyRooms.innerHTML = rooms.map((room) => {
+  const tournamentHtml = tournaments.map((tournament) => `
+    <article class="lobby-room friendly-tournament-room">
+      <div>
+        <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Tournoi amical</strong>
+        <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants</span>
+      </div>
+      <button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>
+    </article>
+  `).join("");
+  const roomHtml = rooms.map((room) => {
     const host = room.players.find(Boolean);
     const format = room.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     const coach = characterNameFromId(normalizeCharacterId(host?.characterId, "coachJu"));
@@ -2786,8 +2820,12 @@ function renderLobbyRooms(rooms = []) {
       </article>
     `;
   }).join("");
+  els.lobbyRooms.innerHTML = `${tournamentHtml}${roomHtml}`;
   els.lobbyRooms.querySelectorAll("[data-join-room]").forEach((button) => {
     button.addEventListener("click", () => joinLobbyRoom(button.dataset.joinRoom));
+  });
+  els.lobbyRooms.querySelectorAll("[data-join-friendly-tournament]").forEach((button) => {
+    button.addEventListener("click", () => joinFriendlyTournament(button.dataset.joinFriendlyTournament));
   });
 }
 
@@ -2801,9 +2839,46 @@ async function refreshLobbyRooms() {
     const response = await fetch("/api/lobby");
     if (!response.ok) throw new Error("lobby unavailable");
     const data = await response.json();
-    renderLobbyRooms(data.rooms ?? []);
+    renderLobbyRooms(data.rooms ?? [], data.tournaments ?? []);
   } catch (error) {
     els.lobbyRooms.innerHTML = '<div class="lobby-empty">Lobby indisponible sur cette version locale.</div>';
+  }
+}
+
+async function createFriendlyTournament() {
+  if (!canAccessProFeatures()) {
+    if (els.lobbyRooms) els.lobbyRooms.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
+    return;
+  }
+  try {
+    const response = await fetch("/api/lobby/friendly-tournaments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nickname: nicknameValue(), characterId: selectedCharacterId() }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "create failed");
+    }
+    const data = await response.json();
+    window.location.href = data.playerUrl;
+  } catch (error) {
+    els.lobbyRooms.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message || "Impossible de créer le tournoi.")}</div>`;
+  }
+}
+
+async function joinFriendlyTournament(tournamentId) {
+  try {
+    const response = await fetch(`/api/lobby/friendly-tournaments/${encodeURIComponent(tournamentId)}/join`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ nickname: nicknameValue(), characterId: selectedCharacterId() }),
+    });
+    if (!response.ok) throw new Error("join failed");
+    const data = await response.json();
+    window.location.href = data.playerUrl;
+  } catch (error) {
+    await refreshLobbyRooms();
   }
 }
 
@@ -2844,6 +2919,180 @@ async function joinLobbyRoom(roomId) {
   } catch (error) {
     await refreshLobbyRooms();
   }
+}
+
+function friendlyEntryInfo(entry) {
+  return (state.tournament.friendlyEntries || []).find((item) => item.entry === entry) || null;
+}
+
+function friendlyEntryCharacterId(entry) {
+  const info = friendlyEntryInfo(entry);
+  return normalizeCharacterId(info?.characterId || entry, "coachJu");
+}
+
+function applyFriendlyTournamentState(payload, currentMatch = null) {
+  if (!payload) return;
+  FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator);
+  FRIENDLY_TOURNAMENT.entry = payload.participant?.entry || FRIENDLY_TOURNAMENT.entry;
+  const currentLocalMatch = state.tournament?.currentMatch;
+  const keepReadyNext = state.tournament?.friendly
+    && state.gameOver
+    && state.setMatch.matchOver
+    && state.tournament.stage === "readyNext"
+    && payload.round !== "complete"
+    && !currentMatch?.id;
+  const matches = (payload.matches || []).map((match) => ({
+    id: match.id,
+    label: match.label,
+    round: match.round,
+    playerA: match.playerA,
+    playerB: match.playerB,
+    winner: match.winner,
+    score: match.score,
+    liveScore: null,
+    playable: match.playerA === FRIENDLY_TOURNAMENT.entry || match.playerB === FRIENDLY_TOURNAMENT.entry,
+    simulated: false,
+  }));
+  if (!state.tournament.active || !state.tournament.friendly) {
+    state.tournament = {
+      ...cloneData(EMPTY_TOURNAMENT),
+      active: true,
+      visible: true,
+      friendly: true,
+      difficulty: "normal",
+      competitionName: "Tournoi amical en ligne",
+      stage: payload.round || "waiting",
+      targetSets: 2,
+      humanCharacterId: selectedCharacterId(),
+      humanEntry: FRIENDLY_TOURNAMENT.entry,
+      currentMatch: null,
+      nextHumanMatchId: null,
+      championCharacterId: payload.champion,
+      friendlyEntries: payload.entries || [],
+      friendlyParticipants: payload.participants || [],
+      matches,
+    };
+  } else {
+    state.tournament.stage = keepReadyNext ? "readyNext" : (payload.round || state.tournament.stage);
+    state.tournament.championCharacterId = payload.champion;
+    state.tournament.friendlyEntries = payload.entries || [];
+    state.tournament.friendlyParticipants = payload.participants || [];
+    state.tournament.matches = matches;
+    state.tournament.currentMatch = currentLocalMatch && matches.some((match) => match.id === currentLocalMatch && !match.winner) ? currentLocalMatch : null;
+  }
+  if (currentMatch?.id && !state.tournament.currentMatch && FRIENDLY_TOURNAMENT.currentMatchId !== currentMatch.id) {
+    FRIENDLY_TOURNAMENT.currentMatchId = currentMatch.id;
+    startFriendlyTournamentMatch(currentMatch);
+  } else if (!currentMatch?.id && state.tournament.friendly && !state.gameOver) {
+    state.tournament.currentMatch = null;
+  }
+  render();
+}
+
+function startFriendlyTournamentMatch(match) {
+  if (!match) return;
+  FRIENDLY_TOURNAMENT.waitingForNextRound = false;
+  FRIENDLY_TOURNAMENT.readyRound = null;
+  state.tournament.stage = match.round;
+  state.tournament.currentMatch = match.id;
+  state.tournament.nextHumanMatchId = null;
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  SOLO_AI.characterId = friendlyEntryCharacterId(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  startMatchMode(2, { keepSoloOpponent: true });
+  state.tournament.stage = match.round;
+  state.tournament.currentMatch = match.id;
+  state.log.unshift(`${match.label} : ${nicknameValue()} contre ${tournamentPlayerLabel(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA)}.`);
+  render();
+}
+
+async function pollFriendlyTournament() {
+  if (!FRIENDLY_TOURNAMENT.enabled) return;
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}?participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId)}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token)}`);
+    if (!response.ok) throw new Error("poll failed");
+    const data = await response.json();
+    applyFriendlyTournamentState(data.tournament, data.currentMatch);
+  } catch (error) {
+    state.log.unshift("Tournoi amical indisponible pour le moment.");
+    render();
+  }
+}
+
+async function startFriendlyTournamentFromLobby() {
+  if (!FRIENDLY_TOURNAMENT.enabled || !FRIENDLY_TOURNAMENT.isCreator) return;
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token }),
+    });
+    if (!response.ok) throw new Error("start failed");
+    const data = await response.json();
+    applyFriendlyTournamentState(data.tournament, null);
+    pollFriendlyTournament();
+  } catch (error) {
+    state.log.unshift("Impossible de lancer le tournoi amical.");
+    render();
+  }
+}
+
+async function reportFriendlyTournamentResult() {
+  if (!FRIENDLY_TOURNAMENT.enabled || !state.tournament.currentMatch || FRIENDLY_TOURNAMENT.lastReportedMatchId === state.tournament.currentMatch) return;
+  const match = tournamentMatchById(state.tournament.currentMatch);
+  if (!match || !state.setMatch.matchOver) return;
+  const winner = state.setMatch.matchWinner === 0
+    ? FRIENDLY_TOURNAMENT.entry
+    : (match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  FRIENDLY_TOURNAMENT.lastReportedMatchId = match.id;
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(match.id)}/result`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        winner,
+        score: tournamentCompletedSetScore(match),
+      }),
+    });
+    if (!response.ok) throw new Error("result failed");
+    const data = await response.json();
+    applyFriendlyTournamentState(data.tournament, null);
+  } catch (error) {
+    FRIENDLY_TOURNAMENT.lastReportedMatchId = null;
+    state.log.unshift("Résultat non envoyé au tournoi amical.");
+    render();
+  }
+}
+
+async function readyFriendlyTournamentNextMatch() {
+  if (!FRIENDLY_TOURNAMENT.enabled || !state.tournament.active) return;
+  FRIENDLY_TOURNAMENT.waitingForNextRound = true;
+  FRIENDLY_TOURNAMENT.readyRound = state.tournament.stage;
+  try {
+    await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/ready`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token }),
+    });
+    await pollFriendlyTournament();
+  } catch (error) {
+    state.log.unshift("Validation du match suivant impossible.");
+    render();
+  }
+}
+
+function initFriendlyTournament() {
+  const params = friendlyTournamentParams();
+  if (!params) return;
+  FRIENDLY_TOURNAMENT.enabled = true;
+  FRIENDLY_TOURNAMENT.id = params.id;
+  FRIENDLY_TOURNAMENT.participantId = params.participantId;
+  FRIENDLY_TOURNAMENT.token = params.token;
+  showGameScreen();
+  pollFriendlyTournament();
+  FRIENDLY_TOURNAMENT.pollTimer = window.setInterval(pollFriendlyTournament, 1400);
 }
 
 function cloneCard(card, copyIndex) {
@@ -6614,6 +6863,7 @@ function isHumanTournamentEntry(entry) {
 }
 
 function tournamentEntryCharacterId(entry) {
+  if (state.tournament?.friendly) return friendlyEntryCharacterId(entry);
   return isHumanTournamentEntry(entry) ? state.tournament.humanCharacterId : entry;
 }
 
@@ -6670,6 +6920,10 @@ function tournamentCompletedSetScore(match = null) {
 
 function handleTournamentMatchComplete() {
   if (!state.tournament.active || !state.setMatch.matchOver) return;
+  if (state.tournament.friendly) {
+    handleFriendlyTournamentMatchComplete();
+    return;
+  }
   if (state.tournament.league) {
     handleLeagueTournamentMatchComplete();
     return;
@@ -6727,6 +6981,28 @@ function handleTournamentMatchComplete() {
     state.log.unshift(`Tournoi gagné par ${characterNameFromId(winnerCharacterId)}.`);
   }
   recordWeeklyCompetitionResult();
+}
+
+function handleFriendlyTournamentMatchComplete() {
+  const match = tournamentMatchById(state.tournament.currentMatch);
+  if (!match || match.winner) return;
+  const winnerEntry = state.setMatch.matchWinner === 0
+    ? FRIENDLY_TOURNAMENT.entry
+    : (match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  match.winner = winnerEntry;
+  match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
+  match.score = formatSetScores(match.revealedSetScores);
+  match.liveScore = null;
+  state.tournament.currentMatch = null;
+  if (winnerEntry === FRIENDLY_TOURNAMENT.entry) {
+    state.tournament.stage = "readyNext";
+    state.log.unshift("Match terminé. Clique sur MATCH SUIVANT quand tu es prêt.");
+  } else {
+    state.tournament.stage = "complete";
+    state.log.unshift("Tu es éliminé du tournoi amical.");
+  }
+  reportFriendlyTournamentResult();
+  render();
 }
 
 function handleLeagueTournamentMatchComplete() {
@@ -7524,6 +7800,10 @@ function renderTournamentPanel() {
     return;
   }
   const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
+  if (state.tournament.friendly && state.tournament.stage === "waiting") {
+    renderFriendlyTournamentWaitingPanel(title);
+    return;
+  }
   const locationText = state.tournament.weekly
     ? [state.tournament.competitionCity, state.tournament.competitionCountry, state.tournament.competitionFlag].filter(Boolean).join(" · ")
     : "";
@@ -7587,6 +7867,34 @@ function renderTournamentPanel() {
   els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
   els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", startTournamentSemi);
   els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", startTournamentFinal);
+}
+
+function renderFriendlyTournamentWaitingPanel(title) {
+  const participants = state.tournament.friendlyParticipants || [];
+  const canStart = FRIENDLY_TOURNAMENT.isCreator && participants.length >= 2;
+  els.tournamentPanel.innerHTML = `
+    <div class="tournament-header">
+      <div>
+        <p class="eyebrow">Salon de tournoi</p>
+        <h2>${escapeHtml(title)}</h2>
+        <span class="difficulty-reminder">${participants.length}/4 participants · Classic 2 sets · tableau à 8</span>
+      </div>
+      ${canStart ? '<button class="primary-button tournament-toggle-button" type="button" data-start-friendly-tournament>Lancer</button>' : ""}
+    </div>
+    <div class="lobby-rooms">
+      ${participants.map((participant) => `
+        <article class="lobby-room">
+          <div>
+            <strong>${escapeHtml(participant.nickname || "Joueur")}${participant.isCreator ? " · Créateur" : ""}</strong>
+            <span>${escapeHtml(characterNameFromId(participant.characterId))}</span>
+          </div>
+          <span>${participant.eliminated ? "Éliminé" : "En attente"}</span>
+        </article>
+      `).join("")}
+    </div>
+  `;
+  els.tournamentPanel.classList.remove("hidden");
+  els.tournamentPanel.querySelector("[data-start-friendly-tournament]")?.addEventListener("click", startFriendlyTournamentFromLobby);
 }
 
 function renderLeagueTournamentPanel(title, final, champion) {
@@ -7686,6 +7994,10 @@ function renderTournamentMatch(match, isFinal = false) {
 }
 
 function tournamentPlayerLabel(entry) {
+  if (state.tournament?.friendly) {
+    const info = friendlyEntryInfo(entry);
+    return info?.nickname || characterNameFromId(friendlyEntryCharacterId(entry));
+  }
   return isHumanTournamentEntry(entry)
     ? nicknameValue()
     : characterNameFromId(entry);
@@ -7978,6 +8290,10 @@ function renderCenterNextSetButton() {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>Sortir du tournoi</button>';
   }
   if (state.tournament.active && state.gameOver && state.setMatch.matchOver) {
+    if (state.tournament.friendly && state.tournament.stage === "readyNext") {
+      const label = FRIENDLY_TOURNAMENT.waitingForNextRound ? "EN ATTENTE DES AUTRES JOUEURS" : "MATCH SUIVANT";
+      return `<button class="primary-button next-exchange-button next-set-button" type="button" data-start-tournament-next-match>${label}</button>`;
+    }
     if (state.tournament.stage === "readyNext") {
       return '<button class="primary-button next-exchange-button next-set-button" type="button" data-start-tournament-next-match>MATCH SUIVANT</button>';
     }
@@ -8012,6 +8328,10 @@ function bindCenterButtons() {
 
 function startTournamentNextMatchFromCenter() {
   if (!state.tournament.active) return;
+  if (state.tournament.friendly) {
+    readyFriendlyTournamentNextMatch();
+    return;
+  }
   if (state.tournament.stage === "readyNext" || state.tournament.stage === "readySemi") {
     startTournamentSemi();
     return;
@@ -8559,6 +8879,7 @@ function initMenu() {
   els.aiDifficultyButton?.addEventListener("click", cycleTournamentDifficulty);
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
+  els.createFriendlyTournamentButton?.addEventListener("click", createFriendlyTournament);
   refreshLobbyRooms();
   loadRanking();
   loadCompetitions();
@@ -8603,4 +8924,5 @@ window.forceSoloAITurn = forceSoloAITurn;
 window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
 newGame();
 initMenu();
+initFriendlyTournament();
 initServerSync();
