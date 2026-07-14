@@ -2566,8 +2566,10 @@ h1 {
   font-size: 0.9rem;
 }
 
-.play-button.risky-play-button {
+.play-button.risky-play-button,
+.boost-button.risky-play-button {
   background: var(--danger);
+  color: #fff;
 }
 
 .boost-button {

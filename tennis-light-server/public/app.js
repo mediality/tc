@@ -4349,6 +4349,25 @@ function absorbServerLogs(logs = []) {
   writeStoredJson(ACTION_LOG_STORAGE_KEY, merged.slice(-5000));
 }
 
+function formatPermanentBonusStats(bonus) {
+  const stats = [
+    Number(bonus?.power || 0) ? `+${Number(bonus.power)} puissance sur les Coups` : "",
+    Number(bonus?.precision || 0) ? `+${Number(bonus.precision)} précision` : "",
+    Number(bonus?.placement || 0) ? `+${Number(bonus.placement)} placement` : "",
+  ].filter(Boolean);
+  return stats.length ? stats.join(" / ") : null;
+}
+
+function permanentBonusLogLine(player) {
+  const bonuses = player.permanentBonuses ?? [];
+  if (!bonuses.length) return `Bonus permanent de ${player.name} : aucun.`;
+  const details = bonuses.map((bonus) => {
+    const stats = formatPermanentBonusStats(bonus);
+    return stats ? `${bonus.label} (${stats})` : bonus.label;
+  }).join(" ; ");
+  return `Bonus permanent de ${player.name} : ${details}.`;
+}
+
 function exportLogsFile() {
   if (SERVER_SYNC.enabled && !canAccessAdminFeatures()) return;
   const detailedActions = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
@@ -4356,7 +4375,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v129",
+    version: "v130",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4490,6 +4509,11 @@ function newGame(options = {}) {
   const setText = state.setMatch.enabled ? ` Set ${state.setMatch.score[0]}/${state.setMatch.score[1]}.` : "";
   const decisiveText = state.setMatch.decisiveExchange ? " Échange décisif." : "";
   state.log = [`${playerName(state.server)} sert. L'échange commence.${setText}${decisiveText}`];
+  const shouldLogPermanentBonuses = !state.setMatch.enabled || state.setMatch.exchangeNumber <= 1;
+  if (shouldLogPermanentBonuses) {
+    state.log.unshift(permanentBonusLogLine(state.players[1]));
+    state.log.unshift(permanentBonusLogLine(state.players[0]));
+  }
   recordAction("exchange_start", {
     playerIndex: state.server,
     playerName: playerName(state.server),
@@ -4744,7 +4768,7 @@ function getCardStats(player, card, boosted) {
   const aiPowerBonus = aiDifficulty === "hardcore" && !isRemise(card) ? 1 : 0;
   const permanentPrecisionBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.precision || 0), 0);
   const permanentPlacementBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.placement || 0), 0);
-  const permanentPowerBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
+  const permanentPowerBonus = isRemise(card) ? 0 : (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus;
   precision += permanentPrecisionBonus;
   let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + aiStatBonus + permanentPlacementBonus;
@@ -7736,6 +7760,7 @@ function buildTournamentPermanentBonuses(entries = [], seededEntries = [], dynam
   }
 
   for (const entry of seededEntries) {
+    if (entry === HUMAN_TOURNAMENT_ENTRY) continue;
     addPermanentBonus(bonuses, entry, {
       id: "seededPermanent",
       label: "Tête de série : +1 précision / +1 placement",
@@ -7745,6 +7770,7 @@ function buildTournamentPermanentBonuses(entries = [], seededEntries = [], dynam
   }
 
   for (const entry of usedEntries) {
+    if (entry === HUMAN_TOURNAMENT_ENTRY) continue;
     const characterId = entry === HUMAN_TOURNAMENT_ENTRY ? selectedCharacterId() : entry;
     const eligibleHistoric = HISTORIC_TOURNAMENT_PLAYERS.includes(characterId);
     const eligibleMomentum = dynamicBonusIds.includes(entry);
@@ -9767,10 +9793,12 @@ function renderCard(playerIndex, card) {
   const stats = getCardStats(player, card, false);
   const placementTotal = totalTurnPlacement(playerIndex, card, false);
   const placementIssue = !isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex];
+  const remisePlacementIssue = isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex];
   const imageUrl = CARD_IMAGES[card.id];
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
+  const riskyRemiseClass = remisePlacementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
   if (isHidden) {
     return `
       <article class="card has-visual hidden-hand-card">
@@ -9815,13 +9843,13 @@ function renderCard(playerIndex, card) {
       <div class="card-actions ${isRemise(card) ? "remise-actions" : ""}">
         ${isRemise(card) ? `
           <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span>${cost} END</span><strong>Effet</strong></button>
-          <button class="boost-button" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
+          <button class="boost-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
         ` : `
           <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
           <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
-      ${placementIssue && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
+      ${(placementIssue || remisePlacementIssue) && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
     </article>
   `;
 }
