@@ -45,6 +45,7 @@ const SERVER_SYNC = {
   timer: null,
   pollTimer: null,
   revision: 0,
+  friendlyMatch: false,
 };
 
 const FRIENDLY_TOURNAMENT = {
@@ -2780,6 +2781,7 @@ function leaveOnlineRoom() {
   SERVER_SYNC.players = [null, null];
   SERVER_SYNC.lastSent = "";
   SERVER_SYNC.revision = 0;
+  SERVER_SYNC.friendlyMatch = false;
 }
 
 async function notifyServerLeaveRoom() {
@@ -3180,6 +3182,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     forfeitParticipantId: match.forfeitParticipantId || null,
     group: match.group || null,
     day: match.day || null,
+    humanVsHuman: Boolean(match.humanVsHuman || (match.playerAInfo?.type === "human" && match.playerBInfo?.type === "human")),
     playable: match.playerA === FRIENDLY_TOURNAMENT.entry || match.playerB === FRIENDLY_TOURNAMENT.entry,
     simulated: false,
   }));
@@ -3230,9 +3233,27 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     showFriendlyForfeitDialog(forfeitVictory);
     return;
   }
-  if (currentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== currentMatch.id) {
-    FRIENDLY_TOURNAMENT.currentMatchId = currentMatch.id;
-    startFriendlyTournamentMatch(currentMatch);
+  const completedActiveMatch = FRIENDLY_TOURNAMENT.inMatch
+    ? matches.find((match) => match.id === FRIENDLY_TOURNAMENT.currentMatchId && match.winner)
+    : null;
+  if (completedActiveMatch) {
+    window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
+    if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
+    FRIENDLY_TOURNAMENT.inMatch = false;
+    FRIENDLY_TOURNAMENT.currentMatchId = null;
+    state.tournament.currentMatch = null;
+    SOLO_AI.enabled = false;
+    stopSoloTimers();
+    showFriendlyLobbyScreen();
+    renderFriendlyLobbyScreen();
+    return;
+  }
+  const nextCurrentMatch = currentMatch?.id
+    ? { ...(matches.find((match) => match.id === currentMatch.id) || currentMatch), session: currentMatch.session || null }
+    : null;
+  if (nextCurrentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== nextCurrentMatch.id) {
+    FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
+    startFriendlyTournamentMatch(nextCurrentMatch);
     return;
   }
   if (!FRIENDLY_TOURNAMENT.inMatch) {
@@ -3263,6 +3284,10 @@ function showFriendlyForfeitDialog(match) {
 
 function startFriendlyTournamentMatch(match) {
   if (!match) return;
+  if (match.humanVsHuman || (match.playerAInfo?.type === "human" && match.playerBInfo?.type === "human")) {
+    startFriendlyHumanTournamentMatch(match);
+    return;
+  }
   FRIENDLY_TOURNAMENT.waitingForNextRound = false;
   FRIENDLY_TOURNAMENT.readyRound = null;
   FRIENDLY_TOURNAMENT.inMatch = true;
@@ -3282,6 +3307,58 @@ function startFriendlyTournamentMatch(match) {
   FRIENDLY_TOURNAMENT.lastStreamPayload = "";
   publishFriendlyTournamentLiveState();
   FRIENDLY_TOURNAMENT.streamTimer = window.setInterval(publishFriendlyTournamentLiveState, 900);
+}
+
+function startFriendlyHumanTournamentMatch(match) {
+  const seat = Number(match.session?.seat ?? (match.playerA === FRIENDLY_TOURNAMENT.entry ? 0 : 1));
+  const isHost = seat === 0;
+  const sharedSessionStarted = Number(match.session?.revision || 0) > 0;
+  const players = [match.playerAInfo, match.playerBInfo].map((player, playerSeat) => ({
+    seat: playerSeat,
+    nickname: player?.nickname || "Joueur",
+    characterId: normalizeCharacterId(player?.characterId, playerSeat === 0 ? "coachJu" : "coachMax"),
+    isHost: playerSeat === 0,
+  }));
+  leaveOnlineRoom();
+  stopSoloTimers();
+  SOLO_AI.enabled = false;
+  FRIENDLY_TOURNAMENT.waitingForNextRound = false;
+  FRIENDLY_TOURNAMENT.readyRound = null;
+  FRIENDLY_TOURNAMENT.inMatch = true;
+  SERVER_SYNC.enabled = true;
+  SERVER_SYNC.friendlyMatch = true;
+  SERVER_SYNC.roomId = match.id;
+  SERVER_SYNC.token = FRIENDLY_TOURNAMENT.token;
+  SERVER_SYNC.seat = seat;
+  SERVER_SYNC.isHost = isHost;
+  SERVER_SYNC.targetSets = Number(state.tournament.targetSets || 2);
+  SERVER_SYNC.status = "playing";
+  SERVER_SYNC.hostSeat = 0;
+  SERVER_SYNC.players = players;
+  SERVER_SYNC.initializing = isHost && !sharedSessionStarted;
+  SERVER_SYNC.ready = false;
+  SERVER_SYNC.localDirty = false;
+  SERVER_SYNC.lastSent = "";
+  SERVER_SYNC.revision = Number(match.session?.revision || 0);
+  showGameScreen();
+  state.tournament.stage = match.round;
+  state.tournament.currentMatch = match.id;
+  state.tournament.nextHumanMatchId = null;
+  if (isHost && !sharedSessionStarted) {
+    startMatchMode(SERVER_SYNC.targetSets);
+    state.tournament.stage = match.round;
+    state.tournament.currentMatch = match.id;
+    state.log.unshift(`${match.label} : session partagée entre ${players[0].nickname} et ${players[1].nickname}.`);
+  } else {
+    resetSetMatch();
+    state.players = players.map((player) => createPlayer(characterNameFromId(player.characterId), player.characterId, player.nickname));
+    state.players.forEach((player) => { player.hand = []; });
+    state.log = [`${match.label} : reprise de la session partagée entre ${players[0].nickname} et ${players[1].nickname}.`];
+    render();
+  }
+  pollServerState();
+  window.clearInterval(SERVER_SYNC.pollTimer);
+  SERVER_SYNC.pollTimer = window.setInterval(pollServerState, 500);
 }
 
 function friendlyLiveScoreText(match = tournamentMatchById(state.tournament.currentMatch)) {
@@ -3723,6 +3800,7 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
 }
 
 function resetFriendlyTournamentConnection() {
+  if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
   window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
   window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
   window.clearInterval(SPECTATOR_MODE.pollTimer);
@@ -3745,9 +3823,13 @@ async function reportFriendlyTournamentResult(matchOverride = null) {
   const match = matchOverride || tournamentMatchById(state.tournament.currentMatch);
   if (!FRIENDLY_TOURNAMENT.enabled || !match || FRIENDLY_TOURNAMENT.lastReportedMatchId === match.id) return;
   if (!match || !state.setMatch.matchOver) return;
-  const winner = state.setMatch.matchWinner === 0
-    ? FRIENDLY_TOURNAMENT.entry
-    : (match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  const sharedHumanMatch = Boolean(SERVER_SYNC.friendlyMatch || match.humanVsHuman);
+  const winner = sharedHumanMatch
+    ? (state.setMatch.matchWinner === 0 ? match.playerA : match.playerB)
+    : state.setMatch.matchWinner === 0
+      ? FRIENDLY_TOURNAMENT.entry
+      : (match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  const finalSharedState = sharedHumanMatch ? exportSyncState() : null;
   FRIENDLY_TOURNAMENT.lastReportedMatchId = match.id;
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(match.id)}/result`, {
@@ -3758,6 +3840,7 @@ async function reportFriendlyTournamentResult(matchOverride = null) {
         token: FRIENDLY_TOURNAMENT.token,
         winner,
         score: tournamentCompletedSetScore(match),
+        state: finalSharedState,
       }),
     });
     if (!response.ok) throw new Error("result failed");
@@ -3981,7 +4064,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v123",
+    version: "v124",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4194,11 +4277,23 @@ function exportSyncState() {
 }
 
 function importSyncState(remoteState) {
+  const friendlyIdentity = SERVER_SYNC.friendlyMatch ? {
+    humanEntry: FRIENDLY_TOURNAMENT.entry,
+    humanCharacterId: friendlyEntryCharacterId(FRIENDLY_TOURNAMENT.entry),
+    friendlyParticipants: state.tournament?.friendlyParticipants,
+    friendlyEntries: state.tournament?.friendlyEntries,
+  } : null;
   SERVER_SYNC.applyingRemote = true;
   for (const key of SYNC_STATE_KEYS) {
     if (remoteState && Object.prototype.hasOwnProperty.call(remoteState, key)) {
       state[key] = cloneData(remoteState[key]);
     }
+  }
+  if (friendlyIdentity && state.tournament) {
+    state.tournament.humanEntry = friendlyIdentity.humanEntry;
+    state.tournament.humanCharacterId = friendlyIdentity.humanCharacterId;
+    state.tournament.friendlyParticipants = friendlyIdentity.friendlyParticipants;
+    state.tournament.friendlyEntries = friendlyIdentity.friendlyEntries;
   }
   render();
   SERVER_SYNC.applyingRemote = false;
@@ -7647,6 +7742,7 @@ function setMatchPlayers(match, playerA, playerB) {
 function tournamentCompletedSetScoresForMatch(match) {
   const scores = state.setMatch.completedScores.map((score) => [...score]);
   if (!match) return scores;
+  if (SERVER_SYNC.friendlyMatch) return scores;
   const human = humanTournamentEntry();
   if (match.playerB === human) {
     return scores.map((score) => [score[1], score[0]]);
@@ -7726,15 +7822,19 @@ function handleTournamentMatchComplete() {
 function handleFriendlyTournamentMatchComplete() {
   const match = tournamentMatchById(state.tournament.currentMatch);
   if (!match || match.winner) return;
-  const winnerEntry = state.setMatch.matchWinner === 0
-    ? FRIENDLY_TOURNAMENT.entry
-    : (match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  const sharedHumanMatch = Boolean(SERVER_SYNC.friendlyMatch || match.humanVsHuman);
+  const winnerEntry = sharedHumanMatch
+    ? (state.setMatch.matchWinner === 0 ? match.playerA : match.playerB)
+    : state.setMatch.matchWinner === 0
+      ? FRIENDLY_TOURNAMENT.entry
+      : (match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
   match.winner = winnerEntry;
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
   window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
   reportFriendlyTournamentResult(match);
+  if (sharedHumanMatch) leaveOnlineRoom();
   FRIENDLY_TOURNAMENT.inMatch = false;
   state.tournament.currentMatch = null;
   if (winnerEntry === FRIENDLY_TOURNAMENT.entry) {
@@ -8884,11 +8984,11 @@ function renderServerSyncPanel() {
     panel.className = "sync-panel";
     document.querySelector(".topbar")?.append(panel);
   }
-  const inviteUrl = canAccessAdminFeatures() ? (SERVER_SYNC.inviteUrl ?? "") : "";
+  const inviteUrl = !SERVER_SYNC.friendlyMatch && canAccessAdminFeatures() ? (SERVER_SYNC.inviteUrl ?? "") : "";
   const localPlayer = state.players[SERVER_SYNC.seat];
   const localLabel = localPlayer ? `${localPlayer.nickname ?? localPlayer.name} · ${localPlayer.name}` : `Siège ${SERVER_SYNC.seat + 1}`;
   panel.innerHTML = `
-    <p><strong>Partie en ligne</strong> Salon ${SERVER_SYNC.roomId} · ${localLabel}</p>
+    <p><strong>${SERVER_SYNC.friendlyMatch ? "Match humain du tournoi" : "Partie en ligne"}</strong> ${SERVER_SYNC.friendlyMatch ? state.tournament?.competitionName || "Tournoi en ligne" : `Salon ${SERVER_SYNC.roomId}`} · ${localLabel}</p>
     ${inviteUrl ? `<label>Lien adversaire<input id="inviteLinkInput" readonly value="${inviteUrl}" /></label><button class="small-button copy-link-button" type="button" data-copy-invite>Copier le lien</button>` : ""}
     <span>${SERVER_SYNC.ready ? "Synchronisé" : "Connexion..."}</span>
   `;
@@ -9572,6 +9672,13 @@ function shouldPushServerState() {
   return SERVER_SYNC.ready && SERVER_SYNC.localDirty;
 }
 
+function serverSyncStateEndpoint() {
+  if (SERVER_SYNC.friendlyMatch) {
+    return `/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(SERVER_SYNC.roomId)}/state`;
+  }
+  return `/api/rooms/${encodeURIComponent(SERVER_SYNC.roomId)}/state`;
+}
+
 function scheduleServerSync() {
   if (!shouldPushServerState()) return;
   window.clearTimeout(SERVER_SYNC.timer);
@@ -9584,11 +9691,25 @@ async function pushServerState() {
   if (payload === SERVER_SYNC.lastSent) return;
   SERVER_SYNC.lastSent = payload;
   try {
-    const response = await fetch(`/api/rooms/${SERVER_SYNC.roomId}/state`, {
+    const body = SERVER_SYNC.friendlyMatch
+      ? {
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        baseRevision: SERVER_SYNC.revision,
+        state: JSON.parse(payload),
+      }
+      : { token: SERVER_SYNC.token, state: JSON.parse(payload) };
+    const response = await fetch(serverSyncStateEndpoint(), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: SERVER_SYNC.token, state: JSON.parse(payload) }),
+      body: JSON.stringify(body),
     });
+    if (response.status === 409 && SERVER_SYNC.friendlyMatch) {
+      SERVER_SYNC.lastSent = "";
+      SERVER_SYNC.localDirty = false;
+      await pollServerState();
+      return;
+    }
     if (!response.ok) throw new Error("sync failed");
     const data = await response.json();
     SERVER_SYNC.ready = true;
@@ -9610,8 +9731,15 @@ async function pushServerState() {
 async function pollServerState() {
   if (!SERVER_SYNC.enabled) return;
   try {
-    const response = await fetch(`/api/rooms/${SERVER_SYNC.roomId}/state?token=${encodeURIComponent(SERVER_SYNC.token)}&revision=${SERVER_SYNC.revision}`);
+    const query = SERVER_SYNC.friendlyMatch
+      ? `participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId || "")}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token || "")}&revision=${SERVER_SYNC.revision}`
+      : `token=${encodeURIComponent(SERVER_SYNC.token)}&revision=${SERVER_SYNC.revision}`;
+    const response = await fetch(`${serverSyncStateEndpoint()}?${query}`);
     if (response.status === 404) {
+      if (SERVER_SYNC.friendlyMatch) {
+        await pollFriendlyTournament();
+        return;
+      }
       handleRemoteRoomClosed();
       return;
     }
@@ -9624,7 +9752,7 @@ async function pollServerState() {
     SERVER_SYNC.isHost = data.isHost ?? SERVER_SYNC.isHost;
     absorbServerLogs(data.logs);
     const playersChanged = applyOnlinePlayersFromRoom(data.players ?? SERVER_SYNC.players);
-    if (data.state && data.revision !== SERVER_SYNC.revision) {
+    if (data.state && (!SERVER_SYNC.ready || data.revision !== SERVER_SYNC.revision)) {
       SERVER_SYNC.revision = data.revision;
       SERVER_SYNC.ready = true;
       SERVER_SYNC.lastSent = JSON.stringify(data.state);

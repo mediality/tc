@@ -3358,6 +3358,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       forfeitParticipantId: match.forfeitParticipantId || null,
       group: match.group || null,
       day: match.day || null,
+      humanVsHuman: friendlyEntryIsHuman(match.playerA) && friendlyEntryIsHuman(match.playerB),
     })),
     groups: {
       A: (tournament.groups?.A || []).map((entry) => friendlyEntryPublic(tournament, entry)),
@@ -3802,6 +3803,116 @@ function currentFriendlyMatchForParticipant(tournament, participantId) {
   )) || null;
 }
 
+function friendlyParticipantIdFromEntry(entry) {
+  return friendlyEntryIsHuman(entry) ? String(entry).replace(/^human:/, "") : null;
+}
+
+function friendlyMatchIsHumanVsHuman(match) {
+  return Boolean(match && friendlyEntryIsHuman(match.playerA) && friendlyEntryIsHuman(match.playerB));
+}
+
+function ensureFriendlyHumanMatchSession(match) {
+  if (!friendlyMatchIsHumanVsHuman(match)) return null;
+  if (!match.session) {
+    match.session = {
+      hostParticipantId: friendlyParticipantIdFromEntry(match.playerA),
+      revision: 0,
+      state: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  }
+  return match.session;
+}
+
+function friendlyHumanMatchAccess(tournament, match, participant) {
+  if (!tournament || !participant || !friendlyMatchIsHumanVsHuman(match)) return null;
+  const entry = friendlyParticipantEntry(participant.id);
+  const seat = match.playerA === entry ? 0 : match.playerB === entry ? 1 : null;
+  if (seat == null) return null;
+  const session = ensureFriendlyHumanMatchSession(match);
+  return { entry, seat, session, isHost: seat === 0 };
+}
+
+function publicFriendlyCurrentMatch(tournament, participantId) {
+  const match = currentFriendlyMatchForParticipant(tournament, participantId);
+  if (!match) return null;
+  const participant = tournament.participants.find((item) => item.id === participantId);
+  const access = friendlyHumanMatchAccess(tournament, match, participant);
+  if (!access) return { ...match, humanVsHuman: false };
+  return {
+    ...match,
+    humanVsHuman: true,
+    session: {
+      seat: access.seat,
+      isHost: access.isHost,
+      revision: access.session.revision,
+    },
+  };
+}
+
+function friendlyHumanSessionPlayers(tournament, match) {
+  return [match.playerA, match.playerB].map((entry, seat) => {
+    const info = friendlyEntryPublic(tournament, entry);
+    return {
+      seat,
+      nickname: info?.nickname || "Joueur",
+      characterId: info?.characterId || "coachJu",
+      isHost: seat === 0,
+    };
+  });
+}
+
+function validateFriendlyHumanSyncState(tournament, match, remoteState) {
+  if (!remoteState || typeof remoteState !== "object") return "État de match invalide.";
+  if (!Array.isArray(remoteState.players) || remoteState.players.length !== 2) return "Les deux joueurs doivent partager la même partie.";
+  const expectedPlayers = friendlyHumanSessionPlayers(tournament, match);
+  for (let seat = 0; seat < 2; seat += 1) {
+    if (String(remoteState.players[seat]?.characterId || "") !== String(expectedPlayers[seat].characterId)) {
+      return "Les places des joueurs ne correspondent pas au tableau.";
+    }
+  }
+  if (String(remoteState.tournament?.currentMatch || "") !== String(match.id)) return "Le match partagé ne correspond pas au tableau.";
+  if (!remoteState.setMatch?.enabled || Number(remoteState.setMatch.targetSets) !== Number(tournament.targetSets || 2)) {
+    return "Le format du match partagé est invalide.";
+  }
+  if (![0, 1].includes(Number(remoteState.activePlayer)) || ![0, 1].includes(Number(remoteState.server))) {
+    return "La position active du match est invalide.";
+  }
+  return null;
+}
+
+function friendlyHumanCompletedScores(remoteState) {
+  return (Array.isArray(remoteState?.setMatch?.completedScores) ? remoteState.setMatch.completedScores : [])
+    .filter((score) => Array.isArray(score) && score.length >= 2 && Number.isFinite(Number(score[0])) && Number.isFinite(Number(score[1])))
+    .map((score) => [Number(score[0]), Number(score[1])]);
+}
+
+function friendlyHumanScoreText(remoteState, includeCurrent = false) {
+  const scores = friendlyHumanCompletedScores(remoteState);
+  if (includeCurrent && !remoteState?.setMatch?.matchOver && Array.isArray(remoteState?.setMatch?.score)) {
+    scores.push([Number(remoteState.setMatch.score[0] || 0), Number(remoteState.setMatch.score[1] || 0)]);
+  }
+  const text = scores.map(([gamesA, gamesB]) => `${gamesA}/${gamesB}`).join(" - ");
+  return includeCurrent ? `${text || "0/0"} · EN DIRECT` : text;
+}
+
+function friendlyHumanWinnerFromState(tournament, match, remoteState) {
+  if (!remoteState?.setMatch?.matchOver || ![0, 1].includes(Number(remoteState.setMatch.matchWinner))) return null;
+  const targetSets = Number(tournament.targetSets || 2);
+  const completedScores = friendlyHumanCompletedScores(remoteState);
+  if (!completedScores.length || completedScores.length > (targetSets * 2) - 1) return null;
+  const setWins = [0, 0];
+  for (const [gamesA, gamesB] of completedScores) {
+    if (!friendlySetIsComplete(gamesA, gamesB) || setWins[0] >= targetSets || setWins[1] >= targetSets) return null;
+    if (gamesA > gamesB) setWins[0] += 1;
+    else if (gamesB > gamesA) setWins[1] += 1;
+  }
+  const winnerSeat = Number(remoteState.setMatch.matchWinner);
+  if (setWins[winnerSeat] < targetSets || setWins[winnerSeat === 0 ? 1 : 0] >= targetSets) return null;
+  return winnerSeat === 0 ? match.playerA : match.playerB;
+}
+
 function friendlyRoundReadyForPlay(tournament) {
   if (tournament.status !== "playing") return false;
   if (tournament.round === "quarter") return true;
@@ -4132,7 +4243,75 @@ async function handleApi(req, res) {
     refreshFriendlyTournamentSlots(tournament);
     sendJson(res, 200, {
       tournament: publicFriendlyTournamentInfo(req, tournament, participant, spectator),
-      currentMatch: participant ? currentFriendlyMatchForParticipant(tournament, participant.id) : null,
+      currentMatch: participant ? publicFriendlyCurrentMatch(tournament, participant.id) : null,
+    });
+    return;
+  }
+
+  const friendlySyncMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/matches\/([^/]+)\/state$/);
+  if (friendlySyncMatch && (req.method === "GET" || req.method === "POST")) {
+    const tournament = friendlyTournaments.get(friendlySyncMatch[1]);
+    const payload = req.method === "POST" ? await readJson(req) : null;
+    const participantId = req.method === "POST" ? payload.participantId : url.searchParams.get("participantId");
+    const token = req.method === "POST" ? payload.token : url.searchParams.get("token");
+    const participant = participantForToken(tournament, participantId, token);
+    const match = tournament?.matches.find((item) => item.id === friendlySyncMatch[2]);
+    const access = friendlyHumanMatchAccess(tournament, match, participant);
+    if (!tournament || !participant || !match || !access || tournament.status !== "playing" || match.winner) {
+      sendJson(res, 404, { error: "Session de match indisponible." });
+      return;
+    }
+    if (match.round !== tournament.round) {
+      sendJson(res, 409, { error: "Cette rencontre n'est pas encore disponible." });
+      return;
+    }
+    if (req.method === "GET") {
+      sendJson(res, 200, {
+        matchId: match.id,
+        seat: access.seat,
+        revision: access.session.revision,
+        state: access.session.state,
+        targetSets: Number(tournament.targetSets || 2),
+        status: "playing",
+        hostSeat: 0,
+        isHost: access.isHost,
+        players: friendlyHumanSessionPlayers(tournament, match),
+        logs: [],
+      });
+      return;
+    }
+    if (!access.session.state && !access.isHost) {
+      sendJson(res, 409, { error: "En attente de l'initialisation du match par le joueur A.", revision: access.session.revision });
+      return;
+    }
+    if (Number(payload.baseRevision || 0) !== Number(access.session.revision || 0)) {
+      sendJson(res, 409, { error: "État de match dépassé.", revision: access.session.revision });
+      return;
+    }
+    const validationError = validateFriendlyHumanSyncState(tournament, match, payload.state);
+    if (validationError) {
+      sendJson(res, 400, { error: validationError });
+      return;
+    }
+    access.session.state = payload.state;
+    access.session.revision += 1;
+    access.session.updatedAt = Date.now();
+    match.liveScore = friendlyHumanScoreText(payload.state, true);
+    match.liveState = sanitizeFriendlySpectatorState(payload.state);
+    match.liveParticipantId = participant.id;
+    match.liveUpdatedAt = Date.now();
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, {
+      ok: true,
+      matchId: match.id,
+      seat: access.seat,
+      revision: access.session.revision,
+      targetSets: Number(tournament.targetSets || 2),
+      status: "playing",
+      hostSeat: 0,
+      isHost: access.isHost,
+      players: friendlyHumanSessionPlayers(tournament, match),
+      logs: [],
     });
     return;
   }
@@ -4214,12 +4393,33 @@ async function handleApi(req, res) {
     }
     const match = tournament.matches.find((item) => item.id === friendlyResultMatch[2]);
     const entry = friendlyParticipantEntry(participant.id);
-    if (!match || match.winner || (match.playerA !== entry && match.playerB !== entry)) {
+    if (!match || (match.playerA !== entry && match.playerB !== entry)) {
       sendJson(res, 409, { error: "Match indisponible." });
       return;
     }
-    match.winner = String(payload.winner || "") === match.playerB ? match.playerB : match.playerA;
-    match.score = String(payload.score || "").slice(0, 80);
+    if (match.winner) {
+      sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant), alreadyRecorded: true });
+      return;
+    }
+    if (friendlyMatchIsHumanVsHuman(match)) {
+      const access = friendlyHumanMatchAccess(tournament, match, participant);
+      const finalState = payload.state || access?.session?.state;
+      const validationError = validateFriendlyHumanSyncState(tournament, match, finalState);
+      const verifiedWinner = validationError ? null : friendlyHumanWinnerFromState(tournament, match, finalState);
+      const verifiedScore = validationError ? "" : friendlyHumanScoreText(finalState, false);
+      if (!access || validationError || !verifiedWinner || !verifiedScore) {
+        sendJson(res, 409, { error: validationError || "Le résultat partagé n'est pas encore validé." });
+        return;
+      }
+      access.session.state = finalState;
+      access.session.revision += 1;
+      access.session.updatedAt = Date.now();
+      match.winner = verifiedWinner;
+      match.score = verifiedScore.slice(0, 80);
+    } else {
+      match.winner = String(payload.winner || "") === match.playerB ? match.playerB : match.playerA;
+      match.score = String(payload.score || "").slice(0, 80);
+    }
     match.liveScore = match.score;
     match.liveState = null;
     match.liveParticipantId = null;

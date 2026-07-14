@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const base = process.env.TEST_BASE_URL || "http://localhost:3023";
+const base = process.env.TEST_BASE_URL || "http://localhost:3024";
 
 async function request(session, path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -17,7 +17,7 @@ async function register(email, nickname) {
   const session = { cookie: "", user: null };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v123!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v124!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -79,16 +79,41 @@ async function reportCurrentMatches(accessByPlayer, expectedRound) {
     assert.equal(response.status, 200, data.error);
     assert.equal(data.tournament.round, expectedRound);
     if (data.currentMatch && !current.some((item) => item.match.id === data.currentMatch.id)) {
-      current.push({ player, access, match: data.currentMatch });
+      const publicMatch = data.tournament.matches.find((match) => match.id === data.currentMatch.id);
+      current.push({ player, access, match: { ...publicMatch, ...data.currentMatch }, targetSets: data.tournament.targetSets });
     }
   }
   assert.ok(current.length >= 2, `${expectedRound}: plusieurs rencontres humaines doivent bloquer la journee`);
   for (let index = 0; index < current.length; index += 1) {
-    const { player, access, match } = current[index];
+    const { player, access, match, targetSets } = current[index];
     const winner = match.playerA === access.entry ? match.playerA : match.playerB;
+    const winnerSeat = winner === match.playerA ? 0 : 1;
+    const winnerScores = Array.from({ length: Number(targetSets || 2) }, (_, setIndex) => (
+      winnerSeat === 0 ? [6, 2 + setIndex] : [2 + setIndex, 6]
+    ));
+    const sharedState = match.humanVsHuman ? {
+      players: [{ characterId: match.playerAInfo.characterId }, { characterId: match.playerBInfo.characterId }],
+      activePlayer: winnerSeat,
+      server: winnerSeat,
+      tournament: { currentMatch: match.id },
+      setMatch: {
+        enabled: true,
+        targetSets: Number(targetSets || 2),
+        completedScores: winnerScores,
+        score: winnerScores.at(-1),
+        matchOver: true,
+        matchWinner: winnerSeat,
+      },
+    } : null;
     const { response, data } = await request(player, `/api/friendly-tournaments/${access.id}/matches/${match.id}/result`, {
       method: "POST",
-      body: JSON.stringify({ participantId: access.participantId, token: access.token, winner, score: "6/3 - 6/4 - 6/2" }),
+      body: JSON.stringify({
+        participantId: access.participantId,
+        token: access.token,
+        winner,
+        score: "6/3 - 6/4 - 6/2",
+        state: sharedState,
+      }),
     });
     assert.equal(response.status, 200, data.error);
     if (index === 0) assert.equal(data.tournament.round, expectedRound, `${expectedRound} ne doit pas avancer apres un seul resultat`);
@@ -120,10 +145,10 @@ function assertLeagueStandings(tournament) {
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v123-a-${stamp}@example.test`, "Alpha"),
-  register(`v123-b-${stamp}@example.test`, "Bravo"),
-  register(`v123-c-${stamp}@example.test`, "Charlie"),
-  register(`v123-d-${stamp}@example.test`, "Delta"),
+  register(`v124-a-${stamp}@example.test`, "Alpha"),
+  register(`v124-b-${stamp}@example.test`, "Bravo"),
+  register(`v124-c-${stamp}@example.test`, "Charlie"),
+  register(`v124-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
 
@@ -207,6 +232,111 @@ assert.ok(humanQuarterIds.some((id) => ["qf1", "qf2"].includes(id)));
 assert.ok(humanQuarterIds.some((id) => ["qf3", "qf4"].includes(id)));
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${classicHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
+let sharedDuel = null;
+for (let attempt = 0; attempt < 40 && !sharedDuel; attempt += 1) {
+  const duelHost = await createTournament(players[0]);
+  const duelGuest = await joinTournament(players[1], duelHost.id, "coachMax");
+  assert.equal((await setTournament(players[0], duelHost, { format: "classic", targetSets: 2, distribution: "random" })).response.status, 200);
+  const duelStart = await request(players[0], `/api/friendly-tournaments/${duelHost.id}/start`, {
+    method: "POST",
+    body: JSON.stringify({ participantId: duelHost.participantId, token: duelHost.token }),
+  });
+  assert.equal(duelStart.response.status, 200, duelStart.data.error);
+  const hostState = await tournamentState(players[0], duelHost);
+  const guestState = await tournamentState(players[1], duelGuest);
+  assert.equal(hostState.response.status, 200, hostState.data.error);
+  assert.equal(guestState.response.status, 200, guestState.data.error);
+  if (hostState.data.currentMatch?.id === guestState.data.currentMatch?.id) {
+    sharedDuel = { host: duelHost, guest: duelGuest, hostState: hostState.data, guestState: guestState.data };
+  } else {
+    assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${duelHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
+  }
+}
+assert.ok(sharedDuel, "le tirage aléatoire doit finir par produire un quart humain contre humain");
+const sharedMatch = {
+  ...sharedDuel.hostState.tournament.matches.find((match) => match.id === sharedDuel.hostState.currentMatch.id),
+  ...sharedDuel.hostState.currentMatch,
+};
+assert.equal(sharedMatch.humanVsHuman, true);
+assert.equal(sharedMatch.id, sharedDuel.guestState.currentMatch.id, "les deux humains doivent recevoir le même match");
+const duelPlayers = [
+  { player: players[0], access: sharedDuel.host, state: sharedDuel.hostState },
+  { player: players[1], access: sharedDuel.guest, state: sharedDuel.guestState },
+];
+const playerAContext = duelPlayers.find((item) => item.access.entry === sharedMatch.playerA);
+const playerBContext = duelPlayers.find((item) => item.access.entry === sharedMatch.playerB);
+assert.ok(playerAContext && playerBContext);
+assert.equal(playerAContext.state.currentMatch.session.seat, 0, "playerA doit conserver la place 0");
+assert.equal(playerBContext.state.currentMatch.session.seat, 1, "playerB doit conserver la place 1");
+
+const syncPath = `/api/friendly-tournaments/${sharedDuel.host.id}/matches/${sharedMatch.id}/state`;
+const guestEarlyState = {
+  players: [{ characterId: sharedMatch.playerAInfo.characterId }, { characterId: sharedMatch.playerBInfo.characterId }],
+  activePlayer: 0,
+  server: 0,
+  tournament: { currentMatch: sharedMatch.id },
+  setMatch: { enabled: true, targetSets: 2, completedScores: [], score: [0, 0], matchOver: false, matchWinner: null },
+};
+const guestEarly = await request(playerBContext.player, syncPath, {
+  method: "POST",
+  body: JSON.stringify({ participantId: playerBContext.access.participantId, token: playerBContext.access.token, baseRevision: 0, state: guestEarlyState }),
+});
+assert.equal(guestEarly.response.status, 409, "playerB ne doit pas créer une session concurrente");
+if (process.env.KEEP_SHARED_DUEL === "1") {
+  const participantUrl = (access) => `${base}/?friendlyTournament=${access.id}&participant=${access.participantId}&token=${access.token}`;
+  console.log(`v124 shared player A: ${participantUrl(playerAContext.access)}`);
+  console.log(`v124 shared player B: ${participantUrl(playerBContext.access)}`);
+  console.log("v124 shared browser fixture: READY");
+  process.exit(0);
+}
+
+const hostInit = await request(playerAContext.player, syncPath, {
+  method: "POST",
+  body: JSON.stringify({ participantId: playerAContext.access.participantId, token: playerAContext.access.token, baseRevision: 0, state: guestEarlyState }),
+});
+assert.equal(hostInit.response.status, 200, hostInit.data.error);
+assert.equal(hostInit.data.revision, 1);
+const guestReadQuery = new URLSearchParams({ participantId: playerBContext.access.participantId, token: playerBContext.access.token });
+const guestRead = await request(playerBContext.player, `${syncPath}?${guestReadQuery}`);
+assert.equal(guestRead.response.status, 200, guestRead.data.error);
+assert.equal(guestRead.data.revision, 1);
+assert.deepEqual(guestRead.data.state, guestEarlyState, "playerB doit lire exactement l'état créé par playerA");
+
+const staleGuest = await request(playerBContext.player, syncPath, {
+  method: "POST",
+  body: JSON.stringify({ participantId: playerBContext.access.participantId, token: playerBContext.access.token, baseRevision: 0, state: guestEarlyState }),
+});
+assert.equal(staleGuest.response.status, 409, "un ancien état ne doit pas écraser la partie commune");
+
+const finalSharedState = {
+  ...guestEarlyState,
+  activePlayer: 1,
+  server: 1,
+  setMatch: {
+    enabled: true,
+    targetSets: 2,
+    completedScores: [[4, 6], [3, 6]],
+    score: [3, 6],
+    matchOver: true,
+    matchWinner: 1,
+  },
+};
+const finalResult = await request(playerBContext.player, `/api/friendly-tournaments/${sharedDuel.host.id}/matches/${sharedMatch.id}/result`, {
+  method: "POST",
+  body: JSON.stringify({
+    participantId: playerBContext.access.participantId,
+    token: playerBContext.access.token,
+    winner: sharedMatch.playerA,
+    score: "6/0 - 6/0",
+    state: finalSharedState,
+  }),
+});
+assert.equal(finalResult.response.status, 200, finalResult.data.error);
+const recordedSharedMatch = finalResult.data.tournament.matches.find((match) => match.id === sharedMatch.id);
+assert.equal(recordedSharedMatch.winner, sharedMatch.playerB, "le vainqueur doit provenir de la place gagnante dans l'état partagé");
+assert.equal(recordedSharedMatch.score, "4/6 - 3/6", "le faux score envoyé séparément doit être ignoré");
+assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${sharedDuel.host.id}/admin-delete`, { method: "POST" })).response.status, 200);
+
 const rankingHost = await createTournament(players[1]);
 const rankingGuest = await joinTournament(players[2], rankingHost.id);
 assert.equal((await setTournament(players[1], rankingHost, { format: "classic", targetSets: 3, distribution: "ranking" })).response.status, 200);
@@ -231,4 +361,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v123 smoke test: OK");
+console.log("v124 smoke test: OK");
