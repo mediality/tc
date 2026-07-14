@@ -85,6 +85,7 @@ const MENU_STATE = {
   espoirResolvedCharacterId: null,
   tournamentDifficulty: localStorage.getItem("tennisLightTournamentDifficulty") || "normal",
   lobbyTimer: null,
+  lobbyNotice: "",
 };
 
 const AUTH_STATE = {
@@ -2811,8 +2812,12 @@ async function startSoloFromMenu(mode) {
 
 function renderLobbyRooms(rooms = [], tournaments = []) {
   if (!els.lobbyRooms) return;
+  const noticeHtml = MENU_STATE.lobbyNotice
+    ? `<div class="friendly-lobby-status">${escapeHtml(MENU_STATE.lobbyNotice)}</div>`
+    : "";
   if (!rooms.length && !tournaments.length) {
-    els.lobbyRooms.innerHTML = '<div class="lobby-empty">Aucune partie ouverte pour le moment.</div>';
+    els.lobbyRooms.innerHTML = `${noticeHtml}<div class="lobby-empty">Aucune partie ouverte pour le moment.</div>`;
+    MENU_STATE.lobbyNotice = "";
     return;
   }
   const tournamentHtml = tournaments.map((tournament) => `
@@ -2821,7 +2826,10 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Tournoi amical</strong>
         <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants</span>
       </div>
-      <button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>
+      <div class="lobby-room-actions">
+        <button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>
+        ${canAccessAdminFeatures() ? `<button class="small-button danger-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
+      </div>
     </article>
   `).join("");
   const roomHtml = rooms.map((room) => {
@@ -2838,12 +2846,16 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
       </article>
     `;
   }).join("");
-  els.lobbyRooms.innerHTML = `${tournamentHtml}${roomHtml}`;
+  els.lobbyRooms.innerHTML = `${noticeHtml}${tournamentHtml}${roomHtml}`;
+  MENU_STATE.lobbyNotice = "";
   els.lobbyRooms.querySelectorAll("[data-join-room]").forEach((button) => {
     button.addEventListener("click", () => joinLobbyRoom(button.dataset.joinRoom));
   });
   els.lobbyRooms.querySelectorAll("[data-join-friendly-tournament]").forEach((button) => {
     button.addEventListener("click", () => joinFriendlyTournament(button.dataset.joinFriendlyTournament));
+  });
+  els.lobbyRooms.querySelectorAll("[data-admin-delete-friendly-tournament]").forEach((button) => {
+    button.addEventListener("click", () => adminDeleteFriendlyTournament(button.dataset.adminDeleteFriendlyTournament));
   });
 }
 
@@ -2896,6 +2908,24 @@ async function joinFriendlyTournament(tournamentId) {
     const data = await response.json();
     window.location.href = data.playerUrl;
   } catch (error) {
+    await refreshLobbyRooms();
+  }
+}
+
+async function adminDeleteFriendlyTournament(tournamentId) {
+  if (!canAccessAdminFeatures()) return;
+  if (!window.confirm("Supprimer ce salon ouvert et éjecter tous les joueurs ?")) return;
+  try {
+    const response = await fetch(`/api/lobby/friendly-tournaments/${encodeURIComponent(tournamentId)}/admin-delete`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) throw new Error("delete failed");
+    MENU_STATE.lobbyNotice = "Salon supprimé.";
+    await refreshLobbyRooms();
+  } catch (error) {
+    MENU_STATE.lobbyNotice = "Impossible de supprimer ce salon.";
     await refreshLobbyRooms();
   }
 }
@@ -3018,7 +3048,7 @@ function renderFriendlyLobbyScreen() {
   const participants = state.tournament.friendlyParticipants || [];
   const matches = state.tournament.matches || [];
   const canStart = FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && (FRIENDLY_TOURNAMENT.canStart || participants.length >= 2);
-  const waitingForPlayers = FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && !canStart;
+  const startDisabled = !canStart;
   const status = friendlyLobbyStatusText();
   els.friendlyLobbyContent.innerHTML = `
     <div class="friendly-lobby-title">
@@ -3027,14 +3057,12 @@ function renderFriendlyLobbyScreen() {
         <h1>Tournoi amical</h1>
         <p>${participants.length}/4 humains · lancement possible dès 2 joueurs · Classic 2 sets</p>
       </div>
-      <div class="friendly-lobby-actions">
-        ${FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" ? `
-          <button class="primary-button" type="button" data-start-friendly-tournament ${canStart ? "" : "disabled"}>LANCER</button>
-        ` : ""}
-        <button class="small-button danger-button" type="button" data-leave-friendly-tournament>SORTIR</button>
-      </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
+    <div class="friendly-lobby-action-panel">
+      <button class="primary-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER</button>
+      <button class="small-button danger-button" type="button" data-leave-friendly-tournament>SORTIR</button>
+    </div>
     <section>
       <p class="label">Joueurs humains</p>
       <div class="friendly-player-grid">
@@ -3063,7 +3091,7 @@ function renderFriendlyLobbyScreen() {
     ` : ""}
   `;
   const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
-  if (startButton && !waitingForPlayers) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
+  if (startButton && !startDisabled) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
   els.friendlyLobbyContent.querySelector("[data-leave-friendly-tournament]")?.addEventListener("click", leaveFriendlyTournamentLobby);
 }
 
@@ -3090,6 +3118,7 @@ async function pollFriendlyTournament() {
     if (response.status === 404) {
       window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
       FRIENDLY_TOURNAMENT.enabled = false;
+      MENU_STATE.lobbyNotice = "LE SALON A ÉTÉ FERMÉ";
       resetTournament();
       showMenuScreen();
       return;
@@ -3385,7 +3414,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v116",
+    version: "v117",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,

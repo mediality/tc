@@ -3356,6 +3356,20 @@ async function handleApi(req, res) {
   }
 
   const friendlyJoinMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/join$/);
+  const friendlyAdminDeleteMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/admin-delete$/);
+  if (req.method === "POST" && friendlyAdminDeleteMatch) {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+    const tournament = friendlyTournaments.get(friendlyAdminDeleteMatch[1]);
+    if (!tournament || tournament.status !== "waiting") {
+      sendJson(res, 404, { error: "Salon introuvable ou déjà lancé." });
+      return;
+    }
+    friendlyTournaments.delete(tournament.id);
+    sendJson(res, 200, { ok: true, closed: true });
+    return;
+  }
+
   if (req.method === "POST" && friendlyJoinMatch) {
     const user = await requirePro(req, res);
     if (!user) return;
