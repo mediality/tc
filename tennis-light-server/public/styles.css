@@ -2062,6 +2062,69 @@ h1 {
   align-items: center;
 }
 
+.league-board {
+  display: grid;
+  gap: 18px;
+}
+
+.league-standings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.league-standings {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.league-standings-head,
+.league-standings-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 42px 58px 58px;
+  gap: 8px;
+  align-items: center;
+}
+
+.league-standings-head {
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.league-standings-row {
+  min-height: 34px;
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: #16212b;
+  background: rgba(255, 255, 255, 0.88);
+  font-weight: 900;
+}
+
+.league-standings-row + .league-standings-row {
+  margin-top: 6px;
+}
+
+.league-standings-row.qualified {
+  color: #052e1b;
+  background: linear-gradient(90deg, #e9ff70, #86efac);
+}
+
+.league-standings-row.human-player {
+  border: 2px solid rgba(134, 239, 172, 0.98);
+}
+
+.league-bracket {
+  grid-template-columns: repeat(6, minmax(210px, 1fr));
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
 .tournament-column {
   display: grid;
   gap: 14px;
@@ -2242,6 +2305,10 @@ h1 {
 
 @media (max-width: 860px) {
   .tournament-bracket {
+    grid-template-columns: 1fr;
+  }
+
+  .league-standings-grid {
     grid-template-columns: 1fr;
   }
 }
