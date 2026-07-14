@@ -3228,6 +3228,10 @@ function makeFriendlyMatch(id, label, round, playerA = null, playerB = null, opt
     playerB,
     winner: null,
     score: null,
+    hiddenWinner: null,
+    hiddenSetScores: [],
+    revealedSetScores: [],
+    humanSetsObserved: 0,
     liveScore: null,
     liveState: null,
     liveParticipantId: null,
@@ -3656,12 +3660,81 @@ function simulateFriendlyScore(winnerIsPlayerA, targetSets = 2) {
 
 function simulateFriendlyAiOnlyMatches(tournament) {
   for (const match of tournament.matches) {
-    if (match.winner || !match.playerA || !match.playerB) continue;
+    if (match.winner || match.hiddenWinner || !match.playerA || !match.playerB) continue;
     if (match.round !== tournament.round) continue;
     if (friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB)) continue;
-    match.winner = Math.random() < 0.5 ? match.playerA : match.playerB;
-    match.score = simulateFriendlyScore(match.winner === match.playerA, Number(tournament.targetSets || 2));
+    match.hiddenWinner = Math.random() < 0.5 ? match.playerA : match.playerB;
+    match.hiddenSetScores = parseFriendlySetScores(simulateFriendlyScore(
+      match.hiddenWinner === match.playerA,
+      Number(tournament.targetSets || 2),
+    ));
+    match.revealedSetScores = [];
+    match.winner = null;
+    match.score = null;
   }
+}
+
+function friendlyAiOnlyMatch(match) {
+  return Boolean(
+    match?.playerA
+    && match?.playerB
+    && !friendlyEntryIsHuman(match.playerA)
+    && !friendlyEntryIsHuman(match.playerB)
+  );
+}
+
+function friendlySetScoresText(scores = []) {
+  return scores.map(([gamesA, gamesB]) => `${gamesA}/${gamesB}`).join(" - ");
+}
+
+function revealNextFriendlyAiSet(tournament, round = tournament.round) {
+  let changed = false;
+  for (const match of tournament.matches || []) {
+    if (match.round !== round || !friendlyAiOnlyMatch(match) || !match.hiddenSetScores?.length) continue;
+    match.revealedSetScores = Array.isArray(match.revealedSetScores) ? match.revealedSetScores : [];
+    if (match.revealedSetScores.length >= match.hiddenSetScores.length) continue;
+    const nextSet = match.hiddenSetScores[match.revealedSetScores.length];
+    match.revealedSetScores.push([...nextSet]);
+    match.score = friendlySetScoresText(match.revealedSetScores);
+    if (match.revealedSetScores.length >= match.hiddenSetScores.length) match.winner = match.hiddenWinner;
+    changed = true;
+  }
+  return changed;
+}
+
+function revealAllFriendlyAiSets(tournament, round = tournament.round) {
+  let changed = false;
+  for (const match of tournament.matches || []) {
+    if (match.round !== round || !friendlyAiOnlyMatch(match) || !match.hiddenSetScores?.length) continue;
+    if (match.revealedSetScores?.length < match.hiddenSetScores.length || !match.winner) changed = true;
+    match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
+    match.score = friendlySetScoresText(match.revealedSetScores);
+    match.winner = match.hiddenWinner;
+  }
+  return changed;
+}
+
+function noteFriendlyHumanSetProgress(tournament, match, remoteState = null, completedScore = "") {
+  if (!match || match.round !== tournament.round || friendlyAiOnlyMatch(match)) return false;
+  const stateScores = friendlyHumanCompletedScores(remoteState).filter(([gamesA, gamesB]) => friendlySetIsComplete(gamesA, gamesB));
+  const scoreCount = parseFriendlySetScores(completedScore).filter(([gamesA, gamesB]) => friendlySetIsComplete(gamesA, gamesB)).length;
+  const completedSets = Math.max(stateScores.length, scoreCount);
+  const previousSets = Number(match.humanSetsObserved || 0);
+  if (completedSets <= previousSets) return false;
+  match.humanSetsObserved = completedSets;
+  for (let index = previousSets; index < completedSets; index += 1) revealNextFriendlyAiSet(tournament, match.round);
+  tournament.updatedAt = Date.now();
+  return true;
+}
+
+function revealFriendlyAiRoundWhenHumansAreDone(tournament) {
+  const roundMatches = (tournament.matches || []).filter((match) => (
+    match.round === tournament.round && match.playerA && match.playerB
+  ));
+  if (!roundMatches.length) return false;
+  const humanMatches = roundMatches.filter((match) => !friendlyAiOnlyMatch(match));
+  if (humanMatches.length && !humanMatches.every((match) => match.winner)) return false;
+  return revealAllFriendlyAiSets(tournament, tournament.round);
 }
 
 function refreshFriendlyLeagueSlots(tournament) {
@@ -3672,6 +3745,7 @@ function refreshFriendlyLeagueSlots(tournament) {
   for (let step = 0; step < 8; step += 1) {
     resolveFriendlyDepartedForfeits(tournament);
     simulateFriendlyAiOnlyMatches(tournament);
+    revealFriendlyAiRoundWhenHumansAreDone(tournament);
     if (["group1", "group2", "group3"].includes(tournament.round)) {
       const roundMatches = tournament.matches.filter((match) => match.round === tournament.round);
       if (!roundMatches.length || !roundMatches.every((match) => match.winner)) return;
@@ -3757,6 +3831,8 @@ function refreshFriendlyTournamentSlots(tournament) {
   const semi2 = byId.get("semi2");
   const final = byId.get("final");
   resolveFriendlyDepartedForfeits(tournament);
+  simulateFriendlyAiOnlyMatches(tournament);
+  revealFriendlyAiRoundWhenHumansAreDone(tournament);
   if (semi1 && qf1?.winner && qf2?.winner && !semi1.playerA && !semi1.playerB) {
     semi1.playerA = qf1.winner;
     semi1.playerB = qf2.winner;
@@ -3767,6 +3843,7 @@ function refreshFriendlyTournamentSlots(tournament) {
   }
   resolveFriendlyDepartedForfeits(tournament);
   simulateFriendlyAiOnlyMatches(tournament);
+  revealFriendlyAiRoundWhenHumansAreDone(tournament);
   if (semi1 && semi1.winner && semi2 && semi2.winner && !final?.playerA && !final?.playerB) {
     // handled just below
   }
@@ -3776,6 +3853,7 @@ function refreshFriendlyTournamentSlots(tournament) {
   }
   resolveFriendlyDepartedForfeits(tournament);
   simulateFriendlyAiOnlyMatches(tournament);
+  revealFriendlyAiRoundWhenHumansAreDone(tournament);
   const quarterDone = [qf1, qf2, qf3, qf4].every((match) => match?.winner);
   const semiDone = [semi1, semi2].every((match) => match?.winner);
   if (final?.winner) {
@@ -4300,6 +4378,7 @@ async function handleApi(req, res) {
     match.liveState = sanitizeFriendlySpectatorState(payload.state);
     match.liveParticipantId = participant.id;
     match.liveUpdatedAt = Date.now();
+    noteFriendlyHumanSetProgress(tournament, match, payload.state);
     tournament.updatedAt = Date.now();
     sendJson(res, 200, {
       ok: true,
@@ -4345,6 +4424,7 @@ async function handleApi(req, res) {
     match.liveState = safeState;
     match.liveParticipantId = participant.id;
     match.liveUpdatedAt = Date.now();
+    noteFriendlyHumanSetProgress(tournament, match, payload.state);
     tournament.updatedAt = Date.now();
     sendJson(res, 200, {
       ok: true,
@@ -4420,6 +4500,12 @@ async function handleApi(req, res) {
       match.winner = String(payload.winner || "") === match.playerB ? match.playerB : match.playerA;
       match.score = String(payload.score || "").slice(0, 80);
     }
+    noteFriendlyHumanSetProgress(
+      tournament,
+      match,
+      friendlyMatchIsHumanVsHuman(match) ? payload.state || match.session?.state : null,
+      match.score,
+    );
     match.liveScore = match.score;
     match.liveState = null;
     match.liveParticipantId = null;

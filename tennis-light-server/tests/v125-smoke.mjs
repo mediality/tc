@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const base = process.env.TEST_BASE_URL || "http://localhost:3024";
+const base = process.env.TEST_BASE_URL || "http://localhost:3025";
 
 async function request(session, path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -17,7 +17,7 @@ async function register(email, nickname) {
   const session = { cookie: "", user: null };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v124!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v125!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -142,13 +142,27 @@ function assertLeagueStandings(tournament) {
   }
 }
 
+function visibleSetCount(score) {
+  return [...String(score || "").matchAll(/\d+\s*\/\s*\d+/g)].length;
+}
+
+function assertNoLeagueMatchCounted(tournament) {
+  for (const group of ["A", "B"]) {
+    for (const row of tournament.standings[group]) {
+      assert.equal(row.played, 0, "un score IA partiel ne doit pas compter au classement");
+      assert.equal(row.points, 0, "un vainqueur IA caché ne doit rapporter aucun point");
+      assert.equal(row.setsWon + row.setsLost + row.gamesWon + row.gamesLost, 0);
+    }
+  }
+}
+
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v124-a-${stamp}@example.test`, "Alpha"),
-  register(`v124-b-${stamp}@example.test`, "Bravo"),
-  register(`v124-c-${stamp}@example.test`, "Charlie"),
-  register(`v124-d-${stamp}@example.test`, "Delta"),
+  register(`v125-a-${stamp}@example.test`, "Alpha"),
+  register(`v125-b-${stamp}@example.test`, "Bravo"),
+  register(`v125-c-${stamp}@example.test`, "Charlie"),
+  register(`v125-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
 
@@ -200,9 +214,78 @@ const locked = await setTournament(players[0], host, { format: "classic", target
 assert.equal(locked.response.status, 409);
 
 const activePlayers = [[players[0], host], [players[1], guest1], [players[2], guest2]];
+const hiddenAiMatches = start.data.tournament.matches.filter((match) => (
+  match.round === "group1" && match.playerAInfo?.type === "ai" && match.playerBInfo?.type === "ai"
+));
+assert.ok(hiddenAiMatches.length >= 1, "la première journée doit contenir au moins une rencontre IA");
+for (const match of hiddenAiMatches) {
+  assert.equal(match.score, null, "le score IA ne doit pas être affiché au lancement");
+  assert.equal(match.winner, null, "le vainqueur IA ne doit pas être exposé au lancement");
+  assert.equal(Object.hasOwn(match, "hiddenWinner"), false, "le résultat caché ne doit jamais sortir de l'API");
+}
+assertNoLeagueMatchCounted(start.data.tournament);
+
+let progressReporter = null;
+for (const [player, access] of activePlayers) {
+  const stateResult = await tournamentState(player, access);
+  const currentMatch = stateResult.data.tournament.matches.find((match) => match.id === stateResult.data.currentMatch?.id);
+  if (currentMatch && !currentMatch.humanVsHuman) {
+    progressReporter = { player, access, match: currentMatch };
+    break;
+  }
+}
+assert.ok(progressReporter, "un humain doit pouvoir publier l'avancement d'un set contre l'IA");
+const publishHumanProgress = (completedScores) => request(
+  progressReporter.player,
+  `/api/friendly-tournaments/${progressReporter.access.id}/matches/${progressReporter.match.id}/live`,
+  {
+    method: "POST",
+    body: JSON.stringify({
+      participantId: progressReporter.access.participantId,
+      token: progressReporter.access.token,
+      liveScore: completedScores.map((score) => score.join("/")).join(" - "),
+      state: { players: [], setMatch: { completedScores } },
+    }),
+  },
+);
+
+assert.equal((await publishHumanProgress([[6, 2]])).response.status, 200);
+const afterFirstHumanSet = (await tournamentState(progressReporter.player, progressReporter.access)).data.tournament;
+for (const hiddenMatch of hiddenAiMatches) {
+  const revealedMatch = afterFirstHumanSet.matches.find((match) => match.id === hiddenMatch.id);
+  assert.equal(visibleSetCount(revealedMatch.score), 1, "un set humain doit dévoiler exactement un set IA");
+  assert.equal(revealedMatch.winner, null, "le vainqueur IA reste caché après un seul set");
+}
+assertNoLeagueMatchCounted(afterFirstHumanSet);
+
+assert.equal((await publishHumanProgress([[6, 2]])).response.status, 200);
+const afterDuplicateProgress = (await tournamentState(progressReporter.player, progressReporter.access)).data.tournament;
+for (const hiddenMatch of hiddenAiMatches) {
+  assert.equal(visibleSetCount(afterDuplicateProgress.matches.find((match) => match.id === hiddenMatch.id).score), 1, "un set déjà reçu ne doit pas être dévoilé deux fois");
+}
+
+assert.equal((await publishHumanProgress([[6, 2], [4, 6]])).response.status, 200);
+const afterSecondHumanSet = (await tournamentState(progressReporter.player, progressReporter.access)).data.tournament;
+for (const hiddenMatch of hiddenAiMatches) {
+  const revealedMatch = afterSecondHumanSet.matches.find((match) => match.id === hiddenMatch.id);
+  assert.equal(visibleSetCount(revealedMatch.score), 2, "le deuxième set humain doit dévoiler le deuxième set IA");
+  assert.equal(revealedMatch.winner, null, "en trois sets gagnants, deux sets ne peuvent pas révéler le vainqueur IA");
+}
+assertNoLeagueMatchCounted(afterSecondHumanSet);
+if (process.env.KEEP_AI_REVEAL === "1") {
+  console.log(`v125 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
+  console.log("v125 AI reveal browser fixture: READY");
+  process.exit(0);
+}
+
 await reportCurrentMatches(activePlayers, "group1");
 const afterDay1 = (await tournamentState(players[0], host)).data.tournament;
 assert.equal(afterDay1.round, "group2");
+for (const hiddenMatch of hiddenAiMatches) {
+  const completedAiMatch = afterDay1.matches.find((match) => match.id === hiddenMatch.id);
+  assert.ok(completedAiMatch.winner, "le vainqueur IA doit être publié lorsque le score intégral est dévoilé");
+  assert.ok(visibleSetCount(completedAiMatch.score) >= 3, "le score IA intégral doit être visible à la fin de la journée");
+}
 assertLeagueStandings(afterDay1);
 await reportCurrentMatches(activePlayers, "group2");
 const afterDay2 = (await tournamentState(players[0], host)).data.tournament;
@@ -227,6 +310,14 @@ assert.equal(classicStart.response.status, 200, classicStart.data.error);
 const humanQuarterIds = classicStart.data.tournament.matches
   .filter((match) => match.round === "quarter" && (match.playerAInfo?.type === "human" || match.playerBInfo?.type === "human"))
   .map((match) => match.id);
+const classicAiQuarters = classicStart.data.tournament.matches.filter((match) => (
+  match.round === "quarter" && match.playerAInfo?.type === "ai" && match.playerBInfo?.type === "ai"
+));
+assert.ok(classicAiQuarters.length >= 1);
+for (const match of classicAiQuarters) {
+  assert.equal(match.score, null, "le tableau CLASSIC ne doit pas dévoiler les scores IA au lancement");
+  assert.equal(match.winner, null, "le tableau CLASSIC ne doit pas dévoiler les vainqueurs IA au lancement");
+}
 assert.equal(humanQuarterIds.length, 2);
 assert.ok(humanQuarterIds.some((id) => ["qf1", "qf2"].includes(id)));
 assert.ok(humanQuarterIds.some((id) => ["qf3", "qf4"].includes(id)));
@@ -284,9 +375,9 @@ const guestEarly = await request(playerBContext.player, syncPath, {
 assert.equal(guestEarly.response.status, 409, "playerB ne doit pas créer une session concurrente");
 if (process.env.KEEP_SHARED_DUEL === "1") {
   const participantUrl = (access) => `${base}/?friendlyTournament=${access.id}&participant=${access.participantId}&token=${access.token}`;
-  console.log(`v124 shared player A: ${participantUrl(playerAContext.access)}`);
-  console.log(`v124 shared player B: ${participantUrl(playerBContext.access)}`);
-  console.log("v124 shared browser fixture: READY");
+  console.log(`v125 shared player A: ${participantUrl(playerAContext.access)}`);
+  console.log(`v125 shared player B: ${participantUrl(playerBContext.access)}`);
+  console.log("v125 shared browser fixture: READY");
   process.exit(0);
 }
 
@@ -361,4 +452,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v124 smoke test: OK");
+console.log("v125 smoke test: OK");

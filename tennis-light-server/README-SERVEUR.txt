@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v124
+Tennis Courts Academy - version serveur v125
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -17,6 +17,8 @@ Le serveur affiche un menu/lobby commun :
 - placer deux humains opposes dans une session de match unique avec un score et un vainqueur partages
 - restaurer cette session partagee apres un rechargement sans recreer un match ni un adversaire IA
 - valider cote serveur les places, le format, les sets termines et le vainqueur d'un match humain contre humain
+- devoiler les rencontres entre IA set par set selon l'avancement des joueurs humains
+- masquer le vainqueur IA et son impact au classement LEAGUE jusqu'au score integral
 - exclure un joueur du salon avant le lancement lorsque l'on est l'hote
 - lancer le tournoi des que 2 joueurs sont presents, puis completer le tableau a 8 avec les IA
 - suivre les scores des matchs humains en direct dans le salon du tournoi
