@@ -9,7 +9,7 @@
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v105</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v106</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -92,6 +92,7 @@
           <section class="menu-panel weekly-circuit-panel restricted-pro" data-required-role="pro">
             <div class="lobby-header">
               <p class="label">Tennis Courts Pro Circuit</p>
+              <button id="openCircuitInfoButton" class="small-button circuit-info-button" type="button">En savoir plus</button>
             </div>
             <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
             <p class="access-note">Réservé aux joueurs Pro.</p>
@@ -115,7 +116,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v105</span></p>
+        <p class="eyebrow">Profil joueur <span>v106</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -129,7 +130,7 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v105</span></p>
+        <p class="eyebrow">Personnage <span>v106</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -143,7 +144,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v105</span></p>
+        <p class="eyebrow">Réinitialisation <span>v106</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -159,7 +160,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v105</span></p>
+        <p class="eyebrow">Classement général <span>v106</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -176,9 +177,48 @@
       </div>
     </section>
 
+    <section id="circuitInfoScreen" class="menu-screen hidden">
+      <div class="menu-shell ranking-shell">
+        <p class="eyebrow">Tennis Courts Pro Circuit <span>v106</span></p>
+        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+        <section class="menu-panel ranking-full-panel circuit-info-panel">
+          <div class="lobby-header">
+            <p class="label">Comprendre le circuit</p>
+            <button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour lobby</button>
+          </div>
+          <div class="circuit-info-grid">
+            <article class="circuit-info-section">
+              <h2>Les tournois</h2>
+              <p>Chaque semaine de Tennis Courts propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour du circuit le mercredi à 14 h et le dimanche à 2 h (heure de Paris).</p>
+            </article>
+            <article class="circuit-info-section">
+              <h2>Classement</h2>
+              <p>Votre classement mondial est calculé à partir du cumul des points obtenus sur les 4 dernières semaines de compétition. Chaque nouveau tournoi est donc l'occasion d'améliorer votre position.</p>
+            </article>
+            <article class="circuit-info-section">
+              <h2>Retenter sa chance</h2>
+              <p>Vous pouvez rejouer un tournoi jusqu'à 5 fois afin de tenter de réaliser une meilleure performance. Seul votre meilleur résultat est conservé. Au total, vous disposez de 5 tentatives d'amélioration par semaine, à répartir librement entre les différents tournois disponibles.</p>
+            </article>
+            <article class="circuit-info-section">
+              <h2>Organisation de la saison</h2>
+              <p>Toutes les 4 semaines a lieu un Slam, offrant jusqu'à 2 000 points au vainqueur. Une saison s'étend sur 20 semaines (soit 10 semaines dans la réalité) et se conclut par les prestigieux Tennis Courts World Finals, où les points sont doublés par rapport à un Slam, avec 4 000 points à la clé pour le champion.</p>
+            </article>
+            <article class="circuit-info-section">
+              <h2>Rapport de force</h2>
+              <p>Le classement mondial ne se limite pas aux joueurs humains. Il rassemble également les joueurs de l'univers de Tennis Courts, chacun possédant son propre niveau, ses défis et sa progression. Les meilleurs bénéficient de statuts de têtes de série et de différents bonus, rendant leur parcours encore plus redoutable. Mais quelle satisfaction de réussir à éliminer le numéro 1 mondial dans un grand tournoi !</p>
+            </article>
+            <article class="circuit-info-section">
+              <h2>Rivalité</h2>
+              <p>Enfin, une véritable rivalité peut naître au fil des saisons. Après plusieurs confrontations contre un même adversaire, un rapport de force psychologique s'installe. Selon votre historique de victoires, vous pourrez obtenir l'un des trois statuts suivants : Ascendant, Domination ou Bête noire, accordant un avantage psychologique lors de vos prochaines rencontres. Chaque match compte, et chaque rivalité peut faire basculer votre saison.</p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v105</span></p>
+        <p class="eyebrow">Administration <span>v106</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -230,7 +270,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v105</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v106</span></p>
           <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         </div>
         <div class="top-actions">

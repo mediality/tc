@@ -2189,6 +2189,36 @@ h1 {
   min-height: 520px;
 }
 
+.circuit-info-button {
+  margin-left: auto;
+}
+
+.circuit-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
+}
+
+.circuit-info-section {
+  padding: 20px 0;
+  border-top: 1px solid rgba(10, 56, 78, 0.16);
+}
+
+.circuit-info-section:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+.circuit-info-section h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  letter-spacing: 0;
+}
+
+.circuit-info-section p {
+  margin: 0;
+  line-height: 1.6;
+}
+
 .ranking-full-list .ranking-row,
 .ranking-full-list .ranking-head {
   grid-template-columns: 70px 1fr 120px 120px 120px;
@@ -2633,6 +2663,14 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  .circuit-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .circuit-info-section:nth-child(2) {
+    border-top: 1px solid rgba(10, 56, 78, 0.16);
+  }
+
   .app {
     width: min(100vw - 18px, 1440px);
     padding-top: 12px;

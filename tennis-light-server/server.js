@@ -2776,27 +2776,28 @@ async function handleAuth(req, res, url) {
           (user_id, season_number, week_number, competition_id, competition_name, competition_type, city, country, flag, achievement, points, round_reached, last_opponent, last_score, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
         ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
-          SET achievement = CASE
-              WHEN circuit_tournament_results.achievement = 'winner' THEN 'winner'
-              WHEN EXCLUDED.achievement = 'winner' THEN 'winner'
-              ELSE EXCLUDED.achievement
-            END,
+          SET achievement = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.achievement ELSE circuit_tournament_results.achievement END,
             points = GREATEST(circuit_tournament_results.points, EXCLUDED.points),
-            round_reached = EXCLUDED.round_reached,
-            last_opponent = EXCLUDED.last_opponent,
-            last_score = EXCLUDED.last_score,
-            city = EXCLUDED.city,
-            country = EXCLUDED.country,
-            flag = EXCLUDED.flag,
-            updated_at = NOW()
+            round_reached = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.round_reached ELSE circuit_tournament_results.round_reached END,
+            last_opponent = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.last_opponent ELSE circuit_tournament_results.last_opponent END,
+            last_score = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.last_score ELSE circuit_tournament_results.last_score END,
+            city = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.city ELSE circuit_tournament_results.city END,
+            country = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.country ELSE circuit_tournament_results.country END,
+            flag = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN EXCLUDED.flag ELSE circuit_tournament_results.flag END,
+            updated_at = CASE WHEN EXCLUDED.points > circuit_tournament_results.points THEN NOW() ELSE circuit_tournament_results.updated_at END
       `, [user.id, current.season, current.week, competitionId, competition.name, competition.type, competition.city, competition.country, competition.flag, achievement, points, roundReached, lastOpponent, lastScore]);
     } else {
       const key = `${user.id}:${scoreKey}:${competitionId}`;
-      const previous = authMemory.weeklyScores.get(key)?.points || 0;
-      authMemory.weeklyScores.set(key, { points: Math.max(previous, points), achievement, updatedAt: new Date().toISOString() });
-      const filtered = authMemory.circuitResults.filter((row) => !(row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId));
-      filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, city: competition.city, country: competition.country, flag: competition.flag, achievement, points, roundReached, lastOpponent, lastScore });
-      authMemory.circuitResults = filtered;
+      const previousScore = authMemory.weeklyScores.get(key);
+      if (!previousScore || points > previousScore.points) {
+        authMemory.weeklyScores.set(key, { points, achievement, updatedAt: new Date().toISOString() });
+      }
+      const previousResult = authMemory.circuitResults.find((row) => row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId);
+      if (!previousResult || points > previousResult.points) {
+        const filtered = authMemory.circuitResults.filter((row) => !(row.userId === user.id && row.season === current.season && row.week === current.week && row.competitionId === competitionId));
+        filtered.push({ userId: user.id, season: current.season, week: current.week, competitionId, competitionName: competition.name, competitionType: competition.type, city: competition.city, country: competition.country, flag: competition.flag, achievement, points, roundReached, lastOpponent, lastScore });
+        authMemory.circuitResults = filtered;
+      }
     }
     await registerCircuitAiResults(user.id, payload.aiResults);
     await registerCircuitAiHumanWinBonuses(payload.aiResults, current.season, current.week);

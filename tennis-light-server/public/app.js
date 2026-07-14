@@ -134,6 +134,27 @@ const PROFILE_CHARACTER_IMAGES = {
   coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.png",
   coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.png",
   coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.png",
+  theoBriancourt: "assets/cards/LOBBY-Briancourt.png",
+  alessandraConti: "assets/cards/LOBBY-Conti.png",
+  saharaJackson: "assets/cards/LOBBY-Jackson.png",
+  kjellBlomqvist: "assets/cards/LOBBY-Blomqvist.png",
+  kojiIwata: "assets/cards/LOBBY-Iwata.png",
+  elianaMarquez: "assets/cards/LOBBY-Marquez.png",
+  bryanGoodwin: "assets/cards/LOBBY-Goodwin.png",
+  calvinBrentwood: "assets/cards/LOBBY-Brentwood.png",
+  javierRamirez: "assets/cards/LOBBY-Ramirez.png",
+  petraEckermann: "assets/cards/LOBBY-Eckermann.png",
+  jonasFalkenried: "assets/cards/LOBBY-Jonas-Falkenried.png",
+  yunaSeo: "assets/cards/LOBBY-Yuna-Seo.png",
+  ikerSalvat: "assets/cards/LOBBY-Iker-Salvat.png",
+  loganBrooks: "assets/cards/LOBBY-Logan-Brooks.png",
+  kavyaSaran: "assets/cards/LOBBY-Kavya-Saran.png",
+  zariaCampbell: "assets/cards/LOBBY-Zaria-Campbell.png",
+  renAoshima: "assets/cards/LOBBY-Ren-Aoshima.png",
+  yasmineElMansouri: "assets/cards/LOBBY-Yasmine-El-Mansouri.png",
+  daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.png",
+  lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.png",
+  milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.png",
 };
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -1295,6 +1316,7 @@ const els = {
   menuScreen: document.querySelector("#menuScreen"),
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
+  circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
   profileScreen: document.querySelector("#profileScreen"),
   characterScreen: document.querySelector("#characterScreen"),
   resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
@@ -1332,6 +1354,8 @@ const els = {
   adminPageInfo: document.querySelector("#adminPageInfo"),
   openRankingPageButton: document.querySelector("#openRankingPageButton"),
   backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
+  openCircuitInfoButton: document.querySelector("#openCircuitInfoButton"),
+  backToLobbyFromCircuitInfoButton: document.querySelector("#backToLobbyFromCircuitInfoButton"),
   backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
@@ -2473,6 +2497,7 @@ function showGameScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2482,6 +2507,7 @@ function showGameScreen() {
 function showRankingScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
@@ -2493,6 +2519,7 @@ function showMenuScreen() {
   els.gameApp?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2510,6 +2537,7 @@ function showProfileScreen(userId = null) {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
@@ -2522,6 +2550,7 @@ function showCharacterScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
@@ -2533,6 +2562,7 @@ function showResetPasswordScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
@@ -2544,12 +2574,25 @@ function showAdminScreen() {
   els.menuScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.adminScreen?.classList.remove("hidden");
   AUTH_STATE.adminPage = 1;
   loadAdminUsers();
   loadAdminProCodes();
+}
+
+function showCircuitInfoScreen() {
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
 }
 
 function cardByIdForTutorial(cardId, copyIndex) {
@@ -3239,7 +3282,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v105",
+    version: "v106",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -8326,6 +8369,8 @@ function initMenu() {
   });
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
+  els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
+  els.backToLobbyFromCircuitInfoButton?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
   els.backToProfileFromCharacterButton?.addEventListener("click", showProfileScreen);
   els.nicknameInput?.addEventListener("input", () => {
