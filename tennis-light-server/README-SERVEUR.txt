@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v125
+Tennis Courts Academy - version serveur v126
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -31,6 +31,7 @@ Le serveur affiche un menu/lobby commun :
 - rejoindre un tournoi en cours comme spectateur depuis le lobby
 - afficher les parties en cours sur les profils avec adversaire, score et bouton VOIR
 - prevenir le vainqueur lorsqu'un adversaire humain abandonne par forfait
+- reconnecter le vainqueur par forfait a son prochain match apres confirmation
 - administrer et supprimer les parties et tournois en ligne depuis le lobby ADMIN
 - les autres joueurs avec le meme lien voient les parties ouvertes et peuvent rejoindre
 

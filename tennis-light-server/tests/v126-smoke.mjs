@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const base = process.env.TEST_BASE_URL || "http://localhost:3025";
+const base = process.env.TEST_BASE_URL || "http://localhost:3026";
 
 async function request(session, path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -17,7 +17,7 @@ async function register(email, nickname) {
   const session = { cookie: "", user: null };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v125!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v126!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -159,10 +159,10 @@ function assertNoLeagueMatchCounted(tournament) {
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v125-a-${stamp}@example.test`, "Alpha"),
-  register(`v125-b-${stamp}@example.test`, "Bravo"),
-  register(`v125-c-${stamp}@example.test`, "Charlie"),
-  register(`v125-d-${stamp}@example.test`, "Delta"),
+  register(`v126-a-${stamp}@example.test`, "Alpha"),
+  register(`v126-b-${stamp}@example.test`, "Bravo"),
+  register(`v126-c-${stamp}@example.test`, "Charlie"),
+  register(`v126-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
 
@@ -273,8 +273,8 @@ for (const hiddenMatch of hiddenAiMatches) {
 }
 assertNoLeagueMatchCounted(afterSecondHumanSet);
 if (process.env.KEEP_AI_REVEAL === "1") {
-  console.log(`v125 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
-  console.log("v125 AI reveal browser fixture: READY");
+  console.log(`v126 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
+  console.log("v126 AI reveal browser fixture: READY");
   process.exit(0);
 }
 
@@ -375,9 +375,9 @@ const guestEarly = await request(playerBContext.player, syncPath, {
 assert.equal(guestEarly.response.status, 409, "playerB ne doit pas créer une session concurrente");
 if (process.env.KEEP_SHARED_DUEL === "1") {
   const participantUrl = (access) => `${base}/?friendlyTournament=${access.id}&participant=${access.participantId}&token=${access.token}`;
-  console.log(`v125 shared player A: ${participantUrl(playerAContext.access)}`);
-  console.log(`v125 shared player B: ${participantUrl(playerBContext.access)}`);
-  console.log("v125 shared browser fixture: READY");
+  console.log(`v126 shared player A: ${participantUrl(playerAContext.access)}`);
+  console.log(`v126 shared player B: ${participantUrl(playerBContext.access)}`);
+  console.log("v126 shared browser fixture: READY");
   process.exit(0);
 }
 
@@ -428,6 +428,71 @@ assert.equal(recordedSharedMatch.winner, sharedMatch.playerB, "le vainqueur doit
 assert.equal(recordedSharedMatch.score, "4/6 - 3/6", "le faux score envoyé séparément doit être ignoré");
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${sharedDuel.host.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
+let forfeitDuel = null;
+for (let attempt = 0; attempt < 40 && !forfeitDuel; attempt += 1) {
+  const forfeitHost = await createTournament(players[2]);
+  const forfeitGuest = await joinTournament(players[3], forfeitHost.id, "coachClem");
+  assert.equal((await setTournament(players[2], forfeitHost, { format: "classic", targetSets: 2, distribution: "random" })).response.status, 200);
+  const forfeitStart = await request(players[2], `/api/friendly-tournaments/${forfeitHost.id}/start`, {
+    method: "POST",
+    body: JSON.stringify({ participantId: forfeitHost.participantId, token: forfeitHost.token }),
+  });
+  assert.equal(forfeitStart.response.status, 200, forfeitStart.data.error);
+  const hostState = await tournamentState(players[2], forfeitHost);
+  const guestState = await tournamentState(players[3], forfeitGuest);
+  if (hostState.data.currentMatch?.id === guestState.data.currentMatch?.id) {
+    forfeitDuel = {
+      host: { player: players[2], access: forfeitHost, state: hostState.data },
+      guest: { player: players[3], access: forfeitGuest, state: guestState.data },
+    };
+  } else {
+    assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${forfeitHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
+  }
+}
+assert.ok(forfeitDuel, "un quart humain contre humain doit être disponible pour tester le forfait");
+const forfeitQuarterId = forfeitDuel.host.state.currentMatch.id;
+const forfeitQuarter = {
+  ...forfeitDuel.host.state.tournament.matches.find((match) => match.id === forfeitQuarterId),
+  ...forfeitDuel.host.state.currentMatch,
+};
+const forfeitContexts = [forfeitDuel.host, forfeitDuel.guest];
+const forfeitWinner = forfeitContexts.find((item) => item.access.entry === forfeitQuarter.playerA);
+const forfeitLoser = forfeitContexts.find((item) => item.access.entry === forfeitQuarter.playerB);
+assert.ok(forfeitWinner && forfeitLoser);
+const leaveForfeit = await request(forfeitLoser.player, `/api/friendly-tournaments/${forfeitLoser.access.id}/leave`, {
+  method: "POST",
+  body: JSON.stringify({
+    participantId: forfeitLoser.access.participantId,
+    token: forfeitLoser.access.token,
+    matchId: forfeitQuarter.id,
+    score: "3/2",
+  }),
+});
+assert.equal(leaveForfeit.response.status, 200, leaveForfeit.data.error);
+assert.equal(leaveForfeit.data.forfeited, true);
+
+const qualifiedState = await tournamentState(forfeitWinner.player, forfeitWinner.access);
+assert.equal(qualifiedState.response.status, 200, qualifiedState.data.error);
+assert.equal(qualifiedState.data.tournament.round, "semi", "le forfait doit permettre de terminer les quarts");
+const recordedForfeitQuarter = qualifiedState.data.tournament.matches.find((match) => match.id === forfeitQuarter.id);
+assert.equal(recordedForfeitQuarter.winner, forfeitWinner.access.entry);
+assert.equal(recordedForfeitQuarter.forfeitParticipantId, forfeitLoser.access.participantId);
+assert.match(recordedForfeitQuarter.score, /FORFAIT/);
+assert.ok(qualifiedState.data.currentMatch, "le qualifié doit recevoir une nouvelle rencontre jouable");
+assert.notEqual(qualifiedState.data.currentMatch.id, forfeitQuarter.id, "l'ancienne session ne doit pas être réutilisée");
+const qualifiedSemi = qualifiedState.data.tournament.matches.find((match) => match.id === qualifiedState.data.currentMatch.id);
+assert.equal(qualifiedSemi.round, "semi");
+assert.equal(qualifiedSemi.playerA === forfeitWinner.access.entry || qualifiedSemi.playerB === forfeitWinner.access.entry, true);
+assert.equal(qualifiedSemi.humanVsHuman, false, "le dernier humain qualifié doit jouer sa demi-finale contre l'IA");
+assert.equal(qualifiedSemi.watchable, false, "une rencontre pas encore lancée ne doit pas être proposée uniquement en mode VOIR");
+if (process.env.KEEP_FORFEIT_TRANSITION === "1") {
+  console.log(`v126 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
+  console.log(`v126 forfeit transition: ${forfeitQuarter.id} -> ${qualifiedSemi.id}`);
+  console.log("v126 forfeit browser fixture: READY");
+  process.exit(0);
+}
+assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${forfeitWinner.access.id}/admin-delete`, { method: "POST" })).response.status, 200);
+
 const rankingHost = await createTournament(players[1]);
 const rankingGuest = await joinTournament(players[2], rankingHost.id);
 assert.equal((await setTournament(players[1], rankingHost, { format: "classic", targetSets: 3, distribution: "ranking" })).response.status, 200);
@@ -452,4 +517,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v125 smoke test: OK");
+console.log("v126 smoke test: OK");

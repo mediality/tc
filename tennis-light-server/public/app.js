@@ -67,6 +67,7 @@ const FRIENDLY_TOURNAMENT = {
   streamTimer: null,
   lastStreamPayload: "",
   lastForfeitNoticeMatchId: null,
+  forfeitDialogOpen: false,
 };
 
 const SPECTATOR_MODE = {
@@ -3224,10 +3225,12 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
   ));
   if (forfeitVictory) {
     FRIENDLY_TOURNAMENT.lastForfeitNoticeMatchId = forfeitVictory.id;
+    FRIENDLY_TOURNAMENT.forfeitDialogOpen = true;
     FRIENDLY_TOURNAMENT.inMatch = false;
     FRIENDLY_TOURNAMENT.currentMatchId = null;
     state.tournament.currentMatch = null;
     window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
+    if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
     SOLO_AI.enabled = false;
     stopSoloTimers();
     showFriendlyForfeitDialog(forfeitVictory);
@@ -3251,6 +3254,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
   const nextCurrentMatch = currentMatch?.id
     ? { ...(matches.find((match) => match.id === currentMatch.id) || currentMatch), session: currentMatch.session || null }
     : null;
+  if (FRIENDLY_TOURNAMENT.forfeitDialogOpen) return;
   if (nextCurrentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== nextCurrentMatch.id) {
     FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
     startFriendlyTournamentMatch(nextCurrentMatch);
@@ -3276,8 +3280,10 @@ function showFriendlyForfeitDialog(match) {
   `;
   backdrop.querySelector("[data-return-friendly-lobby]")?.addEventListener("click", () => {
     backdrop.remove();
+    FRIENDLY_TOURNAMENT.forfeitDialogOpen = false;
     showFriendlyLobbyScreen();
     renderFriendlyLobbyScreen();
+    pollFriendlyTournament();
   });
   document.body.appendChild(backdrop);
 }
@@ -3816,6 +3822,11 @@ function resetFriendlyTournamentConnection() {
   FRIENDLY_TOURNAMENT.entry = null;
   FRIENDLY_TOURNAMENT.inMatch = false;
   FRIENDLY_TOURNAMENT.currentMatchId = null;
+  FRIENDLY_TOURNAMENT.lastReportedMatchId = null;
+  FRIENDLY_TOURNAMENT.lastForfeitNoticeMatchId = null;
+  FRIENDLY_TOURNAMENT.waitingForNextRound = false;
+  FRIENDLY_TOURNAMENT.readyRound = null;
+  FRIENDLY_TOURNAMENT.forfeitDialogOpen = false;
   clearFriendlyTournamentUrlParams();
 }
 
@@ -4064,7 +4075,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v125",
+    version: "v126",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
