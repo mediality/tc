@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v126
+Tennis Courts Academy - version serveur v127
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -12,22 +12,22 @@ Le serveur affiche un menu/lobby commun :
 - choisir avant le lancement un tournoi CLASSIC ou LEAGUE, en 2 ou 3 sets gagnants
 - repartir les joueurs aleatoirement, selon le classement mondial ou en separant les humains
 - jouer la LEAGUE en 2 groupes de 4, journee par journee, puis demi-finales et finale
-- afficher la LEAGUE en journees 1, 2 et 3, puis demies, finale et vainqueur dans le jeu et le salon
+- afficher la LEAGUE en journees 1, 2 et 3, puis demies, finale et vainqueur dans le jeu et le CLUB HOUSE
 - classer la LEAGUE avec 1 point par victoire, puis les differences de sets, de jeux et le classement mondial
 - placer deux humains opposes dans une session de match unique avec un score et un vainqueur partages
 - restaurer cette session partagee apres un rechargement sans recreer un match ni un adversaire IA
 - valider cote serveur les places, le format, les sets termines et le vainqueur d'un match humain contre humain
 - devoiler les rencontres entre IA set par set selon l'avancement des joueurs humains
 - masquer le vainqueur IA et son impact au classement LEAGUE jusqu'au score integral
-- exclure un joueur du salon avant le lancement lorsque l'on est l'hote
+- exclure un joueur du CLUB HOUSE avant le lancement lorsque l'on est l'hote
 - lancer le tournoi des que 2 joueurs sont presents, puis completer le tableau a 8 avec les IA
-- suivre les scores des matchs humains en direct dans le salon du tournoi
+- suivre les scores des matchs humains en direct dans le CLUB HOUSE du tournoi
 - regarder un match en mode visionneuse avec les deux mains masquees et aucune action de jeu possible
-- quitter definitivement un tournoi sans fermer le salon tant qu'un autre joueur reste present
+- quitter definitivement un tournoi sans fermer le CLUB HOUSE tant qu'un autre joueur reste present
 - transferer automatiquement le role d'hote au joueur suivant lorsque l'hote quitte
 - enregistrer le score au moment d'un abandon en match, puis declarer le joueur forfait
 - afficher le Top 20 dans le lobby et le classement complet par pages de 25 joueurs
-- quitter puis rejoindre de nouveau un salon tant que le tournoi n'est pas lance
+- quitter puis rejoindre de nouveau un CLUB HOUSE tant que le tournoi n'est pas lance
 - rejoindre un tournoi en cours comme spectateur depuis le lobby
 - afficher les parties en cours sur les profils avec adversaire, score et bouton VOIR
 - prevenir le vainqueur lorsqu'un adversaire humain abandonne par forfait

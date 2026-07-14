@@ -9,7 +9,7 @@
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v126</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -123,7 +123,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v126</span></p>
+        <p class="eyebrow">Profil joueur <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -137,7 +137,7 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v126</span></p>
+        <p class="eyebrow">Personnage <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -151,7 +151,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v126</span></p>
+        <p class="eyebrow">Réinitialisation <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -167,7 +167,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v126</span></p>
+        <p class="eyebrow">Classement général <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -191,7 +191,7 @@
 
     <section id="circuitInfoScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v126</span></p>
+        <p class="eyebrow">Tennis Courts Pro Circuit <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel circuit-info-panel">
           <div class="lobby-header">
@@ -230,7 +230,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v126</span></p>
+        <p class="eyebrow">Administration <span>v127</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -281,8 +281,15 @@
 
     <section id="friendlyLobbyScreen" class="menu-screen friendly-lobby-screen hidden">
       <div class="menu-shell friendly-lobby-shell">
-        <p class="eyebrow">Tournoi amical en ligne <span>v126</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+        <div class="friendly-lobby-topbar">
+          <div>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v127</span></p>
+            <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+              <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+            </button>
+          </div>
+          <button id="friendlyLobbyHomeButton" class="small-button" type="button">Retour lobby</button>
+        </div>
         <section id="friendlyLobbyContent" class="menu-panel friendly-lobby-panel" aria-live="polite"></section>
       </div>
     </section>
@@ -290,8 +297,10 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v126</span></p>
-          <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <p class="eyebrow">Tennis Courts Academy <span>v127</span></p>
+          <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+            <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          </button>
         </div>
         <div class="top-actions">
           <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
@@ -325,6 +334,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=126-forfeit-transition"></script>
+    <script src="./app.js?v=127-club-house-2"></script>
   </body>
 </html>

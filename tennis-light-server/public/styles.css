@@ -218,6 +218,29 @@ button:disabled {
   max-width: 1120px;
 }
 
+.friendly-lobby-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.brand-home-button {
+  display: block;
+  width: fit-content;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.brand-home-button:focus-visible {
+  outline: 3px solid #e9ff70;
+  outline-offset: 5px;
+}
+
 .friendly-lobby-panel {
   display: grid;
   gap: 18px;
@@ -322,6 +345,21 @@ button:disabled {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.friendly-club-house-photo {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(99, 115, 129, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 18px 44px rgba(2, 8, 23, 0.2);
+}
+
+.friendly-club-house-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1000 / 563;
+  object-fit: cover;
+}
+
 .friendly-player-card strong,
 .friendly-bracket-card strong {
   display: block;
@@ -333,6 +371,22 @@ button:disabled {
   color: #425466;
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.friendly-bracket-card .friendly-bracket-player-name,
+.friendly-bracket-card .friendly-bracket-winner {
+  display: block;
+  margin-top: 3px;
+  color: #17212b;
+  font-size: 0.94rem;
+}
+
+.friendly-bracket-card .friendly-bracket-player-name {
+  font-weight: 650;
+}
+
+.friendly-bracket-card .friendly-bracket-winner {
+  font-weight: 950;
 }
 
 .friendly-lobby-status {
@@ -3204,6 +3258,25 @@ h1 {
 
 .return-lobby-modal {
   width: min(440px, 100%);
+}
+
+.friendly-round-countdown-modal {
+  width: min(430px, 100%);
+  text-align: center;
+}
+
+.friendly-round-countdown-modal p:not(.label) {
+  margin: 16px 0 6px;
+  color: #425466;
+  font-weight: 800;
+}
+
+.friendly-round-countdown-number {
+  display: block;
+  min-height: 76px;
+  color: #b91c1c;
+  font-size: 4rem;
+  line-height: 1.1;
 }
 
 .waiting-room-modal {

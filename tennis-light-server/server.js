@@ -3968,7 +3968,7 @@ function friendlyHumanCompletedScores(remoteState) {
 
 function friendlyHumanScoreText(remoteState, includeCurrent = false) {
   const scores = friendlyHumanCompletedScores(remoteState);
-  if (includeCurrent && !remoteState?.setMatch?.matchOver && Array.isArray(remoteState?.setMatch?.score)) {
+  if (includeCurrent && !remoteState?.setMatch?.matchOver && !remoteState?.setMatch?.setOver && Array.isArray(remoteState?.setMatch?.score)) {
     scores.push([Number(remoteState.setMatch.score[0] || 0), Number(remoteState.setMatch.score[1] || 0)]);
   }
   const text = scores.map(([gamesA, gamesB]) => `${gamesA}/${gamesB}`).join(" - ");

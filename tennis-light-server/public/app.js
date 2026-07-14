@@ -68,6 +68,10 @@ const FRIENDLY_TOURNAMENT = {
   lastStreamPayload: "",
   lastForfeitNoticeMatchId: null,
   forfeitDialogOpen: false,
+  awaitingClubHouseReturn: false,
+  countdownMatchId: null,
+  countdownTimer: null,
+  countdownMatch: null,
 };
 
 const SPECTATOR_MODE = {
@@ -1084,6 +1088,7 @@ const els = {
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
+  gameLogoButton: document.querySelector("#gameLogoButton"),
   menuScreen: document.querySelector("#menuScreen"),
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
@@ -1093,6 +1098,8 @@ const els = {
   resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
   friendlyLobbyScreen: document.querySelector("#friendlyLobbyScreen"),
   friendlyLobbyContent: document.querySelector("#friendlyLobbyContent"),
+  friendlyLobbyHomeButton: document.querySelector("#friendlyLobbyHomeButton"),
+  friendlyLobbyLogoButton: document.querySelector("#friendlyLobbyLogoButton"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
@@ -2866,12 +2873,12 @@ function openReturnLobbyDialog() {
   backdrop.className = "modal-backdrop return-lobby-dialog";
   backdrop.innerHTML = `
     <div class="modal return-lobby-modal" role="dialog" aria-modal="true" aria-labelledby="returnLobbyTitle">
-      <h2 id="returnLobbyTitle">${spectatorExit ? "Quitter le mode spectateur ?" : waitingFriendlyExit ? "Quitter ce salon ?" : friendlyTournamentExit ? "Quitter définitivement le tournoi ?" : "Voulez-vous retourner au lobby ?"}</h2>
+      <h2 id="returnLobbyTitle">${spectatorExit ? "Quitter le mode spectateur ?" : waitingFriendlyExit ? "Quitter ce CLUB HOUSE ?" : friendlyTournamentExit ? "Quitter définitivement le tournoi ?" : "Voulez-vous retourner au lobby ?"}</h2>
       <p>${friendlyTournamentExit
         ? spectatorExit
-          ? "Vous reviendrez au lobby en quittant le salon du tournoi."
+          ? "Vous reviendrez au lobby en quittant le CLUB HOUSE du tournoi."
           : waitingFriendlyExit
-            ? "Vous pourrez rejoindre ce salon de nouveau tant que le tournoi n'est pas lancé."
+            ? "Vous pourrez rejoindre ce CLUB HOUSE de nouveau tant que le tournoi n'est pas lancé."
             : "Vous ne pourrez plus revenir dans ce tournoi. Si votre match est en cours, le score actuel sera enregistré et vous serez déclaré forfait."
         : "La partie en cours restera affichée seulement si vous choisissez Non."}</p>
       <div class="dialog-actions">
@@ -2952,7 +2959,7 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
     <article class="lobby-room friendly-tournament-room">
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Tournoi amical</strong>
-        <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants · ${tournament.format === "league" ? "LEAGUE" : "CLASSIC"} ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
+        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants · ${tournament.format === "league" ? "LEAGUE" : "CLASSIC"} ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
         ${tournament.status === "playing"
@@ -3069,7 +3076,7 @@ async function spectateFriendlyTournament(tournamentId) {
 
 async function adminDeleteFriendlyTournament(tournamentId) {
   if (!canAccessAdminFeatures()) return;
-  if (!window.confirm("Supprimer ce salon ouvert et éjecter tous les joueurs ?")) return;
+  if (!window.confirm("Supprimer ce CLUB HOUSE et éjecter tous les joueurs ?")) return;
   try {
     const response = await fetch(`/api/lobby/friendly-tournaments/${encodeURIComponent(tournamentId)}/admin-delete`, {
       method: "POST",
@@ -3077,10 +3084,10 @@ async function adminDeleteFriendlyTournament(tournamentId) {
       body: JSON.stringify({}),
     });
     if (!response.ok) throw new Error("delete failed");
-    MENU_STATE.lobbyNotice = "Salon supprimé.";
+    MENU_STATE.lobbyNotice = "CLUB HOUSE supprimé.";
     await refreshLobbyRooms();
   } catch (error) {
-    MENU_STATE.lobbyNotice = "Impossible de supprimer ce salon.";
+    MENU_STATE.lobbyNotice = "Impossible de supprimer ce CLUB HOUSE.";
     await refreshLobbyRooms();
   }
 }
@@ -3155,6 +3162,58 @@ function friendlyTournamentAccessQuery() {
 function friendlyEntryCharacterId(entry) {
   const info = friendlyEntryInfo(entry);
   return normalizeCharacterId(info?.characterId || entry, "coachJu");
+}
+
+function friendlyRoundName(match) {
+  if (Number(match?.day)) return `Journée ${Number(match.day)}`;
+  if (match?.round === "quarter") return "Quarts de finale";
+  if (match?.round === "semi") return "Demi-finales";
+  if (match?.round === "final") return "Finale";
+  return match?.label || "Prochaine rencontre";
+}
+
+function cancelFriendlyMatchCountdown() {
+  window.clearInterval(FRIENDLY_TOURNAMENT.countdownTimer);
+  FRIENDLY_TOURNAMENT.countdownTimer = null;
+  FRIENDLY_TOURNAMENT.countdownMatchId = null;
+  FRIENDLY_TOURNAMENT.countdownMatch = null;
+  document.querySelector(".friendly-round-countdown")?.remove();
+}
+
+function scheduleFriendlyTournamentMatch(match) {
+  if (!match?.id || FRIENDLY_TOURNAMENT.inMatch || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
+  if (FRIENDLY_TOURNAMENT.countdownMatchId === match.id) {
+    FRIENDLY_TOURNAMENT.countdownMatch = match;
+    return;
+  }
+  cancelFriendlyMatchCountdown();
+  FRIENDLY_TOURNAMENT.countdownMatchId = match.id;
+  FRIENDLY_TOURNAMENT.countdownMatch = match;
+  let remaining = 3;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop friendly-round-countdown";
+  backdrop.innerHTML = `
+    <div class="modal friendly-round-countdown-modal" role="dialog" aria-modal="true" aria-labelledby="friendlyRoundCountdownTitle">
+      <p class="label">Tournoi en ligne</p>
+      <h2 id="friendlyRoundCountdownTitle">${escapeHtml(friendlyRoundName(match))}</h2>
+      <p>Votre match commence dans</p>
+      <strong class="friendly-round-countdown-number" aria-live="assertive">${remaining}</strong>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  const number = backdrop.querySelector(".friendly-round-countdown-number");
+  FRIENDLY_TOURNAMENT.countdownTimer = window.setInterval(() => {
+    remaining -= 1;
+    if (remaining > 0) {
+      if (number) number.textContent = String(remaining);
+      return;
+    }
+    const pendingMatch = FRIENDLY_TOURNAMENT.countdownMatch;
+    cancelFriendlyMatchCountdown();
+    if (!pendingMatch || !FRIENDLY_TOURNAMENT.enabled || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
+    FRIENDLY_TOURNAMENT.currentMatchId = pendingMatch.id;
+    startFriendlyTournamentMatch(pendingMatch);
+  }, 1000);
 }
 
 function applyFriendlyTournamentState(payload, currentMatch = null) {
@@ -3243,23 +3302,27 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
     if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
     FRIENDLY_TOURNAMENT.inMatch = false;
+    FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = true;
     FRIENDLY_TOURNAMENT.currentMatchId = null;
     state.tournament.currentMatch = null;
+    state.gameOver = true;
+    state.setMatch.matchOver = true;
+    state.setMatch.setOver = true;
+    state.setMatch.matchWinner = completedActiveMatch.winner === completedActiveMatch.playerA ? 0 : 1;
     SOLO_AI.enabled = false;
     stopSoloTimers();
-    showFriendlyLobbyScreen();
-    renderFriendlyLobbyScreen();
+    render();
     return;
   }
   const nextCurrentMatch = currentMatch?.id
     ? { ...(matches.find((match) => match.id === currentMatch.id) || currentMatch), session: currentMatch.session || null }
     : null;
-  if (FRIENDLY_TOURNAMENT.forfeitDialogOpen) return;
+  if (FRIENDLY_TOURNAMENT.forfeitDialogOpen || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
   if (nextCurrentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== nextCurrentMatch.id) {
-    FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
-    startFriendlyTournamentMatch(nextCurrentMatch);
+    scheduleFriendlyTournamentMatch(nextCurrentMatch);
     return;
   }
+  if (!nextCurrentMatch && FRIENDLY_TOURNAMENT.countdownMatchId) cancelFriendlyMatchCountdown();
   if (!FRIENDLY_TOURNAMENT.inMatch) {
     showFriendlyLobbyScreen();
     renderFriendlyLobbyScreen();
@@ -3275,7 +3338,7 @@ function showFriendlyForfeitDialog(match) {
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="friendlyForfeitTitle">
       <h2 id="friendlyForfeitTitle">Victoire par forfait</h2>
       <p>${escapeHtml(opponent?.nickname || "Votre adversaire")} a quitté le match et a été déclaré forfait.</p>
-      <button class="primary-button" type="button" data-return-friendly-lobby>REVENIR AU SALON</button>
+      <button class="primary-button" type="button" data-return-friendly-lobby>RETOUR CLUB-HOUSE</button>
     </div>
   `;
   backdrop.querySelector("[data-return-friendly-lobby]")?.addEventListener("click", () => {
@@ -3290,6 +3353,8 @@ function showFriendlyForfeitDialog(match) {
 
 function startFriendlyTournamentMatch(match) {
   if (!match) return;
+  cancelFriendlyMatchCountdown();
+  FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
   if (match.humanVsHuman || (match.playerAInfo?.type === "human" && match.playerBInfo?.type === "human")) {
     startFriendlyHumanTournamentMatch(match);
     return;
@@ -3370,9 +3435,10 @@ function startFriendlyHumanTournamentMatch(match) {
 function friendlyLiveScoreText(match = tournamentMatchById(state.tournament.currentMatch)) {
   if (!match || !state.setMatch?.enabled) return "0/0 · EN DIRECT";
   const scores = tournamentCompletedSetScoresForMatch(match);
-  if (!state.setMatch.matchOver && Array.isArray(state.setMatch.score)) {
+  if (!state.setMatch.matchOver && !state.setMatch.setOver && Array.isArray(state.setMatch.score)) {
     const current = [...state.setMatch.score];
-    scores.push(match.playerB === FRIENDLY_TOURNAMENT.entry ? [current[1], current[0]] : current);
+    const shouldInvert = !SERVER_SYNC.friendlyMatch && match.playerB === FRIENDLY_TOURNAMENT.entry;
+    scores.push(shouldInvert ? [current[1], current[0]] : current);
   }
   return `${formatSetScores(scores) || "0/0"} · EN DIRECT`;
 }
@@ -3401,12 +3467,18 @@ async function publishFriendlyTournamentLiveState() {
 }
 
 function renderFriendlyLobbyMatchCard(match) {
-  const status = match.score || match.liveScore || (match.winner ? "Terminé" : "En attente");
+  const status = match.liveScore && !match.winner ? match.liveScore : match.score || (match.winner ? "Terminé" : "En attente");
+  const playerName = (entry) => {
+    const label = escapeHtml(tournamentPlayerLabel(entry) || "À déterminer");
+    return match.winner && match.winner === entry
+      ? `<strong class="friendly-bracket-winner">${label}</strong>`
+      : `<span class="friendly-bracket-player-name">${label}</span>`;
+  };
   return `
     <article class="friendly-bracket-card ${match.winner ? "completed" : ""}">
       <span>${escapeHtml(match.label)}</span>
-      <strong>${escapeHtml(tournamentPlayerLabel(match.playerA) || "À déterminer")}</strong>
-      <strong>${escapeHtml(tournamentPlayerLabel(match.playerB) || "À déterminer")}</strong>
+      ${playerName(match.playerA)}
+      ${playerName(match.playerB)}
       <div class="friendly-bracket-live-row">
         <span class="${match.liveScore && !match.winner ? "friendly-live-score" : ""}">${escapeHtml(status)}</span>
         ${match.watchable ? `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>` : ""}
@@ -3464,6 +3536,11 @@ function renderFriendlyLobbyScreen() {
   const settingButton = (group, value, label, active) => `<button class="friendly-setting-button ${active ? "active" : ""}" type="button" data-friendly-setting="${group}" data-friendly-setting-value="${value}" ${settingsDisabled ? "disabled" : ""}>${label}</button>`;
   const standings = state.tournament.friendlyStandings || { A: [], B: [] };
   const leagueGroups = state.tournament.friendlyGroups || { A: [], B: [] };
+  const clubHouseImage = `
+    <figure class="friendly-club-house-photo">
+      <img src="./assets/club-house-tournoi.jpg" alt="Joueurs réunis dans le Club House" />
+    </figure>
+  `;
   const leagueGroupMarkup = format === "league" && (leagueGroups.A?.length || leagueGroups.B?.length) ? `
     <section>
       <p class="label">Groupes</p>
@@ -3492,8 +3569,8 @@ function renderFriendlyLobbyScreen() {
   els.friendlyLobbyContent.innerHTML = `
     <div class="friendly-lobby-title">
       <div>
-        <p class="label">Salon ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
-        <h1>${FRIENDLY_TOURNAMENT.isSpectator ? "Tournoi amical · Spectateur" : "Tournoi amical"}</h1>
+        <p class="label">CLUB HOUSE · ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
+        <h1>${FRIENDLY_TOURNAMENT.isSpectator ? "CLUB HOUSE · Spectateur" : "CLUB HOUSE"}</h1>
         <p>${participants.length}/4 humains · ${state.tournament.stage === "waiting" ? "lancement possible dès 2 joueurs" : "tournoi en cours"} · ${format === "league" ? "LEAGUE" : "CLASSIC"} · ${targetSets} sets gagnants</p>
       </div>
     </div>
@@ -3540,6 +3617,7 @@ function renderFriendlyLobbyScreen() {
         <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>SORTIR</button>
       </div>
     </section>
+    ${state.tournament.stage === "waiting" ? clubHouseImage : ""}
     ${leagueGroupMarkup}
     ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
     ${matches.length && format !== "league" ? `
@@ -3550,6 +3628,7 @@ function renderFriendlyLobbyScreen() {
         </div>
       </section>
     ` : ""}
+    ${state.tournament.stage !== "waiting" ? clubHouseImage : ""}
   `;
   const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
   if (startButton && !startDisabled) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
@@ -3591,7 +3670,7 @@ async function updateFriendlyTournamentSettings(setting, value) {
 
 async function kickFriendlyParticipant(targetParticipantId, nickname) {
   if (!FRIENDLY_TOURNAMENT.isCreator || !targetParticipantId) return;
-  if (!window.confirm(`Exclure ${nickname || "ce joueur"} du salon ? Il ne pourra plus rejoindre ce tournoi.`)) return;
+  if (!window.confirm(`Exclure ${nickname || "ce joueur"} du CLUB HOUSE ? Il ne pourra plus rejoindre ce tournoi.`)) return;
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/kick`, {
       method: "POST",
@@ -3680,9 +3759,29 @@ function quitFriendlySpectator(matchEnded = false) {
   else pollFriendlyTournament();
 }
 
+function friendlyPlayerStillQualified() {
+  const entry = FRIENDLY_TOURNAMENT.entry;
+  if (!entry || FRIENDLY_TOURNAMENT.isSpectator) return false;
+  const participant = (state.tournament.friendlyParticipants || []).find((item) => item.entry === entry);
+  if (participant?.eliminated) return false;
+  const matches = state.tournament.matches || [];
+  const pendingMatch = matches.some((match) => !match.winner && (match.playerA === entry || match.playerB === entry));
+  if (pendingMatch) return true;
+  const stage = state.tournament.stage;
+  if ((state.tournament.friendlyFormat || "classic") === "league") {
+    if (["group1", "group2", "group3"].includes(stage)) return true;
+    const knockoutMatches = matches.filter((match) => ["semi", "final"].includes(match.round) && (match.playerA === entry || match.playerB === entry));
+    if (!knockoutMatches.length) return false;
+    const latestKnockout = knockoutMatches.filter((match) => match.winner).at(-1);
+    return !latestKnockout || latestKnockout.winner === entry;
+  }
+  const completedMatches = matches.filter((match) => match.winner && (match.playerA === entry || match.playerB === entry));
+  const latestMatch = completedMatches.at(-1);
+  return !latestMatch || latestMatch.winner === entry;
+}
+
 function friendlyLobbyStatusText() {
-  if (!state.tournament?.friendly) return "Chargement du salon...";
-  const leagueDay = { group1: 1, group2: 2, group3: 3 }[state.tournament.stage];
+  if (!state.tournament?.friendly) return "Chargement du CLUB HOUSE...";
   if (FRIENDLY_TOURNAMENT.isSpectator) {
     return state.tournament.stage === "complete"
       ? `Tournoi terminé. Vainqueur : ${tournamentPlayerLabel(state.tournament.championCharacterId)}.`
@@ -3694,15 +3793,13 @@ function friendlyLobbyStatusText() {
         ? "Au moins 2 joueurs sont présents. Tu peux lancer le tournoi maintenant, sans attendre 4 joueurs."
         : "En attente d'au moins un autre joueur humain. Le tournoi pourra démarrer dès 2 joueurs.";
     }
-    return "En attente du lancement par le créateur du salon.";
+    return "En attente du lancement par le créateur du CLUB HOUSE.";
   }
   if (state.tournament.stage === "complete") {
     return `Tournoi terminé. Vainqueur : ${tournamentPlayerLabel(state.tournament.championCharacterId)}.`;
   }
-  if ((state.tournament.friendlyFormat || "classic") === "league" && leagueDay) {
-    return `Journée ${leagueDay} en cours. La journée suivante commencera automatiquement lorsque les 4 rencontres seront terminées.`;
-  }
-  return "En attente de la fin de tous les matchs du tour. Ton prochain match démarrera automatiquement si tu es qualifié.";
+  if (friendlyPlayerStillQualified()) return "Attente de la fin des rencontres avant le début du tour suivant.";
+  return "Ton parcours est terminé. Tu peux suivre la suite du tournoi depuis le CLUB HOUSE.";
 }
 
 async function pollFriendlyTournament() {
@@ -3712,7 +3809,7 @@ async function pollFriendlyTournament() {
     if (response.status === 404) {
       window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
       FRIENDLY_TOURNAMENT.enabled = false;
-      MENU_STATE.lobbyNotice = "LE SALON A ÉTÉ FERMÉ";
+      MENU_STATE.lobbyNotice = "LE CLUB HOUSE A ÉTÉ FERMÉ";
       resetTournament();
       showMenuScreen();
       return;
@@ -3722,7 +3819,7 @@ async function pollFriendlyTournament() {
       if (data.kicked) {
         window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
         resetFriendlyTournamentConnection();
-        MENU_STATE.lobbyNotice = "VOUS AVEZ ÉTÉ EXCLU DU SALON";
+        MENU_STATE.lobbyNotice = "VOUS AVEZ ÉTÉ EXCLU DU CLUB HOUSE";
         resetTournament();
         showMenuScreen();
         return;
@@ -3745,7 +3842,7 @@ async function startFriendlyTournamentFromLobby() {
   }
   const formatLabel = (state.tournament?.friendlyFormat || "classic") === "league" ? "LEAGUE" : "CLASSIC";
   const setsLabel = Number(state.tournament?.targetSets || 2);
-  if (!window.confirm(`Lancer le tournoi ${formatLabel} en ${setsLabel} sets gagnants ? La configuration sera verrouillée et plus aucun joueur ne pourra rejoindre le salon.`)) return;
+  if (!window.confirm(`Lancer le tournoi ${formatLabel} en ${setsLabel} sets gagnants ? La configuration sera verrouillée et plus aucun joueur ne pourra rejoindre le CLUB HOUSE.`)) return;
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
       method: "POST",
@@ -3765,7 +3862,7 @@ async function startFriendlyTournamentFromLobby() {
 async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
   if (FRIENDLY_TOURNAMENT.isSpectator) {
-    if (!confirmed && !window.confirm("Quitter le salon du tournoi et revenir au lobby ?")) return;
+    if (!confirmed && !window.confirm("Quitter le CLUB HOUSE du tournoi et revenir au lobby ?")) return;
     resetFriendlyTournamentConnection();
     MENU_STATE.lobbyNotice = "Vous avez quitté le mode spectateur.";
     resetTournament();
@@ -3774,7 +3871,7 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   }
   const waitingRoomExit = state.tournament?.stage === "waiting";
   const confirmationText = waitingRoomExit
-    ? "Quitter ce salon ? Vous pourrez le rejoindre de nouveau tant que le tournoi n'est pas lancé."
+    ? "Quitter ce CLUB HOUSE ? Vous pourrez le rejoindre de nouveau tant que le tournoi n'est pas lancé."
     : "Quitter définitivement ce tournoi ? Vous ne pourrez plus le rejoindre.";
   if (!confirmed && !window.confirm(confirmationText)) return;
   const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
@@ -3799,19 +3896,22 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   MENU_STATE.lobbyNotice = leaveResult?.forfeited
     ? `Tournoi quitté sur le score ${leaveResult.score || scoreAtDeparture || "en cours"} : forfait enregistré.`
     : waitingRoomExit
-      ? "Vous avez quitté le salon. Vous pouvez le rejoindre de nouveau tant que le tournoi reste ouvert."
+      ? "Vous avez quitté le CLUB HOUSE. Vous pouvez le rejoindre de nouveau tant que le tournoi reste ouvert."
       : "Vous avez quitté le tournoi. Vous ne pouvez plus le rejoindre.";
   resetTournament();
   showMenuScreen();
 }
 
 function resetFriendlyTournamentConnection() {
+  cancelFriendlyMatchCountdown();
   if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
   window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
   window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
   window.clearInterval(SPECTATOR_MODE.pollTimer);
   SPECTATOR_MODE.enabled = false;
   SPECTATOR_MODE.source = null;
+  SPECTATOR_MODE.matchId = null;
+  SPECTATOR_MODE.lastTournamentPayload = null;
   document.body.classList.remove("spectator-mode");
   FRIENDLY_TOURNAMENT.enabled = false;
   FRIENDLY_TOURNAMENT.isSpectator = false;
@@ -3827,6 +3927,8 @@ function resetFriendlyTournamentConnection() {
   FRIENDLY_TOURNAMENT.waitingForNextRound = false;
   FRIENDLY_TOURNAMENT.readyRound = null;
   FRIENDLY_TOURNAMENT.forfeitDialogOpen = false;
+  FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+  document.querySelector(".friendly-forfeit-dialog")?.remove();
   clearFriendlyTournamentUrlParams();
 }
 
@@ -3890,8 +3992,10 @@ function initFriendlyTournament() {
   FRIENDLY_TOURNAMENT.participantId = params.participantId;
   FRIENDLY_TOURNAMENT.spectatorId = params.spectatorId;
   FRIENDLY_TOURNAMENT.token = params.token;
+  FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+  cancelFriendlyMatchCountdown();
   showFriendlyLobbyScreen();
-  if (els.friendlyLobbyContent) els.friendlyLobbyContent.innerHTML = '<div class="friendly-lobby-status">Chargement du salon...</div>';
+  if (els.friendlyLobbyContent) els.friendlyLobbyContent.innerHTML = '<div class="friendly-lobby-status">Chargement du CLUB HOUSE...</div>';
   pollFriendlyTournament();
   FRIENDLY_TOURNAMENT.pollTimer = window.setInterval(pollFriendlyTournament, 1400);
 }
@@ -4075,7 +4179,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v126",
+    version: "v127",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -7847,14 +7951,15 @@ function handleFriendlyTournamentMatchComplete() {
   reportFriendlyTournamentResult(match);
   if (sharedHumanMatch) leaveOnlineRoom();
   FRIENDLY_TOURNAMENT.inMatch = false;
+  FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = true;
+  FRIENDLY_TOURNAMENT.currentMatchId = null;
   state.tournament.currentMatch = null;
   if (winnerEntry === FRIENDLY_TOURNAMENT.entry) {
-    state.log.unshift("Match terminé. Retour au salon en attendant la fin du tour.");
+    state.log.unshift("Match terminé. Retourne au CLUB HOUSE en attendant la fin du tour.");
   } else {
-    state.log.unshift("Tu es éliminé du tournoi amical.");
+    state.log.unshift("Tu es éliminé du tournoi amical. Retourne au CLUB HOUSE pour suivre la suite.");
   }
-  showFriendlyLobbyScreen();
-  renderFriendlyLobbyScreen();
+  render();
 }
 
 function handleLeagueTournamentMatchComplete() {
@@ -8826,7 +8931,7 @@ function renderFriendlyTournamentStatus() {
     return '<div class="friendly-status-banner">En attente des autres joueurs qualifiés avant le prochain match.</div>';
   }
   if (state.gameOver && state.setMatch.matchOver && state.tournament.stage === "readyNext") {
-    return '<div class="friendly-status-banner">Match terminé. Retour au salon en attente du tour suivant.</div>';
+    return '<div class="friendly-status-banner">Match terminé. Retour au CLUB HOUSE en attente du tour suivant.</div>';
   }
   return '<div class="friendly-status-banner">En attente de la fin des matchs du tour.</div>';
 }
@@ -8837,7 +8942,7 @@ function renderFriendlyTournamentWaitingPanel(title) {
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
       <div>
-        <p class="eyebrow">Salon de tournoi</p>
+        <p class="eyebrow">CLUB HOUSE</p>
         <h2>${escapeHtml(title)}</h2>
         <span class="difficulty-reminder">${participants.length}/4 participants · Classic 2 sets · tableau à 8</span>
       </div>
@@ -9260,6 +9365,9 @@ function renderCenterNextSoloExchangeButton() {
 }
 
 function renderCenterNextSetButton() {
+  if (state.tournament.friendly && state.gameOver && state.setMatch.matchOver) {
+    return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-club-house>RETOUR CLUB-HOUSE</button>';
+  }
   if (isHumanTournamentRunOver()) {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>Sortir du tournoi</button>';
   }
@@ -9297,6 +9405,21 @@ function bindCenterButtons() {
   els.centerPlayedCard.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
   els.centerPlayedCard.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
   els.centerPlayedCard.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
+  els.centerPlayedCard.querySelector("[data-return-club-house]")?.addEventListener("click", returnFriendlyMatchToClubHouse);
+}
+
+function returnFriendlyMatchToClubHouse() {
+  if (!FRIENDLY_TOURNAMENT.enabled) return;
+  FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+  FRIENDLY_TOURNAMENT.inMatch = false;
+  FRIENDLY_TOURNAMENT.currentMatchId = null;
+  window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
+  if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
+  SOLO_AI.enabled = false;
+  stopSoloTimers();
+  showFriendlyLobbyScreen();
+  renderFriendlyLobbyScreen();
+  pollFriendlyTournament();
 }
 
 function startTournamentNextMatchFromCenter() {
@@ -9895,6 +10018,9 @@ function initMenu() {
 
 els.newGameButton?.addEventListener("click", newGame);
 els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
+els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
+els.friendlyLobbyHomeButton?.addEventListener("click", openReturnLobbyDialog);
+els.friendlyLobbyLogoButton?.addEventListener("click", openReturnLobbyDialog);
 els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
