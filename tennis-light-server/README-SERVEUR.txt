@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v121
+Tennis Courts Academy - version serveur v122
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -9,6 +9,10 @@ Le serveur affiche un menu/lobby commun :
 - choisir un pseudo et un coach
 - creer une partie en ligne en match 2 sets ou match 3 sets
 - creer ou rejoindre un tournoi amical en ligne jusqu'a 4 joueurs humains
+- choisir avant le lancement un tournoi CLASSIC ou LEAGUE, en 2 ou 3 sets gagnants
+- repartir les joueurs aleatoirement, selon le classement mondial ou en separant les humains
+- jouer la LEAGUE en 2 groupes de 4, journee par journee, puis demi-finales et finale
+- exclure un joueur du salon avant le lancement lorsque l'on est l'hote
 - lancer le tournoi des que 2 joueurs sont presents, puis completer le tableau a 8 avec les IA
 - suivre les scores des matchs humains en direct dans le salon du tournoi
 - regarder un match en mode visionneuse avec les deux mains masquees et aucune action de jeu possible
@@ -20,7 +24,7 @@ Le serveur affiche un menu/lobby commun :
 - rejoindre un tournoi en cours comme spectateur depuis le lobby
 - afficher les parties en cours sur les profils avec adversaire, score et bouton VOIR
 - prevenir le vainqueur lorsqu'un adversaire humain abandonne par forfait
-- administrer et supprimer les salons ouverts depuis le lobby ADMIN
+- administrer et supprimer les parties et tournois en ligne depuis le lobby ADMIN
 - les autres joueurs avec le meme lien voient les parties ouvertes et peuvent rejoindre
 
 L'ancien lien direct reste disponible :

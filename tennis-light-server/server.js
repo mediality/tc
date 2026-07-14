@@ -3219,7 +3219,7 @@ function friendlyAiName(characterId) {
   return AI_CHARACTER_NAMES[characterId] || characterId;
 }
 
-function makeFriendlyMatch(id, label, round, playerA = null, playerB = null) {
+function makeFriendlyMatch(id, label, round, playerA = null, playerB = null, options = {}) {
   return {
     id,
     label,
@@ -3232,6 +3232,8 @@ function makeFriendlyMatch(id, label, round, playerA = null, playerB = null) {
     liveState: null,
     liveParticipantId: null,
     liveUpdatedAt: null,
+    group: options.group || null,
+    day: options.day || null,
   };
 }
 
@@ -3253,7 +3255,7 @@ function friendlyEntryPublic(tournament, entry) {
 }
 
 function activeFriendlyParticipants(tournament) {
-  return (tournament?.participants || []).filter((participant) => !participant.leftAt);
+  return (tournament?.participants || []).filter((participant) => !participant.leftAt && !participant.kickedAt);
 }
 
 function transferFriendlyTournamentCreator(tournament) {
@@ -3327,6 +3329,10 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     participantCount: activeParticipants.length,
     maxParticipants: 4,
     canStart: tournament.status === "waiting" && activeParticipants.length >= 2,
+    format: tournament.format || "classic",
+    targetSets: Number(tournament.targetSets || 2),
+    distribution: tournament.distribution || "random",
+    settingsLocked: tournament.status !== "waiting",
     participants: activeParticipants.map((item) => ({
       id: item.id,
       nickname: item.nickname,
@@ -3350,7 +3356,14 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       playerBInfo: friendlyEntryPublic(tournament, match.playerB),
       winnerInfo: friendlyEntryPublic(tournament, match.winner),
       forfeitParticipantId: match.forfeitParticipantId || null,
+      group: match.group || null,
+      day: match.day || null,
     })),
+    groups: {
+      A: (tournament.groups?.A || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+      B: (tournament.groups?.B || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+    },
+    standings: friendlyLeagueStandings(tournament),
     round: tournament.round,
     champion: tournament.champion || null,
     championInfo: friendlyEntryPublic(tournament, tournament.champion),
@@ -3378,6 +3391,9 @@ function publicFriendlyLobbyInfo(req, tournament) {
     participantCount: activeParticipants.length,
     maxParticipants: 4,
     canStart: tournament.status === "waiting" && activeParticipants.length >= 2,
+    format: tournament.format || "classic",
+    targetSets: Number(tournament.targetSets || 2),
+    distribution: tournament.distribution || "random",
     participants: activeParticipants.map((item) => ({
       nickname: item.nickname,
       characterId: item.characterId,
@@ -3387,7 +3403,7 @@ function publicFriendlyLobbyInfo(req, tournament) {
 }
 
 function participantForToken(tournament, participantId, token) {
-  return tournament?.participants.find((item) => !item.leftAt && item.id === participantId && item.token === token) || null;
+  return tournament?.participants.find((item) => !item.leftAt && !item.kickedAt && item.id === participantId && item.token === token) || null;
 }
 
 function spectatorForToken(tournament, spectatorId, token) {
@@ -3401,7 +3417,118 @@ function userHasWaitingFriendlyTournament(userId) {
   ));
 }
 
-function buildFriendlyTournamentBracket(tournament) {
+function shuffleFriendlyEntries(entries) {
+  const shuffled = [...entries];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+async function rankFriendlyEntries(tournament, entries) {
+  const ranking = await buildRanking(1, 100000, null, "points");
+  const rankById = new Map((ranking.top || []).map((row) => [String(row.id), Number(row.rank || 999999)]));
+  const ranked = [...entries].sort((entryA, entryB) => {
+    const participantA = friendlyEntryIsHuman(entryA)
+      ? tournament.participants.find((item) => friendlyParticipantEntry(item.id) === entryA)
+      : null;
+    const participantB = friendlyEntryIsHuman(entryB)
+      ? tournament.participants.find((item) => friendlyParticipantEntry(item.id) === entryB)
+      : null;
+    const keyA = participantA ? String(participantA.userId) : `ai:${entryA}`;
+    const keyB = participantB ? String(participantB.userId) : `ai:${entryB}`;
+    return Number(rankById.get(keyA) || 999999) - Number(rankById.get(keyB) || 999999)
+      || String(entryA).localeCompare(String(entryB), "fr");
+  });
+  tournament.seedRanks = Object.fromEntries(ranked.map((entry, index) => [entry, index + 1]));
+  return ranked;
+}
+
+function separatedClassicEntries(humanEntries, aiEntries) {
+  const humans = shuffleFriendlyEntries(humanEntries);
+  const ais = shuffleFriendlyEntries(aiEntries);
+  const slots = Array(8).fill(null);
+  let quarterIndexes = [];
+  if (humans.length === 2) quarterIndexes = [Math.floor(Math.random() * 2), 2 + Math.floor(Math.random() * 2)];
+  if (humans.length === 3) quarterIndexes = [0, 3, 1 + Math.floor(Math.random() * 2)];
+  if (humans.length >= 4) quarterIndexes = [0, 1, 2, 3];
+  humans.forEach((entry, index) => {
+    const quarterIndex = quarterIndexes[index] ?? index % 4;
+    slots[(quarterIndex * 2) + Math.floor(Math.random() * 2)] = entry;
+  });
+  for (let index = 0; index < slots.length; index += 1) {
+    if (!slots[index]) slots[index] = ais.shift();
+  }
+  return slots;
+}
+
+function separatedLeagueGroups(humanEntries, aiEntries) {
+  const humans = shuffleFriendlyEntries(humanEntries);
+  const ais = shuffleFriendlyEntries(aiEntries);
+  const groupA = [];
+  const groupB = [];
+  if (humans[0]) groupA.push(humans[0]);
+  if (humans[1]) groupB.push(humans[1]);
+  if (humans[2]) (Math.random() < 0.5 ? groupA : groupB).push(humans[2]);
+  if (humans[3]) (groupA.length < groupB.length ? groupA : groupB).push(humans[3]);
+  while (groupA.length < 4) groupA.push(ais.shift());
+  while (groupB.length < 4) groupB.push(ais.shift());
+  return { A: shuffleFriendlyEntries(groupA), B: shuffleFriendlyEntries(groupB) };
+}
+
+function buildFriendlyLeagueMatches(groups) {
+  const schedule = [
+    [[0, 3], [1, 2]],
+    [[0, 2], [3, 1]],
+    [[0, 1], [2, 3]],
+  ];
+  const matches = [];
+  for (const groupName of ["A", "B"]) {
+    schedule.forEach((dayMatches, dayIndex) => {
+      dayMatches.forEach(([indexA, indexB], matchIndex) => {
+        matches.push(makeFriendlyMatch(
+          `${groupName.toLowerCase()}d${dayIndex + 1}m${matchIndex + 1}`,
+          `Groupe ${groupName} · Journée ${dayIndex + 1} · Match ${matchIndex + 1}`,
+          `group${dayIndex + 1}`,
+          groups[groupName][indexA],
+          groups[groupName][indexB],
+          { group: groupName, day: dayIndex + 1 },
+        ));
+      });
+    });
+  }
+  matches.push(makeFriendlyMatch("semi1", "Demi-finale 1 · A1 contre B2", "semi"));
+  matches.push(makeFriendlyMatch("semi2", "Demi-finale 2 · B1 contre A2", "semi"));
+  matches.push(makeFriendlyMatch("final", "Finale", "final"));
+  return matches;
+}
+
+function friendlyLeagueStandings(tournament) {
+  if ((tournament?.format || "classic") !== "league") return { A: [], B: [] };
+  const result = {};
+  for (const groupName of ["A", "B"]) {
+    const entries = tournament.groups?.[groupName] || [];
+    result[groupName] = entries.map((entry, groupIndex) => {
+      const matches = (tournament.matches || []).filter((match) => match.group === groupName && (match.playerA === entry || match.playerB === entry));
+      const completed = matches.filter((match) => match.winner);
+      const wins = completed.filter((match) => match.winner === entry).length;
+      return {
+        entry,
+        player: friendlyEntryPublic(tournament, entry),
+        played: completed.length,
+        wins,
+        losses: completed.length - wins,
+        points: wins * 3,
+        seed: Number(tournament.seedRanks?.[entry] || groupIndex + 1),
+      };
+    }).sort((a, b) => b.points - a.points || b.wins - a.wins || a.seed - b.seed)
+      .map((row, index) => ({ ...row, position: index + 1 }));
+  }
+  return result;
+}
+
+async function buildFriendlyTournamentBracket(tournament) {
   const activeParticipants = activeFriendlyParticipants(tournament);
   const humanEntries = activeParticipants.map((item) => friendlyParticipantEntry(item.id));
   const usedCharacters = new Set(activeParticipants.map((item) => item.characterId));
@@ -3410,11 +3537,35 @@ function buildFriendlyTournamentBracket(tournament) {
     .slice(0, Math.max(0, 8 - humanEntries.length));
   const entries = [...humanEntries, ...aiEntries];
   while (entries.length < 8) entries.push(CIRCUIT_AI_CHARACTER_IDS[entries.length % CIRCUIT_AI_CHARACTER_IDS.length]);
-  for (let index = entries.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [entries[index], entries[swapIndex]] = [entries[swapIndex], entries[index]];
+  const fullEntries = entries.slice(0, 8);
+  let rankedEntries = null;
+  if (tournament.distribution === "ranking") rankedEntries = await rankFriendlyEntries(tournament, fullEntries);
+  if (tournament.format === "league") {
+    if (tournament.distribution === "ranking") {
+      tournament.groups = {
+        A: [rankedEntries[0], rankedEntries[3], rankedEntries[4], rankedEntries[7]],
+        B: [rankedEntries[1], rankedEntries[2], rankedEntries[5], rankedEntries[6]],
+      };
+    } else if (tournament.distribution === "separated") {
+      tournament.groups = separatedLeagueGroups(humanEntries, fullEntries.filter((entry) => !friendlyEntryIsHuman(entry)));
+    } else {
+      const shuffled = shuffleFriendlyEntries(fullEntries);
+      tournament.groups = { A: shuffled.slice(0, 4), B: shuffled.slice(4, 8) };
+    }
+    tournament.entries = [...tournament.groups.A, ...tournament.groups.B];
+    tournament.matches = buildFriendlyLeagueMatches(tournament.groups);
+    tournament.round = "group1";
+    simulateFriendlyAiOnlyMatches(tournament);
+    return;
   }
-  tournament.entries = entries.slice(0, 8);
+  if (tournament.distribution === "ranking") {
+    tournament.entries = [rankedEntries[0], rankedEntries[7], rankedEntries[4], rankedEntries[3], rankedEntries[2], rankedEntries[5], rankedEntries[6], rankedEntries[1]];
+  } else if (tournament.distribution === "separated") {
+    tournament.entries = separatedClassicEntries(humanEntries, fullEntries.filter((entry) => !friendlyEntryIsHuman(entry)));
+  } else {
+    tournament.entries = shuffleFriendlyEntries(fullEntries);
+  }
+  tournament.groups = { A: [], B: [] };
   tournament.matches = [
     makeFriendlyMatch("qf1", "Quart de finale 1", "quarter", tournament.entries[0], tournament.entries[1]),
     makeFriendlyMatch("qf2", "Quart de finale 2", "quarter", tournament.entries[2], tournament.entries[3]),
@@ -3442,9 +3593,62 @@ function simulateFriendlyScore() {
 function simulateFriendlyAiOnlyMatches(tournament) {
   for (const match of tournament.matches) {
     if (match.winner || !match.playerA || !match.playerB) continue;
+    if (match.round !== tournament.round) continue;
     if (friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB)) continue;
     match.winner = Math.random() < 0.5 ? match.playerA : match.playerB;
     match.score = simulateFriendlyScore();
+  }
+}
+
+function refreshFriendlyLeagueSlots(tournament) {
+  const byId = new Map((tournament.matches || []).map((match) => [match.id, match]));
+  const semi1 = byId.get("semi1");
+  const semi2 = byId.get("semi2");
+  const final = byId.get("final");
+  for (let step = 0; step < 8; step += 1) {
+    resolveFriendlyDepartedForfeits(tournament);
+    simulateFriendlyAiOnlyMatches(tournament);
+    if (["group1", "group2", "group3"].includes(tournament.round)) {
+      const roundMatches = tournament.matches.filter((match) => match.round === tournament.round);
+      if (!roundMatches.length || !roundMatches.every((match) => match.winner)) return;
+      if (tournament.round === "group1") {
+        tournament.round = "group2";
+        continue;
+      }
+      if (tournament.round === "group2") {
+        tournament.round = "group3";
+        continue;
+      }
+      const standings = friendlyLeagueStandings(tournament);
+      if (semi1 && !semi1.playerA && !semi1.playerB) {
+        semi1.playerA = standings.A[0]?.entry || null;
+        semi1.playerB = standings.B[1]?.entry || null;
+      }
+      if (semi2 && !semi2.playerA && !semi2.playerB) {
+        semi2.playerA = standings.B[0]?.entry || null;
+        semi2.playerB = standings.A[1]?.entry || null;
+      }
+      tournament.round = "semi";
+      continue;
+    }
+    if (tournament.round === "semi") {
+      const semiMatches = [semi1, semi2].filter(Boolean);
+      if (!semiMatches.every((match) => match.winner)) return;
+      if (final && !final.playerA && !final.playerB) {
+        final.playerA = semi1.winner;
+        final.playerB = semi2.winner;
+      }
+      tournament.round = "final";
+      continue;
+    }
+    if (tournament.round === "final") {
+      if (!final?.winner) return;
+      tournament.status = "complete";
+      tournament.round = "complete";
+      tournament.champion = final.winner;
+      return;
+    }
+    return;
   }
 }
 
@@ -3474,6 +3678,10 @@ function resolveFriendlyDepartedForfeits(tournament) {
 function refreshFriendlyTournamentSlots(tournament) {
   if (tournament.status === "waiting") {
     tournament.round = "waiting";
+    return;
+  }
+  if (tournament.format === "league") {
+    refreshFriendlyLeagueSlots(tournament);
     return;
   }
   const byId = new Map(tournament.matches.map((match) => [match.id, match]));
@@ -3584,6 +3792,10 @@ async function handleApi(req, res) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       creatorParticipantId: participantId,
+      format: "classic",
+      targetSets: 2,
+      distribution: "random",
+      excludedUserIds: [],
       participants: [participant],
       spectators: [],
       entries: [],
@@ -3608,8 +3820,8 @@ async function handleApi(req, res) {
     const admin = await requireAdmin(req, res);
     if (!admin) return;
     const tournament = friendlyTournaments.get(friendlyAdminDeleteMatch[1]);
-    if (!tournament || tournament.status !== "waiting") {
-      sendJson(res, 404, { error: "Salon introuvable ou déjà lancé." });
+    if (!tournament) {
+      sendJson(res, 404, { error: "Salon introuvable." });
       return;
     }
     friendlyTournaments.delete(tournament.id);
@@ -3627,6 +3839,10 @@ async function handleApi(req, res) {
     }
     if (activeFriendlyParticipants(tournament).length >= 4) {
       sendJson(res, 409, { error: "Tournoi complet." });
+      return;
+    }
+    if ((tournament.excludedUserIds || []).some((userId) => String(userId) === String(user.id))) {
+      sendJson(res, 403, { error: "Vous avez été exclu de ce salon." });
       return;
     }
     if (tournament.participants.some((item) => String(item.userId) === String(user.id))) {
@@ -3678,6 +3894,56 @@ async function handleApi(req, res) {
     return;
   }
 
+  const friendlySettingsMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/settings$/);
+  if (req.method === "POST" && friendlySettingsMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlySettingsMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    if (participant.id !== tournament.creatorParticipantId) {
+      sendJson(res, 403, { error: "Seul l'hôte peut modifier le tournoi." });
+      return;
+    }
+    if (tournament.status !== "waiting") {
+      sendJson(res, 409, { error: "La configuration est verrouillée après le lancement." });
+      return;
+    }
+    tournament.format = payload.format === "league" ? "league" : "classic";
+    tournament.targetSets = Number(payload.targetSets) === 3 ? 3 : 2;
+    tournament.distribution = ["random", "ranking", "separated"].includes(payload.distribution) ? payload.distribution : "random";
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
+  const friendlyKickMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/kick$/);
+  if (req.method === "POST" && friendlyKickMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyKickMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant) {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    if (participant.id !== tournament.creatorParticipantId || tournament.status !== "waiting") {
+      sendJson(res, 403, { error: "Exclusion impossible." });
+      return;
+    }
+    const target = activeFriendlyParticipants(tournament).find((item) => item.id === payload.targetParticipantId && item.id !== participant.id);
+    if (!target) {
+      sendJson(res, 404, { error: "Joueur introuvable." });
+      return;
+    }
+    target.kickedAt = Date.now();
+    tournament.excludedUserIds = [...new Set([...(tournament.excludedUserIds || []), String(target.userId)])];
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
   const friendlyStartMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/start$/);
   if (req.method === "POST" && friendlyStartMatch) {
     const payload = await readJson(req);
@@ -3699,7 +3965,7 @@ async function handleApi(req, res) {
     tournament.updatedAt = Date.now();
     tournament.ready = {};
     tournament.nextReady = {};
-    buildFriendlyTournamentBracket(tournament);
+    await buildFriendlyTournamentBracket(tournament);
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
     return;
   }
@@ -3785,6 +4051,15 @@ async function handleApi(req, res) {
   const friendlyStateMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)$/);
   if (req.method === "GET" && friendlyStateMatch) {
     const tournament = friendlyTournaments.get(friendlyStateMatch[1]);
+    const kickedParticipant = tournament?.participants.find((item) => (
+      item.kickedAt
+      && item.id === url.searchParams.get("participantId")
+      && item.token === url.searchParams.get("token")
+    ));
+    if (kickedParticipant) {
+      sendJson(res, 403, { error: "Vous avez été exclu du salon.", kicked: true });
+      return;
+    }
     const participant = participantForToken(tournament, url.searchParams.get("participantId"), url.searchParams.get("token"));
     const spectator = spectatorForToken(tournament, url.searchParams.get("spectatorId"), url.searchParams.get("token"));
     if (!tournament || (!participant && !spectator)) {
@@ -3910,6 +4185,20 @@ async function handleApi(req, res) {
     tournament.nextReady[participant.id] = true;
     tournament.updatedAt = Date.now();
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
+  const roomAdminDeleteMatch = url.pathname.match(/^\/api\/lobby\/rooms\/([^/]+)\/admin-delete$/);
+  if (req.method === "POST" && roomAdminDeleteMatch) {
+    const admin = await requireAdmin(req, res);
+    if (!admin) return;
+    const room = rooms.get(roomAdminDeleteMatch[1]);
+    if (!room) {
+      sendJson(res, 404, { error: "Salon introuvable." });
+      return;
+    }
+    rooms.delete(room.id);
+    sendJson(res, 200, { ok: true, closed: true });
     return;
   }
 

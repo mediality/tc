@@ -2949,13 +2949,13 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
     <article class="lobby-room friendly-tournament-room">
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Tournoi amical</strong>
-        <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
+        <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants · ${tournament.format === "league" ? "LEAGUE" : "CLASSIC"} ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
         ${tournament.status === "playing"
           ? `<button class="small-button friendly-spectator-button" type="button" data-spectate-friendly-tournament="${tournament.id}">SPECTATEUR</button>`
           : `<button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>`}
-        ${canAccessAdminFeatures() && tournament.status === "waiting" ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
+        ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
       </div>
     </article>
   `).join("");
@@ -2969,7 +2969,10 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
           <strong>${host?.nickname ?? "Joueur"} · ${format}</strong>
           <span>${coach} · Salon ${room.id}</span>
         </div>
-        <button class="small-button" type="button" data-join-room="${room.id}">Rejoindre</button>
+        <div class="lobby-room-actions">
+          <button class="small-button" type="button" data-join-room="${room.id}">Rejoindre</button>
+          ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-room="${room.id}">SUPPRIMER</button>` : ""}
+        </div>
       </article>
     `;
   }).join("");
@@ -2986,6 +2989,9 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
   });
   els.lobbyRooms.querySelectorAll("[data-admin-delete-friendly-tournament]").forEach((button) => {
     button.addEventListener("click", () => adminDeleteFriendlyTournament(button.dataset.adminDeleteFriendlyTournament));
+  });
+  els.lobbyRooms.querySelectorAll("[data-admin-delete-room]").forEach((button) => {
+    button.addEventListener("click", () => adminDeleteLobbyRoom(button.dataset.adminDeleteRoom));
   });
 }
 
@@ -3076,6 +3082,24 @@ async function adminDeleteFriendlyTournament(tournamentId) {
   }
 }
 
+async function adminDeleteLobbyRoom(roomId) {
+  if (!canAccessAdminFeatures()) return;
+  if (!window.confirm("Supprimer cette partie en ligne et éjecter les joueurs présents ?")) return;
+  try {
+    const response = await fetch(`/api/lobby/rooms/${encodeURIComponent(roomId)}/admin-delete`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) throw new Error("delete failed");
+    MENU_STATE.lobbyNotice = "Partie en ligne supprimée.";
+    await refreshLobbyRooms();
+  } catch (error) {
+    MENU_STATE.lobbyNotice = "Impossible de supprimer cette partie.";
+    await refreshLobbyRooms();
+  }
+}
+
 async function createLobbyRoom() {
   if (!canAccessProFeatures()) {
     if (els.lobbyRooms) els.lobbyRooms.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
@@ -3154,6 +3178,8 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     playerAInfo: match.playerAInfo || null,
     playerBInfo: match.playerBInfo || null,
     forfeitParticipantId: match.forfeitParticipantId || null,
+    group: match.group || null,
+    day: match.day || null,
     playable: match.playerA === FRIENDLY_TOURNAMENT.entry || match.playerB === FRIENDLY_TOURNAMENT.entry,
     simulated: false,
   }));
@@ -3163,9 +3189,14 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     visible: true,
     friendly: true,
     difficulty: "normal",
-    competitionName: "Tournoi amical en ligne",
+    competitionName: `Tournoi amical en ligne · ${payload.format === "league" ? "LEAGUE" : "CLASSIC"}`,
     stage: payload.round || "waiting",
-    targetSets: 2,
+    targetSets: Number(payload.targetSets || 2),
+    friendlyFormat: payload.format || "classic",
+    friendlyDistribution: payload.distribution || "random",
+    friendlySettingsLocked: Boolean(payload.settingsLocked),
+    friendlyGroups: payload.groups || { A: [], B: [] },
+    friendlyStandings: payload.standings || { A: [], B: [] },
     humanCharacterId: selectedCharacterId(),
     humanEntry: FRIENDLY_TOURNAMENT.entry,
     currentMatch: FRIENDLY_TOURNAMENT.inMatch ? state.tournament?.currentMatch ?? null : null,
@@ -3237,7 +3268,7 @@ function startFriendlyTournamentMatch(match) {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.characterId = friendlyEntryCharacterId(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
-  startMatchMode(2, { keepSoloOpponent: true });
+  startMatchMode(Number(state.tournament.targetSets || 2), { keepSoloOpponent: true });
   state.tournament.stage = match.round;
   state.tournament.currentMatch = match.id;
   state.log.unshift(`${match.label} : ${nicknameValue()} contre ${tournamentPlayerLabel(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA)}.`);
@@ -3285,25 +3316,79 @@ function renderFriendlyLobbyScreen() {
   if (!els.friendlyLobbyContent || !state.tournament?.friendly) return;
   const participants = state.tournament.friendlyParticipants || [];
   const matches = state.tournament.matches || [];
+  const format = state.tournament.friendlyFormat || "classic";
+  const targetSets = Number(state.tournament.targetSets || 2);
+  const distribution = state.tournament.friendlyDistribution || "random";
+  const settingsLocked = state.tournament.stage !== "waiting" || state.tournament.friendlySettingsLocked;
+  const settingsDisabled = settingsLocked || !FRIENDLY_TOURNAMENT.isCreator || FRIENDLY_TOURNAMENT.isSpectator;
   const canStart = !FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && (FRIENDLY_TOURNAMENT.canStart || participants.length >= 2);
   const startDisabled = !canStart;
   const status = friendlyLobbyStatusText();
+  const settingButton = (group, value, label, active) => `<button class="friendly-setting-button ${active ? "active" : ""}" type="button" data-friendly-setting="${group}" data-friendly-setting-value="${value}" ${settingsDisabled ? "disabled" : ""}>${label}</button>`;
+  const standings = state.tournament.friendlyStandings || { A: [], B: [] };
+  const leagueGroups = state.tournament.friendlyGroups || { A: [], B: [] };
+  const leagueGroupMarkup = format === "league" && (leagueGroups.A?.length || leagueGroups.B?.length) ? `
+    <section>
+      <p class="label">Groupes</p>
+      <div class="friendly-league-groups">
+        ${["A", "B"].map((groupName) => `
+          <article class="friendly-league-group">
+            <h3>Groupe ${groupName}</h3>
+            ${(standings[groupName]?.length ? standings[groupName] : (leagueGroups[groupName] || []).map((player, index) => ({ player, position: index + 1, played: 0, wins: 0, points: 0 }))).map((row) => `
+              <div class="friendly-standing-row">
+                <span>${Number(row.position || 0)}</span>
+                <strong>${escapeHtml(row.player?.nickname || "Joueur")}</strong>
+                <span>${Number(row.played || 0)} J · ${Number(row.wins || 0)} V · ${Number(row.points || 0)} pts</span>
+              </div>
+            `).join("")}
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  ` : "";
   els.friendlyLobbyContent.innerHTML = `
     <div class="friendly-lobby-title">
       <div>
         <p class="label">Salon ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
         <h1>${FRIENDLY_TOURNAMENT.isSpectator ? "Tournoi amical · Spectateur" : "Tournoi amical"}</h1>
-        <p>${participants.length}/4 humains · ${state.tournament.stage === "waiting" ? "lancement possible dès 2 joueurs" : "tournoi en cours"} · Classic 2 sets</p>
+        <p>${participants.length}/4 humains · ${state.tournament.stage === "waiting" ? "lancement possible dès 2 joueurs" : "tournoi en cours"} · ${format === "league" ? "LEAGUE" : "CLASSIC"} · ${targetSets} sets gagnants</p>
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
+    <section class="friendly-settings-panel ${settingsLocked ? "locked" : ""}">
+      <div class="friendly-setting-row">
+        <div><strong>Type de tournoi</strong><span>${settingsLocked ? "Configuration verrouillée" : "Choix de l'hôte"}</span></div>
+        <div class="friendly-setting-switch">
+          ${settingButton("format", "classic", "CLASSIC", format === "classic")}
+          ${settingButton("format", "league", "LEAGUE", format === "league")}
+        </div>
+      </div>
+      <div class="friendly-setting-row">
+        <div><strong>Format des sets</strong><span>Sets gagnants par rencontre</span></div>
+        <div class="friendly-setting-switch">
+          ${settingButton("targetSets", "2", "2 SETS", targetSets === 2)}
+          ${settingButton("targetSets", "3", "3 SETS", targetSets === 3)}
+        </div>
+      </div>
+      <div class="friendly-setting-row">
+        <div><strong>Répartition des joueurs</strong><span>Placement des 8 participants</span></div>
+        <div class="friendly-setting-switch three-options">
+          ${settingButton("distribution", "random", "ALÉATOIRE", distribution === "random")}
+          ${settingButton("distribution", "ranking", "CLASSEMENT MONDIAL", distribution === "ranking")}
+          ${settingButton("distribution", "separated", "JOUEURS SÉPARÉS", distribution === "separated")}
+        </div>
+      </div>
+    </section>
     <section>
       <p class="label">Joueurs humains</p>
       <div class="friendly-player-grid">
         ${participants.map((participant) => `
           <article class="friendly-player-card">
-            <strong>${escapeHtml(participant.nickname || "Joueur")}${participant.isCreator ? " · Créateur" : ""}</strong>
-            <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.eliminated ? " · Éliminé" : ""}</span>
+            <div>
+              <strong>${escapeHtml(participant.nickname || "Joueur")}${participant.isCreator ? " · Créateur" : ""}</strong>
+              <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.eliminated ? " · Éliminé" : ""}</span>
+            </div>
+            ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked && participant.id !== FRIENDLY_TOURNAMENT.participantId ? `<button class="small-button danger-button friendly-kick-button" type="button" data-kick-friendly-participant="${escapeHtml(participant.id)}" data-kick-friendly-nickname="${escapeHtml(participant.nickname || "Joueur")}">EXCLURE</button>` : ""}
           </article>
         `).join("")}
       </div>
@@ -3312,9 +3397,10 @@ function renderFriendlyLobbyScreen() {
         <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>SORTIR</button>
       </div>
     </section>
+    ${leagueGroupMarkup}
     ${matches.length ? `
       <section>
-        <p class="label">Tableau</p>
+        <p class="label">${format === "league" ? "Rencontres LEAGUE et phases finales" : "Tableau CLASSIC"}</p>
         <div class="friendly-bracket-grid">
           ${matches.map((match) => `
             <article class="friendly-bracket-card">
@@ -3333,10 +3419,61 @@ function renderFriendlyLobbyScreen() {
   `;
   const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
   if (startButton && !startDisabled) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
+  els.friendlyLobbyContent.querySelectorAll("[data-friendly-setting]").forEach((button) => {
+    button.addEventListener("click", () => updateFriendlyTournamentSettings(button.dataset.friendlySetting, button.dataset.friendlySettingValue));
+  });
+  els.friendlyLobbyContent.querySelectorAll("[data-kick-friendly-participant]").forEach((button) => {
+    button.addEventListener("click", () => kickFriendlyParticipant(button.dataset.kickFriendlyParticipant, button.dataset.kickFriendlyNickname));
+  });
   els.friendlyLobbyContent.querySelector("[data-leave-friendly-tournament]")?.addEventListener("click", leaveFriendlyTournamentLobby);
   els.friendlyLobbyContent.querySelectorAll("[data-watch-friendly-match]").forEach((button) => {
     button.addEventListener("click", () => startFriendlySpectator(button.dataset.watchFriendlyMatch));
   });
+}
+
+async function updateFriendlyTournamentSettings(setting, value) {
+  if (!FRIENDLY_TOURNAMENT.isCreator || state.tournament.stage !== "waiting") return;
+  const next = {
+    format: state.tournament.friendlyFormat || "classic",
+    targetSets: Number(state.tournament.targetSets || 2),
+    distribution: state.tournament.friendlyDistribution || "random",
+  };
+  if (setting === "format") next.format = value === "league" ? "league" : "classic";
+  if (setting === "targetSets") next.targetSets = Number(value) === 3 ? 3 : 2;
+  if (setting === "distribution") next.distribution = ["random", "ranking", "separated"].includes(value) ? value : "random";
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/settings`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token, ...next }),
+    });
+    if (!response.ok) throw new Error("settings failed");
+    const data = await response.json();
+    applyFriendlyTournamentState(data.tournament, null);
+  } catch (error) {
+    state.log.unshift("La configuration du tournoi n'a pas pu être modifiée.");
+  }
+}
+
+async function kickFriendlyParticipant(targetParticipantId, nickname) {
+  if (!FRIENDLY_TOURNAMENT.isCreator || !targetParticipantId) return;
+  if (!window.confirm(`Exclure ${nickname || "ce joueur"} du salon ? Il ne pourra plus rejoindre ce tournoi.`)) return;
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/kick`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        targetParticipantId,
+      }),
+    });
+    if (!response.ok) throw new Error("kick failed");
+    const data = await response.json();
+    applyFriendlyTournamentState(data.tournament, null);
+  } catch (error) {
+    state.log.unshift("Impossible d'exclure ce joueur.");
+  }
 }
 
 function startFriendlySpectator(matchId) {
@@ -3411,6 +3548,7 @@ function quitFriendlySpectator(matchEnded = false) {
 
 function friendlyLobbyStatusText() {
   if (!state.tournament?.friendly) return "Chargement du salon...";
+  const leagueDay = { group1: 1, group2: 2, group3: 3 }[state.tournament.stage];
   if (FRIENDLY_TOURNAMENT.isSpectator) {
     return state.tournament.stage === "complete"
       ? `Tournoi terminé. Vainqueur : ${tournamentPlayerLabel(state.tournament.championCharacterId)}.`
@@ -3427,6 +3565,9 @@ function friendlyLobbyStatusText() {
   if (state.tournament.stage === "complete") {
     return `Tournoi terminé. Vainqueur : ${tournamentPlayerLabel(state.tournament.championCharacterId)}.`;
   }
+  if ((state.tournament.friendlyFormat || "classic") === "league" && leagueDay) {
+    return `Journée ${leagueDay} en cours. La journée suivante commencera automatiquement lorsque les 4 rencontres seront terminées.`;
+  }
   return "En attente de la fin de tous les matchs du tour. Ton prochain match démarrera automatiquement si tu es qualifié.";
 }
 
@@ -3441,6 +3582,17 @@ async function pollFriendlyTournament() {
       resetTournament();
       showMenuScreen();
       return;
+    }
+    if (response.status === 403) {
+      const data = await response.json().catch(() => ({}));
+      if (data.kicked) {
+        window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
+        resetFriendlyTournamentConnection();
+        MENU_STATE.lobbyNotice = "VOUS AVEZ ÉTÉ EXCLU DU SALON";
+        resetTournament();
+        showMenuScreen();
+        return;
+      }
     }
     if (!response.ok) throw new Error("poll failed");
     const data = await response.json();
@@ -3457,7 +3609,9 @@ async function startFriendlyTournamentFromLobby() {
     renderFriendlyLobbyScreen();
     return;
   }
-  if (!window.confirm("Lancer le tournoi maintenant ? Plus aucun autre joueur ne pourra rejoindre le salon.")) return;
+  const formatLabel = (state.tournament?.friendlyFormat || "classic") === "league" ? "LEAGUE" : "CLASSIC";
+  const setsLabel = Number(state.tournament?.targetSets || 2);
+  if (!window.confirm(`Lancer le tournoi ${formatLabel} en ${setsLabel} sets gagnants ? La configuration sera verrouillée et plus aucun joueur ne pourra rejoindre le salon.`)) return;
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
       method: "POST",
@@ -3776,7 +3930,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v121",
+    version: "v122",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,

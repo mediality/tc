@@ -344,6 +344,135 @@ button:disabled {
   font-weight: 900;
 }
 
+.friendly-settings-panel {
+  display: grid;
+  gap: 12px;
+  border-top: 3px solid #0f8d68;
+  padding-top: 14px;
+}
+
+.friendly-setting-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) minmax(280px, 1.4fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.friendly-setting-row > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.friendly-setting-row strong {
+  color: #17212b;
+}
+
+.friendly-setting-row span {
+  color: #526170;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.friendly-setting-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  background: #e2e8f0;
+}
+
+.friendly-setting-switch.three-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.friendly-setting-button {
+  min-width: 0;
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid #94a3b8;
+  padding: 8px 10px;
+  color: #475569;
+  background: #e2e8f0;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.friendly-setting-button:last-child {
+  border-right: 0;
+}
+
+.friendly-setting-button.active {
+  color: #fff;
+  background: #0f8d68;
+}
+
+.friendly-setting-button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.friendly-settings-panel.locked .friendly-setting-button:not(.active) {
+  color: #64748b;
+  background: #e5e7eb;
+}
+
+.friendly-player-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.friendly-player-card > div {
+  min-width: 0;
+}
+
+.friendly-player-card .friendly-kick-button {
+  flex: 0 0 auto;
+  color: #fff;
+  background: #b91c1c;
+}
+
+.friendly-league-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.friendly-league-group {
+  border: 1px solid rgba(99, 115, 129, 0.22);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.friendly-league-group h3 {
+  margin: 0 0 9px;
+  color: #17212b;
+  font-size: 1rem;
+}
+
+.friendly-standing-row {
+  display: grid;
+  grid-template-columns: 22px minmax(90px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid rgba(99, 115, 129, 0.18);
+  padding: 8px 0;
+  color: #526170;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.friendly-standing-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #17212b;
+}
+
 .friendly-bracket-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
@@ -1308,6 +1437,24 @@ body.spectator-mode .player-panel {
 
   .friendly-lobby-action-panel {
     grid-template-columns: 1fr;
+  }
+
+  .friendly-setting-row,
+  .friendly-league-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .friendly-setting-switch.three-options {
+    grid-template-columns: 1fr;
+  }
+
+  .friendly-setting-switch.three-options .friendly-setting-button {
+    border-right: 0;
+    border-bottom: 1px solid #94a3b8;
+  }
+
+  .friendly-setting-switch.three-options .friendly-setting-button:last-child {
+    border-bottom: 0;
   }
 
   .spectator-live-banner {
