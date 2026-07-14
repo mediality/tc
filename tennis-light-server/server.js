@@ -3148,6 +3148,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null) {
     champion: tournament.champion || null,
     championInfo: friendlyEntryPublic(tournament, tournament.champion),
     ready: tournament.ready || {},
+    nextReady: tournament.nextReady || {},
     participant: participant ? {
       id: participant.id,
       token: participant.token,
@@ -3263,16 +3264,18 @@ function refreshFriendlyTournamentSlots(tournament) {
     final.playerB = semi2.winner;
   }
   simulateFriendlyAiOnlyMatches(tournament);
+  const quarterDone = [qf1, qf2, qf3, qf4].every((match) => match?.winner);
+  const semiDone = [semi1, semi2].every((match) => match?.winner);
   if (final?.winner) {
     tournament.status = "complete";
     tournament.round = "complete";
     tournament.champion = final.winner;
-  } else if (final?.playerA && final?.playerB) {
-    tournament.round = "final";
-  } else if (semi1?.playerA || semi2?.playerA) {
+  } else if (!quarterDone) {
+    tournament.round = "quarter";
+  } else if (!semiDone) {
     tournament.round = "semi";
   } else {
-    tournament.round = "quarter";
+    tournament.round = "final";
   }
 }
 
@@ -3284,7 +3287,6 @@ function currentFriendlyMatchForParticipant(tournament, participantId) {
     && match.playerA
     && match.playerB
     && (match.playerA === entry || match.playerB === entry)
-    && (match.playerA === entry || !friendlyEntryIsHuman(match.playerA))
   )) || null;
 }
 
@@ -3301,7 +3303,8 @@ function friendlyRoundReadyForPlay(tournament) {
   }
   if (!aliveParticipantIds.size) return true;
   const ready = tournament.ready?.[tournament.round] || {};
-  return [...aliveParticipantIds].every((participantId) => ready[participantId]);
+  const nextReady = tournament.nextReady || {};
+  return [...aliveParticipantIds].every((participantId) => ready[participantId] || nextReady[participantId]);
 }
 
 async function handleApi(req, res) {
@@ -3355,6 +3358,7 @@ async function handleApi(req, res) {
       matches: [],
       round: "waiting",
       ready: {},
+      nextReady: {},
       champion: null,
     };
     friendlyTournaments.set(tournamentId, tournament);
@@ -3419,6 +3423,8 @@ async function handleApi(req, res) {
     }
     tournament.status = "playing";
     tournament.updatedAt = Date.now();
+    tournament.ready = {};
+    tournament.nextReady = {};
     buildFriendlyTournamentBracket(tournament);
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
     return;
@@ -3455,13 +3461,11 @@ async function handleApi(req, res) {
       sendJson(res, 409, { error: "Match indisponible." });
       return;
     }
-    if (match.playerA !== entry && friendlyEntryIsHuman(match.playerA)) {
-      sendJson(res, 403, { error: "Ce match est joué par l'autre qualifié." });
-      return;
-    }
     match.winner = String(payload.winner || "") === match.playerB ? match.playerB : match.playerA;
     match.score = String(payload.score || "").slice(0, 80);
-    tournament.ready = {};
+    tournament.ready = tournament.ready || {};
+    tournament.nextReady = tournament.nextReady || {};
+    delete tournament.nextReady[participant.id];
     tournament.updatedAt = Date.now();
     refreshFriendlyTournamentSlots(tournament);
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
@@ -3479,6 +3483,8 @@ async function handleApi(req, res) {
     }
     tournament.ready[tournament.round] = tournament.ready[tournament.round] || {};
     tournament.ready[tournament.round][participant.id] = true;
+    tournament.nextReady = tournament.nextReady || {};
+    tournament.nextReady[participant.id] = true;
     tournament.updatedAt = Date.now();
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
     return;

@@ -3274,7 +3274,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v111",
+    version: "v113",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -7817,6 +7817,7 @@ function renderTournamentPanel() {
     renderLeagueTournamentPanel(title, final, champion);
     return;
   }
+  const friendlyStatus = renderFriendlyTournamentStatus();
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
       <div>
@@ -7830,6 +7831,7 @@ function renderTournamentPanel() {
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
       </button>
     </div>
+    ${friendlyStatus}
     <div class="tournament-bracket ${state.tournament.visible ? "" : "hidden"}">
       ${round16Matches.length ? `
         <div class="tournament-column round16-column">
@@ -7867,6 +7869,24 @@ function renderTournamentPanel() {
   els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
   els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", startTournamentSemi);
   els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", startTournamentFinal);
+}
+
+function renderFriendlyTournamentStatus() {
+  if (!state.tournament?.friendly) return "";
+  if (state.tournament.stage === "complete") {
+    return `<div class="friendly-status-banner">Tournoi terminé · Vainqueur : ${escapeHtml(tournamentPlayerLabel(state.tournament.championCharacterId))}</div>`;
+  }
+  if (state.tournament.currentMatch) {
+    const match = tournamentMatchById(state.tournament.currentMatch);
+    return `<div class="friendly-status-banner">Match en cours · ${escapeHtml(match?.label || "Tour")}</div>`;
+  }
+  if (FRIENDLY_TOURNAMENT.waitingForNextRound) {
+    return '<div class="friendly-status-banner">En attente des autres joueurs qualifiés avant le prochain match.</div>';
+  }
+  if (state.gameOver && state.setMatch.matchOver && state.tournament.stage === "readyNext") {
+    return '<div class="friendly-status-banner">Match terminé. Clique sur MATCH SUIVANT quand tu es prêt.</div>';
+  }
+  return '<div class="friendly-status-banner">En attente de la fin des matchs du tour.</div>';
 }
 
 function renderFriendlyTournamentWaitingPanel(title) {
