@@ -49,8 +49,10 @@ const SERVER_SYNC = {
 
 const FRIENDLY_TOURNAMENT = {
   enabled: false,
+  isSpectator: false,
   id: null,
   participantId: null,
+  spectatorId: null,
   token: null,
   isCreator: false,
   entry: null,
@@ -63,15 +65,24 @@ const FRIENDLY_TOURNAMENT = {
   canStart: false,
   streamTimer: null,
   lastStreamPayload: "",
+  lastForfeitNoticeMatchId: null,
 };
 
 const SPECTATOR_MODE = {
   enabled: false,
+  source: null,
   matchId: null,
   matchLabel: "",
   liveScore: "",
   pollTimer: null,
   lastTournamentPayload: null,
+  profileUserId: null,
+  returnProfileUserId: null,
+};
+
+const PROFILE_ACTIVITY = {
+  timer: null,
+  lastActive: false,
 };
 
 const SOLO_AI = {
@@ -1168,10 +1179,15 @@ function serverSyncParams() {
 
 function friendlyTournamentParams() {
   const params = new URLSearchParams(window.location.search);
-  if (!params.has("friendlyTournament") || !params.has("participant") || !params.has("token")) return null;
+  if (!params.has("friendlyTournament") || !params.has("token")) return null;
+  const participantId = params.get("participant");
+  const spectatorId = params.get("spectator");
+  if (!participantId && !spectatorId) return null;
   return {
     id: params.get("friendlyTournament"),
-    participantId: params.get("participant"),
+    participantId,
+    spectatorId,
+    isSpectator: Boolean(spectatorId),
     token: params.get("token"),
   };
 }
@@ -1727,6 +1743,7 @@ function profileMarkup(profile) {
   const aiResults = profile?.aiResults || [];
   const calendar = profile?.calendar || [];
   const isOwnProfile = !profile?.publicProfile;
+  const activity = profile?.activity || null;
   const selectedProfileCharacter = user?.selectedCharacterId || "tennisHope";
   const selectedCharacterImage = PROFILE_CHARACTER_IMAGES[selectedProfileCharacter] || CHARACTER_IMAGES[selectedProfileCharacter]?.[0] || CHARACTER_IMAGES.coachUnknown[0];
   const palmaresResults = results.filter((row) => ["winner", "finalist"].includes(String(row.achievement || "").toLowerCase()));
@@ -1809,6 +1826,14 @@ function profileMarkup(profile) {
         </div>
         ${isOwnProfile ? '<button id="openCharacterPageButton" class="primary-button" type="button">Changer de personnage</button>' : ""}
       </section>
+      ${activity ? `<section class="profile-card profile-wide profile-live-activity">
+        <div>
+          <p class="label">Partie en cours</p>
+          <strong>${escapeHtml(activity.type || "Partie en cours")}</strong>
+          <span>Adversaire : ${escapeHtml(activity.opponent || "Adversaire")} · Score : ${escapeHtml(activity.score || "En direct")}</span>
+        </div>
+        ${activity.watchable ? `<button class="small-button profile-watch-button" type="button" data-watch-profile-user="${escapeHtml(user?.id || "")}" data-watch-profile-label="${escapeHtml(activity.type || "Partie en cours")}">VOIR</button>` : ""}
+      </section>` : ""}
       <section class="profile-card">
         <p class="label">Classement mondial</p>
         <div class="ranking-row current-user"><span>${Number(ranking.rank || 0) || "-"}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
@@ -1856,8 +1881,51 @@ async function loadProfile(userId = null) {
     document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
     document.querySelector("#saveProfileRankingScoresButton")?.addEventListener("click", saveProfileRankingScores);
     document.querySelector("#resetProfileCareerButton")?.addEventListener("click", resetProfileCareer);
+    document.querySelector("[data-watch-profile-user]")?.addEventListener("click", (event) => {
+      startProfileSpectator(event.currentTarget.dataset.watchProfileUser, event.currentTarget.dataset.watchProfileLabel);
+    });
   } catch (error) {
     if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function startProfileSpectator(userId, label = "Partie en cours") {
+  if (!userId) return;
+  SPECTATOR_MODE.enabled = true;
+  SPECTATOR_MODE.source = "profile";
+  SPECTATOR_MODE.profileUserId = userId;
+  SPECTATOR_MODE.returnProfileUserId = userId;
+  SPECTATOR_MODE.matchLabel = label;
+  SPECTATOR_MODE.liveScore = "Connexion au direct...";
+  SOLO_AI.enabled = false;
+  document.body.classList.add("spectator-mode");
+  showGameScreen();
+  pollProfileSpectatorState();
+  window.clearInterval(SPECTATOR_MODE.pollTimer);
+  SPECTATOR_MODE.pollTimer = window.setInterval(pollProfileSpectatorState, 800);
+}
+
+async function pollProfileSpectatorState() {
+  if (!SPECTATOR_MODE.enabled || SPECTATOR_MODE.source !== "profile" || !SPECTATOR_MODE.profileUserId) return;
+  try {
+    const response = await fetch(`/api/profiles/${encodeURIComponent(SPECTATOR_MODE.profileUserId)}/watch`);
+    if (!response.ok) throw new Error("watch ended");
+    const data = await response.json();
+    if (!data.active || !data.state) throw new Error("watch ended");
+    SPECTATOR_MODE.matchLabel = `${data.type || "Partie en cours"} · ${data.opponent || "Adversaire"}`;
+    SPECTATOR_MODE.liveScore = data.score || "En direct";
+    for (const key of SYNC_STATE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(data.state, key)) state[key] = cloneData(data.state[key]);
+    }
+    state.pendingBoost = null;
+    state.pendingEffectChoice = null;
+    state.pendingCoachChoice = null;
+    state.pendingRemoveChoice = null;
+    state.pendingEndTurnAfterChoice = null;
+    showGameScreen();
+    render();
+  } catch (error) {
+    quitFriendlySpectator(true);
   }
 }
 
@@ -2736,7 +2804,7 @@ function clearOnlineUrlParams() {
 
 function clearFriendlyTournamentUrlParams() {
   const params = new URLSearchParams(window.location.search);
-  ["friendlyTournament", "participant", "token"].forEach((key) => params.delete(key));
+  ["friendlyTournament", "participant", "spectator", "token"].forEach((key) => params.delete(key));
   const nextQuery = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
@@ -2789,13 +2857,19 @@ async function confirmReturnToLobby() {
 function openReturnLobbyDialog() {
   closeReturnLobbyDialog();
   const friendlyTournamentExit = FRIENDLY_TOURNAMENT.enabled;
+  const waitingFriendlyExit = friendlyTournamentExit && state.tournament?.stage === "waiting";
+  const spectatorExit = friendlyTournamentExit && FRIENDLY_TOURNAMENT.isSpectator;
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop return-lobby-dialog";
   backdrop.innerHTML = `
     <div class="modal return-lobby-modal" role="dialog" aria-modal="true" aria-labelledby="returnLobbyTitle">
-      <h2 id="returnLobbyTitle">${friendlyTournamentExit ? "Quitter définitivement le tournoi ?" : "Voulez-vous retourner au lobby ?"}</h2>
+      <h2 id="returnLobbyTitle">${spectatorExit ? "Quitter le mode spectateur ?" : waitingFriendlyExit ? "Quitter ce salon ?" : friendlyTournamentExit ? "Quitter définitivement le tournoi ?" : "Voulez-vous retourner au lobby ?"}</h2>
       <p>${friendlyTournamentExit
-        ? "Vous ne pourrez plus revenir dans ce tournoi. Si votre match est en cours, le score actuel sera enregistré et vous serez déclaré forfait."
+        ? spectatorExit
+          ? "Vous reviendrez au lobby en quittant le salon du tournoi."
+          : waitingFriendlyExit
+            ? "Vous pourrez rejoindre ce salon de nouveau tant que le tournoi n'est pas lancé."
+            : "Vous ne pourrez plus revenir dans ce tournoi. Si votre match est en cours, le score actuel sera enregistré et vous serez déclaré forfait."
         : "La partie en cours restera affichée seulement si vous choisissez Non."}</p>
       <div class="dialog-actions">
         <button class="primary-button" type="button" data-confirm-return-lobby>OUI</button>
@@ -2875,11 +2949,13 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
     <article class="lobby-room friendly-tournament-room">
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Tournoi amical</strong>
-        <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants</span>
+        <span>Salon ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} participants · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
-        <button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>
-        ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
+        ${tournament.status === "playing"
+          ? `<button class="small-button friendly-spectator-button" type="button" data-spectate-friendly-tournament="${tournament.id}">SPECTATEUR</button>`
+          : `<button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>`}
+        ${canAccessAdminFeatures() && tournament.status === "waiting" ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
       </div>
     </article>
   `).join("");
@@ -2904,6 +2980,9 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
   });
   els.lobbyRooms.querySelectorAll("[data-join-friendly-tournament]").forEach((button) => {
     button.addEventListener("click", () => joinFriendlyTournament(button.dataset.joinFriendlyTournament));
+  });
+  els.lobbyRooms.querySelectorAll("[data-spectate-friendly-tournament]").forEach((button) => {
+    button.addEventListener("click", () => spectateFriendlyTournament(button.dataset.spectateFriendlyTournament));
   });
   els.lobbyRooms.querySelectorAll("[data-admin-delete-friendly-tournament]").forEach((button) => {
     button.addEventListener("click", () => adminDeleteFriendlyTournament(button.dataset.adminDeleteFriendlyTournament));
@@ -2959,6 +3038,22 @@ async function joinFriendlyTournament(tournamentId) {
     const data = await response.json();
     window.location.href = data.playerUrl;
   } catch (error) {
+    await refreshLobbyRooms();
+  }
+}
+
+async function spectateFriendlyTournament(tournamentId) {
+  try {
+    const response = await fetch(`/api/lobby/friendly-tournaments/${encodeURIComponent(tournamentId)}/spectate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) throw new Error("spectate failed");
+    const data = await response.json();
+    window.location.href = data.spectatorUrl;
+  } catch (error) {
+    MENU_STATE.lobbyNotice = "Ce tournoi n'est plus disponible en mode spectateur.";
     await refreshLobbyRooms();
   }
 }
@@ -3024,6 +3119,12 @@ function friendlyEntryInfo(entry) {
   return (state.tournament.friendlyEntries || []).find((item) => item.entry === entry) || null;
 }
 
+function friendlyTournamentAccessQuery() {
+  const accessKey = FRIENDLY_TOURNAMENT.isSpectator ? "spectatorId" : "participantId";
+  const accessId = FRIENDLY_TOURNAMENT.isSpectator ? FRIENDLY_TOURNAMENT.spectatorId : FRIENDLY_TOURNAMENT.participantId;
+  return `${accessKey}=${encodeURIComponent(accessId || "")}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token || "")}`;
+}
+
 function friendlyEntryCharacterId(entry) {
   const info = friendlyEntryInfo(entry);
   return normalizeCharacterId(info?.characterId || entry, "coachJu");
@@ -3036,6 +3137,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     return;
   }
   FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator || payload.creatorParticipantId === FRIENDLY_TOURNAMENT.participantId);
+  FRIENDLY_TOURNAMENT.isSpectator = Boolean(payload.spectator || FRIENDLY_TOURNAMENT.spectatorId);
   FRIENDLY_TOURNAMENT.entry = payload.participant?.entry || FRIENDLY_TOURNAMENT.entry;
   FRIENDLY_TOURNAMENT.canStart = Boolean(payload.canStart || (payload.status === "waiting" && (payload.participantCount || payload.participants?.length || 0) >= 2));
   const matches = (payload.matches || []).map((match) => ({
@@ -3049,6 +3151,9 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     liveScore: match.liveScore || null,
     liveUpdatedAt: match.liveUpdatedAt || null,
     watchable: Boolean(match.watchable),
+    playerAInfo: match.playerAInfo || null,
+    playerBInfo: match.playerBInfo || null,
+    forfeitParticipantId: match.forfeitParticipantId || null,
     playable: match.playerA === FRIENDLY_TOURNAMENT.entry || match.playerB === FRIENDLY_TOURNAMENT.entry,
     simulated: false,
   }));
@@ -3070,6 +3175,25 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     friendlyParticipants: payload.participants || [],
     matches,
   };
+  const forfeitVictory = !FRIENDLY_TOURNAMENT.isSpectator && matches.find((match) => (
+    match.winner === FRIENDLY_TOURNAMENT.entry
+    && match.forfeitParticipantId
+    && match.forfeitParticipantId !== FRIENDLY_TOURNAMENT.participantId
+    && match.playerAInfo?.type === "human"
+    && match.playerBInfo?.type === "human"
+    && FRIENDLY_TOURNAMENT.lastForfeitNoticeMatchId !== match.id
+  ));
+  if (forfeitVictory) {
+    FRIENDLY_TOURNAMENT.lastForfeitNoticeMatchId = forfeitVictory.id;
+    FRIENDLY_TOURNAMENT.inMatch = false;
+    FRIENDLY_TOURNAMENT.currentMatchId = null;
+    state.tournament.currentMatch = null;
+    window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
+    SOLO_AI.enabled = false;
+    stopSoloTimers();
+    showFriendlyForfeitDialog(forfeitVictory);
+    return;
+  }
   if (currentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== currentMatch.id) {
     FRIENDLY_TOURNAMENT.currentMatchId = currentMatch.id;
     startFriendlyTournamentMatch(currentMatch);
@@ -3079,6 +3203,26 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     showFriendlyLobbyScreen();
     renderFriendlyLobbyScreen();
   }
+}
+
+function showFriendlyForfeitDialog(match) {
+  document.querySelector(".friendly-forfeit-dialog")?.remove();
+  const opponent = match.playerAInfo?.participantId === match.forfeitParticipantId ? match.playerAInfo : match.playerBInfo;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop friendly-forfeit-dialog";
+  backdrop.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="friendlyForfeitTitle">
+      <h2 id="friendlyForfeitTitle">Victoire par forfait</h2>
+      <p>${escapeHtml(opponent?.nickname || "Votre adversaire")} a quitté le match et a été déclaré forfait.</p>
+      <button class="primary-button" type="button" data-return-friendly-lobby>REVENIR AU SALON</button>
+    </div>
+  `;
+  backdrop.querySelector("[data-return-friendly-lobby]")?.addEventListener("click", () => {
+    backdrop.remove();
+    showFriendlyLobbyScreen();
+    renderFriendlyLobbyScreen();
+  });
+  document.body.appendChild(backdrop);
 }
 
 function startFriendlyTournamentMatch(match) {
@@ -3141,15 +3285,15 @@ function renderFriendlyLobbyScreen() {
   if (!els.friendlyLobbyContent || !state.tournament?.friendly) return;
   const participants = state.tournament.friendlyParticipants || [];
   const matches = state.tournament.matches || [];
-  const canStart = FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && (FRIENDLY_TOURNAMENT.canStart || participants.length >= 2);
+  const canStart = !FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && (FRIENDLY_TOURNAMENT.canStart || participants.length >= 2);
   const startDisabled = !canStart;
   const status = friendlyLobbyStatusText();
   els.friendlyLobbyContent.innerHTML = `
     <div class="friendly-lobby-title">
       <div>
         <p class="label">Salon ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
-        <h1>Tournoi amical</h1>
-        <p>${participants.length}/4 humains · lancement possible dès 2 joueurs · Classic 2 sets</p>
+        <h1>${FRIENDLY_TOURNAMENT.isSpectator ? "Tournoi amical · Spectateur" : "Tournoi amical"}</h1>
+        <p>${participants.length}/4 humains · ${state.tournament.stage === "waiting" ? "lancement possible dès 2 joueurs" : "tournoi en cours"} · Classic 2 sets</p>
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
@@ -3164,7 +3308,7 @@ function renderFriendlyLobbyScreen() {
         `).join("")}
       </div>
       <div class="friendly-lobby-action-panel friendly-lobby-player-actions">
-        <button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER</button>
+        ${FRIENDLY_TOURNAMENT.isSpectator ? "" : `<button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER</button>`}
         <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>SORTIR</button>
       </div>
     </section>
@@ -3200,6 +3344,7 @@ function startFriendlySpectator(matchId) {
   const match = tournamentMatchById(matchId);
   if (!match?.watchable) return;
   SPECTATOR_MODE.enabled = true;
+  SPECTATOR_MODE.source = "friendly";
   SPECTATOR_MODE.matchId = matchId;
   SPECTATOR_MODE.matchLabel = match.label || "Match en cours";
   SPECTATOR_MODE.liveScore = match.liveScore || "";
@@ -3215,7 +3360,7 @@ function startFriendlySpectator(matchId) {
 async function pollFriendlySpectatorState() {
   if (!SPECTATOR_MODE.enabled || !SPECTATOR_MODE.matchId) return;
   try {
-    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(SPECTATOR_MODE.matchId)}/watch?participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId)}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token)}`);
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/matches/${encodeURIComponent(SPECTATOR_MODE.matchId)}/watch?${friendlyTournamentAccessQuery()}`);
     if (!response.ok) throw new Error("watch failed");
     const data = await response.json();
     if (!data.active || !data.state) {
@@ -3243,10 +3388,19 @@ async function pollFriendlySpectatorState() {
 function quitFriendlySpectator(matchEnded = false) {
   window.clearInterval(SPECTATOR_MODE.pollTimer);
   SPECTATOR_MODE.enabled = false;
+  const spectatorSource = SPECTATOR_MODE.source;
+  const returnProfileUserId = SPECTATOR_MODE.returnProfileUserId;
+  SPECTATOR_MODE.source = null;
   SPECTATOR_MODE.matchId = null;
   SPECTATOR_MODE.matchLabel = "";
   SPECTATOR_MODE.liveScore = "";
+  SPECTATOR_MODE.profileUserId = null;
+  SPECTATOR_MODE.returnProfileUserId = null;
   document.body.classList.remove("spectator-mode");
+  if (spectatorSource === "profile") {
+    showProfileScreen(returnProfileUserId);
+    return;
+  }
   showFriendlyLobbyScreen();
   if (matchEnded) MENU_STATE.lobbyNotice = "Le match regardé est terminé.";
   const latestTournament = SPECTATOR_MODE.lastTournamentPayload;
@@ -3257,6 +3411,11 @@ function quitFriendlySpectator(matchEnded = false) {
 
 function friendlyLobbyStatusText() {
   if (!state.tournament?.friendly) return "Chargement du salon...";
+  if (FRIENDLY_TOURNAMENT.isSpectator) {
+    return state.tournament.stage === "complete"
+      ? `Tournoi terminé. Vainqueur : ${tournamentPlayerLabel(state.tournament.championCharacterId)}.`
+      : "Mode spectateur : consultez les scores et ouvrez les matchs humains disponibles avec VOIR.";
+  }
   if (state.tournament.stage === "waiting") {
     if (FRIENDLY_TOURNAMENT.isCreator) {
       return state.tournament.friendlyParticipants.length >= 2
@@ -3274,7 +3433,7 @@ function friendlyLobbyStatusText() {
 async function pollFriendlyTournament() {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
   try {
-    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}?participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId)}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token)}`);
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}?${friendlyTournamentAccessQuery()}`);
     if (response.status === 404) {
       window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
       FRIENDLY_TOURNAMENT.enabled = false;
@@ -3317,7 +3476,19 @@ async function startFriendlyTournamentFromLobby() {
 
 async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
-  if (!confirmed && !window.confirm("Quitter définitivement ce tournoi ? Vous ne pourrez plus le rejoindre.")) return;
+  if (FRIENDLY_TOURNAMENT.isSpectator) {
+    if (!confirmed && !window.confirm("Quitter le salon du tournoi et revenir au lobby ?")) return;
+    resetFriendlyTournamentConnection();
+    MENU_STATE.lobbyNotice = "Vous avez quitté le mode spectateur.";
+    resetTournament();
+    showMenuScreen();
+    return;
+  }
+  const waitingRoomExit = state.tournament?.stage === "waiting";
+  const confirmationText = waitingRoomExit
+    ? "Quitter ce salon ? Vous pourrez le rejoindre de nouveau tant que le tournoi n'est pas lancé."
+    : "Quitter définitivement ce tournoi ? Vous ne pourrez plus le rejoindre.";
+  if (!confirmed && !window.confirm(confirmationText)) return;
   const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
   const scoreAtDeparture = currentMatch && state.setMatch?.enabled ? friendlyLiveScoreText(currentMatch) : null;
   let leaveResult = null;
@@ -3336,24 +3507,33 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   } catch (error) {
     // Même si le serveur ne répond plus, on revient au lobby local.
   }
+  resetFriendlyTournamentConnection();
+  MENU_STATE.lobbyNotice = leaveResult?.forfeited
+    ? `Tournoi quitté sur le score ${leaveResult.score || scoreAtDeparture || "en cours"} : forfait enregistré.`
+    : waitingRoomExit
+      ? "Vous avez quitté le salon. Vous pouvez le rejoindre de nouveau tant que le tournoi reste ouvert."
+      : "Vous avez quitté le tournoi. Vous ne pouvez plus le rejoindre.";
+  resetTournament();
+  showMenuScreen();
+}
+
+function resetFriendlyTournamentConnection() {
   window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
   window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
   window.clearInterval(SPECTATOR_MODE.pollTimer);
   SPECTATOR_MODE.enabled = false;
+  SPECTATOR_MODE.source = null;
   document.body.classList.remove("spectator-mode");
   FRIENDLY_TOURNAMENT.enabled = false;
+  FRIENDLY_TOURNAMENT.isSpectator = false;
   FRIENDLY_TOURNAMENT.id = null;
   FRIENDLY_TOURNAMENT.participantId = null;
+  FRIENDLY_TOURNAMENT.spectatorId = null;
   FRIENDLY_TOURNAMENT.token = null;
   FRIENDLY_TOURNAMENT.entry = null;
   FRIENDLY_TOURNAMENT.inMatch = false;
   FRIENDLY_TOURNAMENT.currentMatchId = null;
   clearFriendlyTournamentUrlParams();
-  MENU_STATE.lobbyNotice = leaveResult?.forfeited
-    ? `Tournoi quitté sur le score ${leaveResult.score || scoreAtDeparture || "en cours"} : forfait enregistré.`
-    : "Vous avez quitté le tournoi. Vous ne pouvez plus le rejoindre.";
-  resetTournament();
-  showMenuScreen();
 }
 
 async function reportFriendlyTournamentResult(matchOverride = null) {
@@ -3406,8 +3586,10 @@ function initFriendlyTournament() {
   const params = friendlyTournamentParams();
   if (!params) return;
   FRIENDLY_TOURNAMENT.enabled = true;
+  FRIENDLY_TOURNAMENT.isSpectator = params.isSpectator;
   FRIENDLY_TOURNAMENT.id = params.id;
   FRIENDLY_TOURNAMENT.participantId = params.participantId;
+  FRIENDLY_TOURNAMENT.spectatorId = params.spectatorId;
   FRIENDLY_TOURNAMENT.token = params.token;
   showFriendlyLobbyScreen();
   if (els.friendlyLobbyContent) els.friendlyLobbyContent.innerHTML = '<div class="friendly-lobby-status">Chargement du salon...</div>';
@@ -3594,7 +3776,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v120",
+    version: "v121",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -8103,6 +8285,62 @@ function currentModeLabel() {
   return "Mode local";
 }
 
+function profileActivityType() {
+  if (state.tournament?.friendly || FRIENDLY_TOURNAMENT.enabled || SERVER_SYNC.enabled) return null;
+  if (state.tournament?.active) {
+    if (!state.tournament.currentMatch) return null;
+    if (state.tournament.weekly) return "Tennis Courts Circuit Pro";
+    if (String(state.tournament.competitionName || "").toUpperCase().includes("LEAGUE")) return "League";
+    return "Tournoi Classic";
+  }
+  if (state.setMatch?.enabled && !state.setMatch.matchOver) return "Set";
+  if (SOLO_AI.enabled && !state.gameOver) return "Échange";
+  return null;
+}
+
+function profileActivityScore() {
+  if (!state.setMatch?.enabled) return "Échange en cours";
+  const score = Array.isArray(state.setMatch.score) ? state.setMatch.score : [0, 0];
+  return `${Number(score[0] || 0)}/${Number(score[1] || 0)}`;
+}
+
+async function publishProfileActivity() {
+  if (!AUTH_STATE.user || SPECTATOR_MODE.enabled) return;
+  const type = !els.gameApp?.classList.contains("hidden") ? profileActivityType() : null;
+  if (!type) {
+    if (!PROFILE_ACTIVITY.lastActive) return;
+    PROFILE_ACTIVITY.lastActive = false;
+    try {
+      await fetch("/api/profile/activity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ active: false }),
+      });
+    } catch (error) {
+      // L'expiration serveur retire aussi automatiquement une activité interrompue.
+    }
+    return;
+  }
+  const opponentIndex = SOLO_AI.enabled ? SOLO_AI.playerIndex : 1;
+  const opponent = state.players?.[opponentIndex]?.name || characterNameFromId(SOLO_AI.characterId || "coachMax");
+  PROFILE_ACTIVITY.lastActive = true;
+  try {
+    await fetch("/api/profile/activity", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        active: true,
+        type,
+        opponent,
+        score: profileActivityScore(),
+        state: exportSyncState(),
+      }),
+    });
+  } catch (error) {
+    // La partie locale continue même si l'indication de présence est momentanément indisponible.
+  }
+}
+
 function tournamentStageLabel() {
   if (state.tournament.stage === "day1") return "journée 1";
   if (state.tournament.stage === "day2") return "journée 2";
@@ -9308,3 +9546,6 @@ newGame();
 initMenu();
 initFriendlyTournament();
 initServerSync();
+window.clearInterval(PROFILE_ACTIVITY.timer);
+PROFILE_ACTIVITY.timer = window.setInterval(publishProfileActivity, 1200);
+publishProfileActivity();

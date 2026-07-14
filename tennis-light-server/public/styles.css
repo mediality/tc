@@ -293,6 +293,12 @@ button:disabled {
   background: #b91c1c;
 }
 
+.lobby-room-actions .friendly-spectator-button,
+.profile-watch-button {
+  color: #fff;
+  background: #0f8d68;
+}
+
 .friendly-lobby-action-panel .friendly-lobby-exit-button {
   color: #fff;
   background: #b91c1c;
@@ -1151,6 +1157,30 @@ body.spectator-mode .player-panel {
 
 .profile-wide {
   grid-column: 1 / -1;
+}
+
+.profile-live-activity {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 2px solid rgba(15, 141, 104, 0.38);
+  background: rgba(236, 253, 245, 0.94);
+}
+
+.profile-live-activity div {
+  display: grid;
+  gap: 4px;
+}
+
+.profile-live-activity span {
+  color: #425466;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .profile-live-activity {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menu-screen.auth-only .menu-shell {

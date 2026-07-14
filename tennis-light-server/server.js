@@ -16,6 +16,9 @@ const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const rooms = new Map();
 const friendlyTournaments = new Map();
+const playerActivities = new Map();
+const LIVE_ACTIVITY_TTL_MS = 15000;
+const ROOM_ACTIVITY_TTL_MS = 60000;
 const COACH_IDS = new Set(["coachJu", "coachMax", "coachCarla", "coachClem"]);
 const SESSION_COOKIE = "tc_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -1856,6 +1859,7 @@ async function profilePayload(user, viewer = user) {
     user: publicUser(user),
     publicProfile: viewer?.id !== user.id,
     viewerIsAdmin: normalizeRole(viewer?.role) === "admin",
+    activity: publicProfileActivity(user.id),
     ranking: fullRanking.currentUserRank,
     circuit: { season: current.season, week: current.week },
     results,
@@ -2878,6 +2882,53 @@ async function handleAuth(req, res, url) {
     return true;
   }
 
+  const publicProfileWatchMatch = url.pathname.match(/^\/api\/profiles\/([^/]+)\/watch$/);
+  if (req.method === "GET" && publicProfileWatchMatch) {
+    const viewer = await currentUser(req);
+    if (!viewer) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    const target = await findUserById(decodeURIComponent(publicProfileWatchMatch[1]));
+    const activity = target ? activeProfileActivity(target.id) : null;
+    if (!target || !activity || !activity.watchable || !activity.state) {
+      sendJson(res, 404, { error: "Cette partie n'est plus disponible." });
+      return true;
+    }
+    sendJson(res, 200, {
+      active: true,
+      type: activity.type,
+      opponent: activity.opponent,
+      score: activity.score,
+      state: sanitizeFriendlySpectatorState(activity.state),
+    });
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/profile/activity") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    const payload = await readJson(req);
+    if (payload.active === false) {
+      playerActivities.delete(String(user.id));
+      sendJson(res, 200, { ok: true, active: false });
+      return true;
+    }
+    const state = sanitizeFriendlySpectatorState(payload.state);
+    playerActivities.set(String(user.id), {
+      type: String(payload.type || "Partie en cours").slice(0, 60),
+      opponent: String(payload.opponent || "Adversaire").slice(0, 40),
+      score: String(payload.score || "En direct").slice(0, 100),
+      state,
+      updatedAt: Date.now(),
+    });
+    sendJson(res, 200, { ok: true, active: true });
+    return true;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/profile/nickname") {
     const user = await currentUser(req);
     if (!user) {
@@ -2977,6 +3028,10 @@ function friendlyTournamentUrl(req, tournamentId, participantId, token) {
   return `${publicBaseUrl(req)}/?friendlyTournament=${encodeURIComponent(tournamentId)}&participant=${encodeURIComponent(participantId)}&token=${encodeURIComponent(token)}`;
 }
 
+function friendlySpectatorUrl(req, tournamentId, spectatorId, token) {
+  return `${publicBaseUrl(req)}/?friendlyTournament=${encodeURIComponent(tournamentId)}&spectator=${encodeURIComponent(spectatorId)}&token=${encodeURIComponent(token)}`;
+}
+
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
@@ -3024,8 +3079,8 @@ function createRoom(req, options = {}) {
     targetSets: options.targetSets ?? null,
     hostSeat,
     players: [
-      hostSeat === 0 ? { nickname: options.nickname ?? "Coach Ju", characterId: options.characterId ?? "coachJu", joinedAt: Date.now(), isHost: true } : null,
-      hostSeat === 1 ? { nickname: options.nickname ?? "Coach Max", characterId: options.characterId ?? "coachMax", joinedAt: Date.now(), isHost: true } : null,
+      hostSeat === 0 ? { userId: options.userId || null, nickname: options.nickname ?? "Coach Ju", characterId: options.characterId ?? "coachJu", joinedAt: Date.now(), isHost: true } : null,
+      hostSeat === 1 ? { userId: options.userId || null, nickname: options.nickname ?? "Coach Max", characterId: options.characterId ?? "coachMax", joinedAt: Date.now(), isHost: true } : null,
     ],
   };
   rooms.set(roomId, room);
@@ -3090,6 +3145,69 @@ function publicRoomInfo(req, room) {
     updatedAt: room.updatedAt,
     players: room.players.map((player, seat) => player ? { seat, nickname: player.nickname, characterId: player.characterId, isHost: seat === room.hostSeat } : null),
     openSeat: room.players.findIndex((player) => player == null),
+  };
+}
+
+function liveScoreFromState(remoteState, perspectiveIndex = 0) {
+  const match = remoteState?.setMatch;
+  if (!match?.enabled) return "Échange en cours";
+  const current = Array.isArray(match.score) ? match.score : [0, 0];
+  const score = perspectiveIndex === 1 ? [current[1], current[0]] : current;
+  return `${Number(score[0] || 0)}/${Number(score[1] || 0)}`;
+}
+
+function activeProfileActivity(userId) {
+  const now = Date.now();
+  for (const tournament of friendlyTournaments.values()) {
+    if (tournament.status !== "playing") continue;
+    const participant = activeFriendlyParticipants(tournament).find((item) => String(item.userId) === String(userId));
+    if (!participant) continue;
+    const match = currentFriendlyMatchForParticipant(tournament, participant.id);
+    if (!match) continue;
+    const entry = friendlyParticipantEntry(participant.id);
+    const opponent = friendlyEntryPublic(tournament, match.playerA === entry ? match.playerB : match.playerA);
+    return {
+      type: "Tournoi en ligne",
+      opponent: opponent?.nickname || "Adversaire",
+      score: String(match.liveScore || "Match en cours").replace(/\s*·\s*EN DIRECT\s*$/i, ""),
+      watchable: friendlyMatchIsWatchable(match),
+      source: "friendly",
+      tournamentId: tournament.id,
+      matchId: match.id,
+      state: match.liveState,
+    };
+  }
+  for (const room of rooms.values()) {
+    if (room.status !== "playing" || !room.state || now - Number(room.updatedAt || 0) > ROOM_ACTIVITY_TTL_MS) continue;
+    const seat = room.players.findIndex((player) => String(player?.userId || "") === String(userId));
+    if (seat < 0) continue;
+    const opponent = room.players[seat === 0 ? 1 : 0];
+    return {
+      type: "Match en ligne",
+      opponent: opponent?.nickname || "Adversaire",
+      score: liveScoreFromState(room.state, seat),
+      watchable: true,
+      source: "room",
+      roomId: room.id,
+      state: room.state,
+    };
+  }
+  const activity = playerActivities.get(String(userId));
+  if (!activity || now - Number(activity.updatedAt || 0) > LIVE_ACTIVITY_TTL_MS) {
+    playerActivities.delete(String(userId));
+    return null;
+  }
+  return { ...activity, watchable: Boolean(activity.state) };
+}
+
+function publicProfileActivity(userId) {
+  const activity = activeProfileActivity(userId);
+  if (!activity) return null;
+  return {
+    type: activity.type,
+    opponent: activity.opponent,
+    score: activity.score,
+    watchable: Boolean(activity.watchable),
   };
 }
 
@@ -3198,7 +3316,7 @@ function sanitizeFriendlySpectatorState(remoteState) {
   return safeState;
 }
 
-function publicFriendlyTournamentInfo(req, tournament, participant = null) {
+function publicFriendlyTournamentInfo(req, tournament, participant = null, spectator = null) {
   const activeParticipants = activeFriendlyParticipants(tournament);
   return {
     id: tournament.id,
@@ -3231,6 +3349,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null) {
       playerAInfo: friendlyEntryPublic(tournament, match.playerA),
       playerBInfo: friendlyEntryPublic(tournament, match.playerB),
       winnerInfo: friendlyEntryPublic(tournament, match.winner),
+      forfeitParticipantId: match.forfeitParticipantId || null,
     })),
     round: tournament.round,
     champion: tournament.champion || null,
@@ -3243,6 +3362,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null) {
       isCreator: participant.id === tournament.creatorParticipantId,
       entry: friendlyParticipantEntry(participant.id),
     } : null,
+    spectator: spectator ? { id: spectator.id, nickname: spectator.nickname } : null,
   };
 }
 
@@ -3268,6 +3388,10 @@ function publicFriendlyLobbyInfo(req, tournament) {
 
 function participantForToken(tournament, participantId, token) {
   return tournament?.participants.find((item) => !item.leftAt && item.id === participantId && item.token === token) || null;
+}
+
+function spectatorForToken(tournament, spectatorId, token) {
+  return tournament?.spectators?.find((item) => item.id === spectatorId && item.token === token) || null;
 }
 
 function userHasWaitingFriendlyTournament(userId) {
@@ -3338,6 +3462,8 @@ function resolveFriendlyDepartedForfeits(tournament) {
     if (!playerALeft && !playerBLeft) continue;
     match.winner = playerALeft && !playerBLeft ? match.playerB : match.playerA;
     match.score = playerALeft && playerBLeft ? "DOUBLE FORFAIT" : "FORFAIT";
+    const departedEntry = playerALeft ? match.playerA : match.playerB;
+    match.forfeitParticipantId = String(departedEntry || "").replace(/^human:/, "") || null;
     match.liveScore = match.score;
     match.liveState = null;
     match.liveParticipantId = null;
@@ -3426,7 +3552,7 @@ async function handleApi(req, res) {
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((room) => publicRoomInfo(req, room));
     const tournaments = [...friendlyTournaments.values()]
-      .filter((tournament) => tournament.status === "waiting")
+      .filter((tournament) => tournament.status === "waiting" || tournament.status === "playing")
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((tournament) => publicFriendlyLobbyInfo(req, tournament));
     sendJson(res, 200, { rooms: openRooms, tournaments });
@@ -3459,6 +3585,7 @@ async function handleApi(req, res) {
       updatedAt: Date.now(),
       creatorParticipantId: participantId,
       participants: [participant],
+      spectators: [],
       entries: [],
       matches: [],
       round: "waiting",
@@ -3475,6 +3602,7 @@ async function handleApi(req, res) {
   }
 
   const friendlyJoinMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/join$/);
+  const friendlySpectateMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/spectate$/);
   const friendlyAdminDeleteMatch = url.pathname.match(/^\/api\/lobby\/friendly-tournaments\/([^/]+)\/admin-delete$/);
   if (req.method === "POST" && friendlyAdminDeleteMatch) {
     const admin = await requireAdmin(req, res);
@@ -3523,6 +3651,33 @@ async function handleApi(req, res) {
     return;
   }
 
+  if (req.method === "POST" && friendlySpectateMatch) {
+    const user = await requirePro(req, res);
+    if (!user) return;
+    const tournament = friendlyTournaments.get(friendlySpectateMatch[1]);
+    if (!tournament || tournament.status !== "playing") {
+      sendJson(res, 404, { error: "Ce tournoi n'est pas disponible en mode spectateur." });
+      return;
+    }
+    tournament.spectators = tournament.spectators || [];
+    let spectator = tournament.spectators.find((item) => String(item.userId) === String(user.id));
+    if (!spectator) {
+      spectator = {
+        id: makeId(4),
+        token: makeToken(),
+        userId: user.id,
+        nickname: String(user.nickname || "Spectateur").slice(0, 24),
+        joinedAt: Date.now(),
+      };
+      tournament.spectators.push(spectator);
+    }
+    sendJson(res, 200, {
+      tournament: publicFriendlyTournamentInfo(req, tournament, null, spectator),
+      spectatorUrl: friendlySpectatorUrl(req, tournament.id, spectator.id, spectator.token),
+    });
+    return;
+  }
+
   const friendlyStartMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/start$/);
   if (req.method === "POST" && friendlyStartMatch) {
     const payload = await readJson(req);
@@ -3562,6 +3717,26 @@ async function handleApi(req, res) {
       sendJson(res, 200, { ok: true, closed: false, alreadyLeft: true });
       return;
     }
+    if (tournament.status === "waiting") {
+      tournament.participants = tournament.participants.filter((item) => item.id !== participant.id);
+      if (participant.id === tournament.creatorParticipantId) transferFriendlyTournamentCreator(tournament);
+      tournament.updatedAt = Date.now();
+      const remainingParticipants = activeFriendlyParticipants(tournament);
+      if (!remainingParticipants.length) {
+        friendlyTournaments.delete(tournament.id);
+        sendJson(res, 200, { ok: true, closed: true, rejoinAllowed: true });
+        return;
+      }
+      sendJson(res, 200, {
+        ok: true,
+        closed: false,
+        rejoinAllowed: true,
+        participantCount: remainingParticipants.length,
+        creatorParticipantId: tournament.creatorParticipantId,
+        tournament: publicFriendlyTournamentInfo(req, tournament, null),
+      });
+      return;
+    }
     const entry = friendlyParticipantEntry(participant.id);
     let forfeitedMatch = null;
     if (tournament.status === "playing") {
@@ -3578,6 +3753,7 @@ async function handleApi(req, res) {
         forfeitedMatch.liveState = null;
         forfeitedMatch.liveParticipantId = null;
         forfeitedMatch.liveUpdatedAt = Date.now();
+        forfeitedMatch.forfeitParticipantId = participant.id;
       }
     }
     participant.leftAt = Date.now();
@@ -3610,14 +3786,15 @@ async function handleApi(req, res) {
   if (req.method === "GET" && friendlyStateMatch) {
     const tournament = friendlyTournaments.get(friendlyStateMatch[1]);
     const participant = participantForToken(tournament, url.searchParams.get("participantId"), url.searchParams.get("token"));
-    if (!tournament || !participant) {
+    const spectator = spectatorForToken(tournament, url.searchParams.get("spectatorId"), url.searchParams.get("token"));
+    if (!tournament || (!participant && !spectator)) {
       sendJson(res, 404, { error: "Tournoi introuvable." });
       return;
     }
     refreshFriendlyTournamentSlots(tournament);
     sendJson(res, 200, {
-      tournament: publicFriendlyTournamentInfo(req, tournament, participant),
-      currentMatch: currentFriendlyMatchForParticipant(tournament, participant.id),
+      tournament: publicFriendlyTournamentInfo(req, tournament, participant, spectator),
+      currentMatch: participant ? currentFriendlyMatchForParticipant(tournament, participant.id) : null,
     });
     return;
   }
@@ -3664,8 +3841,9 @@ async function handleApi(req, res) {
   if (req.method === "GET" && friendlyWatchMatch) {
     const tournament = friendlyTournaments.get(friendlyWatchMatch[1]);
     const participant = participantForToken(tournament, url.searchParams.get("participantId"), url.searchParams.get("token"));
+    const spectator = spectatorForToken(tournament, url.searchParams.get("spectatorId"), url.searchParams.get("token"));
     const match = tournament?.matches.find((item) => item.id === friendlyWatchMatch[2]);
-    if (!tournament || !participant || !match) {
+    if (!tournament || (!participant && !spectator) || !match) {
       sendJson(res, 404, { error: "Match introuvable." });
       return;
     }
@@ -3747,6 +3925,7 @@ async function handleApi(req, res) {
       status: "waiting",
       targetSets,
       hostSeat,
+      userId: user.id,
       nickname,
       characterId,
     });
@@ -3771,6 +3950,7 @@ async function handleApi(req, res) {
     const payload = await readJson(req);
     const characterId = normalizeCharacterId(payload.characterId, "coachJu");
     room.players[openSeat] = {
+      userId: user.id,
       nickname: String(user.nickname || payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
       characterId,
       joinedAt: Date.now(),
@@ -3852,7 +4032,7 @@ async function handleApi(req, res) {
       status: room.status,
       hostSeat: room.hostSeat,
       isHost: seat === room.hostSeat,
-      players: room.players,
+      players: publicRoomInfo(req, room).players,
       logs: room.logs,
       inviteUrl: playerUrl(req, room.id, seat === 0 ? 1 : 0, room.tokens[seat === 0 ? 1 : 0]),
     });
