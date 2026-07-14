@@ -1261,6 +1261,7 @@ function profileCharacterOptionsForCurrentUser() {
 
 function updateAccessControls() {
   const hasProAccess = canAccessProFeatures();
+  const hasAdminAccess = canAccessAdminFeatures();
   const role = currentUserRole();
   document.querySelectorAll("[data-required-role='pro']").forEach((section) => {
     section.classList.toggle("locked", !hasProAccess);
@@ -1271,10 +1272,14 @@ function updateAccessControls() {
       note.classList.toggle("hidden", hasProAccess || !AUTH_STATE.user);
     });
   });
-  els.adminPanel?.classList.toggle("hidden", !canAccessAdminFeatures());
+  document.querySelectorAll("[data-required-role='admin']").forEach((control) => {
+    control.classList.toggle("hidden", !hasAdminAccess);
+    if ("disabled" in control) control.disabled = !hasAdminAccess;
+  });
+  els.adminPanel?.classList.toggle("hidden", !hasAdminAccess);
   els.proCodePanel?.classList.toggle("hidden", !AUTH_STATE.user || role !== "free");
   if (role !== "free" && els.proCodeStatus) els.proCodeStatus.textContent = "";
-  if (!canAccessAdminFeatures()) {
+  if (!hasAdminAccess) {
     AUTH_STATE.adminUsers = [];
     AUTH_STATE.adminProCodes = [];
     if (els.adminUsersTable) els.adminUsersTable.innerHTML = "";
@@ -2728,6 +2733,10 @@ function randomAiCharacterId() {
 }
 
 async function startSoloFromMenu(mode) {
+  if (mode === "league3") {
+    renderAuthState("Le mode LEAGUE est limité à 2 sets.");
+    return;
+  }
   const isCompetitionMode = mode.startsWith("tournament") || mode.startsWith("league");
   if (isCompetitionMode && !canAccessProFeatures()) {
     renderAuthState("Réservé aux joueurs Pro.");
@@ -2754,8 +2763,6 @@ async function startSoloFromMenu(mode) {
     startTournamentMode(3);
   } else if (mode === "league2") {
     startLeagueTournamentMode(2);
-  } else if (mode === "league3") {
-    startLeagueTournamentMode(3);
   }
 }
 
@@ -3018,7 +3025,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v110",
+    version: "v111",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5918,7 +5925,8 @@ function startMatchMode(targetSets = null, options = {}) {
   render();
 }
 
-function startLeagueTournamentMode(targetSets = 2) {
+function startLeagueTournamentMode() {
+  const targetSets = 2;
   if (SERVER_SYNC.enabled) {
     state.log.unshift("LEAGUE est disponible hors partie en ligne.");
     render();
@@ -5939,7 +5947,7 @@ function startLeagueTournamentMode(targetSets = 2) {
     difficulty: SOLO_AI.difficulty,
     weekly: false,
     competitionId: null,
-    competitionName: targetSets === 3 ? "LEAGUE Slam 3 sets" : "LEAGUE 2 sets",
+    competitionName: "LEAGUE 2 sets",
     competitionSurface: null,
     competitionSurfaceLabel: null,
     competitionPoints: null,

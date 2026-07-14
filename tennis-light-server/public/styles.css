@@ -1183,6 +1183,12 @@ h1 {
   font-size: 0.82rem;
 }
 
+.menu-exchange-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
 .tutorial-menu-button {
   min-height: 40px;
   border-radius: 8px;
