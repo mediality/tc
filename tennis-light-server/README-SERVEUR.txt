@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v119
+Tennis Courts Academy - version serveur v120
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -12,6 +12,10 @@ Le serveur affiche un menu/lobby commun :
 - lancer le tournoi des que 2 joueurs sont presents, puis completer le tableau a 8 avec les IA
 - suivre les scores des matchs humains en direct dans le salon du tournoi
 - regarder un match en mode visionneuse avec les deux mains masquees et aucune action de jeu possible
+- quitter definitivement un tournoi sans fermer le salon tant qu'un autre joueur reste present
+- transferer automatiquement le role d'hote au joueur suivant lorsque l'hote quitte
+- enregistrer le score au moment d'un abandon en match, puis declarer le joueur forfait
+- afficher le Top 20 dans le lobby et le classement complet par pages de 25 joueurs
 - administrer et supprimer les salons ouverts depuis le lobby ADMIN
 - les autres joueurs avec le meme lien voient les parties ouvertes et peuvent rejoindre
 

@@ -974,6 +974,30 @@ body.spectator-mode .player-panel {
   text-align: right;
 }
 
+.ranking-current-label {
+  margin-top: 10px;
+  color: #17212b;
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.ranking-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ranking-pagination span {
+  min-width: 92px;
+  color: #17212b;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+}
+
 .ranking-points-heading {
   display: grid;
   line-height: 1.05;

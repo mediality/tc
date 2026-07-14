@@ -107,6 +107,7 @@ const AUTH_STATE = {
   adminPage: 1,
   adminTotalPages: 1,
   ranking: null,
+  lobbyRanking: null,
   rankingPage: 1,
   rankingSort: "points",
   competitions: null,
@@ -1118,6 +1119,9 @@ const els = {
   backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
+  rankingPrevPageButton: document.querySelector("#rankingPrevPageButton"),
+  rankingNextPageButton: document.querySelector("#rankingNextPageButton"),
+  rankingPageInfo: document.querySelector("#rankingPageInfo"),
   profileContent: document.querySelector("#profileContent"),
   characterContent: document.querySelector("#characterContent"),
   backToProfileFromCharacterButton: document.querySelector("#backToProfileFromCharacterButton"),
@@ -1328,7 +1332,10 @@ function updateAccessControls() {
     if (els.adminProCodesList) els.adminProCodesList.innerHTML = "";
   }
   if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
-  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) loadRanking();
+  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) {
+    loadLobbyRanking();
+    loadRanking(1);
+  }
   if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) loadCompetitions();
 }
 
@@ -1636,9 +1643,9 @@ async function addManualSeasonPoints(userId) {
   }
 }
 
-function rankingMarkup() {
-  const top = AUTH_STATE.ranking?.top || [];
-  const current = AUTH_STATE.ranking?.currentUserRank || null;
+function rankingMarkup(ranking = AUTH_STATE.ranking) {
+  const top = ranking?.top || [];
+  const current = ranking?.currentUserRank || null;
   if (!top.length) {
     return '<div class="lobby-empty">Aucun classement disponible pour le moment.</div>';
   }
@@ -1669,13 +1676,13 @@ function rankingMarkup() {
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span>${weekCell(current)}<span>${Number(current.score_total || 0)}</span></div>`
+    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span>${weekCell(current)}<span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
     <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-points-heading">Points <small>(S-4)</small></span><span>Semaine</span><span>Saison</span></div>
     ${rows}
     ${currentRow}
-    <div class="ranking-meta">Saison ${Number(AUTH_STATE.ranking?.season || 1)} · Semaine ${Number(AUTH_STATE.ranking?.week || 1)}</div>
+    <div class="ranking-meta">Saison ${Number(ranking?.season || 1)} · Semaine ${Number(ranking?.week || 1)}</div>
   `;
 }
 
@@ -1690,19 +1697,23 @@ function attachProfileLinks(container) {
 }
 
 function renderRanking() {
-  const markup = rankingMarkup();
   if (els.rankingList) {
-    els.rankingList.innerHTML = markup;
+    els.rankingList.innerHTML = rankingMarkup(AUTH_STATE.lobbyRanking);
     attachProfileLinks(els.rankingList);
   }
   if (els.rankingFullList) {
-    els.rankingFullList.innerHTML = markup;
+    els.rankingFullList.innerHTML = rankingMarkup(AUTH_STATE.ranking);
     attachProfileLinks(els.rankingFullList);
   }
   if (els.adminRankingList) {
-    els.adminRankingList.innerHTML = markup;
+    els.adminRankingList.innerHTML = rankingMarkup(AUTH_STATE.ranking);
     attachProfileLinks(els.adminRankingList);
   }
+  const totalPages = Number(AUTH_STATE.ranking?.totalPages || 1);
+  const currentPage = Number(AUTH_STATE.ranking?.page || AUTH_STATE.rankingPage || 1);
+  if (els.rankingPageInfo) els.rankingPageInfo.textContent = `Page ${currentPage} / ${totalPages}`;
+  if (els.rankingPrevPageButton) els.rankingPrevPageButton.disabled = currentPage <= 1;
+  if (els.rankingNextPageButton) els.rankingNextPageButton.disabled = currentPage >= totalPages;
   document.querySelectorAll("[data-ranking-sort]").forEach((button) => {
     button.classList.toggle("active", button.dataset.rankingSort === AUTH_STATE.rankingSort);
   });
@@ -2007,18 +2018,32 @@ async function adminRestartSeasonOne() {
 
 function changeRankingSort(sortBy) {
   AUTH_STATE.rankingSort = ["points", "week", "season"].includes(sortBy) ? sortBy : "points";
+  loadLobbyRanking();
   loadRanking(1);
 }
 
 async function loadRanking(page = AUTH_STATE.rankingPage || 1) {
   if (!canAccessProFeatures()) {
-    if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
+    if (els.rankingFullList) els.rankingFullList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
   try {
     AUTH_STATE.rankingPage = page;
-    const data = await authRequest(`/api/ranking?page=${encodeURIComponent(page)}&pageSize=50&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
+    const data = await authRequest(`/api/ranking?page=${encodeURIComponent(page)}&pageSize=25&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
     AUTH_STATE.ranking = data;
+    renderRanking();
+  } catch (error) {
+    if (els.rankingFullList) els.rankingFullList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function loadLobbyRanking() {
+  if (!canAccessProFeatures()) {
+    if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
+    return;
+  }
+  try {
+    AUTH_STATE.lobbyRanking = await authRequest(`/api/ranking?page=1&pageSize=20&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
     renderRanking();
   } catch (error) {
     if (els.rankingList) els.rankingList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
@@ -2300,7 +2325,7 @@ function showRankingScreen() {
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.rankingScreen?.classList.remove("hidden");
-  loadRanking();
+  loadRanking(1);
 }
 
 function showMenuScreen() {
@@ -2317,7 +2342,7 @@ function showMenuScreen() {
   renderAuthState();
   updateMenuSelection();
   refreshLobbyRooms();
-  loadRanking();
+  loadLobbyRanking();
   loadCompetitions();
 }
 
@@ -2709,6 +2734,13 @@ function clearOnlineUrlParams() {
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
 
+function clearFriendlyTournamentUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  ["friendlyTournament", "participant", "token"].forEach((key) => params.delete(key));
+  const nextQuery = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+}
+
 function handleRemoteRoomClosed() {
   closeReturnLobbyDialog();
   SOLO_AI.enabled = false;
@@ -2726,6 +2758,10 @@ function closeReturnLobbyDialog() {
 
 async function confirmReturnToLobby() {
   closeReturnLobbyDialog();
+  if (FRIENDLY_TOURNAMENT.enabled) {
+    await leaveFriendlyTournamentLobby({ confirmed: true });
+    return;
+  }
   try {
     if (state.tournament?.weekly && state.tournament.stage !== "complete") {
       await saveTournamentProgress();
@@ -2752,12 +2788,15 @@ async function confirmReturnToLobby() {
 
 function openReturnLobbyDialog() {
   closeReturnLobbyDialog();
+  const friendlyTournamentExit = FRIENDLY_TOURNAMENT.enabled;
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop return-lobby-dialog";
   backdrop.innerHTML = `
     <div class="modal return-lobby-modal" role="dialog" aria-modal="true" aria-labelledby="returnLobbyTitle">
-      <h2 id="returnLobbyTitle">Voulez-vous retourner au lobby ?</h2>
-      <p>La partie en cours restera affichée seulement si vous choisissez Non.</p>
+      <h2 id="returnLobbyTitle">${friendlyTournamentExit ? "Quitter définitivement le tournoi ?" : "Voulez-vous retourner au lobby ?"}</h2>
+      <p>${friendlyTournamentExit
+        ? "Vous ne pourrez plus revenir dans ce tournoi. Si votre match est en cours, le score actuel sera enregistré et vous serez déclaré forfait."
+        : "La partie en cours restera affichée seulement si vous choisissez Non."}</p>
       <div class="dialog-actions">
         <button class="primary-button" type="button" data-confirm-return-lobby>OUI</button>
         <button class="small-button" type="button" data-cancel-return-lobby>NON</button>
@@ -3276,15 +3315,24 @@ async function startFriendlyTournamentFromLobby() {
   }
 }
 
-async function leaveFriendlyTournamentLobby() {
+async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
-  if (!window.confirm("Sortir du salon et supprimer ce tournoi ?")) return;
+  if (!confirmed && !window.confirm("Quitter définitivement ce tournoi ? Vous ne pourrez plus le rejoindre.")) return;
+  const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
+  const scoreAtDeparture = currentMatch && state.setMatch?.enabled ? friendlyLiveScoreText(currentMatch) : null;
+  let leaveResult = null;
   try {
-    await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/leave`, {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/leave`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token }),
+      body: JSON.stringify({
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        matchId: currentMatch?.id || null,
+        score: scoreAtDeparture,
+      }),
     });
+    leaveResult = await response.json().catch(() => ({}));
   } catch (error) {
     // Même si le serveur ne répond plus, on revient au lobby local.
   }
@@ -3297,6 +3345,13 @@ async function leaveFriendlyTournamentLobby() {
   FRIENDLY_TOURNAMENT.id = null;
   FRIENDLY_TOURNAMENT.participantId = null;
   FRIENDLY_TOURNAMENT.token = null;
+  FRIENDLY_TOURNAMENT.entry = null;
+  FRIENDLY_TOURNAMENT.inMatch = false;
+  FRIENDLY_TOURNAMENT.currentMatchId = null;
+  clearFriendlyTournamentUrlParams();
+  MENU_STATE.lobbyNotice = leaveResult?.forfeited
+    ? `Tournoi quitté sur le score ${leaveResult.score || scoreAtDeparture || "en cours"} : forfait enregistré.`
+    : "Vous avez quitté le tournoi. Vous ne pouvez plus le rejoindre.";
   resetTournament();
   showMenuScreen();
 }
@@ -3539,7 +3594,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v119",
+    version: "v120",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -9178,6 +9233,8 @@ function initMenu() {
   });
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
+  els.rankingPrevPageButton?.addEventListener("click", () => loadRanking(Math.max(1, AUTH_STATE.rankingPage - 1)));
+  els.rankingNextPageButton?.addEventListener("click", () => loadRanking(Math.min(Number(AUTH_STATE.ranking?.totalPages || 1), AUTH_STATE.rankingPage + 1)));
   els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
   els.backToLobbyFromCircuitInfoButton?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
@@ -9203,7 +9260,8 @@ function initMenu() {
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
   els.createFriendlyTournamentButton?.addEventListener("click", createFriendlyTournament);
   refreshLobbyRooms();
-  loadRanking();
+  loadLobbyRanking();
+  loadRanking(1);
   loadCompetitions();
   window.clearInterval(MENU_STATE.lobbyTimer);
   MENU_STATE.lobbyTimer = window.setInterval(() => {
