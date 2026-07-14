@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v128
+Tennis Courts Academy - version serveur v129
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -28,6 +28,9 @@ Le serveur affiche un menu/lobby commun :
 - conserver exactement le score et l'etat d'un match interrompu avant la reconnexion
 - accorder 20 secondes pour revenir dans un match humain et 10 secondes contre une IA avant le forfait
 - afficher a l'adversaire humain un decompte dynamique pendant la reconnexion
+- detecter la fermeture de la fenetre ou l'arret silencieux des pulsations pendant un match
+- declarer forfait apres 20 secondes sans reconnexion et annuler automatiquement le decompte si la connexion revient
+- reactiver le joueur lors d'un rechargement de page sans perdre la session synchronisee
 - proteger le vainqueur d'un match humain contre une reponse reseau tardive qui pourrait l'ejecter du tournoi
 - transferer automatiquement le role d'hote au joueur suivant lorsque l'hote quitte
 - enregistrer le score au moment d'un abandon en match, puis declarer le joueur forfait

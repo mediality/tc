@@ -19,6 +19,8 @@ const friendlyTournaments = new Map();
 const playerActivities = new Map();
 const LIVE_ACTIVITY_TTL_MS = 15000;
 const ROOM_ACTIVITY_TTL_MS = 60000;
+const FRIENDLY_PRESENCE_STALE_MS = 4000;
+const FRIENDLY_RECONNECT_GRACE_MS = 20000;
 const COACH_IDS = new Set(["coachJu", "coachMax", "coachCarla", "coachClem"]);
 const SESSION_COOKIE = "tc_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -3236,6 +3238,7 @@ function makeFriendlyMatch(id, label, round, playerA = null, playerB = null, opt
     liveState: null,
     liveParticipantId: null,
     liveUpdatedAt: null,
+    presenceStartedAt: null,
     group: options.group || null,
     day: options.day || null,
   };
@@ -3278,6 +3281,7 @@ function friendlyDisconnectedPlayersForMatch(tournament, match) {
       nickname: participant.nickname,
       deadline: Number(participant.reconnectDeadline),
       graceSeconds: Number(participant.reconnectGraceSeconds || 20),
+      reason: participant.awayReason || "connection",
     }));
 }
 
@@ -3832,15 +3836,66 @@ function cloneFriendlyMatchState(remoteState) {
   }
 }
 
-function markFriendlyParticipantPresent(participant) {
+function markFriendlyParticipantPresent(participant, now = Date.now()) {
   if (!participant) return false;
   const wasAway = Boolean(participant.awayAt || participant.reconnectDeadline || participant.reconnectMatchId);
   participant.awayAt = null;
+  participant.awayReason = null;
   participant.reconnectDeadline = null;
   participant.reconnectMatchId = null;
   participant.reconnectGraceSeconds = null;
   participant.disconnectScore = null;
+  participant.lastSeenAt = now;
   return wasAway;
+}
+
+function touchFriendlyParticipant(participant, now = Date.now()) {
+  if (!participant) return false;
+  if (participant.awayAt && participant.awayReason === "heartbeat" && Number(participant.reconnectDeadline || 0) > now) {
+    markFriendlyParticipantPresent(participant, now);
+    return true;
+  }
+  if (!participant.awayAt) participant.lastSeenAt = now;
+  return false;
+}
+
+function markFriendlyParticipantAway(tournament, participant, match, options = {}) {
+  if (!tournament || !participant || !match || match.winner) return false;
+  const entry = friendlyParticipantEntry(participant.id);
+  if (match.playerA !== entry && match.playerB !== entry) return false;
+  const disconnectedAt = Number(options.disconnectedAt || Date.now());
+  const graceSeconds = Number(options.graceSeconds || 20);
+  participant.awayAt = disconnectedAt;
+  participant.awayReason = options.reason || "connection";
+  participant.disconnectScore = String(options.score || participant.disconnectScore || match.liveScore || "0/0")
+    .replace(/\s*·\s*EN DIRECT\s*$/i, "")
+    .slice(0, 80);
+  participant.reconnectMatchId = match.id;
+  participant.reconnectGraceSeconds = graceSeconds;
+  participant.reconnectDeadline = Number(options.deadline || (disconnectedAt + (graceSeconds * 1000)));
+  tournament.updatedAt = Date.now();
+  return true;
+}
+
+function resolveFriendlyPresenceLosses(tournament, now = Date.now()) {
+  if (!tournament || tournament.status !== "playing") return false;
+  let changed = false;
+  for (const participant of activeFriendlyParticipants(tournament)) {
+    if (participant.awayAt) continue;
+    const match = currentFriendlyMatchForParticipant(tournament, participant.id);
+    if (!match) continue;
+    if (!match.presenceStartedAt) match.presenceStartedAt = now;
+    const lastSeenAt = Math.max(Number(participant.lastSeenAt || 0), Number(match.presenceStartedAt || now));
+    if (now - lastSeenAt < FRIENDLY_PRESENCE_STALE_MS) continue;
+    changed = markFriendlyParticipantAway(tournament, participant, match, {
+      reason: "heartbeat",
+      disconnectedAt: lastSeenAt + FRIENDLY_PRESENCE_STALE_MS,
+      deadline: lastSeenAt + FRIENDLY_RECONNECT_GRACE_MS,
+      graceSeconds: FRIENDLY_RECONNECT_GRACE_MS / 1000,
+      score: match.liveScore,
+    }) || changed;
+  }
+  return changed;
 }
 
 function forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) {
@@ -3859,6 +3914,7 @@ function forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) {
   match.forfeitParticipantId = participant.id;
   match.resumeState = null;
   participant.graceExpiredAt = Date.now();
+  participant.awayReason = "forfeit";
   participant.reconnectDeadline = null;
   participant.reconnectMatchId = null;
   participant.reconnectGraceSeconds = null;
@@ -4110,6 +4166,7 @@ async function handleApi(req, res) {
     const tournaments = [...friendlyTournaments.values()]
       .filter((tournament) => tournament.status === "waiting" || tournament.status === "playing")
       .map((tournament) => {
+        resolveFriendlyPresenceLosses(tournament);
         resolveFriendlyReconnectTimeouts(tournament);
         refreshFriendlyTournamentSlots(tournament);
         return tournament;
@@ -4138,6 +4195,7 @@ async function handleApi(req, res) {
       nickname: String(user.nickname || payload.nickname || "Joueur").slice(0, 24),
       characterId: normalizeCharacterId(payload.characterId, "coachJu"),
       joinedAt: Date.now(),
+      lastSeenAt: Date.now(),
     };
     const tournament = {
       id: tournamentId,
@@ -4239,6 +4297,7 @@ async function handleApi(req, res) {
       nickname: String(user.nickname || payload.nickname || "Joueur").slice(0, 24),
       characterId: normalizeCharacterId(payload.characterId, "coachJu"),
       joinedAt: Date.now(),
+      lastSeenAt: Date.now(),
     };
     tournament.participants.push(participant);
     tournament.updatedAt = Date.now();
@@ -4352,6 +4411,49 @@ async function handleApi(req, res) {
     return;
   }
 
+  const friendlyPresenceMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/presence$/);
+  if (req.method === "POST" && friendlyPresenceMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyPresenceMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant || tournament.status !== "playing") {
+      sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    resolveFriendlyPresenceLosses(tournament);
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
+    if (payload.status === "online") {
+      participant.activePresenceId = String(payload.presenceId || participant.activePresenceId || "").slice(0, 80) || null;
+      markFriendlyParticipantPresent(participant);
+      tournament.updatedAt = Date.now();
+      sendJson(res, 200, {
+        ok: true,
+        resumed: true,
+        currentMatch: publicFriendlyCurrentMatch(tournament, participant.id),
+      });
+      return;
+    }
+    const closingPresenceId = String(payload.presenceId || "").slice(0, 80);
+    if (closingPresenceId && participant.activePresenceId && closingPresenceId !== participant.activePresenceId) {
+      sendJson(res, 200, { ok: true, paused: false, ignored: true });
+      return;
+    }
+    const currentMatch = currentFriendlyMatchForParticipant(tournament, participant.id);
+    const paused = markFriendlyParticipantAway(tournament, participant, currentMatch, {
+      reason: "window",
+      graceSeconds: FRIENDLY_RECONNECT_GRACE_MS / 1000,
+      score: payload.score,
+    });
+    sendJson(res, 200, {
+      ok: true,
+      paused,
+      graceSeconds: paused ? FRIENDLY_RECONNECT_GRACE_MS / 1000 : null,
+      reconnectDeadline: paused ? participant.reconnectDeadline : null,
+    });
+    return;
+  }
+
   const friendlyLeaveMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/leave$/);
   if (req.method === "POST" && friendlyLeaveMatch) {
     const payload = await readJson(req);
@@ -4395,6 +4497,7 @@ async function handleApi(req, res) {
     )) || null;
     const now = Date.now();
     participant.awayAt = now;
+    participant.awayReason = "explicit";
     participant.disconnectScore = String(payload.score || currentMatch?.liveScore || "0/0")
       .replace(/\s*·\s*EN DIRECT\s*$/i, "")
       .slice(0, 80);
@@ -4450,8 +4553,6 @@ async function handleApi(req, res) {
   const friendlyStateMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)$/);
   if (req.method === "GET" && friendlyStateMatch) {
     const tournament = friendlyTournaments.get(friendlyStateMatch[1]);
-    resolveFriendlyReconnectTimeouts(tournament);
-    refreshFriendlyTournamentSlots(tournament);
     const kickedParticipant = tournament?.participants.find((item) => (
       item.kickedAt
       && item.id === url.searchParams.get("participantId")
@@ -4467,6 +4568,16 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Tournoi introuvable." });
       return;
     }
+    if (participant) {
+      const presenceId = String(url.searchParams.get("presenceId") || "").slice(0, 80);
+      if (presenceId && !participant.activePresenceId) participant.activePresenceId = presenceId;
+      if (!presenceId || !participant.activePresenceId || presenceId === participant.activePresenceId) {
+        touchFriendlyParticipant(participant);
+      }
+    }
+    resolveFriendlyPresenceLosses(tournament);
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     sendJson(res, 200, {
       tournament: publicFriendlyTournamentInfo(req, tournament, participant, spectator),
       currentMatch: participant ? publicFriendlyCurrentMatch(tournament, participant.id) : null,
@@ -4487,6 +4598,7 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Session de match indisponible." });
       return;
     }
+    touchFriendlyParticipant(participant);
     if (match.round !== tournament.round) {
       sendJson(res, 409, { error: "Cette rencontre n'est pas encore disponible." });
       return;
@@ -4554,6 +4666,7 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Match indisponible." });
       return;
     }
+    touchFriendlyParticipant(participant);
     if (match.round !== tournament.round || (match.playerA !== entry && match.playerB !== entry)) {
       sendJson(res, 403, { error: "Ce joueur ne participe pas à ce match." });
       return;
@@ -4620,6 +4733,7 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Tournoi introuvable." });
       return;
     }
+    touchFriendlyParticipant(participant);
     const match = tournament.matches.find((item) => item.id === friendlyResultMatch[2]);
     const entry = friendlyParticipantEntry(participant.id);
     if (!match || (match.playerA !== entry && match.playerB !== entry)) {
@@ -4873,6 +4987,16 @@ const server = http.createServer((req, res) => {
   }
   serveStatic(req, res);
 });
+
+const friendlyPresenceSweep = setInterval(() => {
+  for (const tournament of friendlyTournaments.values()) {
+    if (tournament.status !== "playing") continue;
+    resolveFriendlyPresenceLosses(tournament);
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
+  }
+}, 1000);
+friendlyPresenceSweep.unref?.();
 
 initAuthStorage()
   .then(() => {

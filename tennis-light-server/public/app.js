@@ -74,6 +74,8 @@ const FRIENDLY_TOURNAMENT = {
   countdownMatch: null,
   opponentDisconnectTimer: null,
   opponentDisconnectMatchId: null,
+  pageExitSignaled: false,
+  presenceId: null,
 };
 
 const SPECTATOR_MODE = {
@@ -3185,7 +3187,8 @@ function friendlyEntryInfo(entry) {
 function friendlyTournamentAccessQuery() {
   const accessKey = FRIENDLY_TOURNAMENT.isSpectator ? "spectatorId" : "participantId";
   const accessId = FRIENDLY_TOURNAMENT.isSpectator ? FRIENDLY_TOURNAMENT.spectatorId : FRIENDLY_TOURNAMENT.participantId;
-  return `${accessKey}=${encodeURIComponent(accessId || "")}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token || "")}`;
+  const presence = FRIENDLY_TOURNAMENT.isSpectator ? "" : `&presenceId=${encodeURIComponent(FRIENDLY_TOURNAMENT.presenceId || "")}`;
+  return `${accessKey}=${encodeURIComponent(accessId || "")}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token || "")}${presence}`;
 }
 
 function friendlyEntryCharacterId(entry) {
@@ -4009,6 +4012,65 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   showMenuScreen();
 }
 
+function signalFriendlyTournamentPageExit() {
+  if (
+    FRIENDLY_TOURNAMENT.pageExitSignaled
+    || !FRIENDLY_TOURNAMENT.enabled
+    || FRIENDLY_TOURNAMENT.isSpectator
+    || !FRIENDLY_TOURNAMENT.inMatch
+    || !FRIENDLY_TOURNAMENT.id
+    || !FRIENDLY_TOURNAMENT.participantId
+    || !FRIENDLY_TOURNAMENT.token
+  ) return;
+  const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
+  if (!currentMatch || state.setMatch?.matchOver) return;
+  FRIENDLY_TOURNAMENT.pageExitSignaled = true;
+  const payload = JSON.stringify({
+    participantId: FRIENDLY_TOURNAMENT.participantId,
+    token: FRIENDLY_TOURNAMENT.token,
+    presenceId: FRIENDLY_TOURNAMENT.presenceId,
+    status: "offline",
+    matchId: currentMatch.id,
+    score: friendlyLiveScoreText(currentMatch),
+  });
+  const endpoint = `/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/presence`;
+  const sent = typeof navigator.sendBeacon === "function"
+    && navigator.sendBeacon(endpoint, new Blob([payload], { type: "application/json" }));
+  if (!sent) {
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: payload,
+      keepalive: true,
+    }).catch(() => {});
+  }
+}
+
+async function restoreFriendlyTournamentPresence() {
+  if (
+    !FRIENDLY_TOURNAMENT.enabled
+    || FRIENDLY_TOURNAMENT.isSpectator
+    || !FRIENDLY_TOURNAMENT.id
+    || !FRIENDLY_TOURNAMENT.participantId
+    || !FRIENDLY_TOURNAMENT.token
+  ) return;
+  try {
+    await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/presence`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        presenceId: FRIENDLY_TOURNAMENT.presenceId,
+        status: "online",
+      }),
+    });
+  } catch (error) {
+  } finally {
+    FRIENDLY_TOURNAMENT.pageExitSignaled = false;
+  }
+}
+
 function resetFriendlyTournamentConnection() {
   cancelFriendlyMatchCountdown();
   closeFriendlyOpponentDisconnectDialog();
@@ -4023,6 +4085,7 @@ function resetFriendlyTournamentConnection() {
   document.body.classList.remove("spectator-mode");
   FRIENDLY_TOURNAMENT.enabled = false;
   FRIENDLY_TOURNAMENT.isSpectator = false;
+  FRIENDLY_TOURNAMENT.presenceId = null;
   FRIENDLY_TOURNAMENT.id = null;
   FRIENDLY_TOURNAMENT.participantId = null;
   FRIENDLY_TOURNAMENT.spectatorId = null;
@@ -4100,12 +4163,18 @@ function initFriendlyTournament() {
   FRIENDLY_TOURNAMENT.participantId = params.participantId;
   FRIENDLY_TOURNAMENT.spectatorId = params.spectatorId;
   FRIENDLY_TOURNAMENT.token = params.token;
+  FRIENDLY_TOURNAMENT.presenceId = crypto.randomUUID();
   FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+  FRIENDLY_TOURNAMENT.pageExitSignaled = false;
   cancelFriendlyMatchCountdown();
   showFriendlyLobbyScreen();
   if (els.friendlyLobbyContent) els.friendlyLobbyContent.innerHTML = '<div class="friendly-lobby-status">Chargement du CLUB HOUSE...</div>';
-  pollFriendlyTournament();
-  FRIENDLY_TOURNAMENT.pollTimer = window.setInterval(pollFriendlyTournament, 1400);
+  restoreFriendlyTournamentPresence().finally(() => {
+    if (!FRIENDLY_TOURNAMENT.enabled) return;
+    pollFriendlyTournament();
+    window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
+    FRIENDLY_TOURNAMENT.pollTimer = window.setInterval(pollFriendlyTournament, 1400);
+  });
 }
 
 function cloneCard(card, copyIndex) {
@@ -4287,7 +4356,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v128",
+    version: "v129",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -10163,6 +10232,10 @@ document.addEventListener("click", (event) => {
 });
 window.forceSoloAITurn = forceSoloAITurn;
 window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
+window.addEventListener("pagehide", signalFriendlyTournamentPageExit);
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) restoreFriendlyTournamentPresence();
+});
 newGame();
 initMenu();
 initFriendlyTournament();

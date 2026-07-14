@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const base = process.env.TEST_BASE_URL || "http://localhost:3028";
+const base = process.env.TEST_BASE_URL || "http://localhost:3029";
 
 async function request(session, path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -14,10 +14,10 @@ async function request(session, path, options = {}) {
 }
 
 async function register(email, nickname) {
-  const session = { cookie: "", user: null, email, password: "Test-v128!" };
+  const session = { cookie: "", user: null, email, password: "Test-v129!" };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v128!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v129!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -174,10 +174,10 @@ function assertNoLeagueMatchCounted(tournament) {
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v128-a-${stamp}@example.test`, "Alpha"),
-  register(`v128-b-${stamp}@example.test`, "Bravo"),
-  register(`v128-c-${stamp}@example.test`, "Charlie"),
-  register(`v128-d-${stamp}@example.test`, "Delta"),
+  register(`v129-a-${stamp}@example.test`, "Alpha"),
+  register(`v129-b-${stamp}@example.test`, "Bravo"),
+  register(`v129-c-${stamp}@example.test`, "Charlie"),
+  register(`v129-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
 
@@ -288,8 +288,8 @@ for (const hiddenMatch of hiddenAiMatches) {
 }
 assertNoLeagueMatchCounted(afterSecondHumanSet);
 if (process.env.KEEP_AI_REVEAL === "1") {
-  console.log(`v128 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
-  console.log("v128 AI reveal browser fixture: READY");
+  console.log(`v129 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
+  console.log("v129 AI reveal browser fixture: READY");
   process.exit(0);
 }
 
@@ -435,10 +435,10 @@ if (process.env.KEEP_SHARED_DUEL === "1") {
     body: JSON.stringify({}),
   });
   assert.equal(spectatorAccess.response.status, 200, spectatorAccess.data.error);
-  console.log(`v128 shared player A: ${participantUrl(playerAContext.access)}`);
-  console.log(`v128 shared player B: ${participantUrl(playerBContext.access)}`);
-  console.log(`v128 shared spectator: ${spectatorAccess.data.spectatorUrl}`);
-  console.log("v128 shared browser fixture: READY");
+  console.log(`v129 shared player A: ${participantUrl(playerAContext.access)}`);
+  console.log(`v129 shared player B: ${participantUrl(playerBContext.access)}`);
+  console.log(`v129 shared spectator: ${spectatorAccess.data.spectatorUrl}`);
+  console.log("v129 shared browser fixture: READY");
   process.exit(0);
 }
 
@@ -574,6 +574,71 @@ const initializeDisconnectSession = await request(forfeitWinner.player, `/api/fr
   }),
 });
 assert.equal(initializeDisconnectSession.response.status, 200, initializeDisconnectSession.data.error);
+for (const context of [forfeitWinner, forfeitLoser]) {
+  const online = await request(context.player, `/api/friendly-tournaments/${context.access.id}/presence`, {
+    method: "POST",
+    body: JSON.stringify({
+      participantId: context.access.participantId,
+      token: context.access.token,
+      presenceId: `test-presence-${context.access.participantId}`,
+      status: "online",
+    }),
+  });
+  assert.equal(online.response.status, 200, online.data.error);
+}
+const winnerHeartbeat = setInterval(() => {
+  tournamentState(forfeitWinner.player, forfeitWinner.access).catch(() => {});
+}, 1000);
+await new Promise((resolve) => setTimeout(resolve, 4600));
+clearInterval(winnerHeartbeat);
+const heartbeatDisconnectState = await tournamentState(forfeitWinner.player, forfeitWinner.access);
+const heartbeatQuarter = heartbeatDisconnectState.data.tournament.matches.find((match) => match.id === forfeitQuarter.id);
+const silentDisconnect = heartbeatQuarter.disconnectedPlayers.find((item) => item.participantId === forfeitLoser.access.participantId);
+assert.equal(silentDisconnect?.reason, "heartbeat", "l'arrêt silencieux des pulsations doit être détecté");
+assert.ok(silentDisconnect.deadline - Date.now() > 10000, "le délai total doit rester calculé sur 20 secondes");
+const automaticReconnect = await tournamentState(forfeitLoser.player, forfeitLoser.access);
+assert.equal(automaticReconnect.response.status, 200, automaticReconnect.data.error);
+const reconnectedQuarter = automaticReconnect.data.tournament.matches.find((match) => match.id === forfeitQuarter.id);
+assert.equal(reconnectedQuarter.disconnectedPlayers.some((item) => item.participantId === forfeitLoser.access.participantId), false, "une pulsation revenue avant le délai doit annuler l'absence silencieuse");
+
+const windowClose = await request(forfeitLoser.player, `/api/friendly-tournaments/${forfeitLoser.access.id}/presence`, {
+  method: "POST",
+  body: JSON.stringify({
+    participantId: forfeitLoser.access.participantId,
+    token: forfeitLoser.access.token,
+    presenceId: `test-presence-${forfeitLoser.access.participantId}`,
+    status: "offline",
+    matchId: forfeitQuarter.id,
+    score: "3/2",
+  }),
+});
+assert.equal(windowClose.response.status, 200, windowClose.data.error);
+assert.equal(windowClose.data.paused, true);
+assert.equal(windowClose.data.graceSeconds, 20, "la fermeture de la fenêtre doit ouvrir un délai de 20 secondes");
+const reopenWindow = await request(forfeitLoser.player, `/api/friendly-tournaments/${forfeitLoser.access.id}/presence`, {
+  method: "POST",
+  body: JSON.stringify({
+    participantId: forfeitLoser.access.participantId,
+    token: forfeitLoser.access.token,
+    presenceId: `returned-presence-${forfeitLoser.access.participantId}`,
+    status: "online",
+  }),
+});
+assert.equal(reopenWindow.response.status, 200, reopenWindow.data.error);
+assert.equal(reopenWindow.data.resumed, true, "la réouverture avant 20 secondes doit reprendre le match");
+const delayedOldWindowClose = await request(forfeitLoser.player, `/api/friendly-tournaments/${forfeitLoser.access.id}/presence`, {
+  method: "POST",
+  body: JSON.stringify({
+    participantId: forfeitLoser.access.participantId,
+    token: forfeitLoser.access.token,
+    presenceId: `test-presence-${forfeitLoser.access.participantId}`,
+    status: "offline",
+    matchId: forfeitQuarter.id,
+    score: "3/2",
+  }),
+});
+assert.equal(delayedOldWindowClose.data.ignored, true, "un ancien signal de fermeture ne doit pas déconnecter la nouvelle page");
+
 const leaveForfeit = await request(forfeitLoser.player, `/api/friendly-tournaments/${forfeitLoser.access.id}/leave`, {
   method: "POST",
   body: JSON.stringify({
@@ -593,11 +658,11 @@ assert.equal(pausedQuarter.winner, null, "le forfait ne doit pas être immédiat
 assert.equal(pausedQuarter.disconnectedPlayers[0].participantId, forfeitLoser.access.participantId);
 if (process.env.KEEP_RECONNECT_COUNTDOWN === "1") {
   const participantUrl = (access) => `${base}/?friendlyTournament=${access.id}&participant=${access.participantId}&token=${access.token}`;
-  console.log(`v128 reconnect opponent: ${participantUrl(forfeitWinner.access)}`);
-  console.log(`v128 reconnect player email: ${forfeitLoser.player.email}`);
-  console.log(`v128 reconnect player password: ${forfeitLoser.player.password}`);
-  console.log(`v128 reconnect tournament: ${forfeitLoser.access.id}`);
-  console.log("v128 reconnect browser fixture: READY");
+  console.log(`v129 reconnect opponent: ${participantUrl(forfeitWinner.access)}`);
+  console.log(`v129 reconnect player email: ${forfeitLoser.player.email}`);
+  console.log(`v129 reconnect player password: ${forfeitLoser.player.password}`);
+  console.log(`v129 reconnect tournament: ${forfeitLoser.access.id}`);
+  console.log("v129 reconnect browser fixture: READY");
   process.exit(0);
 }
 
@@ -625,7 +690,11 @@ const leaveAgain = await request(forfeitLoser.player, `/api/friendly-tournaments
   }),
 });
 assert.equal(leaveAgain.response.status, 200, leaveAgain.data.error);
+const connectedWinnerHeartbeat = setInterval(() => {
+  tournamentState(forfeitWinner.player, forfeitWinner.access).catch(() => {});
+}, 1000);
 await new Promise((resolve) => setTimeout(resolve, 20500));
+clearInterval(connectedWinnerHeartbeat);
 
 const qualifiedState = await tournamentState(forfeitWinner.player, forfeitWinner.access);
 assert.equal(qualifiedState.response.status, 200, qualifiedState.data.error);
@@ -642,8 +711,8 @@ assert.equal(qualifiedSemi.playerA === forfeitWinner.access.entry || qualifiedSe
 assert.equal(qualifiedSemi.humanVsHuman, false, "le dernier humain qualifié doit jouer sa demi-finale contre l'IA");
 assert.equal(qualifiedSemi.watchable, false, "une rencontre pas encore lancée ne doit pas être proposée uniquement en mode VOIR");
 if (process.env.KEEP_FORFEIT_TRANSITION === "1") {
-  console.log(`v128 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
-  console.log("v128 forfeit browser fixture: READY");
+  console.log(`v129 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
+  console.log("v129 forfeit browser fixture: READY");
   process.exit(0);
 }
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${forfeitWinner.access.id}/admin-delete`, { method: "POST" })).response.status, 200);
@@ -672,4 +741,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v128 smoke test: OK");
+console.log("v129 smoke test: OK");
