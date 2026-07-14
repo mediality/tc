@@ -60,6 +60,7 @@ const FRIENDLY_TOURNAMENT = {
   pollTimer: null,
   waitingForNextRound: false,
   inMatch: false,
+  canStart: false,
 };
 
 const SOLO_AI = {
@@ -2949,8 +2950,9 @@ function friendlyEntryCharacterId(entry) {
 
 function applyFriendlyTournamentState(payload, currentMatch = null) {
   if (!payload) return;
-  FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator);
+  FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator || payload.creatorParticipantId === FRIENDLY_TOURNAMENT.participantId);
   FRIENDLY_TOURNAMENT.entry = payload.participant?.entry || FRIENDLY_TOURNAMENT.entry;
+  FRIENDLY_TOURNAMENT.canStart = Boolean(payload.canStart || (payload.status === "waiting" && (payload.participantCount || payload.participants?.length || 0) >= 2));
   const matches = (payload.matches || []).map((match) => ({
     id: match.id,
     label: match.label,
@@ -3015,16 +3017,21 @@ function renderFriendlyLobbyScreen() {
   if (!els.friendlyLobbyContent || !state.tournament?.friendly) return;
   const participants = state.tournament.friendlyParticipants || [];
   const matches = state.tournament.matches || [];
-  const canStart = FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && participants.length >= 2;
+  const canStart = FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && (FRIENDLY_TOURNAMENT.canStart || participants.length >= 2);
+  const waitingForPlayers = FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && !canStart;
   const status = friendlyLobbyStatusText();
   els.friendlyLobbyContent.innerHTML = `
     <div class="friendly-lobby-title">
       <div>
         <p class="label">Salon ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
         <h1>Tournoi amical</h1>
-        <p>${participants.length}/4 humains · Classic 2 sets · démarrage en quarts</p>
+        <p>${participants.length}/4 humains · lancement possible dès 2 joueurs · Classic 2 sets</p>
       </div>
-      ${canStart ? '<button class="primary-button" type="button" data-start-friendly-tournament>LANCER</button>' : ""}
+      ${FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" ? `
+        <button class="primary-button" type="button" data-start-friendly-tournament ${canStart ? "" : "disabled"}>
+          ${canStart ? "LANCER" : "EN ATTENTE"}
+        </button>
+      ` : ""}
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
     <section>
@@ -3054,7 +3061,8 @@ function renderFriendlyLobbyScreen() {
       </section>
     ` : ""}
   `;
-  els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]")?.addEventListener("click", startFriendlyTournamentFromLobby);
+  const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
+  if (startButton && !waitingForPlayers) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
 }
 
 function friendlyLobbyStatusText() {
@@ -3062,8 +3070,8 @@ function friendlyLobbyStatusText() {
   if (state.tournament.stage === "waiting") {
     if (FRIENDLY_TOURNAMENT.isCreator) {
       return state.tournament.friendlyParticipants.length >= 2
-        ? "Au moins 2 joueurs sont présents. Tu peux lancer le tournoi quand tu veux."
-        : "En attente d'au moins un autre joueur humain.";
+        ? "Au moins 2 joueurs sont présents. Tu peux lancer le tournoi maintenant, sans attendre 4 joueurs."
+        : "En attente d'au moins un autre joueur humain. Le tournoi pourra démarrer dès 2 joueurs.";
     }
     return "En attente du lancement par le créateur du salon.";
   }
@@ -3088,6 +3096,10 @@ async function pollFriendlyTournament() {
 
 async function startFriendlyTournamentFromLobby() {
   if (!FRIENDLY_TOURNAMENT.enabled || !FRIENDLY_TOURNAMENT.isCreator) return;
+  if (!FRIENDLY_TOURNAMENT.canStart && (state.tournament?.friendlyParticipants || []).length < 2) {
+    renderFriendlyLobbyScreen();
+    return;
+  }
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
       method: "POST",
@@ -3342,7 +3354,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v114",
+    version: "v115",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
