@@ -214,6 +214,79 @@ button:disabled {
   object-fit: cover;
 }
 
+.friendly-lobby-shell {
+  max-width: 1120px;
+}
+
+.friendly-lobby-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.friendly-lobby-title {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.friendly-lobby-title h1 {
+  margin: 0;
+  color: #17212b;
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  letter-spacing: 0;
+}
+
+.friendly-lobby-title p {
+  margin: 6px 0 0;
+  color: #425466;
+  font-weight: 800;
+}
+
+.friendly-player-grid,
+.friendly-bracket-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.friendly-player-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.friendly-player-card,
+.friendly-bracket-card {
+  border: 1px solid rgba(99, 115, 129, 0.22);
+  border-radius: 8px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.friendly-player-card strong,
+.friendly-bracket-card strong {
+  display: block;
+  color: #17212b;
+}
+
+.friendly-player-card span,
+.friendly-bracket-card span {
+  color: #425466;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.friendly-lobby-status {
+  border: 1px solid rgba(14, 116, 144, 0.26);
+  border-radius: 8px;
+  padding: 12px;
+  color: #0f172a;
+  background: rgba(236, 253, 245, 0.9);
+  font-weight: 900;
+}
+
+.friendly-bracket-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .menu-panel {
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;

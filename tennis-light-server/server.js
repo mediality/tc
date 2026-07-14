@@ -3193,18 +3193,13 @@ function buildFriendlyTournamentBracket(tournament) {
   const aiEntries = CIRCUIT_AI_CHARACTER_IDS
     .filter((characterId) => !usedCharacters.has(characterId))
     .slice(0, Math.max(0, 8 - humanEntries.length));
-  const entries = Array(8).fill(null);
-  [0, 2, 4, 6].forEach((position, index) => {
-    if (humanEntries[index]) entries[position] = humanEntries[index];
-  });
-  let aiIndex = 0;
-  for (let index = 0; index < entries.length; index += 1) {
-    if (!entries[index]) {
-      entries[index] = aiEntries[aiIndex] || CIRCUIT_AI_CHARACTER_IDS[aiIndex % CIRCUIT_AI_CHARACTER_IDS.length];
-      aiIndex += 1;
-    }
+  const entries = [...humanEntries, ...aiEntries];
+  while (entries.length < 8) entries.push(CIRCUIT_AI_CHARACTER_IDS[entries.length % CIRCUIT_AI_CHARACTER_IDS.length]);
+  for (let index = entries.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [entries[index], entries[swapIndex]] = [entries[swapIndex], entries[index]];
   }
-  tournament.entries = entries;
+  tournament.entries = entries.slice(0, 8);
   tournament.matches = [
     makeFriendlyMatch("qf1", "Quart de finale 1", "quarter", tournament.entries[0], tournament.entries[1]),
     makeFriendlyMatch("qf2", "Quart de finale 2", "quarter", tournament.entries[2], tournament.entries[3]),
@@ -3286,6 +3281,7 @@ function currentFriendlyMatchForParticipant(tournament, participantId) {
     !match.winner
     && match.playerA
     && match.playerB
+    && match.round === tournament.round
     && (match.playerA === entry || match.playerB === entry)
   )) || null;
 }
@@ -3294,17 +3290,7 @@ function friendlyRoundReadyForPlay(tournament) {
   if (tournament.status !== "playing") return false;
   if (tournament.round === "quarter") return true;
   if (tournament.round === "complete") return false;
-  const aliveParticipantIds = new Set();
-  for (const match of tournament.matches || []) {
-    if (match.round !== tournament.round || match.winner || !match.playerA || !match.playerB) continue;
-    for (const entry of [match.playerA, match.playerB]) {
-      if (friendlyEntryIsHuman(entry)) aliveParticipantIds.add(String(entry).replace(/^human:/, ""));
-    }
-  }
-  if (!aliveParticipantIds.size) return true;
-  const ready = tournament.ready?.[tournament.round] || {};
-  const nextReady = tournament.nextReady || {};
-  return [...aliveParticipantIds].every((participantId) => ready[participantId] || nextReady[participantId]);
+  return true;
 }
 
 async function handleApi(req, res) {
