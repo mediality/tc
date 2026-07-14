@@ -6919,8 +6919,18 @@ function setMatchPlayers(match, playerA, playerB) {
   }
 }
 
-function tournamentCompletedSetScore() {
-  return state.setMatch.completedScores.map((score) => `${score[0]}/${score[1]}`).join(" - ");
+function tournamentCompletedSetScoresForMatch(match) {
+  const scores = state.setMatch.completedScores.map((score) => [...score]);
+  if (!match) return scores;
+  const human = humanTournamentEntry();
+  if (match.playerB === human) {
+    return scores.map((score) => [score[1], score[0]]);
+  }
+  return scores;
+}
+
+function tournamentCompletedSetScore(match = null) {
+  return formatSetScores(tournamentCompletedSetScoresForMatch(match));
 }
 
 function handleTournamentMatchComplete() {
@@ -6937,7 +6947,7 @@ function handleTournamentMatchComplete() {
   if (!match || match.winner) return;
   const winnerCharacterId = state.players[state.setMatch.matchWinner]?.characterId;
   match.winner = winnerCharacterId;
-  match.score = tournamentCompletedSetScore();
+  match.score = tournamentCompletedSetScore(match);
   if (match.id === "qfHuman") {
     revealAllTournamentAiSets("quarter");
     refreshTournamentDerivedSlots();
@@ -6989,8 +6999,8 @@ function handleLeagueTournamentMatchComplete() {
   if (!match || match.winner) return;
   const winnerEntry = tournamentWinnerEntryFromMatchWinner(state.setMatch.matchWinner);
   match.winner = winnerEntry;
-  match.score = tournamentCompletedSetScore();
-  match.revealedSetScores = state.setMatch.completedScores.map((score) => [...score]);
+  match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
+  match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
   if (match.day) {
     revealLeagueDay(match.day);
@@ -7038,7 +7048,8 @@ function handleWeeklyTournamentMatchComplete() {
   if (!match || match.winner) return;
   const winnerEntry = tournamentWinnerEntryFromMatchWinner(state.setMatch.matchWinner);
   match.winner = winnerEntry;
-  match.score = tournamentCompletedSetScore();
+  match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
+  match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
   addHumanMatchPerformanceBonus(match);
   refreshWeeklyTournamentDerivedSlots();
@@ -7121,7 +7132,7 @@ function humanIndexInMatch(match) {
   return null;
 }
 
-function humanMatchPerformanceBonus(match, setScores = state.setMatch.completedScores) {
+function humanMatchPerformanceBonus(match, setScores = tournamentCompletedSetScoresForMatch(match)) {
   const humanMatchIndex = humanIndexInMatch(match);
   if (humanMatchIndex == null) return { points: 0, details: [] };
   let points = 0;
@@ -7290,7 +7301,7 @@ function updateTournamentSetProgress() {
   if (!state.tournament.active || !state.setMatch.setOver || !state.tournament.currentMatch) return;
   const current = tournamentMatchById(state.tournament.currentMatch);
   if (current && !current.score) {
-    current.liveScore = tournamentCompletedSetScore();
+    current.liveScore = tournamentCompletedSetScore(current);
   }
   if (state.tournament.league) refreshLeagueKnockoutSlots();
   else if (state.tournament.weekly) refreshWeeklyTournamentDerivedSlots();
