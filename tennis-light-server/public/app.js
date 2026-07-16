@@ -168,6 +168,7 @@ const EMPTY_TOURNAMENT = {
   pointsRecorded: false,
   stage: null,
   humanCharacterId: null,
+  humanNickname: null,
   aiFinalistCharacterId: null,
   currentMatch: null,
   championCharacterId: null,
@@ -951,85 +952,157 @@ const CARD_LIBRARY = [
   },
 ];
 
-const TUTORIAL_COACH_IMAGE = "assets/Coach-Ju-Speak.png";
-const TUTORIAL_MAX_IMAGE = "assets/CoachMaxTRS.png";
-const TUTORIAL_SCRIPT = [
-  {
-    id: "m1-1",
-    type: "message",
-    speaker: "ju",
+const TUTORIAL_NARRATORS = {
+  coachJu: {
+    name: "Coach Ju",
+    role: "Créateur de Tennis Courts",
+    image: "assets/Coach-Ju-Speak.png",
+  },
+  coachMax: {
+    name: "Coach Max",
+    role: "Coach de Tennis Courts",
+    image: "assets/CoachMaxTRS.png",
+  },
+};
+
+// Les prochains modules réutilisent cette structure : scénario, étapes, ciblages,
+// validations, erreurs et déclenchements automatiques restent entièrement déclaratifs.
+const TUTORIAL_MODULES = {
+  basics: {
+    id: "module-1-basics",
+    lesson: "Académie · Leçon 1",
     title: "Les Bases du Jeu",
-    text: "Bienvenue dans Tennis Courts ! Ici, chaque carte représente un véritable coup de tennis. Tu vas apprendre les bases du jeu en jouant un premier échange.",
+    narrator: "coachJu",
+    scenario: "base",
+    totalDisplaySteps: 12,
+    steps: [
+      {
+        id: "m1-1-part-1",
+        displayStep: 1,
+        part: "Partie 1/2",
+        title: "Bienvenue à l'Académie",
+        text: [
+          "Bienvenue dans Tennis Courts Academy ! Ici, tu vas apprendre en jouant.",
+          "Je suis Coach Ju, le créateur de Tennis Courts. Je vais t'accompagner tout au long de ton apprentissage. Prêt à entrer sur le court ?",
+        ],
+      },
+      {
+        id: "m1-1-part-2",
+        displayStep: 1,
+        part: "Partie 2/2",
+        title: "Le format de l'Académie",
+        text: "Pour cette leçon, nous partageons un deck unique de 18 cartes. Dans le jeu complet, chaque joueur possède son deck de 48 cartes et son propre personnage.",
+      },
+      {
+        id: "m1-2",
+        displayStep: 2,
+        title: "L'endurance",
+        text: "Avant de jouer ton premier échange, découvrons l'élément le plus important : l'endurance.",
+      },
+      {
+        id: "m1-3",
+        displayStep: 3,
+        title: "Ta réserve d'Endurance",
+        text: [
+          "La plupart des joueurs commencent un échange avec 7 points d'endurance.",
+          "Chaque carte jouée consomme une partie de cette réserve. Plus un coup est exigeant, plus il te fatigue.",
+        ],
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m1-4",
+        displayStep: 4,
+        title: "Le coût d'une carte",
+        text: "En haut à gauche de la carte se trouve son coût en endurance. C'est le nombre de points à dépenser pour la jouer.",
+        showcase: { cardId: "service-coup-droit", pointer: "cost", label: "Coût" },
+      },
+      {
+        id: "m1-5",
+        displayStep: 5,
+        title: "La puissance",
+        text: "En haut à droite se trouve la puissance. Chaque carte jouée l'ajoute à ton total. Termine l'échange avec plus de puissance que ton adversaire pour gagner.",
+        showcase: { cardId: "service-coup-droit", pointer: "power", label: "Puissance" },
+      },
+      {
+        id: "m1-6",
+        displayStep: 6,
+        title: "À toi de servir",
+        text: "Tu es au service. Sélectionne la carte Service dans ta main.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "service-coup-droit" },
+        error: "Pour commencer un échange, il faut toujours sélectionner la carte Service.",
+      },
+      {
+        id: "m1-7",
+        displayStep: 7,
+        title: "Joue ton service",
+        text: "Parfait. Clique maintenant sur Jouer pour effectuer ton service.",
+        action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal", requiresSelection: true },
+      },
+      {
+        id: "m1-8",
+        displayStep: 8,
+        title: "La réponse adverse",
+        text: "Très bien. Je réponds à ton service. Comme dans un véritable échange, nous jouons chacun notre tour.",
+        autoDelayMs: 2000,
+        auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
+      },
+      {
+        id: "m1-9-select",
+        displayStep: 9,
+        title: "Continue l'échange",
+        text: "À toi. Sélectionne maintenant Coup droit.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "coup-droit-2-2-2" },
+        error: "Pour cette étape, sélectionne Coup droit. Les autres cartes serviront plus tard.",
+      },
+      {
+        id: "m1-9-play",
+        displayStep: 9,
+        title: "Continue l'échange",
+        text: "Coup droit est sélectionné. Clique sur Jouer.",
+        action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal", requiresSelection: true },
+      },
+      {
+        id: "m1-10",
+        displayStep: 10,
+        title: "La puissance augmente",
+        text: "Je réponds à nouveau. Chaque carte augmente la puissance totale de son joueur. À la fin, nos deux totaux seront comparés.",
+        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
+        autoDelayMs: 2000,
+        auto: { kind: "play", playerIndex: 1, cardId: "volee-2-2-3", mode: "normal" },
+      },
+      {
+        id: "m1-11",
+        displayStep: 11,
+        title: "Je passe",
+        text: [
+          "Le reste de l'échange vient d'être joué automatiquement. J'ai décidé de passer : l'échange prend fin.",
+          "Le joueur qui passe offre à son adversaire un bonus égal à son endurance restante, avec un minimum de 2 points. Nous approfondirons cette mécanique dans une prochaine leçon.",
+        ],
+        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
+        auto: [
+          { kind: "play", playerIndex: 0, cardId: "revers-3-3-3", mode: "normal" },
+          { kind: "pass", playerIndex: 1 },
+        ],
+      },
+      {
+        id: "m1-12",
+        displayStep: 12,
+        title: "Premier échange remporté",
+        text: "Bravo ! Tu viens de remporter ton premier échange. Tu connais maintenant les bases de Tennis Courts.",
+        summary: [
+          "Utiliser ton endurance",
+          "Jouer une carte",
+          "Accumuler de la puissance",
+          "Terminer et gagner un échange",
+        ],
+        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
+        final: true,
+      },
+    ],
   },
-  {
-    id: "m1-2",
-    type: "message",
-    speaker: "ju",
-    title: "Endurance",
-    text: "Avant de commencer, regarde ta jauge d'endurance. Chaque joueur débute un échange avec 7 points d'endurance. Chaque carte jouée consomme une partie de cette endurance.",
-  },
-  {
-    id: "m1-3",
-    type: "message",
-    speaker: "ju",
-    title: "Coût et puissance",
-    text: "Les cartes de ta main possèdent toutes un coût et une puissance. Plus un coup est puissant, plus il demande généralement d'effort. Ton objectif est de construire un échange plus puissant que celui de ton adversaire.",
-  },
-  {
-    id: "m1-4",
-    type: "action",
-    speaker: "ju",
-    title: "Tu es au service",
-    text: "Tu es au service. Commence l'échange en sélectionnant la carte Service.",
-    action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal" },
-  },
-  {
-    id: "m1-5",
-    type: "message",
-    speaker: "ju",
-    title: "Service joué",
-    text: "Parfait. Tu viens d'effectuer ton service.",
-  },
-  {
-    id: "m1-6",
-    type: "message",
-    speaker: "ju",
-    title: "Réponse automatique",
-    text: "Très bien. À chaque coup joué, ton adversaire peut répondre tant qu'il possède les cartes nécessaires.",
-    auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
-  },
-  {
-    id: "m1-7",
-    type: "action",
-    speaker: "ju",
-    title: "L'échange continue",
-    text: "L'échange continue. Joue maintenant ton Coup droit.",
-    action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal" },
-  },
-  {
-    id: "m1-8",
-    type: "message",
-    speaker: "ju",
-    title: "Puissance totale",
-    text: "Chaque carte augmente progressivement la puissance totale de ton échange. À la fin, les puissances seront comparées pour déterminer le vainqueur.",
-    auto: { kind: "play", playerIndex: 1, cardId: "volee-2-2-3", mode: "normal" },
-  },
-  {
-    id: "m1-9",
-    type: "message",
-    speaker: "ju",
-    title: "Fin de l'échange",
-    text: "L'échange est terminé. Les puissances de chaque joueur sont maintenant comparées.",
-    auto: { kind: "pass", playerIndex: 1 },
-  },
-  {
-    id: "done",
-    type: "message",
-    speaker: "ju",
-    title: "Module terminé",
-    text: "Bravo ! Tu viens de remporter ton premier échange. Tu maîtrises désormais les bases du jeu : chaque échange débute par un service, jouer une carte consomme de l'endurance, les cartes ajoutent de la puissance, et le joueur qui termine avec la meilleure puissance remporte l'échange. Passons maintenant à un véritable échange, où tu prendras toi-même toutes les décisions.",
-  },
-];
+};
+
+let tutorialAutoTimer = null;
 
 const state = {
   players: [],
@@ -1081,9 +1154,14 @@ const state = {
   },
   tutorial: {
     active: false,
+    moduleId: "basics",
     stepIndex: 0,
     completed: false,
     autoCompletedIds: [],
+    selectedCardUid: null,
+    error: null,
+    scrolledStepId: null,
+    pendingAutoStepId: null,
   },
 };
 
@@ -1223,7 +1301,8 @@ function selectedCharacterId() {
 }
 
 function selectedPlayerName() {
-  return characterNameFromId(selectedCharacterId());
+  const value = els.nicknameInput?.value?.trim() || MENU_STATE.nickname || AUTH_STATE.user?.nickname || "";
+  return value || characterNameFromId(selectedCharacterId());
 }
 
 function normalizeAiDifficulty(value) {
@@ -1748,6 +1827,17 @@ function renderRanking() {
   });
 }
 
+function confrontationStatus(wins, losses) {
+  const total = wins + losses;
+  if (!total) return null;
+  const ratio = (wins / total) * 100;
+  if (ratio > 90) return { label: "Domination", className: "domination" };
+  if (ratio > 70) return { label: "Ascendant", className: "ascendant-positive" };
+  if (ratio < 20) return { label: "Bête noire", className: "bete-noire" };
+  if (ratio < 30) return { label: "Ascendant", className: "ascendant-negative" };
+  return null;
+}
+
 function profileMarkup(profile) {
   const user = profile?.user || AUTH_STATE.user;
   const ranking = profile?.ranking || {};
@@ -1787,8 +1877,19 @@ function profileMarkup(profile) {
       `).join("")
     : "";
   const aiRows = aiResults.length
-    ? aiResults.map((row) => `<div class="profile-row"><strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong><span>${Number(row.wins || 0)} / ${Number(row.losses || 0)}</span></div>`).join("")
-    : '<div class="lobby-empty">Aucun résultat contre IA enregistré.</div>';
+    ? aiResults.map((row) => {
+      const wins = Number(row.wins || 0);
+      const losses = Number(row.losses || 0);
+      const status = confrontationStatus(wins, losses);
+      return `<div class="profile-row confrontation-row">
+        <strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong>
+        <span class="confrontation-summary">
+          ${status ? `<span class="confrontation-status ${status.className}">${escapeHtml(status.label)}</span>` : ""}
+          <span class="confrontation-ratio" aria-label="${wins} victoires et ${losses} défaites">${wins} / ${losses}</span>
+        </span>
+      </div>`;
+    }).join("")
+    : '<div class="lobby-empty">Aucun résultat de confrontation enregistré.</div>';
   const statRows = [
     ["Meilleur classement", user?.bestWorldRank ? `#${Number(user.bestWorldRank)}` : "-"],
     ["Semaines n°1", Number(user?.weeksWorldNumberOne || 0)],
@@ -1807,7 +1908,10 @@ function profileMarkup(profile) {
         detail = "N'a pas participé";
       }
       return `<div class="profile-calendar-row">
-        <strong>S${Number(item.week || 0)} · ${escapeHtml(title)}</strong>
+        <div class="profile-calendar-heading">
+          <strong>S${Number(item.week || 0)} · ${escapeHtml(title)}</strong>
+          ${profile?.viewerIsAdmin && item.reached ? `<button class="small-button danger-button profile-tournament-reset" type="button" data-reset-profile-tournament="${escapeHtml(item.id)}" data-reset-profile-season="${Number(profile?.circuit?.season || 1)}" data-reset-profile-week="${Number(item.week || 0)}" data-profile-admin-user="${escapeHtml(user?.id || "")}">Réinitialiser à 0</button>` : ""}
+        </div>
         <span>${escapeHtml(place)}</span>
         ${detail ? `<em>${escapeHtml(detail)}</em>` : ""}
       </div>`;
@@ -1861,13 +1965,17 @@ function profileMarkup(profile) {
       ${profile?.viewerIsAdmin ? `<section class="profile-card profile-wide admin-profile-tools">
         <p class="label">Administration du joueur</p>
         <div class="admin-score-periods">${adminScoreRows}</div>
+        <label class="admin-score-period admin-weekly-attempts">
+          <span>Tentatives utilisées cette semaine</span>
+          <input type="number" min="0" max="${Number(profile?.adminScores?.weeklyAttempts?.limit || 5)}" step="1" inputmode="numeric" value="${Number(profile?.adminScores?.weeklyAttempts?.used || 0)}" data-profile-weekly-attempts />
+        </label>
         <div class="admin-inline-actions">
-          <button id="saveProfileRankingScoresButton" class="primary-button" type="button" data-profile-admin-user="${escapeHtml(user?.id || "")}">Enregistrer les points</button>
+          <button id="saveProfileRankingScoresButton" class="primary-button" type="button" data-profile-admin-user="${escapeHtml(user?.id || "")}">Enregistrer points et tentatives</button>
           <button id="resetProfileCareerButton" class="small-button danger-button" type="button" data-profile-admin-user="${escapeHtml(user?.id || "")}">Réinitialiser palmarès et classement</button>
         </div>
       </section>` : ""}
       <section class="profile-card profile-wide">
-        <p class="label">Résultats contre IA</p>
+        <p class="label">Résultats des confrontations</p>
         ${aiRows}
       </section>
       <section class="profile-card profile-wide">
@@ -1894,6 +2002,9 @@ async function loadProfile(userId = null) {
     document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
     document.querySelector("#saveProfileRankingScoresButton")?.addEventListener("click", saveProfileRankingScores);
     document.querySelector("#resetProfileCareerButton")?.addEventListener("click", resetProfileCareer);
+    document.querySelectorAll("[data-reset-profile-tournament]").forEach((button) => {
+      button.addEventListener("click", resetProfileTournament);
+    });
     document.querySelector("[data-watch-profile-user]")?.addEventListener("click", (event) => {
       startProfileSpectator(event.currentTarget.dataset.watchProfileUser, event.currentTarget.dataset.watchProfileLabel);
     });
@@ -1930,6 +2041,13 @@ async function pollProfileSpectatorState() {
     for (const key of SYNC_STATE_KEYS) {
       if (Object.prototype.hasOwnProperty.call(data.state, key)) state[key] = cloneData(data.state[key]);
     }
+    const watchedPlayerIndex = Number(data.playerIndex ?? 0);
+    if (state.players?.[watchedPlayerIndex] && data.playerNickname) {
+      state.players[watchedPlayerIndex].nickname = data.playerNickname;
+    }
+    if (state.tournament?.active && watchedPlayerIndex === 0 && data.playerNickname) {
+      state.tournament.humanNickname = data.playerNickname;
+    }
     state.pendingBoost = null;
     state.pendingEffectChoice = null;
     state.pendingCoachChoice = null;
@@ -1950,11 +2068,32 @@ async function saveProfileRankingScores(event) {
     key: input.dataset.profileScoreKey,
     points: Math.max(0, Math.round(Number(input.value || 0))),
   }));
+  const weeklyAttempts = Math.max(0, Math.round(Number(document.querySelector("[data-profile-weekly-attempts]")?.value || 0)));
   try {
-    await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/ranking-scores`, { periods });
+    await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/ranking-scores`, { periods, weeklyAttempts });
     await loadProfile(userId);
     await loadRanking(1);
   } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
+async function resetProfileTournament(event) {
+  if (!canAccessAdminFeatures()) return;
+  const button = event.currentTarget;
+  const userId = button?.dataset.profileAdminUser;
+  const competitionId = button?.dataset.resetProfileTournament;
+  const season = Number(button?.dataset.resetProfileSeason || 0);
+  const week = Number(button?.dataset.resetProfileWeek || 0);
+  if (!userId || !competitionId) return;
+  if (!window.confirm("Réinitialiser ce tournoi à 0 ? Les points, la sauvegarde et le dernier adversaire seront définitivement effacés.")) return;
+  button.disabled = true;
+  try {
+    await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/tournaments/${encodeURIComponent(competitionId)}/reset`, { season, week });
+    await loadProfile(userId);
+    await loadRanking(1);
+  } catch (error) {
+    button.disabled = false;
     if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
   }
 }
@@ -2230,7 +2369,13 @@ function savedTournamentProgress(competitionId) {
   try {
     const raw = localStorage.getItem(currentCircuitSaveKey(competitionId));
     if (!raw) return null;
-    return JSON.parse(raw);
+    const saved = JSON.parse(raw);
+    const resetAt = AUTH_STATE.competitions?.resetAtByCompetition?.[competitionId];
+    if (resetAt && Date.parse(saved?.savedAt || 0) <= Date.parse(resetAt)) {
+      localStorage.removeItem(currentCircuitSaveKey(competitionId));
+      return null;
+    }
+    return saved;
   } catch (error) {
     return null;
   }
@@ -2244,6 +2389,9 @@ async function saveTournamentProgress() {
     soloAi: cloneData(SOLO_AI),
     serverSync: cloneData(SERVER_SYNC),
   };
+  if (save.state?.tutorial) {
+    save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
+  }
   const period = {
     season: state.tournament.competitionSeason,
     week: state.tournament.competitionWeek,
@@ -2295,6 +2443,7 @@ function restoreStateSnapshot(snapshot) {
     delete state[key];
   });
   Object.assign(state, cloneData(snapshot.state));
+  resetTutorialMode();
   Object.assign(SOLO_AI, cloneData(snapshot.soloAi || {}));
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
@@ -2324,12 +2473,14 @@ async function resumeWeeklyCompetition(competitionId) {
     renderCompetitions();
     return;
   }
+  resetTutorialMode();
   showGameScreen();
   applySurfaceBackground(state.tournament?.competitionSurface);
   render();
 }
 
 async function startWeeklyCompetition(competitionId) {
+  resetTutorialMode();
   if (!canAccessProFeatures()) {
     renderAuthState("Le Tennis Courts Pro Circuit est réservé aux joueurs Pro.");
     return;
@@ -2410,6 +2561,7 @@ function showRankingScreen() {
 }
 
 function showMenuScreen() {
+  resetTutorialMode();
   els.gameApp?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
@@ -2499,13 +2651,17 @@ function tutorialHand(cardIds, prefix) {
   return cardIds.map((cardId, index) => cardByIdForTutorial(cardId, `${prefix}-${index}`)).filter(Boolean);
 }
 
+function tutorialModule() {
+  return TUTORIAL_MODULES[state.tutorial.moduleId] ?? TUTORIAL_MODULES.basics;
+}
+
 function tutorialStep() {
-  return state.tutorial.active ? TUTORIAL_SCRIPT[state.tutorial.stepIndex] ?? null : null;
+  return state.tutorial.active ? tutorialModule().steps[state.tutorial.stepIndex] ?? null : null;
 }
 
 function tutorialExpectedAction() {
   const step = tutorialStep();
-  return step?.type === "action" ? step.action : null;
+  return step?.action ?? null;
 }
 
 function tutorialAllowsPlay(playerIndex, card, mode, boosted = false) {
@@ -2513,7 +2669,8 @@ function tutorialAllowsPlay(playerIndex, card, mode, boosted = false) {
   const action = tutorialExpectedAction();
   if (!action || action.kind !== "play" || !card) return false;
   const expectedMode = boosted ? "boost" : mode;
-  return action.playerIndex === playerIndex && action.cardId === card.id && action.mode === expectedMode;
+  const selectionMatches = !action.requiresSelection || state.tutorial.selectedCardUid === card.uid;
+  return selectionMatches && action.playerIndex === playerIndex && action.cardId === card.id && action.mode === expectedMode;
 }
 
 function tutorialAllowsEndTurn(playerIndex) {
@@ -2550,7 +2707,69 @@ function tutorialSacrificeCue(card) {
   return tutorialClickArrow();
 }
 
-function startTutorial() {
+function tutorialFocusClass(target, playerIndex, cardId = null) {
+  if (!state.tutorial.active) return "";
+  const step = tutorialStep();
+  const focuses = [...(step?.focus ?? [])];
+  if (step?.action?.kind === "selectCard") {
+    focuses.push({ target: "card", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
+  }
+  if (step?.action?.kind === "play") {
+    focuses.push({ target: "play", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
+  }
+  const matches = focuses.some((focus) => (
+    focus.target === target
+    && (focus.playerIndex == null || focus.playerIndex === playerIndex)
+    && (focus.cardId == null || focus.cardId === cardId)
+  ));
+  return matches ? " tutorial-focus-target" : "";
+}
+
+function selectTutorialCard(playerIndex, cardUid) {
+  if (!state.tutorial.active) return;
+  const action = tutorialExpectedAction();
+  if (action?.kind !== "selectCard") return;
+  const card = state.players[playerIndex]?.hand.find((item) => item.uid === cardUid);
+  if (!card || action.playerIndex !== playerIndex || action.cardId !== card.id) {
+    state.tutorial.error = tutorialStep()?.error ?? "Ce n'est pas la carte attendue. Regarde la carte indiquée par Coach Ju.";
+    render();
+    return;
+  }
+  state.tutorial.selectedCardUid = card.uid;
+  state.tutorial.error = null;
+  completeTutorialAction({ kind: "selectCard", playerIndex, cardId: card.id });
+}
+
+function clearTutorialAutoTimer() {
+  window.clearTimeout(tutorialAutoTimer);
+  tutorialAutoTimer = null;
+  if (state.tutorial) state.tutorial.pendingAutoStepId = null;
+}
+
+function inactiveTutorialState(completed = false) {
+  return {
+    active: false,
+    moduleId: "basics",
+    stepIndex: 0,
+    completed: Boolean(completed),
+    autoCompletedIds: [],
+    selectedCardUid: null,
+    error: null,
+    scrolledStepId: null,
+    pendingAutoStepId: null,
+  };
+}
+
+function resetTutorialMode() {
+  clearTutorialAutoTimer();
+  state.tutorial = inactiveTutorialState(state.tutorial?.completed);
+  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending");
+  els.tutorialOverlay?.classList.add("hidden");
+  if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
+}
+
+function startTutorial(moduleId = "basics") {
+  clearTutorialAutoTimer();
   if (SERVER_SYNC.enabled) {
     leaveOnlineRoom();
   }
@@ -2559,13 +2778,26 @@ function startTutorial() {
   stopSoloTimers();
   SOLO_AI.enabled = false;
 
-  setupTutorialScenario("base");
+  const selectedModuleId = TUTORIAL_MODULES[moduleId] ? moduleId : "basics";
+  const module = TUTORIAL_MODULES[selectedModuleId];
+  setupTutorialScenario(module.scenario);
   state.server = 0;
   state.activePlayer = 0;
-  state.tutorial = { active: true, stepIndex: 0, completed: false, autoCompletedIds: [] };
+  state.tutorial = {
+    active: true,
+    moduleId: selectedModuleId,
+    stepIndex: 0,
+    completed: false,
+    autoCompletedIds: [],
+    selectedCardUid: null,
+    error: null,
+    scrolledStepId: null,
+    pendingAutoStepId: null,
+  };
   state.log = ["Tutoriel lancé."];
   captureTurnSnapshot();
   showGameScreen();
+  runTutorialAutoSteps();
   render();
 }
 
@@ -2573,19 +2805,25 @@ function completeTutorialAction(action) {
   if (!state.tutorial.active) return;
   const expected = tutorialExpectedAction();
   if (!expected || expected.kind !== action.kind || expected.playerIndex !== action.playerIndex) return;
-  if (expected.kind === "play" && (expected.cardId !== action.cardId || expected.mode !== action.mode)) return;
+  if (["play", "selectCard"].includes(expected.kind) && expected.cardId !== action.cardId) return;
+  if (expected.kind === "play" && expected.mode !== action.mode) return;
+  state.tutorial.error = null;
+  if (expected.kind === "play") state.tutorial.selectedCardUid = null;
   advanceTutorial();
 }
 
 function advanceTutorial() {
   if (!state.tutorial.active) return;
+  clearTutorialAutoTimer();
   state.tutorial.stepIndex += 1;
+  state.tutorial.error = null;
   runTutorialAutoSteps();
   render();
 }
 
 function finishTutorial() {
-  state.tutorial = { active: false, stepIndex: 0, completed: true, autoCompletedIds: [] };
+  state.tutorial.completed = true;
+  resetTutorialMode();
   showMenuScreen();
   render();
 }
@@ -2597,7 +2835,20 @@ function runTutorialAutoSteps() {
   state.tutorial.autoCompletedIds = state.tutorial.autoCompletedIds ?? [];
   if (state.tutorial.autoCompletedIds.includes(stepKey)) return;
   state.tutorial.autoCompletedIds.push(stepKey);
-  performTutorialAuto(step.auto);
+  const automaticActions = Array.isArray(step.auto) ? step.auto : [step.auto];
+  const delayMs = Math.max(0, Number(step.autoDelayMs) || 0);
+  if (!delayMs) {
+    automaticActions.forEach((auto) => performTutorialAuto(auto));
+    return;
+  }
+  state.tutorial.pendingAutoStepId = stepKey;
+  tutorialAutoTimer = window.setTimeout(() => {
+    tutorialAutoTimer = null;
+    if (!state.tutorial.active || tutorialStep()?.id !== stepKey) return;
+    automaticActions.forEach((auto) => performTutorialAuto(auto));
+    state.tutorial.pendingAutoStepId = null;
+    render();
+  }, delayMs);
 }
 
 function performTutorialAuto(auto) {
@@ -2630,6 +2881,7 @@ function resetTutorialExchange(players, hands, server = 0, activePlayer = server
   state.players[1].hand = hands[1];
   state.deck = CARD_LIBRARY
     .filter((card) => !usedIds.has(card.id))
+    .slice(0, Math.max(0, 18 - hands.flat().length))
     .map((card, index) => cloneCard(card, `tutorial-deck-${index}`));
   state.server = server;
   state.activePlayer = activePlayer;
@@ -2686,7 +2938,7 @@ function createTutorialPlayedCard(cardId, owner, boosted = false, sacrificeCardI
 }
 
 function setupTutorialScenario(scenario) {
-  const edt = createPlayer("Espoir du Tennis", "tennisHope", "Espoir du Tennis");
+  const edt = createPlayer("Nouvel Espoir", "tennisHope", "Nouvel Espoir");
   const coachJu = createPlayer("Coach Ju", "coachJu", "Coach Ju");
   const coachMax = createPlayer("Coach Max", "coachMax", "Coach Max");
   if (scenario === "base") {
@@ -2922,6 +3174,7 @@ function randomAiCharacterId() {
 }
 
 async function startSoloFromMenu(mode) {
+  resetTutorialMode();
   if (mode === "league3") {
     renderAuthState("Le mode LEAGUE est limité à 2 sets.");
     return;
@@ -3338,6 +3591,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
       B: (payload.groups?.B || []).map((player) => player.entry).filter(Boolean),
     },
     humanCharacterId: selectedCharacterId(),
+    humanNickname: payload.participant?.nickname || nicknameValue(),
     humanEntry: FRIENDLY_TOURNAMENT.entry,
     currentMatch: FRIENDLY_TOURNAMENT.inMatch ? state.tournament?.currentMatch ?? null : null,
     nextHumanMatchId: null,
@@ -4241,6 +4495,10 @@ function createPlayer(name, characterId, nickname = name) {
   };
 }
 
+function displayPlayerName(player) {
+  return player?.nickname || player?.name || "Joueur";
+}
+
 function readStoredJson(key, fallback = []) {
   try {
     return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
@@ -4282,7 +4540,9 @@ function cardLogInfo(card) {
 
 function playerLogInfo(player) {
   return {
-    name: player.name,
+    name: displayPlayerName(player),
+    characterName: player.name,
+    nickname: player.nickname,
     characterId: player.characterId,
     endurance: player.endurance,
     power: player.power,
@@ -4360,12 +4620,12 @@ function formatPermanentBonusStats(bonus) {
 
 function permanentBonusLogLine(player) {
   const bonuses = player.permanentBonuses ?? [];
-  if (!bonuses.length) return `Bonus permanent de ${player.name} : aucun.`;
+  if (!bonuses.length) return `Bonus permanent de ${displayPlayerName(player)} : aucun.`;
   const details = bonuses.map((bonus) => {
     const stats = formatPermanentBonusStats(bonus);
     return stats ? `${bonus.label} (${stats})` : bonus.label;
   }).join(" ; ");
-  return `Bonus permanent de ${player.name} : ${details}.`;
+  return `Bonus permanent de ${displayPlayerName(player)} : ${details}.`;
 }
 
 function exportLogsFile() {
@@ -4375,7 +4635,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v130",
+    version: "v133",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4648,7 +4908,7 @@ function canUndoTurn(playerIndex) {
 }
 
 function playerName(index) {
-  return state.players[index].name;
+  return displayPlayerName(state.players[index]);
 }
 
 function opponentOf(playerIndex) {
@@ -5887,19 +6147,19 @@ function applySurfaceBonusAfterPlay(playerIndex, playedCard, costPaid) {
   if (bonus.id === "grassBoostPrecisionDraw" && playedCard.boosted) {
     addNextPrecisionBonus(player, 1, playedCard.playedUid);
     const drawn = drawCards(player, 1);
-    state.log.unshift(`${bonus.label} : ${player.name} gagne +1 précision${drawn ? " et pioche 1 carte" : ""}.`);
+    state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +1 précision${drawn ? " et pioche 1 carte" : ""}.`);
   }
   if (bonus.id === "hardCheapShotDraw" && costPaid === 1) {
     const drawn = drawCards(player, 1);
-    state.log.unshift(drawn ? `${bonus.label} : ${player.name} pioche 1 carte.` : `${bonus.label} : deck vide.`);
+    state.log.unshift(drawn ? `${bonus.label} : ${displayPlayerName(player)} pioche 1 carte.` : `${bonus.label} : deck vide.`);
   }
   if (bonus.id === "hardBoostPlacement" && playedCard.boosted) {
     addNextPlacementBonus(player, 2, playedCard.playedUid);
-    state.log.unshift(`${bonus.label} : ${player.name} gagne +2 placement sur sa carte suivante.`);
+    state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +2 placement sur sa carte suivante.`);
   }
   if (bonus.id === "clayForehandEndurance" && playedCard.family === "Coup droit") {
     player.endurance += 1;
-    state.log.unshift(`${bonus.label} : ${player.name} récupère 1 endurance.`);
+    state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} récupère 1 endurance.`);
   }
 }
 
@@ -5915,7 +6175,7 @@ function applyOpponentLowPowerCharacterTriggers(cardOwnerIndex, playedCard) {
     watcher.seenPlayedUids.push(playedCard.playedUid);
     if (playedPower < (watcher.threshold ?? 5)) {
       addNextAnyPlacementBonus(opponent, watcher.value ?? 2, watcher.sourceUid);
-      state.log.unshift(`${opponent.name} gagne +${watcher.value ?? 2} placement sur sa prochaine carte : l'adversaire vient de jouer une carte à puissance inférieure à ${watcher.threshold ?? 5}.`);
+      state.log.unshift(`${displayPlayerName(opponent)} gagne +${watcher.value ?? 2} placement sur sa prochaine carte : l'adversaire vient de jouer une carte à puissance inférieure à ${watcher.threshold ?? 5}.`);
     }
   }
 }
@@ -6020,7 +6280,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   recordAction("play_card", {
     playerIndex,
     opponentIndex,
-    playerName: player.name,
+    playerName: displayPlayerName(player),
     card: cardLogInfo(playedCard),
     sacrifice: cardLogInfo(sacrificedCard),
     mode: boosted ? "boost" : isRemise(card) ? remiseMode : "normal",
@@ -6047,7 +6307,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   const effectPlacementText = isRemise(card) && remiseMode === "effect" && rawStats.placement
     ? `, placement de clôture ${rawStats.placement}`
     : "";
-  state.log.unshift(`${player.name} joue ${card.name}${boostText}${remiseText} : +${stats.power} puissance, précision ${stats.precision}, placement ${stats.placement}${effectPlacementText}${endsTurn ? `, placement total ${combinedPlacement}` : ""}.`);
+  state.log.unshift(`${displayPlayerName(player)} joue ${card.name}${boostText}${remiseText} : +${stats.power} puissance, précision ${stats.precision}, placement ${stats.placement}${effectPlacementText}${endsTurn ? `, placement total ${combinedPlacement}` : ""}.`);
   const effectCanceled = state.players[opponentIndex].cancelNextOpponentEffect;
   if (!appliesEffect) {
     setEffectNotice("ignoré", card, `${card.effect} Ne s'applique pas car la carte est jouée en Remise.`);
@@ -6097,7 +6357,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   state.turnPlacement[playerIndex] = playedCard.turnPlacement;
 
   if (!endsTurn) {
-    state.log.unshift(`${player.name} peut encore jouer : une Remise ne termine pas le tour.`);
+    state.log.unshift(`${displayPlayerName(player)} peut encore jouer : une Remise ne termine pas le tour.`);
     render();
     return;
   }
@@ -6170,7 +6430,7 @@ function applyDeferredFinalRemiseEffect(playerIndex) {
   if (freeBoostWindow) {
     setEffectNotice("appliqué", finalCard, finalCard.effect);
   }
-  state.log.unshift(`${state.players[playerIndex].name} termine son tour sur ${finalCard.name} : son effet et son placement sont pris en compte.`);
+  state.log.unshift(`${playerName(playerIndex)} termine son tour sur ${finalCard.name} : son effet et son placement sont pris en compte.`);
   if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
     state.pendingEndTurnAfterChoice = { playerIndex, sourcePlayedUid: finalCard.playedUid };
     return true;
@@ -6199,7 +6459,7 @@ function commitEndTurn(playerIndex) {
   recordAction("end_turn", {
     playerIndex,
     opponentIndex,
-    playerName: player.name,
+    playerName: displayPlayerName(player),
     preparedPlacement,
     opensBoost,
     answeredBoostConstraint,
@@ -6211,7 +6471,7 @@ function commitEndTurn(playerIndex) {
   if (playerIndex === state.server && isOpeningServeAvailable()) {
     state.openingServePlayed = true;
     const drawn = drawCards(opponent, 1);
-    state.log.unshift(drawn > 0 ? `${opponent.name} pioche 1 carte car le serveur termine sans Service ni Coup droit.` : `${opponent.name} devrait piocher, mais le deck est vide.`);
+    state.log.unshift(drawn > 0 ? `${displayPlayerName(opponent)} pioche 1 carte car le serveur termine sans Service ni Coup droit.` : `${displayPlayerName(opponent)} devrait piocher, mais le deck est vide.`);
   }
 
   if (finalRemise) {
@@ -6237,7 +6497,7 @@ function commitEndTurn(playerIndex) {
     state.returnServiceRestrictionFor = null;
   }
   state.activePlayer = opponentIndex;
-  state.log.unshift(`${player.name} termine son tour après une carte Effet.`);
+  state.log.unshift(`${displayPlayerName(player)} termine son tour après une carte Effet.`);
   captureTurnSnapshot();
   render();
 }
@@ -6270,48 +6530,48 @@ function applyEffect(playerIndex, card) {
   switch (card.effectType) {
     case "gainEndurance":
       player.endurance += card.effectValue;
-      state.log.unshift(`${player.name} récupère ${card.effectValue} endurance.`);
+      state.log.unshift(`${displayPlayerName(player)} récupère ${card.effectValue} endurance.`);
       break;
     case "drawCard":
       drawCards(player, card.effectValue);
-      state.log.unshift(`${player.name} pioche ${card.effectValue} carte.`);
+      state.log.unshift(`${displayPlayerName(player)} pioche ${card.effectValue} carte.`);
       break;
     case "nextPrecision":
       addNextPrecisionBonus(player, card.effectValue, card.playedUid);
-      state.log.unshift(`${player.name} gagne +${card.effectValue} précision sur son prochain coup.`);
+      state.log.unshift(`${displayPlayerName(player)} gagne +${card.effectValue} précision sur son prochain coup.`);
       break;
     case "nextPlacement":
       addNextPlacementBonus(player, card.effectValue, card.playedUid);
-      state.log.unshift(`${player.name} gagne +${card.effectValue} placement sur son prochain coup.`);
+      state.log.unshift(`${displayPlayerName(player)} gagne +${card.effectValue} placement sur son prochain coup.`);
       break;
     case "nextPrecisionAndPlacement":
       addNextPrecisionBonus(player, card.effectValue, card.playedUid);
       addNextPlacementBonus(player, card.effectValue, card.playedUid);
-      state.log.unshift(`${player.name} gagne +${card.effectValue} précision et placement sur son prochain coup.`);
+      state.log.unshift(`${displayPlayerName(player)} gagne +${card.effectValue} précision et placement sur son prochain coup.`);
       break;
     case "nextDiscount":
       addNextDiscount(player, card.effectValue, card.playedUid);
-      state.log.unshift(`Le prochain coup de ${player.name} coûte ${card.effectValue} endurance en moins.`);
+      state.log.unshift(`Le prochain coup de ${displayPlayerName(player)} coûte ${card.effectValue} endurance en moins.`);
       break;
     case "cancelOpponentNextEffect":
       player.cancelNextOpponentEffect = true;
       player.cancelNextOpponentEffectSourceUid = card.playedUid;
-      state.log.unshift(`${player.name} annulera le prochain effet adverse.`);
+      state.log.unshift(`${displayPlayerName(player)} annulera le prochain effet adverse.`);
       break;
     case "limitOpponentFamilies":
       opponent.limitedFamilies = card.effectFamilies;
       opponent.limitedFamiliesSourceUid = card.playedUid;
-      state.log.unshift(`${opponent.name} devra jouer ${card.effectFamilies.join(", ")} au prochain coup.`);
+      state.log.unshift(`${displayPlayerName(opponent)} devra jouer ${card.effectFamilies.join(", ")} au prochain coup.`);
       break;
     case "discardOpponent":
       if (opponent.protectedFromRemoval) {
-        state.log.unshift(`${opponent.name} est protégé : sa main ne peut pas être attaquée.`);
-        setEffectNotice("sans effet", card, `${opponent.name} est protégé jusqu'à la fin de l'échange.`);
+        state.log.unshift(`${displayPlayerName(opponent)} est protégé : sa main ne peut pas être attaquée.`);
+        setEffectNotice("sans effet", card, `${displayPlayerName(opponent)} est protégé jusqu'à la fin de l'échange.`);
         break;
       }
       if (opponent.hand.length > 0) {
         const discarded = opponent.hand.splice(Math.floor(Math.random() * opponent.hand.length), 1)[0];
-        state.log.unshift(`${opponent.name} défausse ${discarded.name}.`);
+        state.log.unshift(`${displayPlayerName(opponent)} défausse ${discarded.name}.`);
       }
       break;
     case "removeOpponentLast":
@@ -6319,17 +6579,17 @@ function applyEffect(playerIndex, card) {
       break;
     case "doubleLastShot":
       player.endBonuses.push({ type: "doubleLastShot", sourceUid: card.playedUid });
-      state.log.unshift(`${player.name} prépare un Double pour la fin de l'échange.`);
+      state.log.unshift(`${displayPlayerName(player)} prépare un Double pour la fin de l'échange.`);
       break;
     case "boostedBonusAtEnd":
       player.endBonuses.push({ type: "boostedBonus", value: card.effectValue, sourceUid: card.playedUid });
-      state.log.unshift(`${player.name} marquera +${card.effectValue} par carte boostée à la fin.`);
+      state.log.unshift(`${displayPlayerName(player)} marquera +${card.effectValue} par carte boostée à la fin.`);
       break;
     case "freeBoostNext":
       if (isFreeBoostNextWindow(playerIndex)) {
         player.freeBoostNext = true;
         player.freeBoostNextSourceUid = card.playedUid;
-        state.log.unshift(`${player.name} pourra booster son prochain coup grâce au Retour de service.`);
+        state.log.unshift(`${displayPlayerName(player)} pourra booster son prochain coup grâce au Retour de service.`);
       } else {
         state.log.unshift(`Retour de service est joué hors fenêtre : son bonus de boost ne s'applique pas.`);
         setEffectNotice("sans effet", card, "Le bonus ne s'applique que juste après un service boosté ou un retour de service boosté.");
@@ -6342,7 +6602,7 @@ function applyEffect(playerIndex, card) {
         state.mandatoryPlacement = false;
         state.mandatoryPlacementReason = null;
         state.mandatoryPlacementSourceUid = null;
-        state.log.unshift(`${player.name} neutralise la contrainte de placement du BOOST avec Joker pour tout ce tour.`);
+        state.log.unshift(`${displayPlayerName(player)} neutralise la contrainte de placement du BOOST avec Joker pour tout ce tour.`);
       } else {
         state.log.unshift(`Joker ne neutralise aucune contrainte : il annule uniquement la contrainte de placement d'un BOOST adverse.`);
         setEffectNotice("sans effet", card, "Le Joker annule uniquement la contrainte de placement liée à un BOOST adverse.");
@@ -6361,11 +6621,11 @@ function openRemoveChoice(playerIndex, sourceCard) {
   const targets = removableOpponentCards(opponentIndex);
   if (!targets.length) {
     const opponent = state.players[opponentIndex];
-    state.log.unshift(opponent.protectedFromRemoval ? `${opponent.name} est protégé : aucune carte ne peut être supprimée.` : "Aucune carte adverse à supprimer.");
+    state.log.unshift(opponent.protectedFromRemoval ? `${displayPlayerName(opponent)} est protégé : aucune carte ne peut être supprimée.` : "Aucune carte adverse à supprimer.");
     return;
   }
   state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: sourceCard.playedUid };
-  state.log.unshift(`${state.players[playerIndex].name} doit choisir une carte adverse à supprimer.`);
+  state.log.unshift(`${playerName(playerIndex)} doit choisir une carte adverse à supprimer.`);
 }
 
 function removableOpponentCards(opponentIndex, shotsOnly = false) {
@@ -6430,7 +6690,7 @@ function closeImpossibleRemoveChoice(playerIndex) {
   const player = state.players[playerIndex];
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
   state.pendingRemoveChoice = null;
-  state.log.unshift(`${player.name} ne peut supprimer aucune carte adverse.`);
+  state.log.unshift(`${displayPlayerName(player)} ne peut supprimer aucune carte adverse.`);
   if (!sourceCard) {
     render();
     return;
@@ -6464,7 +6724,7 @@ function removeOpponentLastPlayed(opponentIndex) {
 function removeOpponentPlayed(opponentIndex, targetPlayedUid) {
   const opponent = state.players[opponentIndex];
   if (opponent.protectedFromRemoval) {
-    state.log.unshift(`${opponent.name} est protégé : ses cartes ne peuvent pas être supprimées.`);
+    state.log.unshift(`${displayPlayerName(opponent)} est protégé : ses cartes ne peuvent pas être supprimées.`);
     return;
   }
   const target = opponent.played.find((card) => card.playedUid === targetPlayedUid && !card.removed);
@@ -6488,7 +6748,7 @@ function removeOpponentPlayed(opponentIndex, targetPlayedUid) {
   if (target.boosted && target.sacrificedCard) {
     state.log.unshift(`La carte sacrifiée sous le BOOST (${target.sacrificedCard.name}) est aussi supprimée.`);
   }
-  state.log.unshift(`${target.name} est supprimée : ${state.players[opponentIndex].name} perd ${removedPower} puissance. Les effets déjà appliqués restent acquis.`);
+  state.log.unshift(`${target.name} est supprimée : ${displayPlayerName(state.players[opponentIndex])} perd ${removedPower} puissance. Les effets déjà appliqués restent acquis.`);
 }
 
 function clearActiveEffectsFromRemovedCard(card) {
@@ -6606,7 +6866,7 @@ function openEffectChoice(playerIndex, sourceCard) {
     return;
   }
   state.pendingEffectChoice = { playerIndex, sourcePlayedUid: sourceCard.playedUid };
-  state.log.unshift(`${state.players[playerIndex].name} doit choisir un effet déjà joué.`);
+  state.log.unshift(`${playerName(playerIndex)} doit choisir un effet déjà joué.`);
 }
 
 function resolveEffectChoice(chosenPlayedUid) {
@@ -6629,7 +6889,7 @@ function resolveEffectChoice(chosenPlayedUid) {
     playedUid: sourceCard.playedUid,
     name: chosen.name,
   };
-  state.log.unshift(`${player.name} choisit l'effet de ${chosen.name}.`);
+  state.log.unshift(`${displayPlayerName(player)} choisit l'effet de ${chosen.name}.`);
   markCopiedEffectOnSource(sourceCard, chosen);
   const chosenEffectType = chosen.copiedEffectType || chosen.effectType;
   if (chosenEffectType === "choosePlayedEffect" || chosenEffectType === "gainPowerAndChooseAnyPlayedEffect") {
@@ -6637,7 +6897,7 @@ function resolveEffectChoice(chosenPlayedUid) {
     sourceCard.copiedEffectType = "choosePlayedEffect";
     sourceCard.effect = chosen.effect;
     state.pendingEffectChoice = { playerIndex, sourcePlayedUid: sourceCard.playedUid, shotsOnly: true };
-    state.log.unshift(`${player.name} doit maintenant choisir l'effet à dupliquer.`);
+    state.log.unshift(`${displayPlayerName(player)} doit maintenant choisir l'effet à dupliquer.`);
     setEffectNotice("appliqué", chosen, "Effet de duplication choisi : choisissez maintenant l'effet copié.");
     render();
     return;
@@ -6670,7 +6930,7 @@ function closeImpossibleEffectChoice(playerIndex) {
   const player = state.players[playerIndex];
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
   state.pendingEffectChoice = null;
-  state.log.unshift(`${player.name} ne peut choisir aucun effet valide.`);
+  state.log.unshift(`${displayPlayerName(player)} ne peut choisir aucun effet valide.`);
   if (!sourceCard) {
     render();
     return;
@@ -6704,7 +6964,7 @@ function flipCharacter(player) {
   if (player.characterSide === 1 && !player.roseEnduranceAwarded) {
     player.roseEnduranceAwarded = true;
     player.endurance += 1;
-    state.log.unshift(`${player.name} retourne sa carte personnage pour la première fois : +1 endurance.`);
+    state.log.unshift(`${displayPlayerName(player)} retourne sa carte personnage pour la première fois : +1 endurance.`);
   }
 }
 
@@ -6795,7 +7055,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     player.power += power;
     playedCard.effectPowerGained += power;
     opponent.endurance += endurance;
-    state.log.unshift(`${character.name} (${effect.side}) : +${power} puissance. ${opponent.name} récupère ${endurance} endurance.`);
+    state.log.unshift(`${character.name} (${effect.side}) : +${power} puissance. ${displayPlayerName(opponent)} récupère ${endurance} endurance.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6811,7 +7071,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
       return false;
     }
     state.pendingEffectChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid, shotsOnly: false };
-    state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance, puis ${player.name} choisit un effet engagé à dupliquer.`);
+    state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance, puis ${displayPlayerName(player)} choisit un effet engagé à dupliquer.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return true;
   }
@@ -6819,7 +7079,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "nextDiscount") {
     const value = effect.value ?? 1;
     addNextDiscount(player, value, playedCard.playedUid);
-    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${player.name} coûte ${value} endurance en moins.`);
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(player)} coûte ${value} endurance en moins.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6829,7 +7089,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const opponent = state.players[opponentOf(playerIndex)];
     opponent.nextPowerCap = value;
     opponent.nextPowerCapSourceUid = playedCard.playedUid;
-    state.log.unshift(`${character.name} (${effect.side}) : le prochain Coup de ${opponent.name} rapportera ${value} puissance maximum.`);
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain Coup de ${displayPlayerName(opponent)} rapportera ${value} puissance maximum.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6838,7 +7098,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const value = effect.value ?? 1;
     const opponent = state.players[opponentOf(playerIndex)];
     addNextExtraCost(opponent, value, playedCard.playedUid);
-    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${opponent.name} coûte ${value} endurance de plus.`);
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(opponent)} coûte ${value} endurance de plus.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6846,7 +7106,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "nextPowerMultiplier") {
     const value = effect.value ?? 2;
     player.nextPowerMultiplier = Math.max(player.nextPowerMultiplier ?? 1, value);
-    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${player.name} comptera puissance x${value}.`);
+    state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(player)} comptera puissance x${value}.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6856,7 +7116,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     player.exchangePrecisionBonus = (player.exchangePrecisionBonus ?? 0) + value;
     player.exchangePrecisionSources = player.exchangePrecisionSources ?? [];
     player.exchangePrecisionSources.push({ sourceUid: playedCard.playedUid, value });
-    state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${player.name} gagnent +${value} précision jusqu'à la fin de l'échange.`);
+    state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${displayPlayerName(player)} gagnent +${value} précision jusqu'à la fin de l'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6866,7 +7126,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     player.exchangePlacementBonus = (player.exchangePlacementBonus ?? 0) + value;
     player.exchangePlacementSources = player.exchangePlacementSources ?? [];
     player.exchangePlacementSources.push({ sourceUid: playedCard.playedUid, value });
-    state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${player.name} gagnent +${value} placement jusqu'à la fin de l'échange.`);
+    state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${displayPlayerName(player)} gagnent +${value} placement jusqu'à la fin de l'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6915,7 +7175,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "preventOpponentRemoval") {
     player.protectedFromRemoval = true;
     player.protectedFromRemovalSourceUid = playedCard.playedUid;
-    state.log.unshift(`${character.name} (${effect.side}) : les cartes de ${player.name} ne peuvent plus être supprimées jusqu'à la fin de l'échange.`);
+    state.log.unshift(`${character.name} (${effect.side}) : les cartes de ${displayPlayerName(player)} ne peuvent plus être supprimées jusqu'à la fin de l'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
   }
@@ -6943,7 +7203,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
       return false;
     }
     state.pendingCoachChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid };
-    state.log.unshift(`${character.name} (${effect.side}) : ${player.name} choisit une carte non distribuée à récupérer.`);
+    state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(player)} choisit une carte non distribuée à récupérer.`);
     setEffectNotice("coach", { name: character.name }, effect.label);
     return true;
   }
@@ -6956,7 +7216,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
       return false;
     }
     state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: playedCard.playedUid, shotsOnly: Boolean(effect.shotsOnly) };
-    state.log.unshift(`${character.name} (${effect.side}) : ${player.name} choisit une carte adverse engagée à défausser.`);
+    state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(player)} choisit une carte adverse engagée à défausser.`);
     setEffectNotice("coach", { name: character.name }, effect.label);
     return true;
   }
@@ -6964,8 +7224,8 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "drawRandomOpponentHand") {
     const opponent = state.players[opponentOf(playerIndex)];
     if (opponent.protectedFromRemoval) {
-      state.log.unshift(`${character.name} (${effect.side}) : ${opponent.name} est protégé, sa main ne peut pas être attaquée.`);
-      setEffectNotice("coach", { name: character.name }, `${opponent.name} est protégé jusqu'à la fin de l'échange.`);
+      state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(opponent)} est protégé, sa main ne peut pas être attaquée.`);
+      setEffectNotice("coach", { name: character.name }, `${displayPlayerName(opponent)} est protégé jusqu'à la fin de l'échange.`);
       return false;
     }
     if (!opponent.hand.length) {
@@ -6975,7 +7235,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     }
     const [drawn] = opponent.hand.splice(Math.floor(Math.random() * opponent.hand.length), 1);
     player.hand.push(drawn);
-    state.log.unshift(`${character.name} (${effect.side}) : ${player.name} pioche ${drawn.name} dans la main adverse.`);
+    state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(player)} pioche ${drawn.name} dans la main adverse.`);
     setEffectNotice("coach", { name: character.name }, `${drawn.name} rejoint la main.`);
     return false;
   }
@@ -7023,7 +7283,7 @@ function resolveCoachChoice(cardUid) {
 
   state.deck = state.deck.filter((card) => card.uid !== chosen.uid);
   player.hand.push(chosen);
-  state.log.unshift(`${player.name} récupère ${chosen.name} grâce à ${characterOf(player).name}.`);
+  state.log.unshift(`${displayPlayerName(player)} récupère ${chosen.name} grâce à ${characterOf(player).name}.`);
   setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} rejoint la main.`);
   completePlayedCardResolution(
     playerIndex,
@@ -7044,7 +7304,7 @@ function closeImpossibleCoachChoice(playerIndex) {
   const player = state.players[playerIndex];
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
   state.pendingCoachChoice = null;
-  state.log.unshift(`${player.name} ne peut récupérer aucune carte non distribuée.`);
+  state.log.unshift(`${displayPlayerName(player)} ne peut récupérer aucune carte non distribuée.`);
   if (!sourceCard) {
     render();
     return;
@@ -7086,8 +7346,8 @@ function pass(playerIndex, tutorialBypass = false) {
   recordAction("pass", {
     playerIndex,
     opponentIndex,
-    playerName: player.name,
-    opponentName: opponent.name,
+    playerName: displayPlayerName(player),
+    opponentName: displayPlayerName(opponent),
     mandatoryPlacement: state.mandatoryPlacement,
     mandatoryPlacementReason: state.mandatoryPlacementReason,
     penaltyPowerGiven: state.mandatoryPlacement ? 0 : Math.max(2, player.endurance),
@@ -7098,21 +7358,21 @@ function pass(playerIndex, tutorialBypass = false) {
   if (state.mandatoryPlacement) {
     player.passed = true;
     const reasonLabel = state.mandatoryPlacementReason === "smash" ? "un Smash" : "un BOOST";
-    state.log.unshift(`${player.name} passe sur ${reasonLabel} : ${opponent.name} gagne automatiquement.`);
+    state.log.unshift(`${displayPlayerName(player)} passe sur ${reasonLabel} : ${displayPlayerName(opponent)} gagne automatiquement.`);
     finishGame({
       forcedWinner: opponentIndex,
       ignoreScore: true,
       winType: state.mandatoryPlacementReason === "boost" ? "boost" : "smash",
-      reason: `${player.name} passe sur ${reasonLabel}. ${opponent.name} gagne automatiquement l'échange.`,
+      reason: `${displayPlayerName(player)} passe sur ${reasonLabel}. ${displayPlayerName(opponent)} gagne automatiquement l'échange.`,
     });
     return;
   }
   const bonus = Math.max(2, player.endurance);
   player.passed = true;
   opponent.power += bonus;
-  state.log.unshift(`${player.name} passe et donne ${bonus} puissance à ${opponent.name}.`);
+  state.log.unshift(`${displayPlayerName(player)} passe et donne ${bonus} puissance à ${displayPlayerName(opponent)}.`);
   finishGame({
-    reason: `${player.name} passe. ${opponent.name} gagne ${bonus} puissance. L'échange s'arrête immédiatement.`,
+    reason: `${displayPlayerName(player)} passe. ${displayPlayerName(opponent)} gagne ${bonus} puissance. L'échange s'arrête immédiatement.`,
     extraPowerDetails: [{ playerIndex: opponentIndex, label: "Pénalité de passe adverse", points: bonus }],
   });
 }
@@ -7130,7 +7390,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
     ignoreScore,
     winType,
     reason,
-    scoreText: ignoreScore ? "Victoire automatique : les points ne sont pas comptés." : `Score final : ${p1.name} ${p1.power} - ${p2.power} ${p2.name}${p1.power === p2.power ? `. Égalité : le serveur (${playerName(state.server)}) gagne.` : "."}`,
+    scoreText: ignoreScore ? "Victoire automatique : les points ne sont pas comptés." : `Score final : ${displayPlayerName(p1)} ${p1.power} - ${p2.power} ${displayPlayerName(p2)}${p1.power === p2.power ? `. Égalité : le serveur (${playerName(state.server)}) gagne.` : "."}`,
     setScore,
     endBonusDetails: [...extraPowerDetails, ...endBonusDetails],
   };
@@ -7222,12 +7482,12 @@ function applySetMatchScore(winner, exchangeScore) {
     matchOver: state.setMatch.matchOver,
     matchWinner: state.setMatch.matchWinner,
   };
-  state.log.unshift(`Score du set : ${state.players[0].name} ${next[0]} / ${next[1]} ${state.players[1].name}.`);
+  state.log.unshift(`Score du set : ${playerName(0)} ${next[0]} / ${next[1]} ${playerName(1)}.`);
   if (state.setMatch.setOver) {
-    state.log.unshift(`Score du match : ${state.players[0].name} ${state.setMatch.setsWon[0]} / ${state.setMatch.setsWon[1]} ${state.players[1].name}.`);
+    state.log.unshift(`Score du match : ${playerName(0)} ${state.setMatch.setsWon[0]} / ${state.setMatch.setsWon[1]} ${playerName(1)}.`);
   }
   if (state.setMatch.matchOver) {
-    state.log.unshift(`${state.players[state.setMatch.matchWinner].name} gagne le match.`);
+    state.log.unshift(`${playerName(state.setMatch.matchWinner)} gagne le match.`);
   }
 }
 
@@ -7325,6 +7585,7 @@ function startLeagueTournamentMode() {
     stage: "day1",
     targetSets,
     humanCharacterId,
+    humanNickname: nicknameValue(),
     humanEntry: HUMAN_TOURNAMENT_ENTRY,
     aiFinalistCharacterId: null,
     currentMatch: null,
@@ -7639,6 +7900,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     stage: "quarter",
     targetSets,
     humanCharacterId,
+    humanNickname: nicknameValue(),
     humanEntry: HUMAN_TOURNAMENT_ENTRY,
     aiFinalistCharacterId: null,
     currentMatch: "qfHuman",
@@ -7877,6 +8139,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     stage: "weekly",
     targetSets,
     humanCharacterId,
+    humanNickname: nicknameValue(),
     humanEntry: HUMAN_TOURNAMENT_ENTRY,
     aiFinalistCharacterId: null,
     currentMatch: null,
@@ -8675,7 +8938,7 @@ function storeMatchLog(winner, reason) {
       actionLog: [...state.actionLog],
       reason,
       players: state.players.map((player) => ({
-        name: player.name,
+        name: displayPlayerName(player),
         endurance: player.endurance,
         power: player.power,
         remainingHand: player.hand.map((card) => ({ id: card.id, name: card.name, family: card.family })),
@@ -8721,29 +8984,29 @@ function renderResultPanel() {
   const endBonusDetails = state.resultInfo.endBonusDetails || [];
   els.resultPanel.innerHTML = `
     <p class="eyebrow">Fin de l'échange</p>
-    <div class="winner-dialog">${state.players[state.resultInfo.winner].name} gagne l'échange</div>
+    <div class="winner-dialog">${escapeHtml(playerName(state.resultInfo.winner))} gagne l'échange</div>
     <p>${state.resultInfo.reason}</p>
     <p><strong>Condition :</strong> ${setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique")}</p>
     ${endBonusDetails.length ? `
       <div class="set-score-box end-bonus-box">
         <strong>Points supplémentaires appliqués</strong>
-        ${endBonusDetails.map((bonus) => `<span>${state.players[bonus.playerIndex].name} : +${bonus.points} puissance · ${escapeHtml(bonus.label)}</span>`).join("")}
+        ${endBonusDetails.map((bonus) => `<span>${escapeHtml(playerName(bonus.playerIndex))} : +${bonus.points} puissance · ${escapeHtml(bonus.label)}</span>`).join("")}
       </div>
     ` : '<p><strong>Points supplémentaires :</strong> aucun bonus de fin d’échange.</p>'}
     <p>${state.resultInfo.scoreText}</p>
     ${setScore ? `
       <div class="set-score-box">
         <strong>Jeux gagnés sur cet échange · ${setScore.label}</strong>
-        <span>${state.players[setScore.winner].name} - ${setScore.winnerGames} jeu${setScore.winnerGames > 1 ? "x" : ""}</span>
-        <span>${state.players[setScore.loser].name} - ${setScore.loserGames} jeu${setScore.loserGames > 1 ? "x" : ""}</span>
+        <span>${escapeHtml(playerName(setScore.winner))} - ${setScore.winnerGames} jeu${setScore.winnerGames > 1 ? "x" : ""}</span>
+        <span>${escapeHtml(playerName(setScore.loser))} - ${setScore.loserGames} jeu${setScore.loserGames > 1 ? "x" : ""}</span>
       </div>
     ` : ""}
     ${setMatch ? `
       <div class="set-score-box set-match-box">
         <strong>Score du set : ${setMatch.score[0]} / ${setMatch.score[1]}</strong>
-        ${setMatch.setOver ? `<span>Set gagné par ${state.players[setMatch.winner].name}</span>` : "<span>Le set continue.</span>"}
+        ${setMatch.setOver ? `<span>Set gagné par ${escapeHtml(playerName(setMatch.winner))}</span>` : "<span>Le set continue.</span>"}
         ${setMatch.targetSets ? `<span>Match : ${setMatch.setsWon[0]} / ${setMatch.setsWon[1]} set(s)</span>` : ""}
-        ${setMatch.matchOver ? `<span>Match gagné par ${state.players[setMatch.matchWinner].name}</span>` : ""}
+        ${setMatch.matchOver ? `<span>Match gagné par ${escapeHtml(playerName(setMatch.matchWinner))}</span>` : ""}
       </div>
     ` : ""}
   `;
@@ -8760,7 +9023,7 @@ function applyEndBonuses() {
           const doubledPower = target.cardPowerGained ?? target.powerGained;
           player.power += doubledPower;
           details.push({ playerIndex: state.players.indexOf(player), label: `Double ${target.name}`, points: doubledPower });
-          state.log.unshift(`${player.name} double ${target.name} : +${doubledPower} puissance.`);
+          state.log.unshift(`${displayPlayerName(player)} double ${target.name} : +${doubledPower} puissance.`);
         }
       }
       if (bonus.type === "boostedBonus") {
@@ -8768,7 +9031,7 @@ function applyEndBonuses() {
         const gained = count * bonus.value;
         player.power += gained;
         if (gained) details.push({ playerIndex: state.players.indexOf(player), label: `Bonus cartes boostées (${count})`, points: gained });
-        state.log.unshift(`${player.name} gagne +${gained} puissance pour ses cartes boostées.`);
+        state.log.unshift(`${displayPlayerName(player)} gagne +${gained} puissance pour ses cartes boostées.`);
       }
     }
   }
@@ -8854,44 +9117,95 @@ function renderTutorialOverlay() {
   if (!els.tutorialOverlay) return;
   const step = tutorialStep();
   if (!state.tutorial.active || !step) {
+    document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending");
     els.tutorialOverlay.classList.add("hidden");
     els.tutorialOverlay.innerHTML = "";
     return;
   }
-  const action = step.type === "action" ? step.action : null;
-  const isFinalStep = step.id === "done";
-  const speakerImage = step.speaker === "max" ? TUTORIAL_MAX_IMAGE : TUTORIAL_COACH_IMAGE;
-  const speakerAlt = step.speaker === "max" ? "Coach Max explique" : "Coach Ju explique";
+  const module = tutorialModule();
+  const action = step.action ?? null;
+  const narrator = TUTORIAL_NARRATORS[step.narrator ?? module.narrator] ?? TUTORIAL_NARRATORS.coachJu;
+  const progress = step.displayStep ? ` · Étape ${step.displayStep}/${module.totalDisplaySteps}${step.part ? ` · ${step.part}` : ""}` : "";
+  const autoPending = state.tutorial.pendingAutoStepId === step.id;
+  document.body.classList.add("tutorial-running");
+  document.body.classList.toggle("tutorial-awaiting-action", Boolean(action));
+  document.body.classList.toggle("tutorial-showcase-active", Boolean(step.showcase));
+  document.body.classList.toggle("tutorial-auto-pending", autoPending);
   els.tutorialOverlay.classList.remove("hidden");
   els.tutorialOverlay.innerHTML = `
-    <div class="tutorial-coach">
-      <img src="${speakerImage}" alt="${speakerAlt}" />
-    </div>
-    <aside class="tutorial-card ${action ? "tutorial-card-action" : ""}" aria-label="Tutoriel">
-      <p class="tutorial-kicker">Tutoriel</p>
-      <h2>${step.title}</h2>
-      <p>${step.text}</p>
-      ${action ? `<p class="tutorial-action">Action attendue : ${tutorialActionLabel(action)}</p>` : ""}
-      ${step.type === "message" ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>${tutorialClickArrow()}${isFinalStep ? "Terminer" : "Continuer"}</button>` : ""}
+    ${renderTutorialShowcase(step.showcase)}
+    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""}" aria-label="Tutoriel" aria-live="polite">
+      <div class="tutorial-dialogue-content">
+        <p class="tutorial-kicker">${module.lesson}${progress}</p>
+        <div class="tutorial-speaker-line"><strong>${narrator.name}</strong><span>${narrator.role}</span></div>
+        <h2>${step.title}</h2>
+        <div class="tutorial-copy">${renderTutorialText(step.text)}</div>
+        ${step.summary?.length ? `<ul class="tutorial-summary">${step.summary.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+        ${state.tutorial.error ? `<p class="tutorial-error" role="alert">${escapeHtml(state.tutorial.error)}</p>` : ""}
+        ${action ? `<p class="tutorial-action">${tutorialActionLabel(action)}</p>` : ""}
+        ${autoPending ? '<p class="tutorial-wait" role="status"><span aria-hidden="true"></span>Coach Ju prépare sa réponse...</p>' : ""}
+        ${!action && !autoPending ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>${tutorialClickArrow()}${step.final ? "Terminer la leçon" : "Suivant"}</button>` : ""}
+      </div>
+      <div class="tutorial-portrait">
+        <img src="${narrator.image}" alt="Portrait de ${narrator.name}" />
+      </div>
     </aside>
   `;
   els.tutorialOverlay.querySelector("[data-tutorial-next]")?.addEventListener("click", () => {
-    if (isFinalStep) {
+    if (step.final) {
       finishTutorial();
     } else {
       advanceTutorial();
     }
   });
+  const hasVisualTarget = Boolean(step.action || step.focus?.length);
+  if (hasVisualTarget && state.tutorial.scrolledStepId !== step.id) {
+    state.tutorial.scrolledStepId = step.id;
+    window.queueMicrotask(() => {
+      const target = document.querySelector(".tutorial-focus-target");
+      const dialogue = document.querySelector(".tutorial-dialogue");
+      if (!target || !dialogue) return;
+      const targetRect = target.getBoundingClientRect();
+      const dialogueTop = dialogue.getBoundingClientRect().top;
+      const availableHeight = Math.max(160, dialogueTop);
+      const targetDocumentTop = window.scrollY + targetRect.top;
+      const nextScrollTop = Math.max(0, targetDocumentTop - ((availableHeight - targetRect.height) / 2));
+      window.scrollTo({ top: nextScrollTop, behavior: "auto" });
+    });
+  }
+}
+
+function renderTutorialText(text) {
+  const paragraphs = Array.isArray(text) ? text : [text];
+  return paragraphs.filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+}
+
+function renderTutorialShowcase(showcase) {
+  if (!showcase) return "";
+  const card = CARD_LIBRARY.find((item) => item.id === showcase.cardId);
+  const imageUrl = card ? CARD_IMAGES[card.id] : null;
+  if (!card || !imageUrl) return "";
+  const pointer = ["cost", "power"].includes(showcase.pointer) ? showcase.pointer : "cost";
+  return `
+    <div class="tutorial-card-showcase" aria-label="Carte ${escapeHtml(card.name)} agrandie">
+      <img src="${imageUrl}" alt="${escapeHtml(card.name)} - ${escapeHtml(card.subtitle ?? card.family)}" />
+      <span class="tutorial-showcase-pointer ${pointer}">${escapeHtml(showcase.label ?? "Regarde ici")}</span>
+    </div>
+  `;
 }
 
 function tutorialActionLabel(action) {
+  if (action.kind === "selectCard") {
+    const card = CARD_LIBRARY.find((item) => item.id === action.cardId);
+    return `Sélectionne ${card?.name ?? "la carte indiquée"}.`;
+  }
   if (action.kind === "endTurn") return "clique sur Terminer le tour";
   const card = CARD_LIBRARY.find((item) => item.id === action.cardId);
   const cardName = card?.name ?? "la carte indiquée";
   if (action.mode === "placement") return `joue ${cardName} en Remise`;
   if (action.mode === "effect") return `joue ${cardName} en Effet`;
   if (action.mode === "boost") return `joue ${cardName} en Boost`;
-  return `joue ${cardName}`;
+  return `Clique sur Jouer pour utiliser ${cardName}.`;
 }
 
 function ensureSoloAIForSet() {
@@ -8978,7 +9292,7 @@ async function publishProfileActivity() {
     return;
   }
   const opponentIndex = SOLO_AI.enabled ? SOLO_AI.playerIndex : 1;
-  const opponent = state.players?.[opponentIndex]?.name || characterNameFromId(SOLO_AI.characterId || "coachMax");
+  const opponent = displayPlayerName(state.players?.[opponentIndex]) || characterNameFromId(SOLO_AI.characterId || "coachMax");
   PROFILE_ACTIVITY.lastActive = true;
   try {
     await fetch("/api/profile/activity", {
@@ -9281,7 +9595,7 @@ function tournamentPlayerLabel(entry) {
     return info?.nickname || characterNameFromId(friendlyEntryCharacterId(entry));
   }
   return isHumanTournamentEntry(entry)
-    ? nicknameValue()
+    ? state.tournament?.humanNickname || state.players?.[0]?.nickname || nicknameValue()
     : characterNameFromId(entry);
 }
 
@@ -9354,7 +9668,7 @@ function renderSummary(playerIndex, root) {
   const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
   const powerClass = leader === playerIndex ? " leading-power" : "";
   root.innerHTML = `
-    <p class="label">${player.name}${state.server === playerIndex ? " · serveur" : ""}</p>
+    <p class="label">${escapeHtml(displayPlayerName(player))}${state.server === playerIndex ? " · serveur" : ""}</p>
     <div class="summary-grid">
       <div class="metric endurance-metric${enduranceClass}"><strong>${player.endurance}</strong><span>Endurance</span></div>
       <div class="metric power-metric${powerClass}"><strong>${player.power}</strong><span>Puissance</span></div>
@@ -9380,7 +9694,7 @@ function renderRallyState() {
   if (active.limitedFamilies) activeConstraints.push(`type: ${active.limitedFamilies.join(" / ")}`);
   if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
   const lines = [
-    `<div><strong>Tour :</strong> ${state.gameOver ? "terminé" : active.name}</div>`,
+    `<div><strong>Tour :</strong> ${state.gameOver ? "terminé" : escapeHtml(displayPlayerName(active))}</div>`,
     `<div><strong>Serveur :</strong> ${playerName(state.server)}</div>`,
     `<div><strong>Dernier coup :</strong> ${last ? `${last.name}${last.boosted ? " BOOST" : ""} · précision ${last.precision}` : "aucun"}</div>`,
     `<div class="${activeConstraints.length ? "constraint-line" : ""}"><strong>Contrainte :</strong> ${activeConstraints.length ? activeConstraints.join(" · ") : "placement insuffisant autorisé"}</div>`,
@@ -9477,12 +9791,12 @@ function renderCharacterCard(player, playerIndex) {
       </div>
       ${surfaceBonus}
       <div class="character-stats">
-        <div class="character-power-reminder${leaderClass}">
+        <div class="character-power-reminder${leaderClass}${tutorialFocusClass("power", playerIndex)}" data-tutorial-target="power-${playerIndex}">
           ${crown}
           <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
           <span>Puissance</span>
         </div>
-        <div class="character-endurance-reminder${enduranceClass}">
+        <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
           <strong>${player.endurance}<span class="opponent-inline">(${opponent?.endurance ?? 0})</span></strong>
           <span>Endurance</span>
         </div>
@@ -9724,8 +10038,8 @@ function renderPlayerPanel(playerIndex, root) {
   root.innerHTML = `
     <header class="player-header">
       <div>
-        <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${player.name}</h2>
-        <div class="player-nickname">${player.nickname ?? player.name}</div>
+        <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${escapeHtml(displayPlayerName(player))}</h2>
+        <div class="player-character-name">${escapeHtml(player.name)}</div>
         <div class="turn-buttons">
           <button class="pass-button" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
@@ -9776,6 +10090,21 @@ function renderPlayerPanel(playerIndex, root) {
   root.querySelectorAll("[data-undo-turn]").forEach((button) => {
     button.addEventListener("click", () => restoreTurnSnapshot());
   });
+  root.querySelectorAll("[data-tutorial-select]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectTutorialCard(Number(button.dataset.tutorialPlayer), button.dataset.tutorialSelect);
+    });
+  });
+  root.querySelectorAll("[data-tutorial-card]").forEach((cardElement) => {
+    const select = () => selectTutorialCard(Number(cardElement.dataset.tutorialPlayer), cardElement.dataset.tutorialCard);
+    cardElement.addEventListener("click", select);
+    cardElement.addEventListener("keydown", (event) => {
+      if (!["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      select();
+    });
+  });
 }
 
 function renderCard(playerIndex, card) {
@@ -9799,6 +10128,10 @@ function renderCard(playerIndex, card) {
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
   const riskyRemiseClass = remisePlacementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
+  const expectedTutorialAction = tutorialExpectedAction();
+  const tutorialSelectMode = state.tutorial.active && expectedTutorialAction?.kind === "selectCard" && expectedTutorialAction.playerIndex === playerIndex;
+  const tutorialSelectedClass = state.tutorial.selectedCardUid === card.uid ? " tutorial-selected-card" : "";
+  const tutorialCardFocusClass = tutorialFocusClass("card", playerIndex, card.id);
   if (isHidden) {
     return `
       <article class="card has-visual hidden-hand-card">
@@ -9807,7 +10140,8 @@ function renderCard(playerIndex, card) {
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : "unplayable"}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}">
+      ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
       ${imageUrl ? `
         <div class="card-visual card-effect-forbid-host">
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
@@ -9845,7 +10179,7 @@ function renderCard(playerIndex, card) {
           <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span>${cost} END</span><strong>Effet</strong></button>
           <button class="boost-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
         ` : `
-          <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
+          <button class="play-button${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
           <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
@@ -9890,7 +10224,7 @@ function renderBoostModal() {
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir la carte de boost">
       <h2>Choisir la carte à sacrifier</h2>
-      <p>${player.name} booste <strong>${card.name}</strong>. Sélectionne une carte de la main à glisser dessous.</p>
+      <p>${escapeHtml(displayPlayerName(player))} booste <strong>${card.name}</strong>. Sélectionne une carte de la main à glisser dessous.</p>
       <button class="small-button" type="button" data-close-modal>Annuler</button>
       <div class="choice-grid">
         ${choices.map((choice) => `
@@ -9957,7 +10291,7 @@ function renderCoachChoiceModal() {
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte non distribuée">
       <h2>${characterOf(player).name}</h2>
-      <p>Choisis une carte non distribuée à ajouter à la main de ${player.name}.</p>
+      <p>Choisis une carte non distribuée à ajouter à la main de ${escapeHtml(displayPlayerName(player))}.</p>
       <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
         ${state.deck.map((choice) => `
@@ -9987,7 +10321,7 @@ function renderRemoveChoiceModal() {
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte adverse à supprimer">
       <h2>Supprimer une carte adverse</h2>
-      <p>Choisis une carte engagée par ${state.players[opponentIndex].name} à retirer de l'échange.</p>
+      <p>Choisis une carte engagée par ${escapeHtml(playerName(opponentIndex))} à retirer de l'échange.</p>
       <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
         ${choices.map((choice) => `
@@ -10207,7 +10541,7 @@ function initMenu() {
   document.querySelectorAll("[data-start-solo]").forEach((button) => {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
-  document.querySelector("[data-start-tutorial]")?.addEventListener("click", startTutorial);
+  document.querySelector("[data-start-tutorial]")?.addEventListener("click", () => startTutorial());
   els.aiDifficultyButton?.addEventListener("click", cycleTournamentDifficulty);
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);

@@ -70,52 +70,232 @@ button:disabled {
 .tutorial-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 100;
   pointer-events: none;
 }
 
-.tutorial-coach {
+.tutorial-dialogue {
   position: fixed;
-  right: clamp(10px, 4vw, 70px);
+  right: 0;
+  left: 0;
   bottom: 0;
-  width: min(30vw, 360px);
-  min-width: 190px;
-  pointer-events: none;
-  filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.45));
-}
-
-.tutorial-coach img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.tutorial-card {
-  position: fixed;
-  left: clamp(12px, 5vw, 90px);
-  bottom: clamp(16px, 6vh, 70px);
-  max-width: min(540px, 58vw);
-  padding: 22px;
-  border: 2px solid rgba(255, 255, 255, 0.78);
-  border-radius: 12px;
-  background: rgba(6, 30, 45, 0.92);
+  z-index: 120;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(170px, 18vw, 230px);
+  min-height: 210px;
+  border-top: 3px solid rgba(255, 255, 255, 0.82);
+  background: rgba(6, 30, 45, 0.97);
   color: #fff;
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 -16px 38px rgba(0, 0, 0, 0.4);
   pointer-events: auto;
 }
 
-.tutorial-card-action {
+.tutorial-dialogue-action {
   pointer-events: none;
 }
 
-.tutorial-card h2 {
-  margin: 0 0 10px;
-  font-size: clamp(1.3rem, 2.4vw, 2rem);
+.tutorial-portrait {
+  position: relative;
+  min-width: 0;
+  overflow: visible;
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.tutorial-card p {
-  margin: 0 0 14px;
-  line-height: 1.45;
+.tutorial-portrait img {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+  max-height: 330px;
+  object-fit: contain;
+  object-position: right bottom;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.38));
+}
+
+.tutorial-dialogue-action .tutorial-portrait {
+  overflow: hidden;
+}
+
+.tutorial-dialogue-action .tutorial-portrait img {
+  max-height: 100%;
+}
+
+.tutorial-dialogue-content {
+  min-width: 0;
+  max-height: 42vh;
+  overflow: auto;
+  padding: 18px clamp(18px, 4vw, 58px) 20px;
+}
+
+.tutorial-speaker-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.tutorial-speaker-line strong {
+  font-size: 1.05rem;
+}
+
+.tutorial-speaker-line span {
+  color: #cbd8df;
+  font-size: 0.85rem;
+}
+
+.tutorial-dialogue h2 {
+  margin: 0 0 7px;
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  letter-spacing: 0;
+}
+
+.tutorial-copy p {
+  margin: 0 0 7px;
+  max-width: 1000px;
+  font-size: clamp(0.94rem, 1.25vw, 1.08rem);
+  line-height: 1.42;
+}
+
+.tutorial-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 22px;
+  margin: 8px 0 10px;
+  padding-left: 20px;
+  line-height: 1.35;
+}
+
+.tutorial-error {
+  width: fit-content;
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  border-left: 4px solid #f2c04c;
+  background: rgba(242, 192, 76, 0.14);
+  color: #fff4c8;
+  font-weight: 750;
+}
+
+.tutorial-card-showcase {
+  position: fixed;
+  top: clamp(64px, 9vh, 105px);
+  left: 50%;
+  z-index: 115;
+  width: clamp(190px, 20vw, 285px);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 18px 25px rgba(0, 0, 0, 0.5));
+}
+
+.tutorial-card-showcase img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 7px;
+}
+
+.tutorial-showcase-pointer {
+  position: absolute;
+  top: 4px;
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #e5312f;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+  animation: tutorialPointerPulse 0.7s ease-in-out infinite alternate;
+}
+
+.tutorial-showcase-pointer.cost {
+  right: calc(100% - 14px);
+}
+
+.tutorial-showcase-pointer.power {
+  left: calc(100% - 14px);
+}
+
+.tutorial-showcase-pointer::after {
+  position: absolute;
+  top: 8px;
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  content: "";
+}
+
+.tutorial-showcase-pointer.cost::after {
+  right: -10px;
+  border-left: 11px solid #e5312f;
+}
+
+.tutorial-showcase-pointer.power::after {
+  left: -10px;
+  border-right: 11px solid #e5312f;
+}
+
+@keyframes tutorialPointerPulse {
+  from { transform: scale(0.96); }
+  to { transform: scale(1.04); }
+}
+
+.tutorial-focus-target {
+  position: relative;
+  z-index: 80;
+  outline: 4px solid #f4d54d;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 8px rgba(244, 213, 77, 0.2), 0 0 28px rgba(244, 213, 77, 0.8) !important;
+  animation: tutorialFocusPulse 0.85s ease-in-out infinite alternate;
+}
+
+.tutorial-focus-target::before {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  border-right: 13px solid transparent;
+  border-left: 13px solid transparent;
+  border-top: 22px solid #e5312f;
+  content: "";
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  transform: translateX(-50%);
+}
+
+@keyframes tutorialFocusPulse {
+  from { outline-color: #f4d54d; }
+  to { outline-color: #fff3a6; }
+}
+
+.tutorial-selectable-card {
+  cursor: pointer;
+}
+
+.tutorial-card-selector {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.tutorial-card-selector:focus-visible {
+  outline: 4px solid #48a9ff;
+  outline-offset: 4px;
+}
+
+.tutorial-selected-card {
+  outline: 4px solid #48a9ff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 8px rgba(72, 169, 255, 0.22), 0 0 26px rgba(72, 169, 255, 0.76);
 }
 
 .tutorial-click-arrow {
@@ -145,28 +325,160 @@ button:disabled {
 
 .tutorial-kicker,
 .tutorial-action {
+  margin: 0 0 5px;
   color: #f4d54d;
   font-weight: 900;
   text-transform: uppercase;
 }
 
+.tutorial-action {
+  margin-top: 9px;
+}
+
+.tutorial-next-button {
+  min-width: 150px;
+  margin-top: 5px;
+  pointer-events: auto;
+}
+
+.tutorial-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 8px 0 0;
+  color: #fff3a6;
+  font-weight: 850;
+}
+
+.tutorial-wait span {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.32);
+  border-top-color: #f4d54d;
+  border-radius: 50%;
+  animation: tutorialWaitSpin 0.7s linear infinite;
+}
+
+@keyframes tutorialWaitSpin {
+  to { transform: rotate(360deg); }
+}
+
+body.tutorial-running .scoreboard,
+body.tutorial-running .played-history {
+  display: none;
+}
+
+body.tutorial-running .app {
+  padding-top: 10px;
+}
+
+body.tutorial-running .court {
+  min-height: 470px;
+}
+
+body.tutorial-running .player-panel {
+  padding: 10px;
+}
+
+body.tutorial-running .player-header {
+  margin-bottom: 6px;
+}
+
+body.tutorial-running .character-zone {
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+body.tutorial-running .character-card {
+  width: 72px;
+}
+
+body.tutorial-running .character-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+body.tutorial-running .character-power-reminder,
+body.tutorial-running .character-endurance-reminder {
+  min-width: 68px;
+  min-height: 62px;
+  padding: 5px;
+}
+
+body.tutorial-running .hand {
+  grid-template-columns: repeat(6, minmax(58px, 1fr));
+  gap: 6px;
+}
+
+body.tutorial-running .card.has-visual {
+  gap: 4px;
+  padding: 4px;
+}
+
+body.tutorial-running .card-actions {
+  gap: 3px;
+}
+
+body.tutorial-running .play-button,
+body.tutorial-running .boost-button {
+  min-height: 30px;
+}
+
+body.tutorial-running .play-button span,
+body.tutorial-running .boost-button span {
+  font-size: 0.58rem;
+}
+
+body.tutorial-running .play-button strong,
+body.tutorial-running .boost-button strong {
+  font-size: 0.68rem;
+}
+
 @media (max-width: 760px) {
-  .tutorial-coach {
-    top: 58px;
-    right: 10px;
-    bottom: auto;
-    width: min(42vw, 180px);
-    min-width: 128px;
+  .tutorial-dialogue {
+    grid-template-columns: minmax(0, 1fr) 108px;
+    min-height: 176px;
   }
 
-  .tutorial-card {
-    left: 10px;
-    right: 10px;
-    bottom: 12px;
-    max-width: none;
-    max-height: 42vh;
-    overflow: auto;
-    padding: 16px;
+  .tutorial-portrait img {
+    width: 100%;
+    max-height: 205px;
+  }
+
+  .tutorial-dialogue-content {
+    max-height: 48vh;
+    padding: 12px 12px 14px;
+  }
+
+  .tutorial-dialogue h2 {
+    font-size: 1.08rem;
+  }
+
+  .tutorial-copy p,
+  .tutorial-action,
+  .tutorial-error,
+  .tutorial-summary,
+  .tutorial-wait {
+    font-size: 0.86rem;
+  }
+
+  .tutorial-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-card-showcase {
+    top: 54px;
+    width: clamp(140px, 38vw, 185px);
+  }
+
+  .tutorial-showcase-pointer {
+    min-height: 25px;
+    padding: 4px 6px;
+    font-size: 0.65rem;
+  }
+
+  body.tutorial-running .hand {
+    grid-template-columns: repeat(3, minmax(62px, 1fr));
   }
 }
 
@@ -1492,6 +1804,48 @@ body.spectator-mode .player-panel {
   gap: 8px;
 }
 
+.confrontation-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confrontation-status {
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.confrontation-status.domination {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.confrontation-status.ascendant-positive {
+  color: #075985;
+  background: #e0f2fe;
+}
+
+.confrontation-status.ascendant-negative {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.confrontation-status.bete-noire {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.confrontation-ratio {
+  min-width: 58px;
+  text-align: right;
+  font-weight: 900;
+}
+
 .profile-calendar {
   display: grid;
   gap: 8px;
@@ -1503,6 +1857,36 @@ body.spectator-mode .player-panel {
   border-radius: 8px;
   padding: 9px 10px;
   background: rgba(232, 240, 244, 0.86);
+}
+
+.profile-calendar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-tournament-reset {
+  flex: 0 0 auto;
+}
+
+.admin-weekly-attempts {
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .profile-calendar-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-tournament-reset {
+    width: 100%;
+  }
+
+  .confrontation-summary {
+    gap: 6px;
+  }
 }
 
 .profile-calendar-row strong,
@@ -2088,18 +2472,14 @@ h1 {
   font-size: 1.6rem;
 }
 
-.player-nickname {
+.player-character-name {
   display: inline-flex;
   max-width: 220px;
   margin-top: 6px;
   margin-bottom: 10px;
-  border: 1px solid rgba(233, 255, 112, 0.62);
-  border-radius: 8px;
-  padding: 6px 10px;
-  color: #f8fafc;
-  background: rgba(2, 8, 23, 0.38);
+  color: rgba(248, 250, 252, 0.82);
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 750;
 }
 
 .player-header h2.turn-name {

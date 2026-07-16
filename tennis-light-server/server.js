@@ -95,6 +95,7 @@ const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 const CIRCUIT_SEASON_LENGTH = 20;
 const DAILY_RETRY_LIMIT = 5;
 const ADMIN_MANUAL_COMPETITION_ID = "__admin_manual_season_points__";
+const ADMIN_ATTEMPT_COMPETITION_ID = "__admin_weekly_attempts__";
 const WORLD_TOUR_CSV = path.join(__dirname, "world-tour.csv");
 const COUNTRY_FLAGS = {
   Allemagne: "🇩🇪", Argentine: "🇦🇷", Australie: "🇦🇺", Autriche: "🇦🇹", Belgique: "🇧🇪",
@@ -138,6 +139,7 @@ const authMemory = {
   circuitAiHumanBonuses: new Map(),
   circuitAttempts: new Map(),
   circuitSaves: new Map(),
+  circuitResets: new Map(),
   circuitResults: [],
   aiResults: new Map(),
   appState: new Map(),
@@ -879,6 +881,7 @@ async function restartCurrentSeason() {
     await db.query("DELETE FROM weekly_competition_scores");
     await db.query("DELETE FROM circuit_attempts WHERE season_number = $1", [season]);
     await db.query("DELETE FROM circuit_tournament_saves WHERE season_number = $1", [season]);
+    await db.query("DELETE FROM circuit_tournament_resets WHERE season_number = $1", [season]);
     await db.query("DELETE FROM circuit_week_scores WHERE season_number = $1 AND NOT (week_number = ANY($2::int[]))", [season, retainedWeeks]);
     await db.query("DELETE FROM circuit_ai_week_scores WHERE season_number = $1", [season]);
     await db.query("DELETE FROM app_state WHERE key LIKE 'ai_simulated_%'");
@@ -887,6 +890,7 @@ async function restartCurrentSeason() {
     authMemory.weeklyScores.clear();
     authMemory.circuitAttempts.clear();
     authMemory.circuitSaves.clear();
+    authMemory.circuitResets.clear();
     for (const key of Array.from(authMemory.circuitWeekScores.keys())) {
       const [, keySeason, keyWeek] = key.match(/^([^:]+):(\d+):(\d+)$/) || [];
       if (Number(keySeason) === season && !retainedWeeks.includes(Number(keyWeek))) {
@@ -929,6 +933,7 @@ async function restartSeasonOne() {
       await db.query("DELETE FROM weekly_competition_scores");
       await db.query("DELETE FROM circuit_attempts");
       await db.query("DELETE FROM circuit_tournament_saves");
+      await db.query("DELETE FROM circuit_tournament_resets");
       await db.query("DELETE FROM circuit_week_scores");
       await db.query("DELETE FROM circuit_ai_week_scores");
       await db.query("DELETE FROM circuit_honors");
@@ -967,6 +972,7 @@ async function restartSeasonOne() {
     authMemory.weeklyScores.clear();
     authMemory.circuitAttempts.clear();
     authMemory.circuitSaves.clear();
+    authMemory.circuitResets.clear();
     authMemory.circuitWeekScores = preserved;
     authMemory.circuitAiWeekScores.clear();
     authMemory.circuitAiHumanBonuses.clear();
@@ -1003,6 +1009,10 @@ async function weeklyCompetitionPayload() {
 async function competitionDefinitionById(competitionId) {
   const competitions = await weeklyCompetitionPayload();
   return competitions.find((competition) => competition.id === competitionId) || null;
+}
+
+function anyCompetitionDefinitionById(competitionId) {
+  return COMPETITION_DEFINITIONS.find((competition) => competition.id === competitionId) || null;
 }
 
 function previousCircuitWeeks(week) {
@@ -1309,6 +1319,16 @@ async function initAuthStorage() {
     )
   `);
   await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_tournament_resets (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      competition_id TEXT NOT NULL,
+      reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, season_number, week_number, competition_id)
+    )
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_tournament_results (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       season_number INTEGER NOT NULL,
@@ -1396,6 +1416,7 @@ async function recomputeUserCircuitWeekScore(userId, season, week) {
 
 async function adminScoreEditorPayload(userId) {
   const current = await circuitState();
+  const retryInfo = await currentRetryInfo(userId);
   const periods = [
     { ...current, label: "Semaine actuelle" },
     ...previousCircuitPeriods(current.season, current.week, 4).map((period, index) => ({ ...period, label: `S-${index + 1}` })),
@@ -1417,6 +1438,10 @@ async function adminScoreEditorPayload(userId) {
   return {
     currentSeason: current.season,
     currentWeek: current.week,
+    weeklyAttempts: {
+      used: retryInfo.retriesUsed,
+      limit: retryInfo.retryLimit,
+    },
     periods: periods.map((period, index) => ({
       key: index === 0 ? "current" : `s${index}`,
       label: period.label,
@@ -1492,6 +1517,45 @@ async function currentRetryInfo(userId) {
     retriesUsed: entries.reduce((sum, [, value]) => sum + Number(value || 0), 0),
     retryLimit: DAILY_RETRY_LIMIT,
   };
+}
+
+async function setCurrentRetryCount(userId, requestedCount) {
+  const current = await circuitState();
+  const retries = Math.min(DAILY_RETRY_LIMIT, Math.max(0, Math.round(Number(requestedCount || 0))));
+  if (db) {
+    await db.query(
+      "DELETE FROM circuit_attempts WHERE user_id = $1 AND season_number = $2 AND week_number = $3",
+      [userId, current.season, current.week],
+    );
+    if (retries > 0) {
+      await db.query(`
+        INSERT INTO circuit_attempts (user_id, season_number, week_number, competition_id, retries, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW())
+      `, [userId, current.season, current.week, ADMIN_ATTEMPT_COMPETITION_ID, retries]);
+    }
+  } else {
+    const prefix = `${userId}:${current.season}:${current.week}:`;
+    for (const key of Array.from(authMemory.circuitAttempts.keys())) {
+      if (key.startsWith(prefix)) authMemory.circuitAttempts.delete(key);
+    }
+    if (retries > 0) authMemory.circuitAttempts.set(`${prefix}${ADMIN_ATTEMPT_COMPETITION_ID}`, retries);
+  }
+  return currentRetryInfo(userId);
+}
+
+async function currentTournamentResetMap(userId) {
+  const current = await circuitState();
+  if (db) {
+    const result = await db.query(
+      "SELECT competition_id, reset_at FROM circuit_tournament_resets WHERE user_id = $1 AND season_number = $2 AND week_number = $3",
+      [userId, current.season, current.week],
+    );
+    return Object.fromEntries(result.rows.map((row) => [row.competition_id, row.reset_at]));
+  }
+  const prefix = `${userId}:${current.season}:${current.week}:`;
+  return Object.fromEntries([...authMemory.circuitResets.entries()]
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([key, value]) => [key.slice(prefix.length), value]));
 }
 
 async function currentTournamentSaveIds(userId) {
@@ -1806,7 +1870,9 @@ function achievementLabel(value) {
 }
 
 function seasonCalendar(current, rows = []) {
-  const resultByCompetition = new Map(rows.map((row) => [row.competition_id || row.competitionId, row]));
+  const resultByCompetition = new Map(rows
+    .filter((row) => Number(row.season_number || row.season) === Number(current.season))
+    .map((row) => [row.competition_id || row.competitionId, row]));
   return COMPETITION_DEFINITIONS
     .filter((competition) => competition.week >= 1 && competition.week <= CIRCUIT_SEASON_LENGTH)
     .sort((a, b) => a.week - b.week || a.slot - b.slot)
@@ -2570,10 +2636,71 @@ async function handleAuth(req, res, url) {
     if (req.method === "POST") {
       const payload = await readJson(req);
       const scores = await setAdminScorePeriods(userId, payload.periods);
+      if (Object.prototype.hasOwnProperty.call(payload, "weeklyAttempts")) {
+        await setCurrentRetryCount(userId, payload.weeklyAttempts);
+      }
+      scores.weeklyAttempts = (await adminScoreEditorPayload(userId)).weeklyAttempts;
       sendJson(res, 200, { scores });
       return true;
     }
     sendJson(res, 200, { scores: await adminScoreEditorPayload(userId) });
+    return true;
+  }
+
+  const resetTournamentMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)\/tournaments\/([^/]+)\/reset$/);
+  if (req.method === "POST" && resetTournamentMatch) {
+    if (!await requireAdmin(req, res)) return true;
+    const userId = decodeURIComponent(resetTournamentMatch[1]);
+    const competitionId = decodeURIComponent(resetTournamentMatch[2]);
+    const target = await findUserById(userId);
+    const competition = anyCompetitionDefinitionById(competitionId);
+    if (!target || !competition) {
+      sendJson(res, 404, { error: !target ? "Utilisateur introuvable." : "Tournoi introuvable." });
+      return true;
+    }
+    const payload = await readJson(req);
+    const season = Math.max(1, Math.round(Number(payload.season || 0)));
+    const week = Math.max(1, Math.round(Number(payload.week || competition.week || 0)));
+    if (!season || !week || Number(competition.week) !== week) {
+      sendJson(res, 400, { error: "Période de tournoi invalide." });
+      return true;
+    }
+    const scoreKey = circuitScoreKey({ season, week });
+    const resetAt = new Date().toISOString();
+    if (db) {
+      await db.query(
+        "DELETE FROM circuit_tournament_results WHERE user_id = $1 AND season_number = $2 AND week_number = $3 AND competition_id = $4",
+        [userId, season, week, competitionId],
+      );
+      await db.query(
+        "DELETE FROM weekly_competition_scores WHERE user_id = $1 AND week_key = $2 AND competition_id = $3",
+        [userId, scoreKey, competitionId],
+      );
+      await db.query(
+        "DELETE FROM circuit_tournament_saves WHERE user_id = $1 AND season_number = $2 AND week_number = $3 AND competition_id = $4",
+        [userId, season, week, competitionId],
+      );
+      await db.query(
+        "DELETE FROM circuit_attempts WHERE user_id = $1 AND season_number = $2 AND week_number = $3 AND competition_id = $4",
+        [userId, season, week, competitionId],
+      );
+      await db.query(`
+        INSERT INTO circuit_tournament_resets (user_id, season_number, week_number, competition_id, reset_at)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (user_id, season_number, week_number, competition_id) DO UPDATE
+          SET reset_at = EXCLUDED.reset_at
+      `, [userId, season, week, competitionId, resetAt]);
+    } else {
+      authMemory.circuitResults = authMemory.circuitResults.filter((row) => !(
+        row.userId === userId && Number(row.season) === season && Number(row.week) === week && row.competitionId === competitionId
+      ));
+      authMemory.weeklyScores.delete(`${userId}:${scoreKey}:${competitionId}`);
+      authMemory.circuitSaves.delete(`${userId}:${season}:${week}:${competitionId}`);
+      authMemory.circuitAttempts.delete(`${userId}:${season}:${week}:${competitionId}`);
+      authMemory.circuitResets.set(`${userId}:${season}:${week}:${competitionId}`, resetAt);
+    }
+    await recomputeUserCircuitWeekScore(userId, season, week);
+    sendJson(res, 200, { ok: true, competitionId, season, week, resetAt });
     return true;
   }
 
@@ -2707,6 +2834,7 @@ async function handleAuth(req, res, url) {
       nextUpdateAt: nextCircuitUpdateAt(),
       bestScores,
       savedTournamentIds: await currentTournamentSaveIds(user.id),
+      resetAtByCompetition: await currentTournamentResetMap(user.id),
       retriesUsed: retryInfo.retriesUsed,
       retryLimit: retryInfo.retryLimit,
       retriesRemaining: Math.max(0, retryInfo.retryLimit - retryInfo.retriesUsed),
@@ -2902,6 +3030,8 @@ async function handleAuth(req, res, url) {
       type: activity.type,
       opponent: activity.opponent,
       score: activity.score,
+      playerNickname: target.nickname,
+      playerIndex: Number(activity.playerIndex ?? 0),
       state: sanitizeFriendlySpectatorState(activity.state),
     });
     return true;
@@ -2924,6 +3054,7 @@ async function handleAuth(req, res, url) {
       type: String(payload.type || "Partie en cours").slice(0, 60),
       opponent: String(payload.opponent || "Adversaire").slice(0, 40),
       score: String(payload.score || "En direct").slice(0, 100),
+      playerIndex: 0,
       state,
       updatedAt: Date.now(),
     });
@@ -3176,6 +3307,7 @@ function activeProfileActivity(userId) {
       source: "friendly",
       tournamentId: tournament.id,
       matchId: match.id,
+      playerIndex: match.playerA === entry ? 0 : 1,
       state: match.liveState,
     };
   }
@@ -3191,6 +3323,7 @@ function activeProfileActivity(userId) {
       watchable: true,
       source: "room",
       roomId: room.id,
+      playerIndex: seat,
       state: room.state,
     };
   }

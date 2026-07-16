@@ -14,10 +14,10 @@ async function request(session, path, options = {}) {
 }
 
 async function register(email, nickname) {
-  const session = { cookie: "", user: null, email, password: "Test-v130!" };
+  const session = { cookie: "", user: null, email, password: "Test-v133!" };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v130!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v133!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -174,12 +174,74 @@ function assertNoLeagueMatchCounted(tournament) {
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v130-a-${stamp}@example.test`, "Alpha"),
-  register(`v130-b-${stamp}@example.test`, "Bravo"),
-  register(`v130-c-${stamp}@example.test`, "Charlie"),
-  register(`v130-d-${stamp}@example.test`, "Delta"),
+  register(`v133-a-${stamp}@example.test`, "Alpha"),
+  register(`v133-b-${stamp}@example.test`, "Bravo"),
+  register(`v133-c-${stamp}@example.test`, "Charlie"),
+  register(`v133-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
+
+const circuit = await request(players[0], "/api/competitions");
+assert.equal(circuit.response.status, 200, circuit.data.error);
+const circuitCompetition = circuit.data.competitions[0];
+assert.ok(circuitCompetition?.id, "un tournoi du circuit doit être disponible");
+const firstAttempt = await request(players[0], `/api/competitions/${circuitCompetition.id}/attempt`, {
+  method: "POST",
+  body: JSON.stringify({}),
+});
+assert.equal(firstAttempt.response.status, 200, firstAttempt.data.error);
+assert.equal(firstAttempt.data.countedAsRetry, false);
+const circuitScore = await request(players[0], `/api/competitions/${circuitCompetition.id}/score`, {
+  method: "POST",
+  body: JSON.stringify({
+    points: 100,
+    achievement: "quarter",
+    roundReached: "quarter",
+    lastOpponent: "Theo Briancourt",
+    lastScore: "6/4 - 6/3",
+  }),
+});
+assert.equal(circuitScore.response.status, 200, circuitScore.data.error);
+const retryAttempt = await request(players[0], `/api/competitions/${circuitCompetition.id}/attempt`, {
+  method: "POST",
+  body: JSON.stringify({}),
+});
+assert.equal(retryAttempt.response.status, 200, retryAttempt.data.error);
+assert.equal(retryAttempt.data.countedAsRetry, true);
+const circuitSave = await request(players[0], `/api/competitions/${circuitCompetition.id}/save`, {
+  method: "POST",
+  body: JSON.stringify({ save: { state: { tournament: { active: true } }, savedAt: new Date().toISOString() } }),
+});
+assert.equal(circuitSave.response.status, 200, circuitSave.data.error);
+const resetCircuit = await request(admin, `/api/admin/users/${players[0].user.id}/tournaments/${circuitCompetition.id}/reset`, {
+  method: "POST",
+  body: JSON.stringify({ season: circuit.data.season, week: circuit.data.week }),
+});
+assert.equal(resetCircuit.response.status, 200, resetCircuit.data.error);
+const circuitAfterReset = await request(players[0], "/api/competitions");
+assert.equal(circuitAfterReset.response.status, 200, circuitAfterReset.data.error);
+assert.equal(Object.prototype.hasOwnProperty.call(circuitAfterReset.data.bestScores, circuitCompetition.id), false);
+assert.equal(circuitAfterReset.data.savedTournamentIds.includes(circuitCompetition.id), false);
+assert.ok(circuitAfterReset.data.resetAtByCompetition[circuitCompetition.id]);
+assert.equal(circuitAfterReset.data.retriesUsed, 0);
+const replayAfterReset = await request(players[0], `/api/competitions/${circuitCompetition.id}/attempt`, {
+  method: "POST",
+  body: JSON.stringify({}),
+});
+assert.equal(replayAfterReset.response.status, 200, replayAfterReset.data.error);
+assert.equal(replayAfterReset.data.countedAsRetry, false, "le premier lancement après reset ne doit pas consommer de tentative");
+const attemptsUpdate = await request(admin, `/api/admin/users/${players[0].user.id}/ranking-scores`, {
+  method: "POST",
+  body: JSON.stringify({ weeklyAttempts: 3 }),
+});
+assert.equal(attemptsUpdate.response.status, 200, attemptsUpdate.data.error);
+assert.equal(attemptsUpdate.data.scores.weeklyAttempts.used, 3);
+const attemptsAfterUpdate = await request(players[0], "/api/competitions");
+assert.equal(attemptsAfterUpdate.data.retriesUsed, 3);
+const profileAfterReset = await request(admin, `/api/profiles/${players[0].user.id}`);
+assert.equal(profileAfterReset.response.status, 200, profileAfterReset.data.error);
+const resetCalendarItem = profileAfterReset.data.calendar.find((item) => item.id === circuitCompetition.id);
+assert.equal(resetCalendarItem.result, null, "le dernier adversaire et le résultat doivent être effacés du calendrier");
 
 const roomCreate = await request(players[0], "/api/lobby/rooms", {
   method: "POST",
@@ -288,8 +350,8 @@ for (const hiddenMatch of hiddenAiMatches) {
 }
 assertNoLeagueMatchCounted(afterSecondHumanSet);
 if (process.env.KEEP_AI_REVEAL === "1") {
-  console.log(`v130 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
-  console.log("v130 AI reveal browser fixture: READY");
+  console.log(`v133 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
+  console.log("v133 AI reveal browser fixture: READY");
   process.exit(0);
 }
 
@@ -435,10 +497,10 @@ if (process.env.KEEP_SHARED_DUEL === "1") {
     body: JSON.stringify({}),
   });
   assert.equal(spectatorAccess.response.status, 200, spectatorAccess.data.error);
-  console.log(`v130 shared player A: ${participantUrl(playerAContext.access)}`);
-  console.log(`v130 shared player B: ${participantUrl(playerBContext.access)}`);
-  console.log(`v130 shared spectator: ${spectatorAccess.data.spectatorUrl}`);
-  console.log("v130 shared browser fixture: READY");
+  console.log(`v133 shared player A: ${participantUrl(playerAContext.access)}`);
+  console.log(`v133 shared player B: ${participantUrl(playerBContext.access)}`);
+  console.log(`v133 shared spectator: ${spectatorAccess.data.spectatorUrl}`);
+  console.log("v133 shared browser fixture: READY");
   process.exit(0);
 }
 
@@ -658,11 +720,11 @@ assert.equal(pausedQuarter.winner, null, "le forfait ne doit pas être immédiat
 assert.equal(pausedQuarter.disconnectedPlayers[0].participantId, forfeitLoser.access.participantId);
 if (process.env.KEEP_RECONNECT_COUNTDOWN === "1") {
   const participantUrl = (access) => `${base}/?friendlyTournament=${access.id}&participant=${access.participantId}&token=${access.token}`;
-  console.log(`v130 reconnect opponent: ${participantUrl(forfeitWinner.access)}`);
-  console.log(`v130 reconnect player email: ${forfeitLoser.player.email}`);
-  console.log(`v130 reconnect player password: ${forfeitLoser.player.password}`);
-  console.log(`v130 reconnect tournament: ${forfeitLoser.access.id}`);
-  console.log("v130 reconnect browser fixture: READY");
+  console.log(`v133 reconnect opponent: ${participantUrl(forfeitWinner.access)}`);
+  console.log(`v133 reconnect player email: ${forfeitLoser.player.email}`);
+  console.log(`v133 reconnect player password: ${forfeitLoser.player.password}`);
+  console.log(`v133 reconnect tournament: ${forfeitLoser.access.id}`);
+  console.log("v133 reconnect browser fixture: READY");
   process.exit(0);
 }
 
@@ -711,8 +773,8 @@ assert.equal(qualifiedSemi.playerA === forfeitWinner.access.entry || qualifiedSe
 assert.equal(qualifiedSemi.humanVsHuman, false, "le dernier humain qualifié doit jouer sa demi-finale contre l'IA");
 assert.equal(qualifiedSemi.watchable, false, "une rencontre pas encore lancée ne doit pas être proposée uniquement en mode VOIR");
 if (process.env.KEEP_FORFEIT_TRANSITION === "1") {
-  console.log(`v130 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
-  console.log("v130 forfeit browser fixture: READY");
+  console.log(`v133 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
+  console.log("v133 forfeit browser fixture: READY");
   process.exit(0);
 }
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${forfeitWinner.access.id}/admin-delete`, { method: "POST" })).response.status, 200);
@@ -741,4 +803,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v130 smoke test: OK");
+console.log("v133 smoke test: OK");
