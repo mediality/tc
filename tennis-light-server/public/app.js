@@ -95,6 +95,12 @@ const PROFILE_ACTIVITY = {
   lastActive: false,
 };
 
+const HUMAN_MATCH_TELEMETRY = {
+  active: null,
+  forceNew: false,
+  uploadedIds: new Set(),
+};
+
 const SOLO_AI = {
   enabled: false,
   playerIndex: 1,
@@ -196,6 +202,9 @@ const EMPTY_TOURNAMENT = {
 
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
+const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV1";
+const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV1";
+const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
@@ -1231,6 +1240,7 @@ const els = {
   adminPanel: document.querySelector("#adminPanel"),
   manageUsersButton: document.querySelector("#manageUsersButton"),
   backToLobbyFromAdminButton: document.querySelector("#backToLobbyFromAdminButton"),
+  adminExportHumanMatchesButton: document.querySelector("#adminExportHumanMatchesButton"),
   adminUsersTable: document.querySelector("#adminUsersTable"),
   generateProCodesButton: document.querySelector("#generateProCodesButton"),
   adminProCodesList: document.querySelector("#adminProCodesList"),
@@ -1264,6 +1274,7 @@ const els = {
   lobbyRooms: document.querySelector("#lobbyRooms"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
+  exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
   setModeButton: document.querySelector("#setModeButton"),
   matchTwoButton: document.querySelector("#matchTwoButton"),
@@ -1503,6 +1514,9 @@ function applyAuthenticatedUser(user) {
   MENU_STATE.espoirResolvedCharacterId = null;
   renderAuthState();
   updateAccessControls();
+  if (AUTH_STATE.user) {
+    window.setTimeout(uploadPendingHumanMatchLogs, 250);
+  }
 }
 
 async function loadAuthState() {
@@ -2399,6 +2413,7 @@ async function saveTournamentProgress() {
     state: cloneData(state),
     soloAi: cloneData(SOLO_AI),
     serverSync: cloneData(SERVER_SYNC),
+    humanMatchTelemetry: cloneData(HUMAN_MATCH_TELEMETRY.active),
   };
   if (save.state?.tutorial) {
     save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
@@ -2462,6 +2477,11 @@ function restoreStateSnapshot(snapshot) {
   SOLO_AI.nudgeTimer = null;
   SOLO_AI.nudgeAutoTimer = null;
   SOLO_AI.watchdogTimer = null;
+  if (snapshot.humanMatchTelemetry?.status === "active") {
+    HUMAN_MATCH_TELEMETRY.active = cloneData(snapshot.humanMatchTelemetry);
+    HUMAN_MATCH_TELEMETRY.forceNew = false;
+    writeStoredJson(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY, HUMAN_MATCH_TELEMETRY.active);
+  }
   return true;
 }
 
@@ -4661,6 +4681,7 @@ function constraintsLogInfo() {
 function recordAction(kind, payload = {}) {
   const playMode = payload.mode ?? null;
   const entry = {
+    actionId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     kind,
     ...payload,
@@ -4676,10 +4697,11 @@ function recordAction(kind, payload = {}) {
   const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
   stored.push(entry);
   writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-2500));
+  recordHumanMatchAction(entry);
 }
 
 function logKey(entry) {
-  return `${entry.createdAt ?? entry.completedAt ?? ""}:${entry.kind ?? entry.winType ?? ""}:${entry.exchangeNumber ?? ""}:${entry.playerIndex ?? ""}`;
+  return entry.actionId || `${entry.createdAt ?? entry.completedAt ?? ""}:${entry.kind ?? entry.winType ?? ""}:${entry.exchangeNumber ?? ""}:${entry.playerIndex ?? ""}`;
 }
 
 function mergeLogEntries(...groups) {
@@ -4694,6 +4716,299 @@ function absorbServerLogs(logs = []) {
   if (!Array.isArray(logs) || logs.length === 0) return;
   const merged = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), logs);
   writeStoredJson(ACTION_LOG_STORAGE_KEY, merged.slice(-5000));
+  logs.forEach((entry) => recordHumanMatchAction(entry));
+}
+
+function shouldTrackHumanMatch() {
+  if (!AUTH_STATE.user || SPECTATOR_MODE.enabled || state.tutorial.active) return false;
+  if (!Array.isArray(state.players) || state.players.length !== 2) return false;
+  return state.players.some((_, playerIndex) => isHumanTelemetrySeat(playerIndex));
+}
+
+function isHumanTelemetrySeat(playerIndex) {
+  return !(SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex);
+}
+
+function humanMatchContext() {
+  let type = "local-human";
+  if (state.tournament?.weekly) type = "circuit-ai";
+  else if (state.tournament?.aiClubHouse) type = "club-house-ai";
+  else if (state.tournament?.friendly && SERVER_SYNC.enabled) type = "friendly-human";
+  else if (state.tournament?.friendly) type = "friendly-ai";
+  else if (SERVER_SYNC.enabled) type = "online-human";
+  else if (SOLO_AI.enabled && state.setMatch?.targetSets) type = "exhibition-ai";
+  else if (SOLO_AI.enabled && state.setMatch?.enabled) type = "set-ai";
+  else if (SOLO_AI.enabled) type = "exchange-ai";
+  return {
+    type,
+    competitionId: state.tournament?.competitionId || null,
+    competitionName: state.tournament?.competitionName || null,
+    competitionSeason: state.tournament?.competitionSeason || null,
+    competitionWeek: state.tournament?.competitionWeek || null,
+    tournamentId: FRIENDLY_TOURNAMENT.id || null,
+    tournamentMatchId: state.tournament?.currentMatch || FRIENDLY_TOURNAMENT.currentMatchId || null,
+    tournamentRound: state.tournament?.stage || null,
+    onlineRoomId: SERVER_SYNC.roomId || null,
+    targetSets: state.setMatch?.targetSets ?? null,
+    aiDifficulty: state.tournament?.difficulty || SOLO_AI.difficulty || null,
+    aiStyle: SOLO_AI.enabled ? SOLO_AI.style : null,
+  };
+}
+
+function humanMatchContextKey(context = humanMatchContext()) {
+  return [
+    context.type,
+    context.competitionId,
+    context.tournamentId,
+    context.tournamentMatchId,
+    context.onlineRoomId,
+    context.targetSets,
+  ].map((value) => value ?? "").join(":");
+}
+
+function humanMatchParticipants() {
+  return state.players.map((player, playerIndex) => {
+    const human = isHumanTelemetrySeat(playerIndex);
+    const isObservedUser = human && (
+      (!SERVER_SYNC.enabled && playerIndex === 0)
+      || (SERVER_SYNC.enabled && Number(SERVER_SYNC.seat) === playerIndex)
+    );
+    return {
+      playerIndex,
+      type: human ? "human" : "ai",
+      control: human ? (isObservedUser ? "local" : "remote") : "computer",
+      userId: isObservedUser ? AUTH_STATE.user?.id || null : null,
+      nickname: displayPlayerName(player),
+      characterId: player.characterId,
+      characterName: player.name,
+      aiDifficulty: human ? null : state.tournament?.difficulty || SOLO_AI.difficulty,
+      aiStyle: human ? null : SOLO_AI.style,
+      bonuses: human ? [] : [
+        ...surfaceBonusesForPlayer(player),
+        ...(player.permanentBonuses || []),
+      ].map((bonus) => ({ id: bonus.id, label: bonus.label })),
+    };
+  });
+}
+
+function ensureHumanMatchTelemetry() {
+  if (!shouldTrackHumanMatch()) return null;
+  const context = humanMatchContext();
+  const contextKey = humanMatchContextKey(context);
+  const active = HUMAN_MATCH_TELEMETRY.active;
+  if (!HUMAN_MATCH_TELEMETRY.forceNew && active?.status === "active" && active.contextKey === contextKey) {
+    active.context = context;
+    active.participants = humanMatchParticipants();
+    return active;
+  }
+  if (!HUMAN_MATCH_TELEMETRY.forceNew && !active) {
+    const storedActive = readStoredJson(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY, null);
+    if (storedActive?.status === "active" && storedActive.contextKey === contextKey) {
+      HUMAN_MATCH_TELEMETRY.active = storedActive;
+      storedActive.context = context;
+      storedActive.participants = humanMatchParticipants();
+      return storedActive;
+    }
+  }
+  if (active?.status === "active") {
+    archiveHumanMatchSession(active, "interrupted");
+  }
+  const startedAt = new Date().toISOString();
+  const session = {
+    schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
+    gameVersion: "v135",
+    matchId: crypto.randomUUID(),
+    contextKey,
+    status: "active",
+    startedAt,
+    updatedAt: startedAt,
+    completedAt: null,
+    observerUser: {
+      id: AUTH_STATE.user?.id || null,
+      nickname: AUTH_STATE.user?.nickname || nicknameValue(),
+    },
+    context,
+    participants: humanMatchParticipants(),
+    exchanges: [],
+    result: null,
+    summary: null,
+  };
+  HUMAN_MATCH_TELEMETRY.active = session;
+  HUMAN_MATCH_TELEMETRY.forceNew = false;
+  writeStoredJson(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY, session);
+  return session;
+}
+
+function compactHumanMatchAction(entry) {
+  const compact = cloneData(entry);
+  delete compact.after;
+  return compact;
+}
+
+function recordHumanMatchAction(entry) {
+  if (!entry || !shouldTrackHumanMatch()) return;
+  const session = ensureHumanMatchTelemetry();
+  if (!session) return;
+  const actionKey = logKey(entry);
+  if (session.exchanges.some((exchange) => exchange.actions.some((action) => logKey(action) === actionKey))) return;
+  if (entry.kind === "exchange_start" || !session.exchanges.length) {
+    session.exchanges.push({
+      exchangeId: crypto.randomUUID(),
+      exchangeNumber: entry.exchangeNumber ?? session.exchanges.length + 1,
+      startedAt: entry.createdAt || new Date().toISOString(),
+      completedAt: null,
+      server: entry.server ?? state.server,
+      startingPlayers: entry.players ? cloneData(entry.players) : state.players.map(playerLogInfo),
+      actions: [],
+      result: null,
+    });
+  }
+  const exchange = session.exchanges[session.exchanges.length - 1];
+  exchange.actions.push(compactHumanMatchAction(entry));
+  if (entry.kind === "exchange_end") {
+    exchange.completedAt = entry.createdAt || new Date().toISOString();
+    exchange.result = {
+      winner: entry.winner,
+      winnerName: entry.winnerName,
+      winType: entry.winType,
+      reason: entry.reason,
+      finalPower: cloneData(entry.finalPower),
+      finalEndurance: cloneData(entry.finalEndurance),
+      exchangeSetScore: cloneData(entry.exchangeSetScore),
+      setMatch: cloneData(state.setMatch),
+    };
+  }
+  session.updatedAt = new Date().toISOString();
+  session.context = humanMatchContext();
+  session.participants = humanMatchParticipants();
+  writeStoredJson(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY, session);
+  if (entry.kind === "exchange_end" && isHumanMatchTelemetryComplete()) {
+    completeHumanMatchTelemetry(entry);
+  }
+}
+
+function isHumanMatchTelemetryComplete() {
+  if (!state.gameOver) return false;
+  if (!state.setMatch.enabled) return true;
+  if (state.setMatch.targetSets) return Boolean(state.setMatch.matchOver);
+  return Boolean(state.setMatch.setOver);
+}
+
+function humanMatchTelemetrySummary(session) {
+  const actions = session.exchanges.flatMap((exchange) => exchange.actions);
+  const roleFor = (playerIndex) => session.participants.find((participant) => participant.playerIndex === playerIndex)?.type || "system";
+  const summary = {
+    exchangeCount: session.exchanges.filter((exchange) => exchange.completedAt).length,
+    actionCount: actions.length,
+    humanActions: 0,
+    aiActions: 0,
+    humanBoosts: 0,
+    aiBoosts: 0,
+    humanPlacementRisks: 0,
+    aiPlacementRisks: 0,
+    humanPasses: 0,
+    aiPasses: 0,
+    forcedPasses: 0,
+    undoCount: 0,
+    canceledEffects: 0,
+    expensiveCanceledEffects: 0,
+    suppressionUses: 0,
+    suppressionSacrifices: 0,
+  };
+  for (const action of actions) {
+    const role = roleFor(action.playerIndex);
+    if (role === "human") summary.humanActions += 1;
+    if (role === "ai") summary.aiActions += 1;
+    if (action.kind === "play_card" && action.boosted) {
+      if (role === "human") summary.humanBoosts += 1;
+      if (role === "ai") summary.aiBoosts += 1;
+    }
+    if (action.kind === "play_card" && action.placementWasInsufficient) {
+      if (role === "human") summary.humanPlacementRisks += 1;
+      if (role === "ai") summary.aiPlacementRisks += 1;
+    }
+    if (action.kind === "play_card" && action.sacrifice?.id === "sup-adv") summary.suppressionSacrifices += 1;
+    if (action.kind === "pass") {
+      if (role === "human") summary.humanPasses += 1;
+      if (role === "ai") summary.aiPasses += 1;
+      if (action.mandatoryPlacement) summary.forcedPasses += 1;
+    }
+    if (action.kind === "undo_turn") summary.undoCount += 1;
+    if (action.kind === "effect_resolution" && action.resolution === "canceled_by_opponent") {
+      summary.canceledEffects += 1;
+      if (Number(action.costPaid || 0) >= 3) summary.expensiveCanceledEffects += 1;
+    }
+    if (action.kind === "remove_card" && action.sourceCard?.id === "sup-adv") summary.suppressionUses += 1;
+  }
+  return summary;
+}
+
+function completeHumanMatchTelemetry(finalEntry) {
+  const session = HUMAN_MATCH_TELEMETRY.active;
+  if (!session || session.status !== "active") return;
+  session.status = "completed";
+  session.completedAt = finalEntry.createdAt || new Date().toISOString();
+  session.updatedAt = session.completedAt;
+  session.result = {
+    winner: state.setMatch.enabled ? state.setMatch.matchWinner ?? state.setMatch.winner : finalEntry.winner,
+    winnerName: playerName(state.setMatch.enabled ? state.setMatch.matchWinner ?? state.setMatch.winner : finalEntry.winner),
+    setsWon: state.setMatch.enabled ? [...state.setMatch.setsWon] : null,
+    completedScores: state.setMatch.enabled ? state.setMatch.completedScores.map((score) => [...score]) : null,
+    targetSets: state.setMatch.enabled ? state.setMatch.targetSets : null,
+    tournamentMatchId: state.tournament?.currentMatch || null,
+  };
+  session.summary = humanMatchTelemetrySummary(session);
+  archiveHumanMatchSession(session, "completed");
+  HUMAN_MATCH_TELEMETRY.active = null;
+  localStorage.removeItem(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY);
+  uploadHumanMatchTelemetry(session);
+}
+
+function archiveHumanMatchSession(session, status = session.status) {
+  const archived = cloneData({ ...session, status, updatedAt: new Date().toISOString() });
+  if (status !== "completed") {
+    archived.completedAt = null;
+    archived.summary = humanMatchTelemetrySummary(archived);
+  }
+  const stored = readStoredJson(HUMAN_MATCH_LOG_STORAGE_KEY, []);
+  const merged = [archived, ...stored.filter((item) => item.matchId !== archived.matchId)];
+  for (let limit = Math.min(20, merged.length); limit >= 1; limit -= 1) {
+    try {
+      localStorage.setItem(HUMAN_MATCH_LOG_STORAGE_KEY, JSON.stringify(merged.slice(0, limit)));
+      break;
+    } catch (error) {
+      // Réduit progressivement l'historique si le quota local est atteint.
+    }
+  }
+}
+
+function getStoredHumanMatchLogs() {
+  return readStoredJson(HUMAN_MATCH_LOG_STORAGE_KEY, []);
+}
+
+async function uploadHumanMatchTelemetry(session) {
+  if (!AUTH_STATE.user || !session?.matchId || HUMAN_MATCH_TELEMETRY.uploadedIds.has(session.matchId)) return;
+  HUMAN_MATCH_TELEMETRY.uploadedIds.add(session.matchId);
+  try {
+    const response = await fetch("/api/human-match-logs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ session }),
+    });
+    if (!response.ok) throw new Error("telemetry upload failed");
+  } catch (error) {
+    HUMAN_MATCH_TELEMETRY.uploadedIds.delete(session.matchId);
+  }
+}
+
+async function uploadPendingHumanMatchLogs() {
+  if (!AUTH_STATE.user) return;
+  const pending = getStoredHumanMatchLogs()
+    .filter((session) => session.status === "completed")
+    .slice(0, 20);
+  for (const session of pending) {
+    await uploadHumanMatchTelemetry(session);
+  }
 }
 
 function formatPermanentBonusStats(bonus) {
@@ -4722,7 +5037,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v134",
+    version: "v135",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4733,16 +5048,69 @@ function exportLogsFile() {
     detailedActions,
     exchangeResults,
   };
+  downloadJsonFile(payload, "tennis-courts-academy-logs");
+}
+
+function downloadJsonFile(payload, prefix) {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   link.href = url;
-  link.download = `tennis-courts-academy-logs-${stamp}.json`;
+  link.download = `${prefix}-${stamp}.json`;
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+async function exportHumanMatchLogsFile() {
+  const localMatches = getStoredHumanMatchLogs();
+  const activeMatch = HUMAN_MATCH_TELEMETRY.active
+    || readStoredJson(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY, null);
+  let serverMatches = [];
+  if (AUTH_STATE.user) {
+    try {
+      const endpoint = canAccessAdminFeatures()
+        ? "/api/admin/human-match-logs?limit=500"
+        : "/api/human-match-logs?limit=100";
+      const response = await fetch(endpoint);
+      if (response.ok) {
+        const payload = await response.json();
+        serverMatches = Array.isArray(payload.matches) ? payload.matches : [];
+      }
+    } catch (error) {
+      // L'export local reste disponible si le serveur n'est pas joignable.
+    }
+  }
+  const merged = new Map();
+  for (const match of [...serverMatches, ...localMatches, ...(activeMatch ? [activeMatch] : [])]) {
+    if (!match?.matchId) continue;
+    const observerId = match.observerUser?.id || match.observerUserId || "";
+    merged.set(`${match.matchId}:${observerId}`, match);
+  }
+  const matches = [...merged.values()].sort((a, b) => (
+    String(b.completedAt || b.updatedAt || b.startedAt).localeCompare(String(a.completedAt || a.updatedAt || a.startedAt))
+  ));
+  const completed = matches.filter((match) => match.status === "completed");
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    game: "Tennis Courts Academy",
+    version: "v135",
+    schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
+    description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
+    scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
+    summary: {
+      matchCount: matches.length,
+      completedMatchCount: completed.length,
+      incompleteMatchCount: matches.length - completed.length,
+      circuitMatchCount: matches.filter((match) => match.context?.type === "circuit-ai").length,
+      humanVsHumanMatchCount: matches.filter((match) => match.participants?.every((participant) => participant.type === "human")).length,
+      humanVsAiMatchCount: matches.filter((match) => match.participants?.some((participant) => participant.type === "ai")).length,
+    },
+    matches,
+  };
+  downloadJsonFile(payload, "tennis-courts-human-matches-v135");
 }
 
 function resetSetMatch() {
@@ -4771,6 +5139,7 @@ function newGame(options = {}) {
   }
   if (!preserveSet) {
     resetSetMatch();
+    HUMAN_MATCH_TELEMETRY.forceNew = true;
   }
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
@@ -4867,6 +5236,9 @@ function newGame(options = {}) {
     state.log.unshift(permanentBonusLogLine(state.players[1]));
     state.log.unshift(permanentBonusLogLine(state.players[0]));
   }
+  if (SOLO_AI.enabled) {
+    SOLO_AI.style = chooseSoloAIStyle();
+  }
   recordAction("exchange_start", {
     playerIndex: state.server,
     playerName: playerName(state.server),
@@ -4874,9 +5246,6 @@ function newGame(options = {}) {
     deckCount: state.deck.length,
     constraints: constraintsLogInfo(),
   });
-  if (SOLO_AI.enabled) {
-    SOLO_AI.style = chooseSoloAIStyle();
-  }
   captureTurnSnapshot();
   els.resultPanel.classList.add("hidden");
   if (SERVER_SYNC.enabled && SERVER_SYNC.isHost) {
@@ -5342,18 +5711,21 @@ function runSoloAITurn() {
 
     const playerIndex = SOLO_AI.playerIndex;
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
+      recordSoloAiDecision("end_turn_after_effect");
       endTurn(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
     }
 
     if (canSoloPassAndWin(playerIndex)) {
+      recordSoloAiDecision("pass_secured_win", soloPassDecisionSnapshot(playerIndex));
       pass(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
     }
 
     if (shouldSoloPassToLimitBoostDamage(playerIndex)) {
+      recordSoloAiDecision("pass_limit_boost_damage", soloPassDecisionSnapshot(playerIndex));
       pass(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
@@ -5362,6 +5734,11 @@ function runSoloAITurn() {
     if (state.mandatoryPlacement) {
       const defenseAction = chooseSoloPlacementDefenseAction(playerIndex);
       if (defenseAction) {
+        recordSoloAiDecision("mandatory_defense", {
+          actionType: defenseAction.type,
+          card: cardLogInfo(defenseAction.card),
+          sacrifice: cardLogInfo(defenseAction.sacrifice),
+        });
         performSoloDefenseAction(playerIndex, defenseAction);
         ensureSoloProgress(beforeSignature);
         return;
@@ -5370,6 +5747,10 @@ function runSoloAITurn() {
 
     const strategicEffect = chooseSoloStrategicEffect(playerIndex);
     if (strategicEffect) {
+      recordSoloAiDecision(
+        state.players[opponentOf(playerIndex)].cancelNextOpponentEffect ? "absorb_effect_cancellation" : "strategic_effect",
+        { card: cardLogInfo(strategicEffect), cost: effectiveCost(state.players[playerIndex], strategicEffect) },
+      );
       playCard(playerIndex, strategicEffect.uid, false, null, "effect");
       ensureSoloProgress(beforeSignature);
       return;
@@ -5377,6 +5758,11 @@ function runSoloAITurn() {
 
     const boostPlay = chooseSoloBoostPlay(playerIndex);
     if (boostPlay) {
+      recordSoloAiDecision("boost", {
+        card: cardLogInfo(boostPlay.card),
+        sacrifice: cardLogInfo(boostPlay.sacrifice),
+        analysis: boostPlay.analysis,
+      });
       playCard(playerIndex, boostPlay.card.uid, true, boostPlay.sacrifice.uid);
       ensureSoloProgress(beforeSignature);
       return;
@@ -5384,6 +5770,7 @@ function runSoloAITurn() {
 
     const urgentPlacementRemise = chooseSoloRemiseForPlacement(playerIndex);
     if (urgentPlacementRemise) {
+      recordSoloAiDecision("placement_remise", { card: cardLogInfo(urgentPlacementRemise) });
       playCard(playerIndex, urgentPlacementRemise.uid, false, null, "placement");
       ensureSoloProgress(beforeSignature);
       return;
@@ -5391,6 +5778,7 @@ function runSoloAITurn() {
 
     const normalCoup = chooseSoloNormalCoup(playerIndex);
     if (normalCoup) {
+      recordSoloAiDecision("normal_coup", { card: cardLogInfo(normalCoup) });
       playCard(playerIndex, normalCoup.uid);
       ensureSoloProgress(beforeSignature);
       return;
@@ -5398,12 +5786,14 @@ function runSoloAITurn() {
 
     const usefulEffect = chooseSoloEffectCard(playerIndex);
     if (usefulEffect) {
+      recordSoloAiDecision("fallback_effect", { card: cardLogInfo(usefulEffect) });
       playCard(playerIndex, usefulEffect.uid, false, null, "effect");
       ensureSoloProgress(beforeSignature);
       return;
     }
 
     if (canEndTurn(playerIndex)) {
+      recordSoloAiDecision("end_turn");
       endTurn(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
@@ -5415,6 +5805,7 @@ function runSoloAITurn() {
       return;
     }
 
+    recordSoloAiDecision("forced_pass", soloPassDecisionSnapshot(playerIndex));
     pass(playerIndex);
   } catch (error) {
     state.log.unshift(`IA Coach Max : décision impossible, plan de secours activé.`);
@@ -5423,6 +5814,40 @@ function runSoloAITurn() {
     SOLO_AI.executing = false;
     maybeRunSoloAI();
   }
+}
+
+function recordSoloAiDecision(decision, details = {}) {
+  const playerIndex = SOLO_AI.playerIndex;
+  recordAction("ai_decision", {
+    playerIndex,
+    opponentIndex: opponentOf(playerIndex),
+    playerName: displayPlayerName(state.players[playerIndex]),
+    decision,
+    details,
+    aiStyle: SOLO_AI.style,
+    aiDifficulty: state.tournament?.difficulty || SOLO_AI.difficulty,
+    constraints: constraintsLogInfo(),
+  });
+}
+
+function soloPassDecisionSnapshot(playerIndex) {
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const passPenalty = Math.max(2, player.endurance);
+  const projectedPowers = state.players.map((candidate, index) => (
+    candidate.power + projectedEndBonuses(candidate) + (index === opponentIndex ? passPenalty : 0)
+  ));
+  return {
+    passPenalty,
+    currentPower: state.players.map((candidate) => candidate.power),
+    projectedPower: projectedPowers,
+    projectedWinner: projectedPowers[playerIndex] > projectedPowers[opponentIndex]
+      ? playerIndex
+      : projectedPowers[playerIndex] < projectedPowers[opponentIndex]
+        ? opponentIndex
+        : state.server,
+    hasSafeContinuation: hasSafeSoloContinuation(playerIndex),
+  };
 }
 
 function soloTurnSignature() {
@@ -5477,7 +5902,12 @@ function soloEmergencyFallback(playerIndex) {
     playCard(playerIndex, forcedCoup.uid);
     return;
   }
-  const forcedRemise = player.hand.find((card) => isRemise(card) && canPlayNormal(playerIndex, card));
+  const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
+  const forcedRemise = player.hand.find((card) => (
+    isRemise(card)
+    && canPlayNormal(playerIndex, card)
+    && (!effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2))
+  ));
   if (forcedRemise && !state.mandatoryPlacement) {
     playCard(playerIndex, forcedRemise.uid, false, null, "effect");
     return;
@@ -5551,6 +5981,7 @@ function chooseSoloBoostEscapeEffect(playerIndex) {
 
 function soloBoostEscapeEffectScore(playerIndex, card) {
   const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
   const remainingEndurance = player.endurance - effectiveCost(player, card);
   if (remainingEndurance < 0) return 0;
   const followUpCoups = player.hand
@@ -5561,8 +5992,10 @@ function soloBoostEscapeEffectScore(playerIndex, card) {
   const followUpValue = bestFollowUp ? 18 + soloPlayableCoupScore(playerIndex, bestFollowUp) : 0;
   if (card.effectType === "jokerResponse") return 20 + followUpValue - effectiveCost(player, card) * 4;
   if (card.effectType === "removeOpponentLast") {
+    if (opponent.cancelNextOpponentEffect) return 0;
     const target = bestRemovalTargetFor(playerIndex);
     if (!target) return 0;
+    if (!isSoloRemovalWorthCost(playerIndex, card, target)) return 0;
     return 24 + removalTargetScore(target) + followUpValue - effectiveCost(player, card) * 4;
   }
   return 0;
@@ -5733,6 +6166,7 @@ function shouldSoloPassToLimitBoostDamage(playerIndex) {
   if (state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return false;
   if (!isVulnerableToJuBoostPressure(playerIndex) && !isExpertVulnerableToCounterPressure(playerIndex)) return false;
   if (isMatchDangerForPlayer(playerIndex) || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex)) return false;
+  if (hasSafeSoloContinuation(playerIndex)) return false;
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   const projectedPowers = state.players.map((candidate, index) => {
@@ -5748,6 +6182,19 @@ function shouldSoloPassToLimitBoostDamage(playerIndex) {
   if (!isProjectedSetAcceptableForAI(playerIndex, exchangeWinner, projectedPowers, "power")) return false;
   const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers);
   return exchangeScore.loserGames > 0 || !state.setMatch.enabled;
+}
+
+function hasSafeSoloContinuation(playerIndex) {
+  const player = state.players[playerIndex];
+  const requiredPlacement = state.lastCard?.precision ?? 0;
+  const directCoup = player.hand.some((card) => {
+    if (isRemise(card) || !canPlayNormal(playerIndex, card)) return false;
+    if (!state.lastCard || state.turnIgnoresPlacement[playerIndex]) return true;
+    return totalTurnPlacement(playerIndex, card, false) >= requiredPlacement;
+  });
+  if (directCoup) return true;
+  const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
+  return Boolean(defensePlan?.coup || defensePlan?.remises?.length);
 }
 
 function wouldPassLoseSetOrMatch(playerIndex) {
@@ -6018,6 +6465,10 @@ function remiseSubsets(playerIndex, remises) {
 function chooseSoloStrategicEffect(playerIndex) {
   if (state.turnHasEffect[playerIndex]) return null;
   const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (opponent.cancelNextOpponentEffect) {
+    return chooseSoloCancellationBait(playerIndex);
+  }
   const effects = player.hand
     .filter((card) => isRemise(card) && canPlayNormal(playerIndex, card))
     .map((card) => ({ card, score: soloImmediateEffectValue(playerIndex, card) }))
@@ -6026,18 +6477,63 @@ function chooseSoloStrategicEffect(playerIndex) {
   return effects[0]?.card ?? null;
 }
 
+function chooseSoloCancellationBait(playerIndex) {
+  const player = state.players[playerIndex];
+  const candidates = player.hand
+    .filter((card) => isRemise(card) && card.effectType !== "removeOpponentLast" && canPlayNormal(playerIndex, card))
+    .filter((card) => effectiveCost(player, card) <= 2)
+    .map((card) => {
+      const remainingEndurance = player.endurance - effectiveCost(player, card);
+      const followUp = player.hand
+        .filter((candidate) => candidate.uid !== card.uid && !isRemise(candidate))
+        .filter((candidate) => effectiveCost(player, candidate) <= remainingEndurance)
+        .filter((candidate) => satisfiesFamilyLimit(player, candidate) && satisfiesReturnServiceRestriction(candidate))
+        .sort((a, b) => soloPlayableCoupScore(playerIndex, b) - soloPlayableCoupScore(playerIndex, a))[0];
+      return {
+        card,
+        followUp,
+        score: followUp
+          ? soloPlayableCoupScore(playerIndex, followUp) - effectiveCost(player, card) * 10 - soloEffectPreservationScore(card)
+          : -Infinity,
+      };
+    })
+    .filter((choice) => choice.followUp)
+    .sort((a, b) => b.score - a.score || effectiveCost(player, a.card) - effectiveCost(player, b.card));
+  return candidates[0]?.card ?? null;
+}
+
 function soloImmediateEffectValue(playerIndex, card) {
   const opponentIndex = opponentOf(playerIndex);
   const opponent = state.players[opponentIndex];
-  const lastOpponentCard = [...opponent.played].reverse().find((played) => !played.removed);
   if (card.effectType === "removeOpponentLast") {
+    if (opponent.cancelNextOpponentEffect) return 0;
     const target = bestRemovalTargetFor(playerIndex);
-    return target ? Math.max(6, removalTargetScore(target) / 2) : 0;
+    return target && isSoloRemovalWorthCost(playerIndex, card, target)
+      ? removalTargetScore(target) - effectiveCost(state.players[playerIndex], card) * 2
+      : 0;
   }
   if (card.effectType === "jokerResponse" && (state.mandatoryPlacementReason === "boost" || state.lastCard?.boosted)) return 14;
   if (card.effectType === "freeBoostNext" && isFreeBoostNextWindow(playerIndex) && player.hand.some((candidate) => !isRemise(candidate))) return 6;
   if (card.effectType === "doubleLastShot" && player.played.some((played) => !played.removed && isShot(played))) return 6;
   return 0;
+}
+
+function isSoloRemovalWorthCost(playerIndex, card, target) {
+  if (!card || !target) return false;
+  const player = state.players[playerIndex];
+  const cost = effectiveCost(player, card);
+  const targetValue = removalTargetScore(target);
+  const isMandatoryDefense = state.mandatoryPlacement
+    && state.mandatoryPlacementSourceUid === target.playedUid;
+  const removesActiveThreat = Boolean(
+    target.boosted
+    || target.copiedSmashThreat
+    || target.copiedEffectType
+    || ["smashThreat", "limitOpponentFamilies", "boostedBonusAtEnd", "doubleLastShot"].includes(target.effectType),
+  );
+  if (isMandatoryDefense) return true;
+  if (cost >= 3 && !removesActiveThreat) return targetValue >= 26;
+  return targetValue >= 14 + cost * 3;
 }
 
 function chooseSoloBoostPlay(playerIndex) {
@@ -6049,7 +6545,8 @@ function chooseSoloBoostPlay(playerIndex) {
     .map((card) => {
       const sacrifice = chooseSoloSacrifice(playerIndex, card);
       if (!sacrifice) return null;
-      const boostedScore = soloBoostScore(playerIndex, card) - soloSacrificeScore(sacrifice) * 0.35;
+      const sacrificeScore = soloSacrificeScore(sacrifice);
+      const boostedScore = soloBoostScore(playerIndex, card) - sacrificeScore * 0.35;
       const normalScore = canPlayNormal(playerIndex, card) ? soloCardScore(playerIndex, card) : -Infinity;
       const passPressure = wouldOpponentBeAbleToPassAndWin(playerIndex, card, true);
       const threat = SOLO_AI.style === "expert" ? expertCounterBoostThreat(playerIndex, card, sacrifice) : { danger: 0, probability: 0, canDefend: true };
@@ -6061,6 +6558,7 @@ function chooseSoloBoostPlay(playerIndex) {
         rawBoostedScore: boostedScore,
         normalScore,
         passPressure,
+        sacrificeScore,
       };
     })
     .filter(Boolean)
@@ -6080,7 +6578,19 @@ function chooseSoloBoostPlay(playerIndex) {
   if (SOLO_AI.style === "expert" && best.threat.probability > 0.3) {
     state.log.unshift(`IA Expert : risque de contre-boost estimé ${Math.round(best.threat.probability * 100)}%${best.threat.canDefend ? ", défense possible." : ", défense fragile."}`);
   }
-  return shouldBoost ? { card: best.card, sacrifice: best.sacrifice } : null;
+  return shouldBoost ? {
+    card: best.card,
+    sacrifice: best.sacrifice,
+    analysis: {
+      boostedScore: best.boostedScore,
+      rawBoostedScore: best.rawBoostedScore,
+      normalScore: best.normalScore,
+      sacrificeScore: best.sacrificeScore,
+      passPressure: best.passPressure,
+      counterBoostProbability: best.threat.probability,
+      canDefendCounterBoost: best.threat.canDefend,
+    },
+  } : null;
 }
 
 function shouldAvoidOptionalBoostForSet(playerIndex) {
@@ -6146,7 +6656,10 @@ function soloPlayableCoupScore(playerIndex, card) {
 function chooseSoloEffectCard(playerIndex) {
   if (state.turnHasEffect[playerIndex] || state.mandatoryPlacement) return null;
   const player = state.players[playerIndex];
-  const remises = player.hand.filter((card) => isRemise(card) && canPlayNormal(playerIndex, card));
+  const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
+  const remises = player.hand
+    .filter((card) => isRemise(card) && canPlayNormal(playerIndex, card))
+    .filter((card) => !effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2));
   const joker = remises
     .filter((card) => card.effectType === "jokerResponse" && state.lastCard?.boosted)
     .sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
@@ -6209,7 +6722,27 @@ function wouldOpponentBeAbleToPassAndWin(playerIndex, card, boosted) {
 }
 
 function soloSacrificeScore(card) {
-  return card.power * 3 + card.placement + card.precision - card.cost;
+  return card.power * 3 + card.placement + card.precision - card.cost + soloEffectPreservationScore(card);
+}
+
+function soloEffectPreservationScore(card) {
+  const preservation = {
+    removeOpponentLast: 30,
+    jokerResponse: 18,
+    freeBoostNext: 13,
+    doubleLastShot: 12,
+    drawCard: 10,
+    gainEndurance: 9,
+    nextPrecisionAndPlacement: 9,
+    cancelOpponentNextEffect: 9,
+    limitOpponentFamilies: 8,
+    boostedBonusAtEnd: 8,
+    discardOpponent: 7,
+    nextPlacement: 6,
+    nextPrecision: 6,
+    nextDiscount: 5,
+  };
+  return preservation[card.effectType] ?? 2;
 }
 
 function soloEffectScore(card) {
@@ -6402,10 +6935,13 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     : "";
   state.log.unshift(`${displayPlayerName(player)} joue ${card.name}${boostText}${remiseText} : +${stats.power} puissance, précision ${stats.precision}, placement ${stats.placement}${effectPlacementText}${endsTurn ? `, placement total ${combinedPlacement}` : ""}.`);
   const effectCanceled = state.players[opponentIndex].cancelNextOpponentEffect;
+  let effectResolution = "applied";
   if (!appliesEffect) {
+    effectResolution = "ignored_remise";
     setEffectNotice("ignoré", card, `${card.effect} Ne s'applique pas car la carte est jouée en Remise.`);
     state.log.unshift(`L'effet de ${card.name} ne s'applique pas car la carte est jouée en Remise.`);
   } else if (effectCanceled) {
+    effectResolution = "canceled_by_opponent";
     state.players[opponentIndex].cancelNextOpponentEffect = false;
     state.players[opponentIndex].cancelNextOpponentEffectSourceUid = null;
     playedCard.effectApplied = false;
@@ -6418,6 +6954,15 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
       setEffectNotice("appliqué", card, card.effect);
     }
   }
+  recordAction("effect_resolution", {
+    playerIndex,
+    opponentIndex,
+    playerName: displayPlayerName(player),
+    card: cardLogInfo(playedCard),
+    effectType: card.effectType,
+    resolution: effectResolution,
+    costPaid: cost,
+  });
 
   if (state.gameOver) return;
 
@@ -6516,6 +7061,16 @@ function applyDeferredFinalRemiseEffect(playerIndex) {
     finalCard.effectApplied = false;
     setEffectNotice("annulé", finalCard, `${finalCard.effect} Annulé par l'effet adverse.`);
     state.log.unshift(`L'effet final de ${finalCard.name} est annulé.`);
+    recordAction("effect_resolution", {
+      playerIndex,
+      opponentIndex,
+      playerName: displayPlayerName(state.players[playerIndex]),
+      card: cardLogInfo(finalCard),
+      effectType: finalCard.effectType,
+      resolution: "canceled_by_opponent",
+      costPaid: finalCard.costPaid ?? finalCard.cost,
+      deferred: true,
+    });
     return false;
   }
   const freeBoostWindow = finalCard.effectType !== "freeBoostNext" || isFreeBoostNextWindow(playerIndex);
@@ -6523,6 +7078,16 @@ function applyDeferredFinalRemiseEffect(playerIndex) {
   if (freeBoostWindow) {
     setEffectNotice("appliqué", finalCard, finalCard.effect);
   }
+  recordAction("effect_resolution", {
+    playerIndex,
+    opponentIndex,
+    playerName: displayPlayerName(state.players[playerIndex]),
+    card: cardLogInfo(finalCard),
+    effectType: finalCard.effectType,
+    resolution: "applied",
+    costPaid: finalCard.costPaid ?? finalCard.cost,
+    deferred: true,
+  });
   state.log.unshift(`${playerName(playerIndex)} termine son tour sur ${finalCard.name} : son effet et son placement sont pris en compte.`);
   if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingCoachChoice) {
     state.pendingEndTurnAfterChoice = { playerIndex, sourcePlayedUid: finalCard.playedUid };
@@ -6760,6 +7325,15 @@ function resolveRemoveChoice(targetPlayedUid) {
     render();
     return;
   }
+  recordAction("remove_card", {
+    playerIndex,
+    opponentIndex,
+    playerName: displayPlayerName(player),
+    sourceCard: cardLogInfo(sourceCard),
+    targetCard: cardLogInfo(target),
+    targetValue: removalTargetScore(target),
+    sourceCost: sourceCard.costPaid ?? sourceCard.cost,
+  });
   removeOpponentPlayed(opponentIndex, target.playedUid);
   if (continuePendingEndTurnIfNeeded(playerIndex, sourcePlayedUid)) {
     return;
@@ -7490,7 +8064,6 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
-  handleTournamentMatchComplete();
   recordAction("exchange_end", {
     winner,
     winnerName: playerName(winner),
@@ -7509,6 +8082,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
     players: state.players.map(playerLogInfo),
   });
   storeMatchLog(winner, reason);
+  handleTournamentMatchComplete();
   render();
 }
 
@@ -7636,6 +8210,7 @@ function startMatchMode(targetSets = null, options = {}) {
   state.setMatch.setsWon = [0, 0];
   state.setMatch.matchOver = false;
   state.setMatch.matchWinner = null;
+  HUMAN_MATCH_TELEMETRY.forceNew = true;
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
   const styleLabel = aiStyleLabel();
@@ -9369,6 +9944,7 @@ function renderModeButtons() {
   if (els.exportLogsButton) {
     els.exportLogsButton.classList.toggle("hidden", SPECTATOR_MODE.enabled || (SERVER_SYNC.enabled && !canAccessAdminFeatures()));
   }
+  els.exportHumanMatchesButton?.classList.toggle("hidden", SPECTATOR_MODE.enabled);
 }
 
 function currentModeLabel() {
@@ -10644,6 +11220,7 @@ function initMenu() {
   });
   els.manageUsersButton?.addEventListener("click", showAdminScreen);
   els.backToLobbyFromAdminButton?.addEventListener("click", showMenuScreen);
+  els.adminExportHumanMatchesButton?.addEventListener("click", exportHumanMatchLogsFile);
   els.generateProCodesButton?.addEventListener("click", generateProCodes);
   els.adminPrevPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage - 1));
   els.adminNextPageButton?.addEventListener("click", () => loadAdminUsers(AUTH_STATE.adminPage + 1));
@@ -10709,6 +11286,7 @@ els.friendlyLobbyLogoButton?.addEventListener("click", openReturnLobbyDialog);
 els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
+els.exportHumanMatchesButton?.addEventListener("click", exportHumanMatchLogsFile);
 document.addEventListener("click", (event) => {
   if (SPECTATOR_MODE.enabled) return;
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;
@@ -10737,7 +11315,7 @@ document.addEventListener("click", (event) => {
   }
 });
 window.forceSoloAITurn = forceSoloAITurn;
-window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, exportLogsFile, render, state };
+window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, getStoredHumanMatchLogs, exportLogsFile, exportHumanMatchLogsFile, render, state };
 window.addEventListener("pagehide", signalFriendlyTournamentPageExit);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) restoreFriendlyTournamentPresence();

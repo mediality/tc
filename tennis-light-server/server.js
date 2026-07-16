@@ -143,6 +143,7 @@ const authMemory = {
   circuitResults: [],
   aiResults: new Map(),
   appState: new Map(),
+  humanMatchLogs: new Map(),
 };
 const db = PgPool && process.env.DATABASE_URL
   ? new PgPool({
@@ -1366,6 +1367,22 @@ async function initAuthStorage() {
       value TEXT NOT NULL
     )
   `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS human_match_logs (
+      match_id TEXT NOT NULL,
+      observer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      context_type TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'completed',
+      started_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      payload JSONB NOT NULL,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (match_id, observer_user_id)
+    )
+  `);
+  await db.query("CREATE INDEX IF NOT EXISTS human_match_logs_completed_idx ON human_match_logs(completed_at DESC, received_at DESC)");
+  await db.query("CREATE INDEX IF NOT EXISTS human_match_logs_context_idx ON human_match_logs(context_type, completed_at DESC)");
   await applyWeeklyRankingRollover();
 }
 
@@ -2384,6 +2401,84 @@ async function listProCodes() {
   }).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 }
 
+function normalizeHumanMatchLogSession(payload, user) {
+  const session = payload?.session;
+  if (!session || typeof session !== "object" || Array.isArray(session)) {
+    throw new Error("Journal de partie invalide.");
+  }
+  const matchId = String(session.matchId || "").trim();
+  if (!matchId || matchId.length > 160) throw new Error("Identifiant de partie invalide.");
+  if (session.status !== "completed" || !session.completedAt) {
+    throw new Error("Seules les parties terminées peuvent être enregistrées.");
+  }
+  const serialized = JSON.stringify(session);
+  if (serialized.length > 9_000_000) throw new Error("Journal de partie trop volumineux.");
+  return {
+    ...session,
+    schemaVersion: Number(session.schemaVersion || 1),
+    matchId,
+    status: "completed",
+    observerUser: {
+      id: user.id,
+      nickname: user.nickname,
+    },
+    receivedAt: new Date().toISOString(),
+  };
+}
+
+async function saveHumanMatchLog(user, payload) {
+  const session = normalizeHumanMatchLogSession(payload, user);
+  if (db) {
+    await db.query(`
+      INSERT INTO human_match_logs
+        (match_id, observer_user_id, context_type, status, started_at, completed_at, payload, received_at, updated_at)
+      VALUES ($1, $2, $3, 'completed', $4, $5, $6::jsonb, NOW(), NOW())
+      ON CONFLICT (match_id, observer_user_id)
+      DO UPDATE SET
+        context_type = EXCLUDED.context_type,
+        status = EXCLUDED.status,
+        started_at = EXCLUDED.started_at,
+        completed_at = EXCLUDED.completed_at,
+        payload = EXCLUDED.payload,
+        received_at = NOW(),
+        updated_at = NOW()
+    `, [
+      session.matchId,
+      user.id,
+      String(session.context?.type || ""),
+      session.startedAt || null,
+      session.completedAt || null,
+      JSON.stringify(session),
+    ]);
+  } else {
+    authMemory.humanMatchLogs.set(`${user.id}:${session.matchId}`, session);
+  }
+  return session;
+}
+
+async function listHumanMatchLogs({ userId = null, limit = 100 } = {}) {
+  const safeLimit = Math.max(1, Math.min(500, Number(limit || 100)));
+  if (db) {
+    const params = [];
+    const where = userId ? "WHERE observer_user_id = $1" : "";
+    if (userId) params.push(userId);
+    params.push(safeLimit);
+    const result = await db.query(`
+      SELECT payload
+      FROM human_match_logs
+      ${where}
+      ORDER BY completed_at DESC NULLS LAST, received_at DESC
+      LIMIT $${params.length}
+    `, params);
+    return result.rows.map((row) => row.payload);
+  }
+  return [...authMemory.humanMatchLogs.entries()]
+    .filter(([key]) => !userId || key.startsWith(`${userId}:`))
+    .map(([, session]) => session)
+    .sort((a, b) => String(b.completedAt || b.receivedAt || "").localeCompare(String(a.completedAt || a.receivedAt || "")))
+    .slice(0, safeLimit);
+}
+
 async function requireAdmin(req, res) {
   const user = await currentUser(req);
   if (!user || normalizeRole(user.role) !== "admin") {
@@ -2505,6 +2600,13 @@ async function handleAuth(req, res, url) {
     } catch (error) {
       sendJson(res, 400, { error: error.message });
     }
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/admin/human-match-logs") {
+    if (!await requireAdmin(req, res)) return true;
+    const matches = await listHumanMatchLogs({ limit: url.searchParams.get("limit") || 500 });
+    sendJson(res, 200, { matches });
     return true;
   }
 
@@ -4284,6 +4386,33 @@ function friendlyRoundReadyForPlay(tournament) {
 
 async function handleApi(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  if (url.pathname === "/api/human-match-logs") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return;
+    }
+    if (req.method === "POST") {
+      try {
+        const session = await saveHumanMatchLog(user, await readJson(req));
+        sendJson(res, 201, { ok: true, matchId: session.matchId });
+      } catch (error) {
+        sendJson(res, 400, { error: error.message });
+      }
+      return;
+    }
+    if (req.method === "GET") {
+      const matches = await listHumanMatchLogs({
+        userId: user.id,
+        limit: url.searchParams.get("limit") || 100,
+      });
+      sendJson(res, 200, { matches });
+      return;
+    }
+    sendJson(res, 405, { error: "Méthode non autorisée." });
+    return;
+  }
 
   if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/profiles/")) && await handleAuth(req, res, url)) {
     return;

@@ -5,7 +5,9 @@
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
     "start": "node server.js",
-    "test:club-house": "node tests/v134-club-house.mjs"
+    "test:club-house": "node tests/v135-club-house.mjs",
+    "test:ai-logging": "node tests/v135-ai-logging.mjs",
+    "test:ai-policy": "node tests/v135-ai-policy-unit.mjs"
   },
   "dependencies": {
     "pg": "^8.12.0"

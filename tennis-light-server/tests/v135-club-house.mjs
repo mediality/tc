@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy <span>v134<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v135<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);
@@ -33,4 +33,4 @@ assert.match(app, /aiClubHouse,\s+difficulty: SOLO_AI\.difficulty,\s+weekly: fal
 assert.match(app, /state\.tournament\.active && !state\.tournament\.aiClubHouse/);
 assert.doesNotMatch(app, /aiStatBonus|aiPowerBonus/);
 
-console.log("v134 CLUB HOUSE IA: OK");
+console.log("v135 CLUB HOUSE IA: OK");

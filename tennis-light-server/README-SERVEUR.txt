@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v134
+Tennis Courts Academy - version serveur v135
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -7,6 +7,13 @@ Lancer en local :
 
 Le serveur affiche un menu/lobby commun :
 - choisir un pseudo et un coach
+- journaliser chaque partie impliquant un joueur humain sous un identifiant de match stable
+- conserver ensemble tous les echanges, actions, decisions IA, effets, suppressions, scores de sets et resultat final
+- envoyer les parties terminees au serveur et permettre leur export personnel ou administrateur
+- exporter un fichier dedie tennis-courts-human-matches-v135 avec les parties completes du circuit, contre l'IA et entre humains
+- empecher l'IA de passer volontairement lorsqu'une reponse sure et abordable respecte le placement
+- preserver Suppression adverse lors des sacrifices et ne la jouer que sur une cible suffisamment rentable ou une menace obligatoire
+- absorber Annulez l'effet avec une carte moins chere lorsqu'un coup de suivi utile reste possible
 - ouvrir une entree unique CLUB HOUSE IA pour configurer une competition amicale hors circuit
 - choisir un TOURNOI ou une LEAGUE en 2 ou 3 sets gagnants contre des adversaires IA tires par la competition
 - regler le niveau IA : NORMAL sans bonus, EXPERT avec 1 bonus, CHAMPION avec 2 bonus ou LEGENDE avec 3 bonus

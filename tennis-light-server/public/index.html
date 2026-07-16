@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=134" />
+    <link rel="stylesheet" href="./styles.css?v=135" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v134</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -120,7 +120,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v134</span></p>
+        <p class="eyebrow">Profil joueur <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -134,7 +134,7 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v134</span></p>
+        <p class="eyebrow">Personnage <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -148,7 +148,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v134</span></p>
+        <p class="eyebrow">Réinitialisation <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -164,7 +164,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v134</span></p>
+        <p class="eyebrow">Classement général <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -188,7 +188,7 @@
 
     <section id="circuitInfoScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v134</span></p>
+        <p class="eyebrow">Tennis Courts Pro Circuit <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel circuit-info-panel">
           <div class="lobby-header">
@@ -227,7 +227,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v134</span></p>
+        <p class="eyebrow">Administration <span>v135</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -235,7 +235,10 @@
               <p class="label">Comptes inscrits</p>
               <h1>Gestion des utilisateurs</h1>
             </div>
-            <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour lobby</button>
+            <div class="admin-inline-actions">
+              <button id="adminExportHumanMatchesButton" class="small-button" type="button">Exporter parties humaines</button>
+              <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour lobby</button>
+            </div>
           </div>
           <div id="adminUsersTable" class="admin-users-table" aria-live="polite"></div>
           <div class="admin-pagination">
@@ -280,7 +283,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v134</span></p>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v135</span></p>
             <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -295,7 +298,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Tournoi amical contre l'IA <span>v134</span></p>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical contre l'IA <span>v135</span></p>
             <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -365,7 +368,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v134</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v135</span></p>
           <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
             <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
@@ -375,6 +378,7 @@
           <button id="spectatorQuitButton" class="small-button danger-button spectator-quit-button hidden" type="button">QUITTER</button>
           <button id="returnLobbyButton" class="small-button" type="button">Retour lobby</button>
           <button id="exportLogsButton" class="small-button" type="button">Exporter logs</button>
+          <button id="exportHumanMatchesButton" class="small-button" type="button">Exporter parties humaines</button>
           <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler les cartes</button>
         </div>
       </section>
@@ -402,6 +406,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=134"></script>
+    <script src="./app.js?v=135"></script>
   </body>
 </html>
