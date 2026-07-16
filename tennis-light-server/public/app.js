@@ -115,9 +115,14 @@ const MENU_STATE = {
   selectedPlayerIndex: Number(localStorage.getItem("tennisLightSelectedPlayer") || 0),
   nickname: localStorage.getItem("tennisLightNickname") || "",
   espoirResolvedCharacterId: null,
-  tournamentDifficulty: localStorage.getItem("tennisLightTournamentDifficulty") || "normal",
   lobbyTimer: null,
   lobbyNotice: "",
+};
+
+const AI_CLUB_HOUSE = {
+  format: localStorage.getItem("tennisLightAiClubFormat") === "league" ? "league" : "tournament",
+  targetSets: Number(localStorage.getItem("tennisLightAiClubSets")) === 3 ? 3 : 2,
+  difficulty: localStorage.getItem("tennisLightAiClubDifficulty") || "normal",
 };
 
 const AUTH_STATE = {
@@ -144,17 +149,31 @@ const ROLE_LABELS = {
   admin: "ADMIN",
 };
 
-const AI_DIFFICULTIES = ["normal", "champion", "hardcore"];
+const AI_DIFFICULTIES = ["normal", "expert", "champion", "legend"];
 const AI_DIFFICULTY_LABELS = {
   normal: "NORMAL",
+  expert: "EXPERT",
   champion: "CHAMPION",
-  hardcore: "HARDCORE",
+  legend: "LÉGENDE",
+};
+const AI_DIFFICULTY_BONUS_COUNTS = {
+  normal: 0,
+  expert: 1,
+  champion: 2,
+  legend: 3,
+};
+const AI_DIFFICULTY_DESCRIPTIONS = {
+  normal: "Normal · IA sans bonus.",
+  expert: "Expert · IA avec 1 bonus aléatoire parmi les 9 bonus du circuit.",
+  champion: "Champion · IA avec 2 bonus aléatoires différents parmi les 9 bonus du circuit.",
+  legend: "Légende · IA avec 3 bonus aléatoires différents parmi les 9 bonus du circuit.",
 };
 
 const EMPTY_TOURNAMENT = {
   active: false,
   visible: false,
   difficulty: "normal",
+  aiClubHouse: false,
   weekly: false,
   league: false,
   competitionId: null,
@@ -1182,6 +1201,14 @@ const els = {
   friendlyLobbyContent: document.querySelector("#friendlyLobbyContent"),
   friendlyLobbyHomeButton: document.querySelector("#friendlyLobbyHomeButton"),
   friendlyLobbyLogoButton: document.querySelector("#friendlyLobbyLogoButton"),
+  aiClubHouseScreen: document.querySelector("#aiClubHouseScreen"),
+  aiClubHouseHomeButton: document.querySelector("#aiClubHouseHomeButton"),
+  aiClubHouseLogoButton: document.querySelector("#aiClubHouseLogoButton"),
+  openAiClubHouseButton: document.querySelector("#openAiClubHouseButton"),
+  startAiClubHouseButton: document.querySelector("#startAiClubHouseButton"),
+  aiLevelDescription: document.querySelector("#aiLevelDescription"),
+  aiClubHouseSummary: document.querySelector("#aiClubHouseSummary"),
+  aiClubSettingButtons: document.querySelectorAll("[data-ai-club-setting]"),
   gameApp: document.querySelector(".game-app"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
@@ -1229,7 +1256,6 @@ const els = {
   backToProfileFromCharacterButton: document.querySelector("#backToProfileFromCharacterButton"),
   weeklyCompetitionsList: document.querySelector("#weeklyCompetitionsList"),
   nicknameInput: document.querySelector("#nicknameInput"),
-  aiDifficultyButton: document.querySelector("#aiDifficultyButton"),
   coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
   refreshLobbyButton: document.querySelector("#refreshLobbyButton"),
   createLobbyRoomButton: document.querySelector("#createLobbyRoomButton"),
@@ -1306,31 +1332,16 @@ function selectedPlayerName() {
 }
 
 function normalizeAiDifficulty(value) {
+  if (value === "hardcore") return "legend";
   return AI_DIFFICULTIES.includes(value) ? value : "normal";
 }
 
-function selectedTournamentDifficulty() {
-  MENU_STATE.tournamentDifficulty = normalizeAiDifficulty(MENU_STATE.tournamentDifficulty);
-  return MENU_STATE.tournamentDifficulty;
-}
-
-function tournamentDifficultyLabel(value = selectedTournamentDifficulty()) {
+function tournamentDifficultyLabel(value = "normal") {
   return AI_DIFFICULTY_LABELS[normalizeAiDifficulty(value)];
 }
 
-function cycleTournamentDifficulty() {
-  const current = selectedTournamentDifficulty();
-  const next = AI_DIFFICULTIES[(AI_DIFFICULTIES.indexOf(current) + 1) % AI_DIFFICULTIES.length];
-  MENU_STATE.tournamentDifficulty = next;
-  localStorage.setItem("tennisLightTournamentDifficulty", next);
-  updateTournamentDifficultyButton();
-}
-
-function updateTournamentDifficultyButton() {
-  if (!els.aiDifficultyButton) return;
-  const difficulty = selectedTournamentDifficulty();
-  els.aiDifficultyButton.textContent = `IA tournoi : ${tournamentDifficultyLabel(difficulty)}`;
-  els.aiDifficultyButton.dataset.difficulty = difficulty;
+function aiDifficultyBonusCount(value = "normal") {
+  return AI_DIFFICULTY_BONUS_COUNTS[normalizeAiDifficulty(value)] || 0;
 }
 
 function characterNameFromId(characterId) {
@@ -2534,6 +2545,7 @@ function showGameScreen() {
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.add("hidden");
+  els.aiClubHouseScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
 }
 
@@ -2546,7 +2558,26 @@ function showFriendlyLobbyScreen() {
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
+  els.aiClubHouseScreen?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.remove("hidden");
+}
+
+function showAiClubHouseScreen() {
+  if (!canAccessProFeatures()) {
+    renderAuthState("Réservé aux joueurs Pro.");
+    return;
+  }
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
+  els.friendlyLobbyScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.aiClubHouseScreen?.classList.remove("hidden");
+  renderAiClubHouse();
 }
 
 function showRankingScreen() {
@@ -2564,6 +2595,7 @@ function showMenuScreen() {
   resetTutorialMode();
   els.gameApp?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.add("hidden");
+  els.aiClubHouseScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -2586,6 +2618,7 @@ function showProfileScreen(userId = null) {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
+  els.aiClubHouseScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.profileScreen?.classList.remove("hidden");
@@ -3157,6 +3190,61 @@ function openReturnLobbyDialog() {
   document.body.appendChild(backdrop);
 }
 
+function renderAiClubHouse() {
+  AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
+  els.aiClubSettingButtons?.forEach((button) => {
+    const setting = button.dataset.aiClubSetting;
+    const expected = setting === "format"
+      ? AI_CLUB_HOUSE.format
+      : setting === "sets"
+        ? String(AI_CLUB_HOUSE.targetSets)
+        : AI_CLUB_HOUSE.difficulty;
+    button.classList.toggle("active", button.dataset.aiClubValue === expected);
+  });
+  if (els.aiLevelDescription) {
+    els.aiLevelDescription.textContent = AI_DIFFICULTY_DESCRIPTIONS[AI_CLUB_HOUSE.difficulty];
+  }
+  if (els.aiClubHouseSummary) {
+    const bonusCount = aiDifficultyBonusCount(AI_CLUB_HOUSE.difficulty);
+    const format = AI_CLUB_HOUSE.format === "league" ? "League" : "Tournoi";
+    els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusCount} bonus IA`;
+  }
+}
+
+function updateAiClubHouseSetting(setting, value) {
+  if (setting === "format") {
+    AI_CLUB_HOUSE.format = value === "league" ? "league" : "tournament";
+    localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
+  } else if (setting === "sets") {
+    AI_CLUB_HOUSE.targetSets = Number(value) === 3 ? 3 : 2;
+    localStorage.setItem("tennisLightAiClubSets", String(AI_CLUB_HOUSE.targetSets));
+  } else if (setting === "difficulty") {
+    AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(value);
+    localStorage.setItem("tennisLightAiClubDifficulty", AI_CLUB_HOUSE.difficulty);
+  }
+  renderAiClubHouse();
+}
+
+function startAiClubHouseCompetition() {
+  if (!canAccessProFeatures()) {
+    showMenuScreen();
+    renderAuthState("Réservé aux joueurs Pro.");
+    return;
+  }
+  resetTutorialMode();
+  MENU_STATE.espoirResolvedCharacterId = null;
+  const options = {
+    aiClubHouse: true,
+    difficulty: AI_CLUB_HOUSE.difficulty,
+  };
+  showGameScreen();
+  if (AI_CLUB_HOUSE.format === "league") {
+    startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+  } else {
+    startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+  }
+}
+
 function configureSoloOpponent() {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
@@ -3175,10 +3263,6 @@ function randomAiCharacterId() {
 
 async function startSoloFromMenu(mode) {
   resetTutorialMode();
-  if (mode === "league3") {
-    renderAuthState("Le mode LEAGUE est limité à 2 sets.");
-    return;
-  }
   const isCompetitionMode = mode.startsWith("tournament") || mode.startsWith("league");
   if (isCompetitionMode && !canAccessProFeatures()) {
     renderAuthState("Réservé aux joueurs Pro.");
@@ -3205,6 +3289,8 @@ async function startSoloFromMenu(mode) {
     startTournamentMode(3);
   } else if (mode === "league2") {
     startLeagueTournamentMode(2);
+  } else if (mode === "league3") {
+    startLeagueTournamentMode(3);
   }
 }
 
@@ -4490,6 +4576,7 @@ function createPlayer(name, characterId, nickname = name) {
     freeBoostNextSourceUid: null,
     endBonuses: [],
     surfaceBonus: null,
+    surfaceBonuses: [],
     permanentBonuses: [],
     passed: false,
   };
@@ -4635,7 +4722,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v133",
+    version: "v134",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -4709,9 +4796,15 @@ function newGame(options = {}) {
     const tournamentEntry = state.tournament.active && playerIndex === 0
       ? HUMAN_TOURNAMENT_ENTRY
       : player.characterId;
-    player.surfaceBonus = state.tournament.active && state.tournament.surfaceBonuses
+    const assignedSurfaceBonuses = state.tournament.active && state.tournament.surfaceBonuses
       ? state.tournament.surfaceBonuses[tournamentEntry] ?? null
       : null;
+    player.surfaceBonuses = Array.isArray(assignedSurfaceBonuses)
+      ? cloneData(assignedSurfaceBonuses)
+      : assignedSurfaceBonuses
+        ? [cloneData(assignedSurfaceBonuses)]
+        : [];
+    player.surfaceBonus = player.surfaceBonuses[0] ?? null;
     player.permanentBonuses = state.tournament.active && state.tournament.permanentBonuses
       ? cloneData(state.tournament.permanentBonuses[tournamentEntry] ?? [])
       : [];
@@ -4719,7 +4812,7 @@ function newGame(options = {}) {
       ? tournamentWorldRankForEntry(tournamentEntry)
       : null;
   });
-  if (state.tournament.active && !SERVER_SYNC.enabled) {
+  if (state.tournament.active && !state.tournament.aiClubHouse && !SERVER_SYNC.enabled) {
     const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
     if (headToHead) {
       const targetIndex = headToHead.target === "human" ? 0 : 1;
@@ -4942,8 +5035,17 @@ function canUseSeat(playerIndex) {
   return true;
 }
 
+function surfaceBonusesForPlayer(player) {
+  if (player?.surfaceBonuses?.length) return player.surfaceBonuses;
+  return player?.surfaceBonus ? [player.surfaceBonus] : [];
+}
+
+function playerHasSurfaceBonus(player, bonusId) {
+  return surfaceBonusesForPlayer(player).some((bonus) => bonus.id === bonusId);
+}
+
 function effectiveCost(player, card) {
-  const remiseDiscount = isRemise(card) && player.surfaceBonus?.id === "grassCheapRemise" ? 1 : 0;
+  const remiseDiscount = isRemise(card) && playerHasSurfaceBonus(player, "grassCheapRemise") ? 1 : 0;
   return isRemise(card)
     ? Math.max(0, card.cost - remiseDiscount)
     : Math.max(0, card.cost - player.nextDiscount + (player.nextExtraCost ?? 0));
@@ -5011,32 +5113,22 @@ function removeSourcedNextBonus(player, key, sourceKey, sourceUid) {
   return removedValue;
 }
 
-function tournamentAiDifficultyForPlayer(player) {
-  if (!state.tournament.active) return "normal";
-  const playerIndex = state.players.indexOf(player);
-  if (playerIndex !== SOLO_AI.playerIndex) return "normal";
-  return normalizeAiDifficulty(state.tournament.difficulty || SOLO_AI.difficulty);
-}
-
 function getCardStats(player, card, boosted) {
   const playerIndex = state.players.indexOf(player);
   const opponent = playerIndex >= 0 ? state.players[opponentOf(playerIndex)] : null;
   const shotBonus = isRemise(card) ? 0 : 1;
   const basePower = boosted ? card.boostPower : card.power;
-  const aiDifficulty = tournamentAiDifficultyForPlayer(player);
-  const aiStatBonus = aiDifficulty === "champion" || aiDifficulty === "hardcore" ? 1 : 0;
-  const aiPowerBonus = aiDifficulty === "hardcore" && !isRemise(card) ? 1 : 0;
   const permanentPrecisionBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.precision || 0), 0);
   const permanentPlacementBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.placement || 0), 0);
   const permanentPowerBonus = isRemise(card) ? 0 : (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
-  let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus + aiStatBonus;
+  let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus;
   precision += permanentPrecisionBonus;
-  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + aiStatBonus + permanentPlacementBonus;
+  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
   let surfacePowerBonus = 0;
-  if (!isRemise(card) && player.surfaceBonus?.id === "grassPowerVolleySmash" && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
-  if (!isRemise(card) && player.surfaceBonus?.id === "hardPrecisePower" && precision > 3) surfacePowerBonus += 1;
-  if (!isRemise(card) && player.surfaceBonus?.id === "clayGroundPower" && ["Coup droit", "Revers"].includes(card.family)) surfacePowerBonus += 1;
-  if (!isRemise(card) && player.surfaceBonus?.id === "clayBoostPower" && boosted) surfacePowerBonus += 2;
+  if (!isRemise(card) && playerHasSurfaceBonus(player, "grassPowerVolleySmash") && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
+  if (!isRemise(card) && playerHasSurfaceBonus(player, "hardPrecisePower") && precision > 3) surfacePowerBonus += 1;
+  if (!isRemise(card) && playerHasSurfaceBonus(player, "clayGroundPower") && ["Coup droit", "Revers"].includes(card.family)) surfacePowerBonus += 1;
+  if (!isRemise(card) && playerHasSurfaceBonus(player, "clayBoostPower") && boosted) surfacePowerBonus += 2;
   let characterPowerBonus = 0;
   if (!isRemise(card)) {
     for (const bonus of player.exchangeFamilyPowerBonuses ?? []) {
@@ -5051,7 +5143,7 @@ function getCardStats(player, card, boosted) {
       if (previousShot?.family === bonus.afterFamily) placement += bonus.value ?? 0;
     }
   }
-  let power = (basePower + aiPowerBonus + permanentPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
+  let power = (basePower + permanentPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
   if (!isRemise(card) && player.nextPowerCap != null) power = Math.min(power, Number(player.nextPowerCap));
   return {
     power,
@@ -6142,24 +6234,25 @@ function soloEffectScore(card) {
 
 function applySurfaceBonusAfterPlay(playerIndex, playedCard, costPaid) {
   const player = state.players[playerIndex];
-  const bonus = player.surfaceBonus;
-  if (!bonus || isRemise(playedCard)) return;
-  if (bonus.id === "grassBoostPrecisionDraw" && playedCard.boosted) {
-    addNextPrecisionBonus(player, 1, playedCard.playedUid);
-    const drawn = drawCards(player, 1);
-    state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +1 précision${drawn ? " et pioche 1 carte" : ""}.`);
-  }
-  if (bonus.id === "hardCheapShotDraw" && costPaid === 1) {
-    const drawn = drawCards(player, 1);
-    state.log.unshift(drawn ? `${bonus.label} : ${displayPlayerName(player)} pioche 1 carte.` : `${bonus.label} : deck vide.`);
-  }
-  if (bonus.id === "hardBoostPlacement" && playedCard.boosted) {
-    addNextPlacementBonus(player, 2, playedCard.playedUid);
-    state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +2 placement sur sa carte suivante.`);
-  }
-  if (bonus.id === "clayForehandEndurance" && playedCard.family === "Coup droit") {
-    player.endurance += 1;
-    state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} récupère 1 endurance.`);
+  if (isRemise(playedCard)) return;
+  for (const bonus of surfaceBonusesForPlayer(player)) {
+    if (bonus.id === "grassBoostPrecisionDraw" && playedCard.boosted) {
+      addNextPrecisionBonus(player, 1, playedCard.playedUid);
+      const drawn = drawCards(player, 1);
+      state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +1 précision${drawn ? " et pioche 1 carte" : ""}.`);
+    }
+    if (bonus.id === "hardCheapShotDraw" && costPaid === 1) {
+      const drawn = drawCards(player, 1);
+      state.log.unshift(drawn ? `${bonus.label} : ${displayPlayerName(player)} pioche 1 carte.` : `${bonus.label} : deck vide.`);
+    }
+    if (bonus.id === "hardBoostPlacement" && playedCard.boosted) {
+      addNextPlacementBonus(player, 2, playedCard.playedUid);
+      state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +2 placement sur sa carte suivante.`);
+    }
+    if (bonus.id === "clayForehandEndurance" && playedCard.family === "Coup droit") {
+      player.endurance += 1;
+      state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} récupère 1 endurance.`);
+    }
   }
 }
 
@@ -7553,8 +7646,8 @@ function startMatchMode(targetSets = null, options = {}) {
   render();
 }
 
-function startLeagueTournamentMode() {
-  const targetSets = 2;
+function startLeagueTournamentMode(targetSets = 2, options = {}) {
+  targetSets = Number(targetSets) === 3 ? 3 : 2;
   if (SERVER_SYNC.enabled) {
     state.log.unshift("LEAGUE est disponible hors partie en ligne.");
     render();
@@ -7563,19 +7656,26 @@ function startLeagueTournamentMode() {
   resetTournament();
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  SOLO_AI.difficulty = "normal";
+  SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
   const setup = buildLeagueTournamentSetup();
-  const dynamicBonusIds = previousWeekDynamicBonusIds();
-  const permanentBonuses = buildTournamentPermanentBonuses(setup.seededEntries, [], dynamicBonusIds);
+  const aiClubHouse = Boolean(options.aiClubHouse);
+  const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
+  const permanentBonuses = aiClubHouse
+    ? {}
+    : buildTournamentPermanentBonuses(setup.seededEntries, [], dynamicBonusIds);
+  const surfaceBonuses = aiClubHouse
+    ? buildAiLevelBonuses(setup.seededEntries, SOLO_AI.difficulty)
+    : {};
   state.tournament = {
     active: true,
     visible: true,
     league: true,
+    aiClubHouse,
     difficulty: SOLO_AI.difficulty,
     weekly: false,
     competitionId: null,
-    competitionName: "LEAGUE 2 sets",
+    competitionName: `LEAGUE ${targetSets} sets`,
     competitionSurface: null,
     competitionSurfaceLabel: null,
     competitionPoints: null,
@@ -7594,13 +7694,15 @@ function startLeagueTournamentMode() {
     leagueGroups: setup.groups,
     leagueSeededEntries: setup.seededEntries,
     leagueCompletedDays: 0,
-    surfaceBonuses: {},
+    surfaceBonuses,
     permanentBonuses,
     seededCharacters: [],
     dynamicBonusIds,
-    matches: buildLeagueTournamentMatches(setup.seededEntries, HUMAN_TOURNAMENT_ENTRY, targetSets),
+    matches: [],
   };
+  state.tournament.matches = buildLeagueTournamentMatches(setup.seededEntries, HUMAN_TOURNAMENT_ENTRY, targetSets);
   prepareLeagueHumanMatch();
+  state.log.unshift(`CLUB HOUSE IA · LEAGUE ${targetSets} sets · niveau ${tournamentDifficultyLabel(SOLO_AI.difficulty)}.`);
   render();
 }
 
@@ -7871,23 +7973,30 @@ function startTournamentMode(targetSets = 2, options = {}) {
   resetTournament();
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  SOLO_AI.difficulty = "normal";
+  SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
   if (weeklyCompetition) {
     startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
     return;
   }
   const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
-  const dynamicBonusIds = previousWeekDynamicBonusIds();
-  const permanentBonuses = buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
+  const aiClubHouse = Boolean(options.aiClubHouse);
+  const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
+  const permanentBonuses = aiClubHouse
+    ? {}
+    : buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
+  const surfaceBonuses = aiClubHouse
+    ? buildAiLevelBonuses(positions, SOLO_AI.difficulty)
+    : {};
   state.tournament = {
     active: true,
     visible: false,
     bracket16: true,
+    aiClubHouse,
     difficulty: SOLO_AI.difficulty,
     weekly: Boolean(weeklyCompetition),
     competitionId: weeklyCompetition?.id || null,
-    competitionName: weeklyCompetition?.name || null,
+    competitionName: weeklyCompetition?.name || (aiClubHouse ? "TOURNOI AMICAL IA" : null),
     competitionCity: weeklyCompetition?.city || null,
     competitionCountry: weeklyCompetition?.country || null,
     competitionFlag: weeklyCompetition?.flag || null,
@@ -7907,12 +8016,13 @@ function startTournamentMode(targetSets = 2, options = {}) {
     nextHumanMatchId: null,
     championCharacterId: null,
     weeklyPositions: positions,
-    surfaceBonuses: {},
+    surfaceBonuses,
     permanentBonuses,
-    seededCharacters: seededHistorics,
+    seededCharacters: aiClubHouse ? [] : seededHistorics,
     dynamicBonusIds,
-    matches: buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets),
+    matches: [],
   };
+  state.tournament.matches = buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets);
   refreshTournamentDerivedSlots();
   const firstHumanMatch = nextHumanTournamentMatch();
   state.tournament.currentMatch = firstHumanMatch?.id || null;
@@ -7920,7 +8030,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = firstHumanMatch?.id || null;
   state.tournament.stage = firstHumanMatch?.round || "round16";
-  const tournamentLabel = weeklyCompetition?.name || (targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
+  const tournamentLabel = weeklyCompetition?.name || `Tournoi amical ${targetSets} sets`;
   const surfaceText = weeklyCompetition?.surfaceLabel ? ` · ${weeklyCompetition.surfaceLabel}` : "";
   state.log.unshift(`${tournamentLabel}${surfaceText} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}.`);
   render();
@@ -7982,6 +8092,23 @@ function previousWeekDynamicBonusIds() {
 function randomSurfaceBonus(surface) {
   const options = SURFACE_BONUSES[surface] || [];
   return options[Math.floor(Math.random() * options.length)] || null;
+}
+
+function allCircuitSeedBonuses() {
+  return Object.entries(SURFACE_BONUSES).flatMap(([surface, bonuses]) => (
+    bonuses.map((bonus) => ({ ...bonus, surface }))
+  ));
+}
+
+function buildAiLevelBonuses(entries = [], difficulty = "normal") {
+  const bonusCount = aiDifficultyBonusCount(difficulty);
+  if (!bonusCount) return {};
+  const bonuses = {};
+  const aiEntries = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
+  for (const entry of aiEntries) {
+    bonuses[entry] = shuffle(allCircuitSeedBonuses()).slice(0, bonusCount);
+  }
+  return bonuses;
 }
 
 function randomHistoricPermanentBonus() {
@@ -8236,7 +8363,13 @@ function aiTournamentStrength(characterId) {
   const isSeeded = (state.tournament?.seededCharacters || []).includes(characterId);
   const permanentBonuses = state.tournament?.permanentBonuses?.[characterId] ?? [];
   const dynamicBonus = (state.tournament?.dynamicBonusIds || []).includes(characterId) ? 5 : 0;
-  const surfaceBonus = state.tournament?.surfaceBonuses?.[characterId] ? 4 : 0;
+  const assignedSurfaceBonuses = state.tournament?.surfaceBonuses?.[characterId];
+  const surfaceBonusCount = Array.isArray(assignedSurfaceBonuses)
+    ? assignedSurfaceBonuses.length
+    : assignedSurfaceBonuses
+      ? 1
+      : 0;
+  const surfaceBonus = surfaceBonusCount * 4;
   const historicBonus = isHistoric ? 8 : 0;
   const seededBonus = isSeeded ? 4 : 0;
   const permanentBonus = permanentBonuses.length ? 3 : 0;
@@ -9247,7 +9380,8 @@ function currentModeLabel() {
   if (state.tournament.active) {
     const title = state.tournament.competitionName || (state.tournament.targetSets === 3 ? "Slam 3 sets" : "Tournoi 2 sets");
     const surface = state.tournament.competitionSurfaceLabel ? ` · ${state.tournament.competitionSurfaceLabel}` : "";
-    return `${title}${surface} · ${tournamentStageLabel()}`;
+    const aiLevel = state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)}` : "";
+    return `${title}${surface}${aiLevel} · ${tournamentStageLabel()}`;
   }
   if (state.setMatch.enabled && state.setMatch.targetSets) return `Contre l'IA · Match ${state.setMatch.targetSets} sets · IA ${aiStyleLabel()}`;
   if (state.setMatch.enabled) return `Contre l'IA · Set · IA ${aiStyleLabel()}`;
@@ -9387,6 +9521,7 @@ function renderTournamentPanel() {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
+        ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusCount(state.tournament.difficulty)} bonus</span>` : ""}
         ${state.tournament.competitionSurfaceLabel ? `<span class="difficulty-reminder">${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
         ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
         ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
@@ -9499,7 +9634,7 @@ function renderLeagueTournamentPanel(title, final, champion) {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4</span>
+        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusCount(state.tournament.difficulty)} bonus` : ""}</span>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
@@ -9777,7 +9912,7 @@ function renderCharacterCard(player, playerIndex) {
     : null;
   const bonusReminders = [
     worldRankReminder,
-    player.surfaceBonus,
+    ...surfaceBonusesForPlayer(player),
     ...(player.permanentBonuses ?? []),
   ].filter(Boolean);
   const surfaceBonus = bonusReminders.length
@@ -10487,9 +10622,9 @@ function initServerSync() {
 
 function initMenu() {
   MENU_STATE.selectedPlayerIndex = COACH_OPTIONS[MENU_STATE.selectedPlayerIndex] ? MENU_STATE.selectedPlayerIndex : 0;
-  MENU_STATE.tournamentDifficulty = normalizeAiDifficulty(MENU_STATE.tournamentDifficulty);
+  AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   updateMenuSelection();
-  updateTournamentDifficultyButton();
+  renderAiClubHouse();
   renderAuthState();
   updateAccessControls();
   loadAuthState();
@@ -10542,7 +10677,16 @@ function initMenu() {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
   document.querySelector("[data-start-tutorial]")?.addEventListener("click", () => startTutorial());
-  els.aiDifficultyButton?.addEventListener("click", cycleTournamentDifficulty);
+  els.openAiClubHouseButton?.addEventListener("click", showAiClubHouseScreen);
+  els.aiClubHouseHomeButton?.addEventListener("click", showMenuScreen);
+  els.aiClubHouseLogoButton?.addEventListener("click", showMenuScreen);
+  els.startAiClubHouseButton?.addEventListener("click", startAiClubHouseCompetition);
+  els.aiClubSettingButtons?.forEach((button) => {
+    button.addEventListener("click", () => updateAiClubHouseSetting(
+      button.dataset.aiClubSetting,
+      button.dataset.aiClubValue,
+    ));
+  });
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
   els.createFriendlyTournamentButton?.addEventListener("click", createFriendlyTournament);

@@ -753,6 +753,10 @@ body.tutorial-running .boost-button strong {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.friendly-setting-switch.four-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .friendly-setting-button {
   min-width: 0;
   min-height: 42px;
@@ -784,6 +788,30 @@ body.tutorial-running .boost-button strong {
 .friendly-settings-panel.locked .friendly-setting-button:not(.active) {
   color: #64748b;
   background: #e5e7eb;
+}
+
+.ai-club-house-panel {
+  gap: 20px;
+}
+
+.ai-club-house-photo img {
+  max-height: 350px;
+}
+
+.ai-club-house-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, auto);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ai-club-house-footer .friendly-lobby-status {
+  display: flex;
+  align-items: center;
+}
+
+.ai-club-house-start-button {
+  min-height: 52px;
 }
 
 .friendly-player-card {
@@ -1341,19 +1369,6 @@ body.spectator-mode .player-panel {
 .online-lobby-panel.locked button,
 .online-lobby-panel.locked select {
   cursor: not-allowed;
-}
-
-.ai-difficulty-button {
-  background: #d9e8ff;
-}
-
-.ai-difficulty-button[data-difficulty="champion"] {
-  background: #f5d05f;
-}
-
-.ai-difficulty-button[data-difficulty="hardcore"] {
-  background: #ef4444;
-  color: #fff;
 }
 
 .weekly-competitions-list {
@@ -1985,6 +2000,10 @@ body.spectator-mode .player-panel {
     grid-template-columns: 1fr;
   }
 
+  .friendly-setting-switch.four-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .friendly-setting-switch.three-options .friendly-setting-button {
     border-right: 0;
     border-bottom: 1px solid #94a3b8;
@@ -1992,6 +2011,18 @@ body.spectator-mode .player-panel {
 
   .friendly-setting-switch.three-options .friendly-setting-button:last-child {
     border-bottom: 0;
+  }
+
+  .friendly-setting-switch.four-options .friendly-setting-button:nth-child(2) {
+    border-right: 0;
+  }
+
+  .friendly-setting-switch.four-options .friendly-setting-button:nth-child(-n + 2) {
+    border-bottom: 1px solid #94a3b8;
+  }
+
+  .ai-club-house-footer {
+    grid-template-columns: 1fr;
   }
 
   .spectator-live-banner {

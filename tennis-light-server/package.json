@@ -4,7 +4,8 @@
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:club-house": "node tests/v134-club-house.mjs"
   },
   "dependencies": {
     "pg": "^8.12.0"

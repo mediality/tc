@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v133
+Tennis Courts Academy - version serveur v134
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -7,6 +7,11 @@ Lancer en local :
 
 Le serveur affiche un menu/lobby commun :
 - choisir un pseudo et un coach
+- ouvrir une entree unique CLUB HOUSE IA pour configurer une competition amicale hors circuit
+- choisir un TOURNOI ou une LEAGUE en 2 ou 3 sets gagnants contre des adversaires IA tires par la competition
+- regler le niveau IA : NORMAL sans bonus, EXPERT avec 1 bonus, CHAMPION avec 2 bonus ou LEGENDE avec 3 bonus
+- tirer les bonus IA sans doublon parmi les 9 bonus de tetes de serie du Tennis Courts Pro Circuit
+- garantir que ces competitions contre l'IA n'enregistrent aucun point et ne modifient pas le circuit professionnel
 - creer une partie en ligne en match 2 sets ou match 3 sets
 - creer ou rejoindre un tournoi amical en ligne jusqu'a 4 joueurs humains
 - choisir avant le lancement un tournoi CLASSIC ou LEAGUE, en 2 ou 3 sets gagnants

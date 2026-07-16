@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=132" />
+    <link rel="stylesheet" href="./styles.css?v=134" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v133</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -66,10 +66,7 @@
               </div>
               <div class="menu-mode-group restricted-pro" data-required-role="pro">
                 <p class="label">Compétition</p>
-                <button id="aiDifficultyButton" class="small-button ai-difficulty-button" type="button">IA tournoi : NORMAL</button>
-                <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament2">CLASSIC 2 sets</button>
-                <button class="small-button tournament-menu-button" type="button" data-start-solo="tournament3">CLASSIC Slam 3 sets</button>
-                <button class="small-button tournament-menu-button" type="button" data-start-solo="league2">LEAGUE 2 sets</button>
+                <button id="openAiClubHouseButton" class="primary-button tournament-menu-button" type="button">CLUB HOUSE IA</button>
                 <p class="access-note">Réservé aux joueurs Pro.</p>
               </div>
             </div>
@@ -123,7 +120,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v133</span></p>
+        <p class="eyebrow">Profil joueur <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -137,7 +134,7 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v133</span></p>
+        <p class="eyebrow">Personnage <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -151,7 +148,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v133</span></p>
+        <p class="eyebrow">Réinitialisation <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -167,7 +164,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v133</span></p>
+        <p class="eyebrow">Classement général <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -191,7 +188,7 @@
 
     <section id="circuitInfoScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v133</span></p>
+        <p class="eyebrow">Tennis Courts Pro Circuit <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel circuit-info-panel">
           <div class="lobby-header">
@@ -230,7 +227,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v133</span></p>
+        <p class="eyebrow">Administration <span>v134</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -283,7 +280,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v133</span></p>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v134</span></p>
             <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -294,10 +291,81 @@
       </div>
     </section>
 
+    <section id="aiClubHouseScreen" class="menu-screen friendly-lobby-screen ai-club-house-screen hidden">
+      <div class="menu-shell friendly-lobby-shell">
+        <div class="friendly-lobby-topbar">
+          <div>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical contre l'IA <span>v134</span></p>
+            <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+              <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+            </button>
+          </div>
+          <button id="aiClubHouseHomeButton" class="small-button" type="button">Retour lobby</button>
+        </div>
+
+        <section class="menu-panel friendly-lobby-panel ai-club-house-panel">
+          <div class="friendly-lobby-title">
+            <div>
+              <p class="label">Configuration</p>
+              <h1>Votre compétition contre l'IA</h1>
+              <p>Une partie amicale, sans incidence sur le Tennis Courts Pro Circuit.</p>
+            </div>
+          </div>
+
+          <figure class="friendly-club-house-photo ai-club-house-photo">
+            <img src="./assets/club-house-tournoi.jpg" alt="Club House Tennis Courts" />
+          </figure>
+
+          <div class="friendly-settings-panel ai-club-house-settings">
+            <div class="friendly-setting-row">
+              <div>
+                <strong>Format</strong>
+                <span>Tableau à élimination directe ou championnat.</span>
+              </div>
+              <div class="friendly-setting-switch" aria-label="Format de la compétition">
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="format" data-ai-club-value="tournament">TOURNOI</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="format" data-ai-club-value="league">LEAGUE</button>
+              </div>
+            </div>
+
+            <div class="friendly-setting-row">
+              <div>
+                <strong>Sets gagnants</strong>
+                <span>Format de chaque rencontre.</span>
+              </div>
+              <div class="friendly-setting-switch" aria-label="Nombre de sets gagnants">
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="sets" data-ai-club-value="2">2 SETS</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="sets" data-ai-club-value="3">3 SETS</button>
+              </div>
+            </div>
+
+            <div class="friendly-setting-row">
+              <div>
+                <strong>Niveau IA</strong>
+                <span id="aiLevelDescription">Normal · IA sans bonus.</span>
+              </div>
+              <div class="friendly-setting-switch four-options" aria-label="Niveau de l'intelligence artificielle">
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="difficulty" data-ai-club-value="normal">NORMAL</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="expert">EXPERT</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="champion">CHAMPION</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="legend">LÉGENDE</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="ai-club-house-footer">
+            <div id="aiClubHouseSummary" class="friendly-lobby-status" aria-live="polite"></div>
+            <button id="startAiClubHouseButton" class="primary-button ai-club-house-start-button" type="button">LANCER LA COMPÉTITION</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v133</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v134</span></p>
           <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
             <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
@@ -334,6 +402,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=132"></script>
+    <script src="./app.js?v=134"></script>
   </body>
 </html>
