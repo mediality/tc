@@ -52,4 +52,40 @@ const preservationContext = {};
 vm.runInNewContext(`${functionSource("soloEffectPreservationScore")}; result = soloEffectPreservationScore({ effectType: "removeOpponentLast" });`, preservationContext);
 assert.equal(preservationContext.result, 30);
 
-console.log("v135 politique IA: OK");
+const doublePreservationContext = {};
+vm.runInNewContext(`${functionSource("soloEffectPreservationScore")}; result = soloEffectPreservationScore({ effectType: "doubleLastShot" });`, doublePreservationContext);
+assert.equal(doublePreservationContext.result, 16);
+
+const confrontationContext = {};
+vm.runInNewContext(`${functionSource("confrontationStatus")}; results = [
+  confrontationStatus(5, 0),
+  confrontationStatus(6, 0),
+  confrontationStatus(9, 1),
+  confrontationStatus(4, 6),
+  confrontationStatus(2, 4),
+];`, confrontationContext);
+assert.equal(confrontationContext.results[0], null);
+assert.equal(confrontationContext.results[1].label, "Domination humaine");
+assert.equal(confrontationContext.results[2].label, "Ascendant humain");
+assert.equal(confrontationContext.results[3].label, "Ascendant IA");
+assert.equal(confrontationContext.results[4].label, "Bête noire");
+
+const doubleContext = {
+  state: {
+    players: [
+      { power: 5, played: [{ id: "shot", powerGained: 4, cardPowerGained: 4, removed: false }] },
+      { power: 7, played: [] },
+    ],
+  },
+  opponentOf: (index) => 1 - index,
+  isShot: () => true,
+  effectiveCost: () => 2,
+  projectedEndBonuses: () => 0,
+  cardLogInfo: (card) => ({ id: card.id }),
+};
+vm.runInNewContext(`${functionSource("soloDoubleProjection")}; result = soloDoubleProjection(0, { cost: 2 });`, doubleContext);
+assert.equal(doubleContext.result.duplicatedPower, 4);
+assert.equal(doubleContext.result.changesLeader, true);
+assert.equal(doubleContext.result.viable, true);
+
+console.log("v136 politique IA: OK");

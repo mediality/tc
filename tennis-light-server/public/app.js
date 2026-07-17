@@ -115,6 +115,12 @@ const SOLO_AI = {
   watchdogTimer: null,
   nudgeVisible: false,
   nudgeWatchedTurn: null,
+  attitude: "opportunistic",
+  attitudeReason: "lecture initiale",
+  attitudeRevisionAt: 0,
+  attitudeRevisionWindow: 2,
+  plan: null,
+  planRevision: 0,
 };
 
 const MENU_STATE = {
@@ -1854,13 +1860,57 @@ function renderRanking() {
 
 function confrontationStatus(wins, losses) {
   const total = wins + losses;
-  if (!total) return null;
+  if (total < 6) return null;
   const ratio = (wins / total) * 100;
-  if (ratio > 90) return { label: "Domination", className: "domination" };
-  if (ratio > 70) return { label: "Ascendant", className: "ascendant-positive" };
-  if (ratio < 20) return { label: "Bête noire", className: "bete-noire" };
-  if (ratio < 30) return { label: "Ascendant", className: "ascendant-negative" };
+  if (ratio > 90) return { label: "Domination humaine", className: "domination" };
+  if (ratio > 80) return { label: "Ascendant humain", className: "ascendant-positive" };
+  if (ratio < 35) return { label: "Bête noire", className: "bete-noire" };
+  if (ratio < 50) return { label: "Ascendant IA", className: "ascendant-negative" };
   return null;
+}
+
+function profileCharacterVisuals(characterId) {
+  const normalizedId = CHARACTER_IMAGES[characterId] ? characterId : "coachUnknown";
+  const cards = CHARACTER_IMAGES[normalizedId] || CHARACTER_IMAGES.coachUnknown;
+  return {
+    illustration: PROFILE_CHARACTER_IMAGES[characterId] || cards[0],
+    recto: cards[0],
+    verso: cards[1] || cards[0],
+  };
+}
+
+function openImageZoom(imageUrl, label = "Carte") {
+  document.querySelector(".image-zoom-backdrop")?.remove();
+  if (!imageUrl) return;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop image-zoom-backdrop";
+  backdrop.innerHTML = `
+    <button class="image-zoom-close" type="button" aria-label="Fermer l'agrandissement">×</button>
+    <figure class="image-zoom-figure" role="dialog" aria-modal="true" aria-label="${escapeHtml(label)} agrandie">
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(label)}" />
+    </figure>
+  `;
+  document.body.append(backdrop);
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKeyDown);
+  };
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop || event.target.closest(".image-zoom-close")) close();
+  });
+  const onKeyDown = (event) => {
+    if (event.key !== "Escape") return;
+    close();
+  };
+  document.addEventListener("keydown", onKeyDown);
+}
+
+function attachImageZoomHandlers(root = document) {
+  root.querySelectorAll("[data-image-zoom]").forEach((button) => {
+    if (button.dataset.zoomBound === "1") return;
+    button.dataset.zoomBound = "1";
+    button.addEventListener("click", () => openImageZoom(button.dataset.imageZoom, button.dataset.imageLabel));
+  });
 }
 
 function profileMarkup(profile) {
@@ -1873,7 +1923,8 @@ function profileMarkup(profile) {
   const isOwnProfile = !profile?.publicProfile;
   const activity = profile?.activity || null;
   const selectedProfileCharacter = user?.selectedCharacterId || "tennisHope";
-  const selectedCharacterImage = PROFILE_CHARACTER_IMAGES[selectedProfileCharacter] || CHARACTER_IMAGES[selectedProfileCharacter]?.[0] || CHARACTER_IMAGES.coachUnknown[0];
+  const selectedCharacterVisuals = profileCharacterVisuals(selectedProfileCharacter);
+  const selectedCharacterName = characterNameFromId(selectedProfileCharacter);
   const palmaresResults = results.filter((row) => ["winner", "finalist"].includes(String(row.achievement || "").toLowerCase()));
   const resultRows = palmaresResults.length
     ? palmaresResults.map((row) => {
@@ -1963,8 +2014,18 @@ function profileMarkup(profile) {
       <section class="profile-card">
         <p class="label">Personnage</p>
         <div class="profile-character-summary">
-          <img src="${selectedCharacterImage}" alt="${escapeHtml(characterNameFromId(selectedProfileCharacter))}" />
-          <strong>${escapeHtml(characterNameFromId(selectedProfileCharacter))}</strong>
+          <div class="profile-character-visuals">
+            ${[
+              [selectedCharacterVisuals.illustration, `${selectedCharacterName} - illustration`],
+              [selectedCharacterVisuals.recto, `${selectedCharacterName} - carte recto`],
+              [selectedCharacterVisuals.verso, `${selectedCharacterName} - carte verso`],
+            ].map(([image, label]) => `
+              <button class="profile-character-visual" type="button" data-image-zoom="${escapeHtml(image)}" data-image-label="${escapeHtml(label)}" aria-label="Agrandir ${escapeHtml(label)}">
+                <img src="${escapeHtml(image)}" alt="${escapeHtml(label)}" />
+              </button>
+            `).join("")}
+          </div>
+          <strong>${escapeHtml(selectedCharacterName)}</strong>
         </div>
         ${isOwnProfile ? '<button id="openCharacterPageButton" class="primary-button" type="button">Changer de personnage</button>' : ""}
       </section>
@@ -2033,6 +2094,7 @@ async function loadProfile(userId = null) {
     document.querySelector("[data-watch-profile-user]")?.addEventListener("click", (event) => {
       startProfileSpectator(event.currentTarget.dataset.watchProfileUser, event.currentTarget.dataset.watchProfileLabel);
     });
+    attachImageZoomHandlers(els.profileContent);
   } catch (error) {
     if (els.profileContent) els.profileContent.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
   }
@@ -4640,6 +4702,7 @@ function cardLogInfo(card) {
     effectType: card.effectType,
     copiedSmashThreat: Boolean(card.copiedSmashThreat),
     copiedEffectType: card.copiedEffectType ?? null,
+    remiseMode: card.remiseMode ?? null,
     boosted: Boolean(card.boosted),
     removed: Boolean(card.removed),
   };
@@ -4816,7 +4879,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v135",
+    gameVersion: "v136",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -4914,7 +4977,14 @@ function humanMatchTelemetrySummary(session) {
     expensiveCanceledEffects: 0,
     suppressionUses: 0,
     suppressionSacrifices: 0,
+    doubleUses: 0,
+    aiDoubleUses: 0,
+    aiPunitiveContinuations: 0,
+    aiPlannedPointDecisions: 0,
+    aiPlannedBoostDecisions: 0,
+    aiAttitudeChanges: 0,
   };
+  let previousAiAttitude = null;
   for (const action of actions) {
     const role = roleFor(action.playerIndex);
     if (role === "human") summary.humanActions += 1;
@@ -4939,6 +5009,18 @@ function humanMatchTelemetrySummary(session) {
       if (Number(action.costPaid || 0) >= 3) summary.expensiveCanceledEffects += 1;
     }
     if (action.kind === "remove_card" && action.sourceCard?.id === "sup-adv") summary.suppressionUses += 1;
+    if (action.kind === "play_card" && action.card?.effectType === "doubleLastShot" && action.remiseMode === "effect") {
+      summary.doubleUses += 1;
+      if (role === "ai") summary.aiDoubleUses += 1;
+    }
+    if (action.kind === "ai_decision") {
+      if (action.decision === "press_secured_advantage") summary.aiPunitiveContinuations += 1;
+      if (action.decision === "planned_points") summary.aiPlannedPointDecisions += 1;
+      if (action.decision === "planned_boost") summary.aiPlannedBoostDecisions += 1;
+      const attitude = action.aiAttitude || action.details?.attitude;
+      if (previousAiAttitude && attitude && attitude !== previousAiAttitude) summary.aiAttitudeChanges += 1;
+      if (attitude) previousAiAttitude = attitude;
+    }
   }
   return summary;
 }
@@ -5037,7 +5119,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v135",
+    version: "v136",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5096,7 +5178,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v135",
+    version: "v136",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5110,7 +5192,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v135");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v136");
 }
 
 function resetSetMatch() {
@@ -5238,6 +5320,7 @@ function newGame(options = {}) {
   }
   if (SOLO_AI.enabled) {
     SOLO_AI.style = chooseSoloAIStyle();
+    initializeSoloAiExchangeStrategy(SOLO_AI.playerIndex);
   }
   recordAction("exchange_start", {
     playerIndex: state.server,
@@ -5245,6 +5328,8 @@ function newGame(options = {}) {
     players: state.players.map(playerLogInfo),
     deckCount: state.deck.length,
     constraints: constraintsLogInfo(),
+    aiAttitude: SOLO_AI.enabled ? SOLO_AI.attitude : null,
+    aiAttitudeReason: SOLO_AI.enabled ? SOLO_AI.attitudeReason : null,
   });
   captureTurnSnapshot();
   els.resultPanel.classList.add("hidden");
@@ -5710,6 +5795,7 @@ function runSoloAITurn() {
     }
 
     const playerIndex = SOLO_AI.playerIndex;
+    const scenarioPlan = prepareSoloScenarioPlan(playerIndex);
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
       recordSoloAiDecision("end_turn_after_effect");
       endTurn(playerIndex);
@@ -5718,6 +5804,16 @@ function runSoloAITurn() {
     }
 
     if (canSoloPassAndWin(playerIndex)) {
+      const punitivePath = chooseSoloPunitiveContinuation(playerIndex, scenarioPlan);
+      if (punitivePath) {
+        recordSoloAiDecision("press_secured_advantage", {
+          path: punitivePath,
+          pass: soloPassDecisionSnapshot(playerIndex),
+        });
+        executeSoloPlanPath(playerIndex, punitivePath);
+        ensureSoloProgress(beforeSignature);
+        return;
+      }
       recordSoloAiDecision("pass_secured_win", soloPassDecisionSnapshot(playerIndex));
       pass(playerIndex);
       ensureSoloProgress(beforeSignature);
@@ -5754,6 +5850,15 @@ function runSoloAITurn() {
       playCard(playerIndex, strategicEffect.uid, false, null, "effect");
       ensureSoloProgress(beforeSignature);
       return;
+    }
+
+    const selectedPlanPath = scenarioPlan?.selectedPath;
+    if (selectedPlanPath && ["boost", "normal", "effect"].includes(selectedPlanPath.type)) {
+      recordSoloAiDecision(`planned_${scenarioPlan.selectedObjective}`, { path: selectedPlanPath });
+      if (executeSoloPlanPath(playerIndex, selectedPlanPath)) {
+        ensureSoloProgress(beforeSignature);
+        return;
+      }
     }
 
     const boostPlay = chooseSoloBoostPlay(playerIndex);
@@ -5823,8 +5928,14 @@ function recordSoloAiDecision(decision, details = {}) {
     opponentIndex: opponentOf(playerIndex),
     playerName: displayPlayerName(state.players[playerIndex]),
     decision,
-    details,
+    details: {
+      ...details,
+      attitude: SOLO_AI.attitude,
+      attitudeReason: SOLO_AI.attitudeReason,
+      plan: soloPlanLogInfo(SOLO_AI.plan),
+    },
     aiStyle: SOLO_AI.style,
+    aiAttitude: SOLO_AI.attitude,
     aiDifficulty: state.tournament?.difficulty || SOLO_AI.difficulty,
     constraints: constraintsLogInfo(),
   });
@@ -6112,6 +6223,400 @@ function resolveSoloPendingChoice(forceClose = false) {
 
 function chooseSoloAIStyle() {
   return "expert";
+}
+
+function weightedSoloChoice(weights) {
+  const entries = Object.entries(weights).filter(([, value]) => value > 0);
+  const total = entries.reduce((sum, [, value]) => sum + value, 0);
+  let cursor = Math.random() * Math.max(1, total);
+  for (const [key, value] of entries) {
+    cursor -= value;
+    if (cursor <= 0) return key;
+  }
+  return entries[0]?.[0] || "opportunistic";
+}
+
+function soloOpponentExperience(playerIndex) {
+  const opponentIndex = opponentOf(playerIndex);
+  const active = HUMAN_MATCH_TELEMETRY.active;
+  const stored = getStoredHumanMatchLogs()
+    .filter((session) => session.context?.type === "circuit-ai" || session.context?.type === "club-house-ai")
+    .filter((session) => session.participants?.some((participant) => participant.type === "ai" && participant.characterId === state.players[playerIndex]?.characterId))
+    .slice(0, 6);
+  const sessions = [active, ...stored].filter(Boolean);
+  const exchanges = sessions.flatMap((session) => session.exchanges || []);
+  const actions = exchanges.flatMap((exchange) => exchange.actions || []);
+  const humanActions = actions.filter((action) => action.playerIndex === opponentIndex);
+  const humanCards = humanActions.filter((action) => action.kind === "play_card");
+  const completedExchanges = exchanges.filter((exchange) => exchange.completedAt);
+  const aiBoostExchanges = completedExchanges.filter((exchange) => (
+    exchange.actions?.some((action) => action.playerIndex === playerIndex && action.kind === "play_card" && action.boosted)
+  ));
+  return {
+    sampleExchanges: completedExchanges.length,
+    boostRate: humanCards.length ? humanCards.filter((action) => action.boosted).length / humanCards.length : 0,
+    placementRiskRate: humanCards.length ? humanCards.filter((action) => action.placementWasInsufficient).length / humanCards.length : 0,
+    jokerRate: humanCards.length ? humanCards.filter((action) => action.card?.effectType === "jokerResponse").length / humanCards.length : 0,
+    preparedDefenseRate: humanCards.length ? humanCards.filter((action) => ["nextPlacement", "nextPrecisionAndPlacement"].includes(action.card?.effectType)).length / humanCards.length : 0,
+    aiBoostSuccessRate: aiBoostExchanges.length
+      ? aiBoostExchanges.filter((exchange) => exchange.result?.winner === playerIndex).length / aiBoostExchanges.length
+      : 0.5,
+  };
+}
+
+function soloInitialHandProfile(playerIndex) {
+  const player = state.players[playerIndex];
+  const shots = player.hand.filter((card) => !isRemise(card));
+  const remises = player.hand.filter(isRemise);
+  const strongShots = shots.filter((card) => card.power >= 4 || card.boostPower >= 5).length;
+  const boostPairs = shots.reduce((count, card) => (
+    count + shots.filter((candidate) => candidate.uid !== card.uid && canFamilyBoostAfter(card.family, candidate.family)).length
+  ), 0);
+  return {
+    strongShots,
+    boostPairs,
+    hasJoker: remises.some((card) => card.effectType === "jokerResponse"),
+    hasSuppression: remises.some((card) => card.effectType === "removeOpponentLast"),
+    hasDouble: remises.some((card) => card.effectType === "doubleLastShot"),
+    totalCost: player.hand.reduce((sum, card) => sum + effectiveCost(player, card), 0),
+  };
+}
+
+function isLateCircuitRoundWithoutBonus(playerIndex) {
+  const player = state.players[playerIndex];
+  return Boolean(
+    state.tournament?.weekly
+    && ["semi", "final"].includes(state.tournament.stage)
+    && !(player.permanentBonuses || []).length
+    && !surfaceBonusesForPlayer(player).length
+  );
+}
+
+function chooseSoloAttitude(playerIndex, reason = "lecture initiale") {
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  const hand = soloInitialHandProfile(playerIndex);
+  const experience = soloOpponentExperience(playerIndex);
+  const weights = { aggressive: 3, prudent: 3, opportunistic: 4 };
+  if (hand.strongShots >= 2 || hand.boostPairs >= 2) weights.aggressive += 4;
+  if (hand.hasJoker || hand.hasSuppression) weights.aggressive += 2;
+  if (hand.hasDouble) weights.opportunistic += 4;
+  if (hand.totalCost > player.endurance * 2) weights.prudent += 3;
+  if (experience.sampleExchanges >= 2 && experience.boostRate >= 0.16) weights.prudent += 3;
+  if (experience.sampleExchanges >= 2 && experience.placementRiskRate >= 0.12) weights.opportunistic += 3;
+  if (experience.jokerRate + experience.preparedDefenseRate >= 0.12) weights.opportunistic += 2;
+  if (experience.sampleExchanges >= 3 && experience.aiBoostSuccessRate >= 0.62) weights.aggressive += 3;
+  if (experience.sampleExchanges >= 3 && experience.aiBoostSuccessRate <= 0.38) weights.prudent += 3;
+  if (opponent.hand.length <= 2 || (opponent.endurance <= 1 && !opponent.nextDiscount)) weights.aggressive += 4;
+  if (isSetDangerForPlayer(playerIndex) || isMatchDangerForPlayer(playerIndex)) weights.aggressive += 2;
+  if (isLateCircuitRoundWithoutBonus(playerIndex)) {
+    weights.opportunistic += 3;
+    weights.aggressive += 2;
+  }
+  const attitude = weightedSoloChoice(weights);
+  SOLO_AI.attitude = attitude;
+  SOLO_AI.attitudeReason = reason;
+  SOLO_AI.attitudeRevisionAt = SOLO_AI.planRevision;
+  SOLO_AI.attitudeRevisionWindow = 2 + Math.floor(Math.random() * 3);
+  return attitude;
+}
+
+function initializeSoloAiExchangeStrategy(playerIndex) {
+  SOLO_AI.plan = null;
+  SOLO_AI.planRevision = 0;
+  chooseSoloAttitude(playerIndex, "main initiale et expérience récente");
+}
+
+function shouldReevaluateSoloAttitude(playerIndex) {
+  if (!SOLO_AI.plan) return false;
+  if (SOLO_AI.planRevision - SOLO_AI.attitudeRevisionAt < SOLO_AI.attitudeRevisionWindow) return false;
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  const primaryUid = SOLO_AI.plan.selectedPath?.cardUid;
+  const primaryBlocked = primaryUid && !player.hand.some((card) => card.uid === primaryUid);
+  const resourceSwing = Math.abs((SOLO_AI.plan.resources?.opponentEndurance ?? opponent.endurance) - opponent.endurance) >= 2
+    || Math.abs((SOLO_AI.plan.resources?.opponentHand ?? opponent.hand.length) - opponent.hand.length) >= 2;
+  const planContradicted = state.mandatoryPlacement || primaryBlocked || resourceSwing || opponent.hand.length <= 1 || opponent.endurance <= 0;
+  return planContradicted && Math.random() < 0.58;
+}
+
+function soloAttitudeLabel(attitude = SOLO_AI.attitude) {
+  return attitude === "aggressive" ? "agressive" : attitude === "prudent" ? "prudente" : "opportuniste";
+}
+
+function soloDoubleProjection(playerIndex, card) {
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  const target = [...player.played].reverse().find((played) => !played.removed && isShot(played));
+  const duplicatedPower = target?.cardPowerGained ?? target?.powerGained ?? 0;
+  const cost = card ? effectiveCost(player, card) : 0;
+  if (!target || duplicatedPower <= 0 || cost > player.endurance) {
+    return { viable: false, duplicatedPower: 0, cost, score: -Infinity, target: null };
+  }
+  const beforePowers = state.players.map((candidate) => candidate.power + projectedEndBonuses(candidate));
+  const afterPowers = [...beforePowers];
+  afterPowers[playerIndex] += duplicatedPower;
+  const beforeGap = beforePowers[playerIndex] - beforePowers[opponentOf(playerIndex)];
+  const afterGap = afterPowers[playerIndex] - afterPowers[opponentOf(playerIndex)];
+  const changesLeader = beforeGap <= 0 && afterGap > 0;
+  const removesLoserGame = Math.abs(beforeGap) < 5 && afterGap >= 5;
+  const humanImplication = Math.max(0, afterPowers[playerIndex] - opponent.power);
+  const score = duplicatedPower * 5 - cost * 4 + (changesLeader ? 28 : 0) + (removesLoserGame ? 14 : 0) + Math.min(10, humanImplication);
+  return {
+    viable: score >= 8,
+    duplicatedPower,
+    cost,
+    score,
+    target: cardLogInfo(target),
+    beforeGap,
+    afterGap,
+    changesLeader,
+    removesLoserGame,
+    humanImplication,
+  };
+}
+
+function soloBoostOptionCandidates(playerIndex) {
+  const player = state.players[playerIndex];
+  return player.hand
+    .filter((card) => canPlayBoost(playerIndex, card))
+    .map((card) => {
+      const sacrifice = chooseSoloSacrifice(playerIndex, card);
+      if (!sacrifice) return null;
+      const sacrificeScore = soloSacrificeScore(sacrifice);
+      const rawBoostedScore = soloBoostScore(playerIndex, card) - sacrificeScore * 0.35;
+      const normalScore = canPlayNormal(playerIndex, card) ? soloCardScore(playerIndex, card) : -Infinity;
+      const passPressure = wouldOpponentBeAbleToPassAndWin(playerIndex, card, true);
+      const threat = expertCounterBoostThreat(playerIndex, card, sacrifice);
+      const boostedScore = rawBoostedScore - threat.danger;
+      const catastrophicRisk = !state.mandatoryPlacement && !threat.canDefend && boostedScore < 0;
+      const destroysSuppression = sacrifice.effectType === "removeOpponentLast";
+      return {
+        card,
+        sacrifice,
+        threat,
+        boostedScore,
+        rawBoostedScore,
+        normalScore,
+        passPressure,
+        sacrificeScore,
+        rejected: catastrophicRisk || (destroysSuppression && !state.mandatoryPlacement),
+        rejectionReason: catastrophicRisk ? "projection négative sans défense" : destroysSuppression ? "Suppression préservée" : null,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.boostedScore - a.boostedScore);
+}
+
+function completeSoloScenarioPaths(paths, objective) {
+  const completed = [...paths];
+  const fallbacks = [
+    { type: "pass", label: "sécuriser par la passe", score: 0 },
+    { type: "end_turn", label: "clore après un effet", score: -2 },
+    { type: "replan", label: "réévaluer après la réponse humaine", score: -4 },
+  ];
+  for (const fallback of fallbacks) {
+    if (completed.length >= 3) break;
+    if (!completed.some((path) => path.type === fallback.type)) completed.push({ ...fallback, objective });
+  }
+  return completed.slice(0, 3);
+}
+
+function buildSoloScenarioPlan(playerIndex) {
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  const doubleCard = player.hand.find((card) => card.effectType === "doubleLastShot" && canPlayNormal(playerIndex, card));
+  const doubleProjection = doubleCard ? soloDoubleProjection(playerIndex, doubleCard) : null;
+  const pointPaths = [];
+  if (doubleCard && doubleProjection?.viable) {
+    pointPaths.push({
+      objective: "points",
+      type: "effect",
+      cardUid: doubleCard.uid,
+      cardName: doubleCard.name,
+      score: doubleProjection.score,
+      projection: doubleProjection,
+      label: `Double +${doubleProjection.duplicatedPower} puissance`,
+    });
+  }
+  player.hand
+    .filter((card) => isRemise(card) && card.uid !== doubleCard?.uid && canPlayNormal(playerIndex, card))
+    .map((card) => ({ card, score: soloImmediateEffectValue(playerIndex, card) }))
+    .filter((option) => option.score >= 6)
+    .map((option) => ({
+      objective: "points",
+      type: "effect",
+      cardUid: option.card.uid,
+      cardName: option.card.name,
+      score: option.score,
+      label: `${option.card.name} pour améliorer le total final`,
+    }))
+    .forEach((path) => pointPaths.push(path));
+  player.hand
+    .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
+    .map((card) => ({
+      objective: "points",
+      type: "normal",
+      cardUid: card.uid,
+      cardName: card.name,
+      score: soloPlayableCoupScore(playerIndex, card),
+      projectedPower: player.power + getCardStats(player, card, false).power + projectedEndBonuses(player),
+      label: `${card.name} pour la puissance finale`,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .forEach((path) => pointPaths.push(path));
+
+  const boostPaths = soloBoostOptionCandidates(playerIndex)
+    .filter((option) => !option.rejected)
+    .map((option) => ({
+      objective: "boost",
+      type: "boost",
+      cardUid: option.card.uid,
+      cardName: option.card.name,
+      sacrificeUid: option.sacrifice.uid,
+      sacrificeName: option.sacrifice.name,
+      score: option.boostedScore,
+      counterBoostProbability: option.threat.probability,
+      canDefendCounterBoost: option.threat.canDefend,
+      humanImplication: option.threat.probability > 0 ? "contre-BOOST possible" : "aucun contre-BOOST identifié",
+      label: `${option.card.name} en BOOST`,
+    }));
+
+  const scenarios = {
+    points: {
+      objective: "points",
+      paths: completeSoloScenarioPaths(pointPaths.sort((a, b) => b.score - a.score), "points"),
+    },
+    boost: {
+      objective: "boost",
+      paths: completeSoloScenarioPaths(boostPaths, "boost"),
+    },
+  };
+  const pointScore = scenarios.points.paths[0]?.score ?? -Infinity;
+  const boostScore = scenarios.boost.paths[0]?.type === "boost" ? scenarios.boost.paths[0].score : -Infinity;
+  let selectedObjective = "points";
+  if (state.mandatoryPlacement || state.boostAvailableFor === playerIndex) selectedObjective = boostScore > -Infinity ? "boost" : "points";
+  else if (SOLO_AI.attitude === "aggressive" && boostScore >= pointScore - 4) selectedObjective = "boost";
+  else if (SOLO_AI.attitude === "opportunistic" && boostScore > pointScore + 1) selectedObjective = "boost";
+  else if (isSetDangerForPlayer(playerIndex) && boostScore > -Infinity) selectedObjective = "boost";
+  const selectedPath = scenarios[selectedObjective].paths.find((path) => !["pass", "end_turn", "replan"].includes(path.type)) || scenarios.points.paths[0];
+  SOLO_AI.planRevision += 1;
+  return {
+    revision: SOLO_AI.planRevision,
+    createdAt: new Date().toISOString(),
+    attitude: SOLO_AI.attitude,
+    selectedObjective,
+    selectedPath,
+    scenarios,
+    resources: {
+      playerEndurance: player.endurance,
+      playerHand: player.hand.length,
+      opponentEndurance: opponent.endurance,
+      opponentHand: opponent.hand.length,
+    },
+  };
+}
+
+function prepareSoloScenarioPlan(playerIndex) {
+  if (shouldReevaluateSoloAttitude(playerIndex)) {
+    chooseSoloAttitude(playerIndex, "plan contrarié par l'évolution de l'échange");
+  }
+  SOLO_AI.plan = buildSoloScenarioPlan(playerIndex);
+  return SOLO_AI.plan;
+}
+
+function soloPlanLogInfo(plan) {
+  if (!plan) return null;
+  return {
+    revision: plan.revision,
+    attitude: plan.attitude,
+    selectedObjective: plan.selectedObjective,
+    selectedPath: plan.selectedPath,
+    pointPaths: plan.scenarios?.points?.paths,
+    boostPaths: plan.scenarios?.boost?.paths,
+    resources: plan.resources,
+  };
+}
+
+function soloOpponentResponseProjection(playerIndex) {
+  const opponent = state.players[opponentOf(playerIndex)];
+  const knownCards = expertKnownOpponentCards(playerIndex);
+  const riskPool = knownCards.length ? knownCards : expertUnseenCards(playerIndex);
+  const discount = Number(opponent.nextDiscount || 0);
+  const canAffordAny = opponent.endurance > 0 || discount > 0
+    ? riskPool.some((card) => Math.max(0, card.cost - discount) <= opponent.endurance)
+    : false;
+  const canCounterBoost = opponent.hand.length >= 2 && canAffordAny;
+  const defensiveTrap = riskPool.some((card) => card.effectType === "jokerResponse")
+    || riskPool.some((card) => card.placement >= 5)
+    || riskPool.some((card) => ["nextPlacement", "nextPrecisionAndPlacement"].includes(card.effectType));
+  let risk = 0.46;
+  if (opponent.hand.length === 0) risk = 0;
+  else if (opponent.endurance <= 0 && discount <= 0 && !opponent.freeBoostNext) risk = 0;
+  else if (opponent.hand.length === 1) risk = canAffordAny ? 0.12 : 0;
+  else if (!canAffordAny) risk = 0.04;
+  else if (!canCounterBoost) risk = 0.16;
+  else risk = defensiveTrap ? 0.44 : 0.32;
+  return {
+    handCount: opponent.hand.length,
+    endurance: opponent.endurance,
+    discount,
+    canAffordAny,
+    canCounterBoost,
+    defensiveTrap,
+    risk,
+  };
+}
+
+function soloPassProjection(playerIndex) {
+  const snapshot = soloPassDecisionSnapshot(playerIndex);
+  const exchangeWinner = snapshot.projectedWinner;
+  const exchangeScore = getProjectedExchangeSetScore(exchangeWinner, "power", snapshot.projectedPower);
+  const projectedSetScore = state.setMatch.enabled ? previewSetMatchScore(exchangeWinner, exchangeScore) : null;
+  const setOver = projectedSetScore ? isSetOver(projectedSetScore) : false;
+  const setWinner = setOver ? leadingSetPlayer(projectedSetScore) : null;
+  let matchClinched = false;
+  if (setWinner === playerIndex && state.setMatch.targetSets) {
+    matchClinched = state.setMatch.setsWon[playerIndex] + 1 >= state.setMatch.targetSets;
+  }
+  return { ...snapshot, exchangeScore, projectedSetScore, setOver, setWinner, matchClinched };
+}
+
+function chooseSoloPunitiveContinuation(playerIndex, plan) {
+  if (!plan || state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
+  const response = soloOpponentResponseProjection(playerIndex);
+  const passProjection = soloPassProjection(playerIndex);
+  const threshold = SOLO_AI.attitude === "aggressive" ? 0.34 : SOLO_AI.attitude === "prudent" ? 0.07 : 0.2;
+  if ((passProjection.matchClinched || (passProjection.setOver && passProjection.setWinner === playerIndex)) && response.risk > 0.02) return null;
+  if (response.risk > threshold) return null;
+  const alternateObjective = plan.selectedObjective === "boost" ? "points" : "boost";
+  const paths = [
+    ...(plan.scenarios?.[plan.selectedObjective]?.paths || []),
+    ...(plan.scenarios?.[alternateObjective]?.paths || []),
+  ].filter((path) => ["boost", "normal", "effect"].includes(path.type));
+  const selected = paths.find((path) => {
+    if (path.type === "boost" && response.canCounterBoost && !path.canDefendCounterBoost) return false;
+    if (path.type === "effect" && path.cardName !== "Double") return false;
+    return true;
+  });
+  return selected ? { ...selected, response, passProjection } : null;
+}
+
+function executeSoloPlanPath(playerIndex, path) {
+  if (!path) return false;
+  if (path.type === "boost") {
+    playCard(playerIndex, path.cardUid, true, path.sacrificeUid);
+    return true;
+  }
+  if (path.type === "effect") {
+    playCard(playerIndex, path.cardUid, false, null, "effect");
+    return true;
+  }
+  if (path.type === "normal") {
+    playCard(playerIndex, path.cardUid);
+    return true;
+  }
+  return false;
 }
 
 function canSoloFinishWithCoup(playerIndex) {
@@ -6447,6 +6952,11 @@ function chooseSoloRemiseDefensePlan(playerIndex) {
     }
   }
   options.sort((a, b) => b.score - a.score);
+  const preservesSuppression = options.filter((option) => (
+    !option.remises.some((card) => card.effectType === "removeOpponentLast")
+  ));
+  if (preservesSuppression.length) return preservesSuppression[0];
+  if (!state.mandatoryPlacement) return null;
   return options[0] ?? null;
 }
 
@@ -6514,7 +7024,10 @@ function soloImmediateEffectValue(playerIndex, card) {
   }
   if (card.effectType === "jokerResponse" && (state.mandatoryPlacementReason === "boost" || state.lastCard?.boosted)) return 14;
   if (card.effectType === "freeBoostNext" && isFreeBoostNextWindow(playerIndex) && player.hand.some((candidate) => !isRemise(candidate))) return 6;
-  if (card.effectType === "doubleLastShot" && player.played.some((played) => !played.removed && isShot(played))) return 6;
+  if (card.effectType === "doubleLastShot") {
+    const projection = soloDoubleProjection(playerIndex, card);
+    return projection.viable ? projection.score : 0;
+  }
   return 0;
 }
 
@@ -6537,35 +7050,11 @@ function isSoloRemovalWorthCost(playerIndex, card, target) {
 }
 
 function chooseSoloBoostPlay(playerIndex) {
-  const player = state.players[playerIndex];
   if (shouldAvoidOptionalBoostForSet(playerIndex)) return null;
-  const cards = player.hand.filter((card) => canPlayBoost(playerIndex, card));
-  if (!cards.length) return null;
-  const options = cards
-    .map((card) => {
-      const sacrifice = chooseSoloSacrifice(playerIndex, card);
-      if (!sacrifice) return null;
-      const sacrificeScore = soloSacrificeScore(sacrifice);
-      const boostedScore = soloBoostScore(playerIndex, card) - sacrificeScore * 0.35;
-      const normalScore = canPlayNormal(playerIndex, card) ? soloCardScore(playerIndex, card) : -Infinity;
-      const passPressure = wouldOpponentBeAbleToPassAndWin(playerIndex, card, true);
-      const threat = SOLO_AI.style === "expert" ? expertCounterBoostThreat(playerIndex, card, sacrifice) : { danger: 0, probability: 0, canDefend: true };
-      return {
-        card,
-        sacrifice,
-        threat,
-        boostedScore: boostedScore - threat.danger,
-        rawBoostedScore: boostedScore,
-        normalScore,
-        passPressure,
-        sacrificeScore,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.boostedScore - a.boostedScore);
+  const options = soloBoostOptionCandidates(playerIndex).filter((option) => !option.rejected);
   const best = options[0];
   if (!best) return null;
-  const styleBoostMargin = SOLO_AI.style === "aggressive" ? 2 : SOLO_AI.style === "cautious" ? 7 : SOLO_AI.style === "expert" ? 4 : 5;
+  const styleBoostMargin = SOLO_AI.attitude === "aggressive" ? 2 : SOLO_AI.attitude === "prudent" ? 7 : 4;
   const opponentEndThreat = playerEndThreatScore(state.players[opponentOf(playerIndex)]);
   const expertBlocksRisk = SOLO_AI.style === "expert"
     && !state.mandatoryPlacement
@@ -6574,7 +7063,10 @@ function chooseSoloBoostPlay(playerIndex) {
     && !isSetDangerForPlayer(playerIndex)
     && best.threat.probability >= (opponentEndThreat > 0 ? 0.32 : 0.42)
     && !best.threat.canDefend;
-  const shouldBoost = !expertBlocksRisk && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
+  const forcedButIrrational = !best.threat.canDefend && best.boostedScore < 0;
+  const shouldBoost = !expertBlocksRisk
+    && !forcedButIrrational
+    && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
   if (SOLO_AI.style === "expert" && best.threat.probability > 0.3) {
     state.log.unshift(`IA Expert : risque de contre-boost estimé ${Math.round(best.threat.probability * 100)}%${best.threat.canDefend ? ", défense possible." : ", défense fragile."}`);
   }
@@ -6631,8 +7123,10 @@ function isVulnerableToJuBoostPressure(playerIndex) {
 
 function chooseSoloSacrifice(playerIndex, boostedCard) {
   const player = state.players[playerIndex];
-  return player.hand
-    .filter((candidate) => candidate.uid !== boostedCard.uid)
+  const candidates = player.hand.filter((candidate) => candidate.uid !== boostedCard.uid);
+  const preservesSuppression = candidates.filter((candidate) => candidate.effectType !== "removeOpponentLast");
+  const pool = !state.mandatoryPlacement && preservesSuppression.length ? preservesSuppression : candidates;
+  return pool
     .sort((a, b) => soloSacrificeScore(a) - soloSacrificeScore(b))[0] ?? null;
 }
 
@@ -6693,7 +7187,8 @@ function soloCardScore(playerIndex, card, boosted = false) {
 }
 
 function aiScoreNoise(scale = 1.4) {
-  return SOLO_AI.style === "expert" ? (Math.random() - 0.5) * scale : 0;
+  const adjustedScale = isLateCircuitRoundWithoutBonus(SOLO_AI.playerIndex) ? Math.min(0.45, scale) : scale;
+  return SOLO_AI.style === "expert" ? (Math.random() - 0.5) * adjustedScale : 0;
 }
 
 function opensLikelyBoostWindowForOpponent(playerIndex, card) {
@@ -6706,7 +7201,7 @@ function opensLikelyBoostWindowForOpponent(playerIndex, card) {
 }
 
 function soloBoostScore(playerIndex, card) {
-  const styleBonus = SOLO_AI.style === "aggressive" ? 4 : SOLO_AI.style === "cautious" ? 0 : 2;
+  const styleBonus = SOLO_AI.attitude === "aggressive" ? 4 : SOLO_AI.attitude === "prudent" ? 0 : 2;
   return soloCardScore(playerIndex, card, true) + styleBonus;
 }
 
@@ -6730,7 +7225,7 @@ function soloEffectPreservationScore(card) {
     removeOpponentLast: 30,
     jokerResponse: 18,
     freeBoostNext: 13,
-    doubleLastShot: 12,
+    doubleLastShot: 16,
     drawCard: 10,
     gainEndurance: 9,
     nextPrecisionAndPlacement: 9,
@@ -6880,6 +7375,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     playedUid: crypto.randomUUID(),
     owner: playerIndex,
     boosted,
+    remiseMode: isRemise(card) ? remiseMode : null,
     sacrificedCard,
     isServiceTurn: isOpeningServe,
     costPaid: cost,
@@ -9786,6 +10282,7 @@ function render() {
   renderCoachChoiceModal();
   renderRemoveChoiceModal();
   renderWaitingRoomModal();
+  attachImageZoomHandlers(els.gameApp || document);
   applySpectatorControls();
   if (!SPECTATOR_MODE.enabled) {
     scheduleServerSync();
@@ -10432,12 +10929,13 @@ function renderCardVisualOnly(card, className = "") {
     return `<div class="played-card ${className}"><strong>${card.name}</strong>${card.subtitle ?? card.family}</div>`;
   }
   return `
-    <div class="played-visual ${className} ${card.removed ? "removed" : ""}">
+    <button class="played-visual ${className} ${card.removed ? "removed" : ""}" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
       ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
+      ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
-    </div>
+    </button>
   `;
 }
 
