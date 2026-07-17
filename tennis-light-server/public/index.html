@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=137.2" />
+    <link rel="stylesheet" href="./styles.css?v=137.3" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
@@ -350,16 +350,17 @@
                 <strong>Niveau IA</strong>
                 <span id="aiLevelDescription">Normal · décisions variées parmi les meilleures options raisonnables.</span>
               </div>
-              <div class="friendly-setting-switch five-options" aria-label="Niveau de l'intelligence artificielle">
+              <div class="friendly-setting-switch six-options" aria-label="Niveau de l'intelligence artificielle">
                 <button class="friendly-setting-button active" type="button" data-ai-club-setting="difficulty" data-ai-club-value="normal">NORMAL</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="expert">EXPERT</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="champion">CHAMPION</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="legend">LÉGENDE</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="ranking">SELON CLASSEMENT</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="circuit">CIRCUIT PRO</button>
               </div>
             </div>
 
-            <div class="friendly-setting-row">
+            <div class="friendly-setting-row" id="aiBonusSettingRow">
               <div>
                 <strong>Bonus</strong>
                 <span id="aiBonusDescription">Sans · aucun bonus pour les joueurs IA.</span>
@@ -445,6 +446,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=137.1"></script>
+    <script src="./app.js?v=137.3"></script>
   </body>
 </html>

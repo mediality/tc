@@ -766,6 +766,26 @@ body.tutorial-running .boost-button strong {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.friendly-setting-switch.six-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.friendly-setting-switch.six-options .friendly-setting-button:nth-child(3) {
+  border-right: 0;
+}
+
+.friendly-setting-switch.six-options .friendly-setting-button:nth-child(-n + 3) {
+  border-bottom: 1px solid #94a3b8;
+}
+
+.friendly-setting-row.setting-disabled {
+  opacity: 0.48;
+}
+
+.friendly-setting-row.setting-disabled .friendly-setting-button {
+  cursor: not-allowed;
+}
+
 .page-return-actions {
   display: flex;
   flex-wrap: wrap;
@@ -928,7 +948,16 @@ body.tutorial-running .boost-button strong {
   font-size: 1rem;
 }
 
-.confrontation-intro-player span {
+.confrontation-player-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.confrontation-intro-player .confrontation-player-rank {
   color: #e9ff70;
   font-size: 1.15rem;
   font-weight: 950;
@@ -1012,7 +1041,7 @@ body.tutorial-running .boost-button strong {
 
 .friendly-standing-row {
   display: grid;
-  grid-template-columns: 22px minmax(90px, 1fr) auto;
+  grid-template-columns: 22px minmax(90px, 1fr) 64px;
   gap: 8px;
   align-items: center;
   border-top: 1px solid rgba(99, 115, 129, 0.18);
@@ -1028,15 +1057,8 @@ body.tutorial-running .boost-button strong {
   color: #17212b;
 }
 
-.friendly-standing-details {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px 10px;
-  color: #526170;
-}
-
-.friendly-standing-details strong {
+.friendly-standing-points {
+  text-align: right;
   color: #0f766e;
 }
 
@@ -2176,12 +2198,7 @@ body.spectator-mode .player-panel {
   }
 
   .friendly-standing-row {
-    grid-template-columns: 22px minmax(0, 1fr);
-  }
-
-  .friendly-standing-details {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+    grid-template-columns: 22px minmax(0, 1fr) 58px;
   }
 
   .friendly-setting-switch.three-options {
@@ -2194,6 +2211,10 @@ body.spectator-mode .player-panel {
 
   .friendly-setting-switch.five-options {
     grid-template-columns: 1fr;
+  }
+
+  .friendly-setting-switch.six-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .friendly-setting-switch.three-options .friendly-setting-button {
@@ -2220,6 +2241,18 @@ body.spectator-mode .player-panel {
 
   .friendly-setting-switch.five-options .friendly-setting-button:last-child {
     border-bottom: 0;
+  }
+
+  .friendly-setting-switch.six-options .friendly-setting-button:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .friendly-setting-switch.six-options .friendly-setting-button:nth-child(3) {
+    border-right: 1px solid #94a3b8;
+  }
+
+  .friendly-setting-switch.six-options .friendly-setting-button:nth-child(-n + 4) {
+    border-bottom: 1px solid #94a3b8;
   }
 
   .ai-club-house-footer {
@@ -3311,13 +3344,14 @@ h1 {
 .league-standings-head,
 .league-standings-row {
   display: grid;
-  grid-template-columns: minmax(90px, 1fr) 22px 22px 30px minmax(70px, auto) minmax(78px, auto);
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 12px;
   align-items: center;
 }
 
 .league-standings-head {
   margin-bottom: 6px;
+  padding: 0 8px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.72rem;
   font-weight: 900;
@@ -3336,7 +3370,7 @@ h1 {
 .league-standings-row > span:not(:first-child),
 .league-standings-row > strong,
 .league-standings-head > span:not(:first-child) {
-  text-align: center;
+  text-align: right;
 }
 
 .league-standings-row + .league-standings-row {
@@ -3349,7 +3383,8 @@ h1 {
 }
 
 .league-standings-row.human-player {
-  border: 2px solid rgba(134, 239, 172, 0.98);
+  outline: 2px solid rgba(134, 239, 172, 0.98);
+  outline-offset: -2px;
 }
 
 .league-bracket {
@@ -3395,6 +3430,45 @@ h1 {
   color: #17212b;
   background: rgba(255, 255, 255, 0.88);
   font-weight: 950;
+}
+
+.tournament-player-identity {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ai-intelligence-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 19px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ai-intelligence-badge.expert {
+  border-color: #7c4023;
+  color: #fff;
+  background: #b56a35;
+}
+
+.ai-intelligence-badge.champion {
+  border-color: #7b8794;
+  color: #17212b;
+  background: #c7cdd4;
+}
+
+.ai-intelligence-badge.legend {
+  border-color: #8c6900;
+  color: #332400;
+  background: #e0b52f;
 }
 
 .tournament-player-row.winner {
