@@ -19,7 +19,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v137<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v140<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);
@@ -59,9 +59,13 @@ assert.match(app, /if \(position <= 4\) return Math\.random\(\) < 0\.5 \? "exper
 assert.match(app, /if \(position <= 10\) return Math\.random\(\) < 0\.5 \? "normal" : "expert"/);
 assert.match(app, /aiIntelligenceLevels,/);
 assert.match(app, /function aiIntelligenceBadgeMarkup\(entry\)/);
+assert.match(app, /expert: \{ initial: "E", label: "Expert" \}/);
+assert.match(app, /champion: \{ initial: "C", label: "Champion" \}/);
+assert.match(app, /legend: \{ initial: "L", label: "Légendaire" \}/);
 assert.match(styles, /\.ai-intelligence-badge\.expert/);
 assert.match(styles, /\.ai-intelligence-badge\.champion/);
 assert.match(styles, /\.ai-intelligence-badge\.legend/);
+assert.match(styles, /\.ai-intelligence-badge \{[\s\S]*?border-radius: 50%/);
 assert.match(styles, /\.friendly-setting-row\.setting-disabled/);
 assert.match(app, /button\.disabled = circuitMode/);
 assert.match(app, /function chooseSoloScoredOption\(options,/);
@@ -78,8 +82,11 @@ assert.match(app, /B: \[pick\(2\), pick\(3\), pick\(6\), pick\(7\)\]/);
 assert.match(app, /state\.tournament\.active && !state\.tournament\.aiClubHouse/);
 assert.doesNotMatch(app, /aiStatBonus|aiPowerBonus/);
 const leagueTableSource = functionSource("renderLeagueStandingsTable");
-assert.match(leagueTableSource, /<span>Joueur<\/span><span>Points<\/span>/);
-assert.doesNotMatch(leagueTableSource, /<span>J<\/span>|<span>V<\/span>|Sets \+\/-|Jeux \+\/-/);
+assert.match(leagueTableSource, /<span>Joueur<\/span><span>Points<\/span><span>Sets \+\/-<\/span><span>Jeux \+\/-<\/span>/);
+assert.match(leagueTableSource, /formatLeagueDifference\(row\.setDifference\)/);
+assert.match(leagueTableSource, /formatLeagueDifference\(row\.gameDifference\)/);
+assert.doesNotMatch(leagueTableSource, /<span>J<\/span>|<span>V<\/span>/);
+assert.match(styles, /grid-template-columns: minmax\(0, 1fr\) 64px 74px 74px/);
 
 const classicContext = {
   HUMAN_TOURNAMENT_ENTRY: "human",
@@ -202,4 +209,4 @@ vm.runInNewContext(`${functionSource("chooseSoloScoredOption")};
 assert.equal(choiceContext.normalResult, "second");
 assert.equal(choiceContext.legendResult, "best");
 
-console.log("v137 CLUB HOUSE: OK");
+console.log("v140 CLUB HOUSE: OK");

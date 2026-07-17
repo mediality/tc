@@ -30,4 +30,4 @@ assert.match(css, /\.played-visual\.history-card:hover/);
 assert.match(css, /transform: scale\(5\.4\)/);
 assert.match(css, /\.image-zoom-figure/);
 
-console.log("v137 stratégies IA et affichages: OK");
+console.log("v140 stratégies IA et affichages: OK");

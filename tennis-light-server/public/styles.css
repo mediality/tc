@@ -1039,11 +1039,23 @@ body.tutorial-running .boost-button strong {
   font-size: 1rem;
 }
 
+.friendly-standing-head,
 .friendly-standing-row {
   display: grid;
-  grid-template-columns: 22px minmax(90px, 1fr) 64px;
+  grid-template-columns: 22px minmax(90px, 1fr) 46px 58px 58px;
   gap: 8px;
   align-items: center;
+}
+
+.friendly-standing-head {
+  padding: 0 0 6px;
+  color: #6b7785;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.friendly-standing-row {
   border-top: 1px solid rgba(99, 115, 129, 0.18);
   padding: 8px 0;
   color: #526170;
@@ -1057,8 +1069,14 @@ body.tutorial-running .boost-button strong {
   color: #17212b;
 }
 
+.friendly-standing-head > span:nth-child(n + 3),
+.friendly-standing-row > span:nth-child(n + 3),
 .friendly-standing-points {
   text-align: right;
+  white-space: nowrap;
+}
+
+.friendly-standing-points {
   color: #0f766e;
 }
 
@@ -2198,7 +2216,14 @@ body.spectator-mode .player-panel {
   }
 
   .friendly-standing-row {
-    grid-template-columns: 22px minmax(0, 1fr) 58px;
+    grid-template-columns: 18px minmax(0, 1fr) 36px 48px 48px;
+    gap: 5px;
+  }
+
+  .friendly-standing-head {
+    grid-template-columns: 18px minmax(0, 1fr) 36px 48px 48px;
+    gap: 5px;
+    font-size: 0.58rem;
   }
 
   .friendly-setting-switch.three-options {
@@ -2452,6 +2477,16 @@ h1 {
   align-items: center;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.admin-simulate-score-button {
+  border-color: #b7791f;
+  color: #2d2100;
+  background: #f6c453;
+}
+
+.admin-simulate-score-button:hover:not(:disabled) {
+  background: #ffd875;
 }
 
 .mode-info-badge {
@@ -3344,8 +3379,8 @@ h1 {
 .league-standings-head,
 .league-standings-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 64px 74px 74px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -3443,13 +3478,18 @@ h1 {
 .ai-intelligence-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 19px;
+  justify-content: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
   border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.66rem;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 0.7rem;
   font-weight: 950;
   line-height: 1;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -3618,6 +3658,12 @@ h1 {
 
   .league-standings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .league-standings-head,
+  .league-standings-row {
+    grid-template-columns: minmax(0, 1fr) 48px 62px 62px;
+    gap: 6px;
   }
 }
 

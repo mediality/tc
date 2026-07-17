@@ -1229,6 +1229,7 @@ const state = {
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
+  adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
@@ -4168,11 +4169,16 @@ function renderFriendlyLobbyScreen() {
         ${["A", "B"].map((groupName) => `
           <article class="friendly-league-group">
             <h3>Groupe ${groupName}</h3>
+            <div class="friendly-standing-head">
+              <span>#</span><span>Joueur</span><span>Pts</span><span>Sets +/-</span><span>Jeux +/-</span>
+            </div>
             ${(standings[groupName]?.length ? standings[groupName] : (leagueGroups[groupName] || []).map((player, index) => ({ player, position: index + 1, played: 0, wins: 0, points: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0 }))).map((row) => `
               <div class="friendly-standing-row">
                 <span>${Number(row.position || 0)}</span>
                 <strong>${escapeHtml(row.player?.nickname || "Joueur")}</strong>
-                <strong class="friendly-standing-points">${Number(row.points || 0)} pt${Number(row.points || 0) > 1 ? "s" : ""}</strong>
+                <strong class="friendly-standing-points">${Number(row.points || 0)}</strong>
+                <span>${formatLeagueDifference(row.setDifference ?? (Number(row.setsWon || 0) - Number(row.setsLost || 0)))}</span>
+                <span>${formatLeagueDifference(row.gameDifference ?? (Number(row.gamesWon || 0) - Number(row.gamesLost || 0)))}</span>
               </div>
             `).join("")}
           </article>
@@ -4968,7 +4974,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v137",
+    gameVersion: "v140",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5208,7 +5214,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v137",
+    version: "v140",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5267,7 +5273,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v137",
+    version: "v140",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5281,7 +5287,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v137");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v140");
 }
 
 function resetSetMatch() {
@@ -6516,8 +6522,13 @@ function aiIntelligenceBadgeMarkup(entry) {
   if (!state.tournament.aiIntelligenceLevels[entry]) return "";
   const level = aiIntelligenceForEntry(entry, state.tournament.difficulty);
   if (level === "normal") return "";
-  const labels = { expert: "Expert", champion: "Champion", legend: "Légende" };
-  return `<span class="ai-intelligence-badge ${level}">${labels[level]}</span>`;
+  const badges = {
+    expert: { initial: "E", label: "Expert" },
+    champion: { initial: "C", label: "Champion" },
+    legend: { initial: "L", label: "Légendaire" },
+  };
+  const badge = badges[level];
+  return `<span class="ai-intelligence-badge ${level}" title="${badge.label}" aria-label="Niveau ${badge.label}">${badge.initial}</span>`;
 }
 
 function aiIntelligenceRank(level = SOLO_AI.style) {
@@ -10639,6 +10650,100 @@ function nextFullSet() {
   render();
 }
 
+function canAdminSimulateMatchScore() {
+  return canAccessAdminFeatures()
+    && !SPECTATOR_MODE.enabled
+    && state.setMatch?.enabled
+    && Number(state.setMatch.targetSets || 0) > 0
+    && !state.setMatch.matchOver
+    && (!SERVER_SYNC.enabled || SERVER_SYNC.isHost);
+}
+
+function adminSimulatedSetScores(winnerIndex, targetSets) {
+  const loserScores = [2, 3, 4];
+  return Array.from({ length: targetSets }, (_, index) => {
+    const score = [6, loserScores[index % loserScores.length]];
+    return winnerIndex === 0 ? score : [score[1], score[0]];
+  });
+}
+
+function simulateAdminMatchScore() {
+  if (!canAdminSimulateMatchScore()) return;
+  const winner = SERVER_SYNC.enabled && [0, 1].includes(Number(SERVER_SYNC.seat))
+    ? Number(SERVER_SYNC.seat)
+    : 0;
+  const targetSets = Math.max(1, Number(state.setMatch.targetSets || 1));
+  const completedScores = adminSimulatedSetScores(winner, targetSets);
+  const finalScore = [...completedScores.at(-1)];
+  const setsWon = winner === 0 ? [targetSets, 0] : [0, targetSets];
+  const previousScore = [...state.setMatch.score];
+  const reason = `Score simulé par l'ADMIN : ${displayPlayerName(state.players[winner])} remporte le match.`;
+
+  stopSoloTimers();
+  state.gameOver = true;
+  state.activePlayer = winner;
+  state.setMatch.score = finalScore;
+  state.setMatch.completedScores = completedScores.map((score) => [...score]);
+  state.setMatch.decisiveExchange = false;
+  state.setMatch.setOver = true;
+  state.setMatch.winner = winner;
+  state.setMatch.setsWon = setsWon;
+  state.setMatch.matchOver = true;
+  state.setMatch.matchWinner = winner;
+  state.resultInfo = {
+    winner,
+    ignoreScore: true,
+    winType: "admin-simulation",
+    reason,
+    scoreText: `Score simulé : ${playerName(0)} ${setsWon[0]} - ${setsWon[1]} ${playerName(1)} · ${formatSetScores(completedScores)}.`,
+    setScore: null,
+    endBonusDetails: [],
+    setMatch: {
+      previousScore,
+      score: [...finalScore],
+      completedScores: completedScores.map((score) => [...score]),
+      setOver: true,
+      winner,
+      decisiveExchange: false,
+      targetSets,
+      setsWon: [...setsWon],
+      matchOver: true,
+      matchWinner: winner,
+    },
+  };
+  state.log.unshift(`${reason} ${formatSetScores(completedScores)}.`);
+
+  for (let index = 0; index < completedScores.length; index += 1) {
+    updateTournamentSetProgress();
+  }
+  recordAction("exchange_end", {
+    winner,
+    winnerName: playerName(winner),
+    winType: "admin-simulation",
+    ignoreScore: true,
+    adminSimulation: true,
+    reason,
+    finalPower: state.players.map((player) => player.power),
+    finalEndurance: state.players.map((player) => player.endurance),
+    exchangeSetScore: null,
+    setMatch: {
+      score: [...finalScore],
+      completedScores: completedScores.map((score) => [...score]),
+      setOver: true,
+      winner,
+      targetSets,
+      setsWon: [...setsWon],
+      matchOver: true,
+      matchWinner: winner,
+    },
+    players: state.players.map(playerLogInfo),
+  });
+  storeMatchLog(winner, reason);
+  handleTournamentMatchComplete();
+  markServerDirtyForHostAction();
+  render();
+}
+
 function storeMatchLog(winner, reason) {
   try {
     const existing = JSON.parse(localStorage.getItem(MATCH_LOG_STORAGE_KEY) || "[]");
@@ -10947,6 +11052,14 @@ function ensureSoloAIForSet() {
 
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
+  if (els.adminSimulateScoreButton) {
+    const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
+    els.adminSimulateScoreButton.classList.toggle("hidden", !isAdminPlayer);
+    els.adminSimulateScoreButton.disabled = !canAdminSimulateMatchScore();
+    els.adminSimulateScoreButton.title = SERVER_SYNC.enabled && !SERVER_SYNC.isHost
+      ? "Seul l'ADMIN hôte peut simuler le score"
+      : "Terminer ce match avec un score simulé";
+  }
   els.spectatorQuitButton?.classList.toggle("hidden", !SPECTATOR_MODE.enabled);
   els.returnLobbyButton?.classList.toggle("hidden", SPECTATOR_MODE.enabled);
   if (els.revealAiButton) {
@@ -11272,12 +11385,14 @@ function renderLeagueStandingsTable(group, throughDay = 0) {
     <section class="league-standings">
       <span class="tournament-round-label">Groupe ${group}</span>
       <div class="league-standings-head">
-        <span>Joueur</span><span>Points</span>
+        <span>Joueur</span><span>Points</span><span>Sets +/-</span><span>Jeux +/-</span>
       </div>
       ${rows.map((row, index) => `
         <div class="league-standings-row ${index < 2 && throughDay >= 3 ? "qualified" : ""} ${isHumanTournamentEntry(row.entry) ? "human-player" : ""}">
           <span class="tournament-player-identity">${index + 1}. ${tournamentPlayerLabel(row.entry)} ${aiIntelligenceBadgeMarkup(row.entry)}</span>
           <strong>${row.points}</strong>
+          <span>${formatLeagueDifference(row.setDifference)}</span>
+          <span>${formatLeagueDifference(row.gameDifference)}</span>
         </div>
       `).join("")}
     </section>
@@ -12300,6 +12415,7 @@ els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
 els.friendlyLobbyHomeButton?.addEventListener("click", openReturnLobbyDialog);
 els.friendlyLobbyLogoButton?.addEventListener("click", openReturnLobbyDialog);
 els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
+els.adminSimulateScoreButton?.addEventListener("click", simulateAdminMatchScore);
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
 els.exportLogsButton?.addEventListener("click", exportLogsFile);
 els.exportHumanMatchesButton?.addEventListener("click", exportHumanMatchLogsFile);

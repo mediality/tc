@@ -14,10 +14,10 @@ async function request(session, path, options = {}) {
 }
 
 async function register(email, nickname) {
-  const session = { cookie: "", user: null, email, password: "Test-v137!" };
+  const session = { cookie: "", user: null, email, password: "Test-v140!" };
   const { response, data } = await request(session, "/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ email, password: "Test-v137!", nickname }),
+    body: JSON.stringify({ email, password: "Test-v140!", nickname }),
   });
   assert.equal(response.status, 201, data.error);
   session.user = data.user;
@@ -174,17 +174,17 @@ function assertNoLeagueMatchCounted(tournament) {
 const stamp = Date.now();
 const admin = await register("julien.castagnoli@mediality.fr", "ADMIN");
 const players = await Promise.all([
-  register(`v137-a-${stamp}@example.test`, "Alpha"),
-  register(`v137-b-${stamp}@example.test`, "Bravo"),
-  register(`v137-c-${stamp}@example.test`, "Charlie"),
-  register(`v137-d-${stamp}@example.test`, "Delta"),
+  register(`v140-a-${stamp}@example.test`, "Alpha"),
+  register(`v140-b-${stamp}@example.test`, "Bravo"),
+  register(`v140-c-${stamp}@example.test`, "Charlie"),
+  register(`v140-d-${stamp}@example.test`, "Delta"),
 ]);
 for (const player of players) await promote(admin, player);
 
 const telemetryMatchId = `telemetry-${stamp}`;
 const telemetrySession = {
   schemaVersion: 1,
-  gameVersion: "v137",
+  gameVersion: "v140",
   matchId: telemetryMatchId,
   status: "completed",
   startedAt: new Date(stamp - 60_000).toISOString(),
@@ -387,8 +387,8 @@ for (const hiddenMatch of hiddenAiMatches) {
 }
 assertNoLeagueMatchCounted(afterSecondHumanSet);
 if (process.env.KEEP_AI_REVEAL === "1") {
-  console.log(`v137 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
-  console.log("v137 AI reveal browser fixture: READY");
+  console.log(`v140 AI reveal: ${base}/?friendlyTournament=${progressReporter.access.id}&participant=${progressReporter.access.participantId}&token=${progressReporter.access.token}`);
+  console.log("v140 AI reveal browser fixture: READY");
   process.exit(0);
 }
 
@@ -534,10 +534,10 @@ if (process.env.KEEP_SHARED_DUEL === "1") {
     body: JSON.stringify({}),
   });
   assert.equal(spectatorAccess.response.status, 200, spectatorAccess.data.error);
-  console.log(`v137 shared player A: ${participantUrl(playerAContext.access)}`);
-  console.log(`v137 shared player B: ${participantUrl(playerBContext.access)}`);
-  console.log(`v137 shared spectator: ${spectatorAccess.data.spectatorUrl}`);
-  console.log("v137 shared browser fixture: READY");
+  console.log(`v140 shared player A: ${participantUrl(playerAContext.access)}`);
+  console.log(`v140 shared player B: ${participantUrl(playerBContext.access)}`);
+  console.log(`v140 shared spectator: ${spectatorAccess.data.spectatorUrl}`);
+  console.log("v140 shared browser fixture: READY");
   process.exit(0);
 }
 
@@ -757,11 +757,11 @@ assert.equal(pausedQuarter.winner, null, "le forfait ne doit pas être immédiat
 assert.equal(pausedQuarter.disconnectedPlayers[0].participantId, forfeitLoser.access.participantId);
 if (process.env.KEEP_RECONNECT_COUNTDOWN === "1") {
   const participantUrl = (access) => `${base}/?friendlyTournament=${access.id}&participant=${access.participantId}&token=${access.token}`;
-  console.log(`v137 reconnect opponent: ${participantUrl(forfeitWinner.access)}`);
-  console.log(`v137 reconnect player email: ${forfeitLoser.player.email}`);
-  console.log(`v137 reconnect player password: ${forfeitLoser.player.password}`);
-  console.log(`v137 reconnect tournament: ${forfeitLoser.access.id}`);
-  console.log("v137 reconnect browser fixture: READY");
+  console.log(`v140 reconnect opponent: ${participantUrl(forfeitWinner.access)}`);
+  console.log(`v140 reconnect player email: ${forfeitLoser.player.email}`);
+  console.log(`v140 reconnect player password: ${forfeitLoser.player.password}`);
+  console.log(`v140 reconnect tournament: ${forfeitLoser.access.id}`);
+  console.log("v140 reconnect browser fixture: READY");
   process.exit(0);
 }
 
@@ -810,8 +810,8 @@ assert.equal(qualifiedSemi.playerA === forfeitWinner.access.entry || qualifiedSe
 assert.equal(qualifiedSemi.humanVsHuman, false, "le dernier humain qualifié doit jouer sa demi-finale contre l'IA");
 assert.equal(qualifiedSemi.watchable, false, "une rencontre pas encore lancée ne doit pas être proposée uniquement en mode VOIR");
 if (process.env.KEEP_FORFEIT_TRANSITION === "1") {
-  console.log(`v137 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
-  console.log("v137 forfeit browser fixture: READY");
+  console.log(`v140 forfeit winner: ${base}/?friendlyTournament=${forfeitWinner.access.id}&participant=${forfeitWinner.access.participantId}&token=${forfeitWinner.access.token}`);
+  console.log("v140 forfeit browser fixture: READY");
   process.exit(0);
 }
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${forfeitWinner.access.id}/admin-delete`, { method: "POST" })).response.status, 200);
@@ -840,4 +840,4 @@ const seeds = [...bracketSlots].sort((entryA, entryB) => rankById.get(rankingKey
 assert.deepEqual(bracketSlots, [seeds[0], seeds[7], seeds[4], seeds[3], seeds[2], seeds[5], seeds[6], seeds[1]]);
 assert.equal((await request(admin, `/api/lobby/friendly-tournaments/${rankingHost.id}/admin-delete`, { method: "POST" })).response.status, 200);
 
-console.log("v137 smoke test: OK");
+console.log("v140 smoke test: OK");
