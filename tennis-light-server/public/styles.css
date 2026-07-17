@@ -762,6 +762,17 @@ body.tutorial-running .boost-button strong {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.friendly-setting-switch.five-options {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.page-return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .friendly-setting-button {
   min-width: 0;
   min-height: 42px;
@@ -817,6 +828,150 @@ body.tutorial-running .boost-button strong {
 
 .ai-club-house-start-button {
   min-height: 52px;
+}
+
+.opponent-hand-reveal-controls {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(560px, calc(100vw - 28px));
+  border: 2px solid #e9ff70;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #fff;
+  background: rgba(6, 30, 45, 0.96);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+  transform: translateX(-50%);
+}
+
+.opponent-hand-reveal-controls strong {
+  flex: 1;
+  font-size: 0.88rem;
+}
+
+.opponent-hand-reveal-controls button {
+  min-width: 230px;
+}
+
+.confrontation-intro-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.confrontation-intro {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 2px solid rgba(233, 255, 112, 0.72);
+  border-radius: 8px;
+  padding: 20px;
+  color: #fff;
+  text-align: center;
+  background: rgba(6, 30, 45, 0.96);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
+}
+
+.confrontation-intro-tournament,
+.confrontation-intro-type,
+.confrontation-intro-rivalry {
+  margin: 0;
+  font-weight: 950;
+}
+
+.confrontation-intro-tournament {
+  color: #e9ff70;
+  font-size: 1.05rem;
+}
+
+.confrontation-intro-type {
+  margin-top: 6px;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+}
+
+.confrontation-intro-versus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.confrontation-intro-player {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.confrontation-intro-player img {
+  display: block;
+  width: min(230px, 100%);
+  aspect-ratio: 731 / 1039;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+}
+
+.confrontation-intro-player strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.confrontation-intro-player span {
+  color: #e9ff70;
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+.confrontation-intro-countdown {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.confrontation-intro-countdown strong {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 3px solid #e9ff70;
+  border-radius: 50%;
+  color: #e9ff70;
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.confrontation-intro-countdown span {
+  color: #cbd8df;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.confrontation-intro-rivalry {
+  width: fit-content;
+  margin: 16px auto 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #102a43;
+  background: #e9ff70;
+}
+
+.confrontation-intro-rivalry.bete-noire,
+.confrontation-intro-rivalry.ascendant-negative {
+  color: #fff;
+  background: #b91c1c;
 }
 
 .friendly-player-card {
@@ -2037,6 +2192,10 @@ body.spectator-mode .player-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .friendly-setting-switch.five-options {
+    grid-template-columns: 1fr;
+  }
+
   .friendly-setting-switch.three-options .friendly-setting-button {
     border-right: 0;
     border-bottom: 1px solid #94a3b8;
@@ -2054,8 +2213,46 @@ body.spectator-mode .player-panel {
     border-bottom: 1px solid #94a3b8;
   }
 
+  .friendly-setting-switch.five-options .friendly-setting-button {
+    border-right: 0;
+    border-bottom: 1px solid #94a3b8;
+  }
+
+  .friendly-setting-switch.five-options .friendly-setting-button:last-child {
+    border-bottom: 0;
+  }
+
   .ai-club-house-footer {
     grid-template-columns: 1fr;
+  }
+
+  .opponent-hand-reveal-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .opponent-hand-reveal-controls button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .confrontation-intro {
+    padding: 14px;
+  }
+
+  .confrontation-intro-versus {
+    grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .confrontation-intro-countdown strong {
+    width: 50px;
+    height: 50px;
+    font-size: 1.8rem;
+  }
+
+  .confrontation-intro-player strong {
+    font-size: 0.78rem;
   }
 
   .spectator-live-banner {

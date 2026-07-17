@@ -135,6 +135,8 @@ const AI_CLUB_HOUSE = {
   format: localStorage.getItem("tennisLightAiClubFormat") === "league" ? "league" : "tournament",
   targetSets: Number(localStorage.getItem("tennisLightAiClubSets")) === 3 ? 3 : 2,
   difficulty: localStorage.getItem("tennisLightAiClubDifficulty") || "normal",
+  players: localStorage.getItem("tennisLightAiClubPlayers") === "best" ? "best" : "random",
+  distribution: localStorage.getItem("tennisLightAiClubDistribution") === "ranking" ? "ranking" : "random",
 };
 
 const AUTH_STATE = {
@@ -145,6 +147,7 @@ const AUTH_STATE = {
   adminPage: 1,
   adminTotalPages: 1,
   ranking: null,
+  gameplayRanking: null,
   lobbyRanking: null,
   rankingPage: 1,
   rankingSort: "points",
@@ -161,24 +164,27 @@ const ROLE_LABELS = {
   admin: "ADMIN",
 };
 
-const AI_DIFFICULTIES = ["normal", "expert", "champion", "legend"];
+const AI_DIFFICULTIES = ["normal", "expert", "champion", "legend", "ranking"];
 const AI_DIFFICULTY_LABELS = {
   normal: "NORMAL",
   expert: "EXPERT",
   champion: "CHAMPION",
   legend: "LÉGENDE",
+  ranking: "SELON CLASSEMENT",
 };
 const AI_DIFFICULTY_BONUS_COUNTS = {
   normal: 0,
   expert: 1,
   champion: 2,
   legend: 3,
+  ranking: 0,
 };
 const AI_DIFFICULTY_DESCRIPTIONS = {
   normal: "Normal · IA sans bonus.",
   expert: "Expert · IA avec 1 bonus aléatoire parmi les 9 bonus du circuit.",
   champion: "Champion · IA avec 2 bonus aléatoires différents parmi les 9 bonus du circuit.",
   legend: "Légende · IA avec 3 bonus aléatoires différents parmi les 9 bonus du circuit.",
+  ranking: "Selon classement · N°1 : 3 bonus, N°2 et N°3 : 2, N°4 à N°10 : 1, au-delà : aucun.",
 };
 
 const EMPTY_TOURNAMENT = {
@@ -1137,6 +1143,9 @@ const TUTORIAL_MODULES = {
 };
 
 let tutorialAutoTimer = null;
+let opponentHandRevealTimer = null;
+let confrontationIntroTimer = null;
+let confrontationIntroActive = false;
 
 const state = {
   players: [],
@@ -1170,6 +1179,7 @@ const state = {
   turnSnapshot: null,
   turnDirty: false,
   revealAiCards: false,
+  opponentHandReveal: null,
   actionLog: [],
   tournament: cloneData(EMPTY_TOURNAMENT),
   setMatch: {
@@ -1270,6 +1280,7 @@ const els = {
   profileContent: document.querySelector("#profileContent"),
   characterContent: document.querySelector("#characterContent"),
   backToProfileFromCharacterButton: document.querySelector("#backToProfileFromCharacterButton"),
+  backToLobbyFromCharacterButton: document.querySelector("#backToLobbyFromCharacterButton"),
   weeklyCompetitionsList: document.querySelector("#weeklyCompetitionsList"),
   nicknameInput: document.querySelector("#nicknameInput"),
   coachChoiceButtons: document.querySelectorAll("[data-menu-coach]"),
@@ -1359,6 +1370,11 @@ function tournamentDifficultyLabel(value = "normal") {
 
 function aiDifficultyBonusCount(value = "normal") {
   return AI_DIFFICULTY_BONUS_COUNTS[normalizeAiDifficulty(value)] || 0;
+}
+
+function aiDifficultyBonusLabel(value = "normal") {
+  const normalized = normalizeAiDifficulty(value);
+  return normalized === "ranking" ? "bonus selon classement" : `${aiDifficultyBonusCount(normalized)} bonus`;
 }
 
 function characterNameFromId(characterId) {
@@ -2246,7 +2262,7 @@ async function saveProfileCharacter() {
     const data = await authRequest("/api/profile/character", { characterId: selected });
     applyAuthenticatedUser(data.user);
     AUTH_STATE.profile = null;
-    await loadCharacterPage();
+    showProfileScreen();
   } catch (error) {
     if (els.characterContent) els.characterContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
   }
@@ -2578,9 +2594,8 @@ async function startWeeklyCompetition(competitionId) {
     renderAuthState("Le Tennis Courts Pro Circuit est réservé aux joueurs Pro.");
     return;
   }
-  if (!AUTH_STATE.ranking) {
-    await loadRanking();
-  }
+  await ensureGameplayRanking();
+  await ensureGameplayProfile();
   const competition = weeklyCompetitionById(competitionId);
   if (!competition) {
     renderAuthState("Tournoi indisponible. Actualise le classement.");
@@ -2600,7 +2615,11 @@ async function startWeeklyCompetition(competitionId) {
 }
 
 function nicknameValue() {
-  const value = els.nicknameInput?.value?.trim() || MENU_STATE.nickname || "";
+  const value = els.nicknameInput?.value?.trim()
+    || state.tournament?.humanNickname
+    || AUTH_STATE.user?.nickname
+    || MENU_STATE.nickname
+    || "";
   return value || selectedPlayerName();
 }
 
@@ -3276,20 +3295,26 @@ function renderAiClubHouse() {
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   els.aiClubSettingButtons?.forEach((button) => {
     const setting = button.dataset.aiClubSetting;
-    const expected = setting === "format"
-      ? AI_CLUB_HOUSE.format
-      : setting === "sets"
-        ? String(AI_CLUB_HOUSE.targetSets)
-        : AI_CLUB_HOUSE.difficulty;
+    const expected = {
+      format: AI_CLUB_HOUSE.format,
+      sets: String(AI_CLUB_HOUSE.targetSets),
+      difficulty: AI_CLUB_HOUSE.difficulty,
+      players: AI_CLUB_HOUSE.players,
+      distribution: AI_CLUB_HOUSE.distribution,
+    }[setting];
     button.classList.toggle("active", button.dataset.aiClubValue === expected);
   });
   if (els.aiLevelDescription) {
     els.aiLevelDescription.textContent = AI_DIFFICULTY_DESCRIPTIONS[AI_CLUB_HOUSE.difficulty];
   }
   if (els.aiClubHouseSummary) {
-    const bonusCount = aiDifficultyBonusCount(AI_CLUB_HOUSE.difficulty);
     const format = AI_CLUB_HOUSE.format === "league" ? "League" : "Tournoi";
-    els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusCount} bonus IA`;
+    const bonusText = AI_CLUB_HOUSE.difficulty === "ranking"
+      ? "bonus selon classement"
+      : `${aiDifficultyBonusCount(AI_CLUB_HOUSE.difficulty)} bonus IA`;
+    const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
+    const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
+    els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
   }
 }
 
@@ -3303,11 +3328,35 @@ function updateAiClubHouseSetting(setting, value) {
   } else if (setting === "difficulty") {
     AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(value);
     localStorage.setItem("tennisLightAiClubDifficulty", AI_CLUB_HOUSE.difficulty);
+  } else if (setting === "players") {
+    AI_CLUB_HOUSE.players = value === "best" ? "best" : "random";
+    localStorage.setItem("tennisLightAiClubPlayers", AI_CLUB_HOUSE.players);
+  } else if (setting === "distribution") {
+    AI_CLUB_HOUSE.distribution = value === "ranking" ? "ranking" : "random";
+    localStorage.setItem("tennisLightAiClubDistribution", AI_CLUB_HOUSE.distribution);
   }
   renderAiClubHouse();
 }
 
-function startAiClubHouseCompetition() {
+async function ensureGameplayProfile() {
+  if (!AUTH_STATE.user || AUTH_STATE.profile) return;
+  try {
+    AUTH_STATE.profile = await authRequest("/api/profile");
+  } catch (error) {
+    // Une indisponibilité du profil ne doit pas empêcher le lancement de la partie.
+  }
+}
+
+async function ensureGameplayRanking() {
+  if (!canAccessProFeatures()) return;
+  try {
+    AUTH_STATE.gameplayRanking = await authRequest(`/api/ranking?page=1&pageSize=100&sort=points`);
+  } catch (error) {
+    if (!AUTH_STATE.ranking) await loadRanking();
+  }
+}
+
+async function startAiClubHouseCompetition() {
   if (!canAccessProFeatures()) {
     showMenuScreen();
     renderAuthState("Réservé aux joueurs Pro.");
@@ -3315,9 +3364,13 @@ function startAiClubHouseCompetition() {
   }
   resetTutorialMode();
   MENU_STATE.espoirResolvedCharacterId = null;
+  await ensureGameplayRanking();
+  await ensureGameplayProfile();
   const options = {
     aiClubHouse: true,
     difficulty: AI_CLUB_HOUSE.difficulty,
+    players: AI_CLUB_HOUSE.players,
+    distribution: AI_CLUB_HOUSE.distribution,
   };
   showGameScreen();
   if (AI_CLUB_HOUSE.format === "league") {
@@ -4879,7 +4932,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v136",
+    gameVersion: "v137",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5119,7 +5172,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v136",
+    version: "v137",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5178,7 +5231,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v136",
+    version: "v137",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5192,7 +5245,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v136");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v137");
 }
 
 function resetSetMatch() {
@@ -5240,7 +5293,7 @@ function newGame(options = {}) {
   state.players = SERVER_SYNC.enabled
     ? profiles.map((profile) => createPlayer(profile.name, profile.characterId, profile.nickname))
     : [
-      createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, nicknameValue()),
+      createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, state.tournament?.humanNickname || nicknameValue()),
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
   state.players.forEach((player, playerIndex) => {
@@ -5304,6 +5357,10 @@ function newGame(options = {}) {
   state.resultInfo = null;
   state.turnDirty = false;
   state.revealAiCards = false;
+  window.clearInterval(opponentHandRevealTimer);
+  opponentHandRevealTimer = null;
+  state.opponentHandReveal = null;
+  document.querySelector(".opponent-hand-reveal-controls")?.remove();
   state.actionLog = [];
   if (state.setMatch.enabled) {
     state.setMatch.exchangeNumber += 1;
@@ -5381,6 +5438,7 @@ const SNAPSHOT_KEYS = [
   "effectNotice",
   "resultInfo",
   "revealAiCards",
+  "opponentHandReveal",
   "tournament",
   "setMatch",
 ];
@@ -5456,6 +5514,91 @@ function canUndoTurn(playerIndex) {
 
 function playerName(index) {
   return displayPlayerName(state.players[index]);
+}
+
+function frenchOrdinalRank(rank) {
+  const value = Number(rank || 0);
+  if (!value) return "Non classé";
+  return value === 1 ? "1er" : `${value}e`;
+}
+
+function currentOpponentConfrontationStatus() {
+  if (!state.tournament.active || !SOLO_AI.enabled) return null;
+  const opponent = state.players?.[SOLO_AI.playerIndex];
+  const row = (AUTH_STATE.profile?.aiResults || []).find((result) => (
+    String(result.ai_character_id || result.aiCharacterId || "") === String(opponent?.characterId || "")
+  ));
+  if (!row) return null;
+  return confrontationStatus(Number(row.wins || 0), Number(row.losses || 0));
+}
+
+function closeConfrontationIntro() {
+  window.clearInterval(confrontationIntroTimer);
+  confrontationIntroTimer = null;
+  confrontationIntroActive = false;
+  document.querySelector(".confrontation-intro-backdrop")?.remove();
+  maybeRunSoloAI();
+}
+
+function confrontationPlayerCardMarkup(player, playerIndex) {
+  const image = PROFILE_CHARACTER_IMAGES[player?.characterId]
+    || CHARACTER_IMAGES[player?.characterId]?.[0]
+    || CHARACTER_IMAGES.coachUnknown[0];
+  const tournamentEntry = playerIndex === 0 ? HUMAN_TOURNAMENT_ENTRY : player?.characterId;
+  const rank = player?.worldRank || tournamentWorldRankForEntry(tournamentEntry);
+  const isHuman = SERVER_SYNC.enabled || !SOLO_AI.enabled || playerIndex !== SOLO_AI.playerIndex;
+  const participantName = isHuman
+    ? player?.nickname || (playerIndex === 0 ? state.tournament?.humanNickname : null) || AUTH_STATE.user?.nickname || player?.name
+    : player?.name;
+  return `
+    <article class="confrontation-intro-player">
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(player?.name || "Joueur")}" />
+      <strong>${escapeHtml(participantName || "Joueur")}</strong>
+      <span>${escapeHtml(frenchOrdinalRank(rank))}</span>
+    </article>
+  `;
+}
+
+function showConfrontationIntro() {
+  if (state.tutorial.active || !state.players?.[0] || !state.players?.[1]) return;
+  document.querySelector(".confrontation-intro-backdrop")?.remove();
+  window.clearInterval(confrontationIntroTimer);
+  confrontationIntroActive = true;
+  const circuitHeader = state.tournament.weekly
+    ? `<p class="confrontation-intro-tournament">${escapeHtml(state.tournament.competitionName || "Tournoi")} · ${escapeHtml(state.tournament.competitionCity || "")} ${escapeHtml(state.tournament.competitionFlag || "")}</p>`
+    : "";
+  const confrontationType = state.tournament.active ? humanTournamentRoundLabel() || "Tournoi" : "Match amical";
+  const status = currentOpponentConfrontationStatus();
+  const backdrop = document.createElement("div");
+  backdrop.className = "confrontation-intro-backdrop";
+  backdrop.innerHTML = `
+    <section class="confrontation-intro" role="dialog" aria-modal="true" aria-label="Présentation de la confrontation">
+      ${circuitHeader}
+      <p class="confrontation-intro-type">${escapeHtml(confrontationType)}</p>
+      <div class="confrontation-intro-versus">
+        ${confrontationPlayerCardMarkup(state.players[0], 0)}
+        <div class="confrontation-intro-countdown" aria-live="polite">
+          <strong data-confrontation-countdown>5</strong>
+          <span>secondes</span>
+        </div>
+        ${confrontationPlayerCardMarkup(state.players[1], 1)}
+      </div>
+      ${status ? `<p class="confrontation-intro-rivalry ${escapeHtml(status.className)}">${escapeHtml(status.label)}</p>` : ""}
+    </section>
+  `;
+  document.body.append(backdrop);
+  const expiresAt = Date.now() + 5_000;
+  confrontationIntroTimer = window.setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    const countdown = backdrop.querySelector("[data-confrontation-countdown]");
+    if (countdown) countdown.textContent = String(remaining);
+    if (remaining <= 0) closeConfrontationIntro();
+  }, 100);
+}
+
+function queueConfrontationIntro() {
+  window.clearInterval(confrontationIntroTimer);
+  confrontationIntroTimer = window.setTimeout(showConfrontationIntro, 0);
 }
 
 function opponentOf(playerIndex) {
@@ -5756,6 +5899,7 @@ function startSoloGame() {
   const styleLabel = aiStyleLabel();
   state.log.unshift(`Mode IA : vous jouez ${selectedPlayerName()}, l'autre coach joue ${styleLabel}.`);
   render();
+  queueConfrontationIntro();
 }
 
 async function startOnlineGame() {
@@ -5770,8 +5914,74 @@ function toggleRevealAiCards() {
   render();
 }
 
+function localHumanControlsPlayer(playerIndex) {
+  if (SPECTATOR_MODE.enabled) return false;
+  if (SERVER_SYNC.enabled) return playerIndex === SERVER_SYNC.seat;
+  if (SOLO_AI.enabled) return playerIndex !== SOLO_AI.playerIndex;
+  return true;
+}
+
+function opponentHandRevealRemainingSeconds() {
+  if (!state.opponentHandReveal?.expiresAt) return 0;
+  return Math.max(0, Math.ceil((state.opponentHandReveal.expiresAt - Date.now()) / 1000));
+}
+
+function localCanViewOpponentHandReveal() {
+  const reveal = state.opponentHandReveal;
+  return Boolean(reveal && opponentHandRevealRemainingSeconds() > 0 && localHumanControlsPlayer(reveal.viewerIndex));
+}
+
+function isOpponentHandTemporarilyRevealed(playerIndex) {
+  return localCanViewOpponentHandReveal() && state.opponentHandReveal.opponentIndex === playerIndex;
+}
+
+function endOpponentHandReveal(shouldRender = true) {
+  window.clearInterval(opponentHandRevealTimer);
+  opponentHandRevealTimer = null;
+  state.opponentHandReveal = null;
+  document.querySelector(".opponent-hand-reveal-controls")?.remove();
+  if (shouldRender) render();
+}
+
+function scheduleOpponentHandRevealCountdown() {
+  window.clearInterval(opponentHandRevealTimer);
+  opponentHandRevealTimer = window.setInterval(() => {
+    const remaining = opponentHandRevealRemainingSeconds();
+    const button = document.querySelector("[data-end-opponent-hand-reveal]");
+    if (button) button.textContent = `Terminer la visualisation · ${remaining} s`;
+    if (remaining <= 0) endOpponentHandReveal();
+  }, 250);
+}
+
+function startOpponentHandReveal(viewerIndex, opponentIndex) {
+  state.opponentHandReveal = { viewerIndex, opponentIndex, expiresAt: Date.now() + 10_000 };
+  scheduleOpponentHandRevealCountdown();
+}
+
+function renderOpponentHandRevealControls() {
+  let controls = document.querySelector(".opponent-hand-reveal-controls");
+  if (!localCanViewOpponentHandReveal()) {
+    controls?.remove();
+    if (state.opponentHandReveal && opponentHandRevealRemainingSeconds() <= 0) state.opponentHandReveal = null;
+    return;
+  }
+  if (!controls) {
+    controls = document.createElement("aside");
+    controls.className = "opponent-hand-reveal-controls";
+    controls.setAttribute("aria-live", "polite");
+    document.body.append(controls);
+  }
+  const remaining = opponentHandRevealRemainingSeconds();
+  controls.innerHTML = `
+    <strong>Main adverse révélée</strong>
+    <button class="primary-button" type="button" data-end-opponent-hand-reveal>Terminer la visualisation · ${remaining} s</button>
+  `;
+  controls.querySelector("[data-end-opponent-hand-reveal]")?.addEventListener("click", () => endOpponentHandReveal());
+  if (!opponentHandRevealTimer) scheduleOpponentHandRevealCountdown();
+}
+
 function maybeRunSoloAI() {
-  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver) return;
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive) return;
   if (state.activePlayer !== SOLO_AI.playerIndex) return;
   if (SOLO_AI.thinking || SOLO_AI.executing) return;
   SOLO_AI.thinking = true;
@@ -6513,6 +6723,7 @@ function buildSoloScenarioPlan(playerIndex) {
       playerHand: player.hand.length,
       opponentEndurance: opponent.endurance,
       opponentHand: opponent.hand.length,
+      knownOpponentCards: expertKnownOpponentCards(playerIndex).map(cardLogInfo),
     },
   };
 }
@@ -6795,6 +7006,10 @@ function expertKnownOpponentCards(playerIndex) {
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
   if (player.knownOpponentHand?.opponentIndex !== opponentIndex) return [];
+  const remainingKnownUids = new Set(player.knownOpponentHand.cardUids ?? []);
+  if (remainingKnownUids.size) {
+    return state.players[opponentIndex].hand.filter((card) => remainingKnownUids.has(card.uid));
+  }
   const remainingKnownIds = new Set(player.knownOpponentHand.cardIds ?? []);
   return state.players[opponentIndex].hand.filter((card) => remainingKnownIds.has(card.id));
 }
@@ -8409,11 +8624,12 @@ function applyCharacterEffect(playerIndex, playedCard) {
     player.knownOpponentHand = {
       opponentIndex,
       cardIds: opponent.hand.map((card) => card.id),
+      cardUids: opponent.hand.map((card) => card.uid),
       observedAt: Date.now(),
     };
-    const cards = opponent.hand.map((card) => card.name).join(", ") || "main vide";
-    state.log.unshift(`${character.name} (${effect.side}) : main adverse observée (${cards}).`);
-    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    if (localHumanControlsPlayer(playerIndex)) startOpponentHandReveal(playerIndex, opponentIndex);
+    state.log.unshift(`${character.name} (${effect.side}) : main adverse observée.`);
+    state.effectNotice = null;
     return false;
   }
 
@@ -8715,6 +8931,7 @@ function startMatchMode(targetSets = null, options = {}) {
   state.log.unshift(`Mode ${formatLabel} : ${opponentLabel}.`);
   markServerDirtyForHostAction();
   render();
+  queueConfrontationIntro();
 }
 
 function startLeagueTournamentMode(targetSets = 2, options = {}) {
@@ -8729,8 +8946,14 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
-  const setup = buildLeagueTournamentSetup();
   const aiClubHouse = Boolean(options.aiClubHouse);
+  const leagueDistribution = aiClubHouse ? options.distribution || "random" : "ranking";
+  const setup = buildLeagueTournamentSetup({
+    aiClubHouse,
+    playerSelection: options.players || "random",
+    distribution: leagueDistribution,
+    humanCharacterId,
+  });
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
   const permanentBonuses = aiClubHouse
     ? {}
@@ -8744,6 +8967,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     league: true,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
+    playerSelection: options.players || "random",
+    distribution: leagueDistribution,
     weekly: false,
     competitionId: null,
     competitionName: `LEAGUE ${targetSets} sets`,
@@ -8771,18 +8996,37 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     dynamicBonusIds,
     matches: [],
   };
-  state.tournament.matches = buildLeagueTournamentMatches(setup.seededEntries, HUMAN_TOURNAMENT_ENTRY, targetSets);
+  state.tournament.matches = buildLeagueTournamentMatches(setup.groups, HUMAN_TOURNAMENT_ENTRY, targetSets, setup.seededEntries);
   prepareLeagueHumanMatch();
-  state.log.unshift(`CLUB HOUSE IA · LEAGUE ${targetSets} sets · niveau ${tournamentDifficultyLabel(SOLO_AI.difficulty)}.`);
+  state.log.unshift(`CLUB HOUSE · LEAGUE ${targetSets} sets · niveau ${tournamentDifficultyLabel(SOLO_AI.difficulty)}.`);
   render();
 }
 
-function buildLeagueTournamentSetup() {
+function rankedTournamentEntries(entries = []) {
   const rankByEntry = new Map(tournamentRankingEntries().map((entry) => [entry.entry, entry.rank]));
-  const rankOf = (entry) => rankByEntry.get(entry) ?? (entry === HUMAN_TOURNAMENT_ENTRY ? 9998 : 9999);
-  const randomAi = shuffle(TOURNAMENT_CHARACTER_POOL).slice(0, 7);
-  const seededEntries = [HUMAN_TOURNAMENT_ENTRY, ...randomAi]
-    .sort((a, b) => rankOf(a) - rankOf(b) || tournamentPlayerLabel(a).localeCompare(tournamentPlayerLabel(b), "fr"));
+  const rankOf = (entry) => rankByEntry.get(entry) ?? 99999;
+  return [...entries].sort((a, b) => rankOf(a) - rankOf(b) || tournamentPlayerLabel(a).localeCompare(tournamentPlayerLabel(b), "fr"));
+}
+
+function selectAiClubHousePlayers(count, selection = "random", humanCharacterId = selectedCharacterId()) {
+  const available = TOURNAMENT_CHARACTER_POOL.filter((entry) => entry !== humanCharacterId);
+  if (selection === "best") return rankedTournamentEntries(available).slice(0, count);
+  return shuffle(available).slice(0, count);
+}
+
+function buildLeagueTournamentSetup(options = {}) {
+  const selectedAi = options.aiClubHouse
+    ? selectAiClubHousePlayers(7, options.playerSelection, options.humanCharacterId)
+    : shuffle(TOURNAMENT_CHARACTER_POOL).slice(0, 7);
+  const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
+  const seededEntries = rankedTournamentEntries(roster);
+  if (options.distribution !== "ranking") {
+    const randomEntries = shuffle(roster);
+    return {
+      seededEntries,
+      groups: { A: randomEntries.slice(0, 4), B: randomEntries.slice(4, 8) },
+    };
+  }
   const pick = (rank) => seededEntries[rank - 1];
   return {
     seededEntries,
@@ -8793,11 +9037,8 @@ function buildLeagueTournamentSetup() {
   };
 }
 
-function buildLeagueTournamentMatches(entries, humanEntry, targetSets) {
-  const player = (seed) => entries[seed - 1];
-  const match = (id, label, day, group, seedA, seedB) => {
-    const playerA = player(seedA);
-    const playerB = player(seedB);
+function buildLeagueTournamentMatches(groups, humanEntry, targetSets, seededEntries = []) {
+  const match = (id, label, day, group, playerA, playerB) => {
     const playable = playerA === humanEntry || playerB === humanEntry;
     const item = {
       id,
@@ -8805,8 +9046,8 @@ function buildLeagueTournamentMatches(entries, humanEntry, targetSets) {
       round: `day${day}`,
       day,
       group,
-      seedA,
-      seedB,
+      seedA: seededEntries.indexOf(playerA) + 1,
+      seedB: seededEntries.indexOf(playerB) + 1,
       playerA,
       playerB,
       winner: null,
@@ -8825,19 +9066,27 @@ function buildLeagueTournamentMatches(entries, humanEntry, targetSets) {
     }
     return item;
   };
-  return [
-    match("league_a_d1_m1", "Journée 1 · Groupe A", 1, "A", 1, 8),
-    match("league_a_d1_m2", "Journée 1 · Groupe A", 1, "A", 4, 5),
-    match("league_b_d1_m1", "Journée 1 · Groupe B", 1, "B", 2, 7),
-    match("league_b_d1_m2", "Journée 1 · Groupe B", 1, "B", 3, 6),
-    match("league_a_d2_m1", "Journée 2 · Groupe A", 2, "A", 1, 5),
-    match("league_a_d2_m2", "Journée 2 · Groupe A", 2, "A", 4, 8),
-    match("league_b_d2_m1", "Journée 2 · Groupe B", 2, "B", 2, 6),
-    match("league_b_d2_m2", "Journée 2 · Groupe B", 2, "B", 3, 7),
-    match("league_a_d3_m1", "Journée 3 · Groupe A", 3, "A", 1, 4),
-    match("league_a_d3_m2", "Journée 3 · Groupe A", 3, "A", 5, 8),
-    match("league_b_d3_m1", "Journée 3 · Groupe B", 3, "B", 2, 3),
-    match("league_b_d3_m2", "Journée 3 · Groupe B", 3, "B", 6, 7),
+  const schedule = [
+    [[0, 3], [1, 2]],
+    [[0, 2], [3, 1]],
+    [[0, 1], [2, 3]],
+  ];
+  const matches = [];
+  for (const group of ["A", "B"]) {
+    schedule.forEach((dayMatches, dayIndex) => {
+      dayMatches.forEach(([indexA, indexB], matchIndex) => {
+        matches.push(match(
+          `league_${group.toLowerCase()}_d${dayIndex + 1}_m${matchIndex + 1}`,
+          `Journée ${dayIndex + 1} · Groupe ${group}`,
+          dayIndex + 1,
+          group,
+          groups[group][indexA],
+          groups[group][indexB],
+        ));
+      });
+    });
+  }
+  matches.push(
     {
       id: "league_semi1",
       label: "Demi-finale 1 · 1A contre 2B",
@@ -8883,7 +9132,8 @@ function buildLeagueTournamentMatches(entries, humanEntry, targetSets) {
       hiddenSetScores: null,
       revealedSetScores: [],
     },
-  ];
+  );
+  return matches;
 }
 
 function prepareLeagueHumanMatch() {
@@ -9034,6 +9284,22 @@ function completeLeagueWithoutHuman() {
   state.tournament.championCharacterId = final?.winner || null;
 }
 
+function buildAiClubHouseClassicSetup(options = {}) {
+  const selectedAi = selectAiClubHousePlayers(15, options.playerSelection, options.humanCharacterId);
+  const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
+  const positions = Array(17).fill(null);
+  let bracketEntries;
+  if (options.distribution === "ranking") {
+    const ranked = rankedTournamentEntries(roster);
+    const bracketSeedOrder = [1, 16, 9, 8, 5, 12, 13, 4, 3, 14, 11, 6, 7, 10, 15, 2];
+    bracketEntries = bracketSeedOrder.map((seed) => ranked[seed - 1]);
+  } else {
+    bracketEntries = shuffle(roster);
+  }
+  bracketEntries.forEach((entry, index) => { positions[index + 1] = entry; });
+  return { positions, seededHistorics: [], roster };
+}
+
 function startTournamentMode(targetSets = 2, options = {}) {
   if (SERVER_SYNC.enabled) {
     state.log.unshift("Le tournoi IA est disponible hors partie en ligne.");
@@ -9050,8 +9316,14 @@ function startTournamentMode(targetSets = 2, options = {}) {
     startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
     return;
   }
-  const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
   const aiClubHouse = Boolean(options.aiClubHouse);
+  const { positions, seededHistorics } = aiClubHouse
+    ? buildAiClubHouseClassicSetup({
+      humanCharacterId,
+      playerSelection: options.players || "random",
+      distribution: options.distribution || "random",
+    })
+    : buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
   const permanentBonuses = aiClubHouse
     ? {}
@@ -9065,9 +9337,11 @@ function startTournamentMode(targetSets = 2, options = {}) {
     bracket16: true,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
+    playerSelection: options.players || "random",
+    distribution: options.distribution || "random",
     weekly: Boolean(weeklyCompetition),
     competitionId: weeklyCompetition?.id || null,
-    competitionName: weeklyCompetition?.name || (aiClubHouse ? "TOURNOI AMICAL IA" : null),
+    competitionName: weeklyCompetition?.name || (aiClubHouse ? "TOURNOI CLUB HOUSE" : null),
     competitionCity: weeklyCompetition?.city || null,
     competitionCountry: weeklyCompetition?.country || null,
     competitionFlag: weeklyCompetition?.flag || null,
@@ -9113,8 +9387,9 @@ function currentRankingTotalPoints() {
 }
 
 function tournamentRankingEntries() {
-  const rows = [...(AUTH_STATE.ranking?.top || [])];
-  const current = AUTH_STATE.ranking?.currentUserRank;
+  const ranking = AUTH_STATE.gameplayRanking || AUTH_STATE.ranking;
+  const rows = [...(ranking?.top || [])];
+  const current = ranking?.currentUserRank;
   if (current && !rows.some((row) => row.id === current.id)) rows.push(current);
   return rows
     .map((row) => {
@@ -9171,12 +9446,30 @@ function allCircuitSeedBonuses() {
   ));
 }
 
+function aiCircuitPerformanceRank(entry) {
+  const aiEntries = tournamentRankingEntries()
+    .filter((item) => item.entry !== HUMAN_TOURNAMENT_ENTRY)
+    .sort((a, b) => a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"));
+  const index = aiEntries.findIndex((item) => item.entry === entry);
+  return index >= 0 ? index + 1 : null;
+}
+
+function aiLevelBonusCountForEntry(entry, difficulty = "normal") {
+  const normalized = normalizeAiDifficulty(difficulty);
+  if (normalized !== "ranking") return aiDifficultyBonusCount(normalized);
+  const rank = aiCircuitPerformanceRank(entry);
+  if (rank === 1) return 3;
+  if (rank && rank <= 3) return 2;
+  if (rank && rank <= 10) return 1;
+  return 0;
+}
+
 function buildAiLevelBonuses(entries = [], difficulty = "normal") {
-  const bonusCount = aiDifficultyBonusCount(difficulty);
-  if (!bonusCount) return {};
   const bonuses = {};
   const aiEntries = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
   for (const entry of aiEntries) {
+    const bonusCount = aiLevelBonusCountForEntry(entry, difficulty);
+    if (!bonusCount) continue;
     bonuses[entry] = shuffle(allCircuitSeedBonuses()).slice(0, bonusCount);
   }
   return bonuses;
@@ -10274,6 +10567,7 @@ function render() {
   renderEffectNotice();
   renderPlayerPanel(0, els.player1Panel);
   renderPlayerPanel(1, els.player2Panel);
+  renderOpponentHandRevealControls();
   renderCenterPlayedCard();
   renderLog();
   renderServerSyncPanel();
@@ -10594,7 +10888,7 @@ function renderTournamentPanel() {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusCount(state.tournament.difficulty)} bonus</span>` : ""}
+        ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusLabel(state.tournament.difficulty)}</span>` : ""}
         ${state.tournament.competitionSurfaceLabel ? `<span class="difficulty-reminder">${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
         ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
         ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
@@ -10707,7 +11001,7 @@ function renderLeagueTournamentPanel(title, final, champion) {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusCount(state.tournament.difficulty)} bonus` : ""}</span>
+        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusLabel(state.tournament.difficulty)}` : ""}</span>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
@@ -11318,11 +11612,12 @@ function renderPlayerPanel(playerIndex, root) {
 
 function renderCard(playerIndex, card) {
   const player = state.players[playerIndex];
-  const isHidden = SPECTATOR_MODE.enabled || (SERVER_SYNC.enabled
+  const temporarilyRevealed = isOpponentHandTemporarilyRevealed(playerIndex);
+  const isHidden = !temporarilyRevealed && (SPECTATOR_MODE.enabled || (SERVER_SYNC.enabled
     ? playerIndex !== SERVER_SYNC.seat
     : SOLO_AI.enabled
       ? playerIndex === SOLO_AI.playerIndex && !(state.gameOver && state.revealAiCards)
-      : playerIndex !== state.activePlayer && !state.gameOver);
+      : playerIndex !== state.activePlayer && !state.gameOver));
   const effectModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "effect", false);
   const placementModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "placement", false);
   const normalAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "normal", false);
@@ -11614,6 +11909,7 @@ async function pollServerState() {
   if (!SERVER_SYNC.enabled) return;
   const pollingFriendlyMatch = SERVER_SYNC.friendlyMatch;
   const endpoint = serverSyncStateEndpoint();
+  const wasReady = SERVER_SYNC.ready;
   try {
     const query = pollingFriendlyMatch
       ? `participantId=${encodeURIComponent(FRIENDLY_TOURNAMENT.participantId || "")}&token=${encodeURIComponent(FRIENDLY_TOURNAMENT.token || "")}&revision=${SERVER_SYNC.revision}`
@@ -11642,6 +11938,7 @@ async function pollServerState() {
       SERVER_SYNC.lastSent = JSON.stringify(data.state);
       importSyncState(data.state);
       applyOnlinePlayersFromRoom(data.players ?? SERVER_SYNC.players);
+      if (!wasReady) queueConfrontationIntro();
     } else {
       renderServerSyncPanel();
     }
@@ -11736,6 +12033,7 @@ function initMenu() {
   els.backToLobbyFromCircuitInfoButton?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
   els.backToProfileFromCharacterButton?.addEventListener("click", showProfileScreen);
+  els.backToLobbyFromCharacterButton?.addEventListener("click", showMenuScreen);
   els.nicknameInput?.addEventListener("input", () => {
     MENU_STATE.nickname = els.nicknameInput.value.trim();
     localStorage.setItem("tennisLightNickname", MENU_STATE.nickname);

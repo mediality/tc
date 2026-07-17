@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=136.1" />
+    <link rel="stylesheet" href="./styles.css?v=137.2" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v136</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -66,7 +66,7 @@
               </div>
               <div class="menu-mode-group restricted-pro" data-required-role="pro">
                 <p class="label">Compétition</p>
-                <button id="openAiClubHouseButton" class="primary-button tournament-menu-button" type="button">CLUB HOUSE IA</button>
+                <button id="openAiClubHouseButton" class="primary-button tournament-menu-button" type="button">CLUB HOUSE</button>
                 <p class="access-note">Réservé aux joueurs Pro.</p>
               </div>
             </div>
@@ -120,7 +120,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v136</span></p>
+        <p class="eyebrow">Profil joueur <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -134,12 +134,15 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v136</span></p>
+        <p class="eyebrow">Personnage <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
             <p class="label">Choisir mon personnage</p>
-            <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour profil</button>
+            <div class="page-return-actions">
+              <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour profil</button>
+              <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour lobby</button>
+            </div>
           </div>
           <div id="characterContent" class="profile-content" aria-live="polite"></div>
         </section>
@@ -148,7 +151,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v136</span></p>
+        <p class="eyebrow">Réinitialisation <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -164,7 +167,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v136</span></p>
+        <p class="eyebrow">Classement général <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -188,7 +191,7 @@
 
     <section id="circuitInfoScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v136</span></p>
+        <p class="eyebrow">Tennis Courts Pro Circuit <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel circuit-info-panel">
           <div class="lobby-header">
@@ -227,7 +230,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v136</span></p>
+        <p class="eyebrow">Administration <span>v137</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -283,7 +286,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v136</span></p>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v137</span></p>
             <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -298,7 +301,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Tournoi amical contre l'IA <span>v136</span></p>
+            <p class="eyebrow">CLUB HOUSE · Compétition contre l'IA <span>v137</span></p>
             <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -347,11 +350,34 @@
                 <strong>Niveau IA</strong>
                 <span id="aiLevelDescription">Normal · IA sans bonus.</span>
               </div>
-              <div class="friendly-setting-switch four-options" aria-label="Niveau de l'intelligence artificielle">
+              <div class="friendly-setting-switch five-options" aria-label="Niveau de l'intelligence artificielle">
                 <button class="friendly-setting-button active" type="button" data-ai-club-setting="difficulty" data-ai-club-value="normal">NORMAL</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="expert">EXPERT</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="champion">CHAMPION</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="legend">LÉGENDE</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="ranking">SELON CLASSEMENT</button>
+              </div>
+            </div>
+
+            <div class="friendly-setting-row">
+              <div>
+                <strong>Joueurs</strong>
+                <span>Choisir les adversaires IA au hasard ou retenir les mieux classés.</span>
+              </div>
+              <div class="friendly-setting-switch" aria-label="Sélection des joueurs IA">
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="players" data-ai-club-value="random">ALÉATOIRE</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="players" data-ai-club-value="best">MEILLEURS</button>
+              </div>
+            </div>
+
+            <div class="friendly-setting-row">
+              <div>
+                <strong>Répartition</strong>
+                <span>Placement totalement aléatoire ou tableau construit selon le classement du circuit.</span>
+              </div>
+              <div class="friendly-setting-switch" aria-label="Répartition des joueurs">
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="distribution" data-ai-club-value="random">ALÉATOIRE</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="distribution" data-ai-club-value="ranking">SELON CLASSEMENT</button>
               </div>
             </div>
 
@@ -368,7 +394,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v136</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v137</span></p>
           <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
             <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
@@ -406,6 +432,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=136"></script>
+    <script src="./app.js?v=137"></script>
   </body>
 </html>

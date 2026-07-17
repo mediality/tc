@@ -1,4 +1,4 @@
-Tennis Courts Academy - version serveur v136
+Tennis Courts Academy - version serveur v137
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
@@ -10,19 +10,25 @@ Le serveur affiche un menu/lobby commun :
 - journaliser chaque partie impliquant un joueur humain sous un identifiant de match stable
 - conserver ensemble tous les echanges, actions, decisions IA, effets, suppressions, scores de sets et resultat final
 - envoyer les parties terminees au serveur et permettre leur export personnel ou administrateur
-- exporter un fichier dedie tennis-courts-human-matches-v136 avec les parties completes du circuit, contre l'IA et entre humains
+- exporter un fichier dedie tennis-courts-human-matches-v137 avec les parties completes du circuit, contre l'IA et entre humains
 - empecher l'IA de passer volontairement lorsqu'une reponse sure et abordable respecte le placement
 - preserver Suppression adverse lors des sacrifices et ne la jouer que sur une cible suffisamment rentable ou une menace obligatoire
 - absorber Annulez l'effet avec une carte moins chere lorsqu'un coup de suivi utile reste possible
 - construire a chaque tour IA un scenario Points et un scenario BOOST, chacun avec une voie principale et deux solutions de repli
 - choisir au debut de l'echange une posture agressive, prudente ou opportuniste selon la main et l'experience recente, puis la reevaluer si le plan est contrarie
+- reveler pendant 10 secondes la main adverse lorsque l'humain active l'effet bleu d'Eliana Marquez, avec fermeture manuelle et decompte integre
+- memoriser les cartes revelees par Eliana lorsque l'IA active cet effet et les integrer aux projections de scenario et de risque
+- afficher pendant 5 secondes une presentation de la confrontation avec cartes personnages, pseudos, classements, stade et rivalite eventuelle
+- conserver le pseudo du joueur humain dans tous les echanges et revenir au profil apres l'enregistrement d'un personnage
 - poursuivre une victoire deja securisee lorsque la main et l'endurance humaines rendent une punition supplementaire suffisamment sure
 - projeter l'effet Double selon sa puissance copiee, son cout, son impact sur l'ecart final et la pression imposee au joueur humain
 - interdire le sacrifice optionnel de Suppression et son usage comme simple Remise de placement hors defense obligatoire
 - afficher Domination, Ascendant humain, Ascendant IA ou Bete noire a partir de 6 confrontations
 - afficher dans le profil l'illustration et les cartes recto/verso du personnage avec une loupe haute definition
 - marquer avec le logo interdit toute carte utilisee en Remise et agrandir proprement les cartes deja jouees
-- ouvrir une entree unique CLUB HOUSE IA pour configurer une competition amicale hors circuit
+- ouvrir une entree unique CLUB HOUSE pour configurer une competition amicale hors circuit
+- choisir les adversaires IA aleatoirement ou parmi les mieux classes, puis repartir le tableau aleatoirement ou selon le classement
+- proposer un niveau IA selon classement : 3 bonus au meilleur IA, 2 aux IA n°2 et n°3, 1 aux IA n°4 a n°10
 - choisir un TOURNOI ou une LEAGUE en 2 ou 3 sets gagnants contre des adversaires IA tires par la competition
 - regler le niveau IA : NORMAL sans bonus, EXPERT avec 1 bonus, CHAMPION avec 2 bonus ou LEGENDE avec 3 bonus
 - tirer les bonus IA sans doublon parmi les 9 bonus de tetes de serie du Tennis Courts Pro Circuit
