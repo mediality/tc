@@ -348,7 +348,7 @@
             <div class="friendly-setting-row">
               <div>
                 <strong>Niveau IA</strong>
-                <span id="aiLevelDescription">Normal · IA sans bonus.</span>
+                <span id="aiLevelDescription">Normal · décisions variées parmi les meilleures options raisonnables.</span>
               </div>
               <div class="friendly-setting-switch five-options" aria-label="Niveau de l'intelligence artificielle">
                 <button class="friendly-setting-button active" type="button" data-ai-club-setting="difficulty" data-ai-club-value="normal">NORMAL</button>
@@ -356,6 +356,19 @@
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="champion">CHAMPION</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="legend">LÉGENDE</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="ranking">SELON CLASSEMENT</button>
+              </div>
+            </div>
+
+            <div class="friendly-setting-row">
+              <div>
+                <strong>Bonus</strong>
+                <span id="aiBonusDescription">Sans · aucun bonus pour les joueurs IA.</span>
+              </div>
+              <div class="friendly-setting-switch four-options" aria-label="Bonus des joueurs IA">
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="bonus" data-ai-club-value="none">SANS</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="ascendant">ASCENDANT</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="domination">DOMINATION</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="nemesis">BÊTE NOIRE</button>
               </div>
             </div>
 
@@ -432,6 +445,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=137"></script>
+    <script src="./app.js?v=137.1"></script>
   </body>
 </html>

@@ -7,12 +7,15 @@ const css = await readFile(new URL("../public/styles.css", import.meta.url), "ut
 assert.match(app, /function initializeSoloAiExchangeStrategy\(playerIndex\)/);
 assert.match(app, /function chooseSoloAttitude\(playerIndex, reason/);
 assert.match(app, /aggressive: 3, prudent: 3, opportunistic: 4/);
-assert.match(app, /attitudeRevisionWindow = 2 \+ Math\.floor\(Math\.random\(\) \* 3\)/);
+assert.match(app, /normal: \[4, 6\]/);
+assert.match(app, /legend: \[1, 3\]/);
+assert.match(app, /normal: 0\.35, expert: 0\.52, champion: 0\.68, legend: 0\.82/);
 assert.match(app, /function buildSoloScenarioPlan\(playerIndex\)/);
 assert.match(app, /points: \{/);
 assert.match(app, /boost: \{/);
 assert.match(app, /if \(completed\.length >= 3\) break/);
 assert.match(app, /function chooseSoloPunitiveContinuation\(playerIndex, plan\)/);
+assert.match(app, /normal: 0\.2, expert: 0\.55, champion: 0\.82, legend: 1/);
 assert.match(app, /opponent\.hand\.length === 1/);
 assert.match(app, /function soloDoubleProjection\(playerIndex, card\)/);
 assert.match(app, /duplicatedPower \* 5/);

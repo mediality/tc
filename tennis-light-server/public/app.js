@@ -135,6 +135,7 @@ const AI_CLUB_HOUSE = {
   format: localStorage.getItem("tennisLightAiClubFormat") === "league" ? "league" : "tournament",
   targetSets: Number(localStorage.getItem("tennisLightAiClubSets")) === 3 ? 3 : 2,
   difficulty: localStorage.getItem("tennisLightAiClubDifficulty") || "normal",
+  bonus: localStorage.getItem("tennisLightAiClubBonus") || "none",
   players: localStorage.getItem("tennisLightAiClubPlayers") === "best" ? "best" : "random",
   distribution: localStorage.getItem("tennisLightAiClubDistribution") === "ranking" ? "ranking" : "random",
 };
@@ -172,19 +173,31 @@ const AI_DIFFICULTY_LABELS = {
   legend: "LÉGENDE",
   ranking: "SELON CLASSEMENT",
 };
-const AI_DIFFICULTY_BONUS_COUNTS = {
-  normal: 0,
-  expert: 1,
-  champion: 2,
-  legend: 3,
-  ranking: 0,
-};
 const AI_DIFFICULTY_DESCRIPTIONS = {
-  normal: "Normal · IA sans bonus.",
-  expert: "Expert · IA avec 1 bonus aléatoire parmi les 9 bonus du circuit.",
-  champion: "Champion · IA avec 2 bonus aléatoires différents parmi les 9 bonus du circuit.",
-  legend: "Légende · IA avec 3 bonus aléatoires différents parmi les 9 bonus du circuit.",
-  ranking: "Selon classement · N°1 : 3 bonus, N°2 et N°3 : 2, N°4 à N°10 : 1, au-delà : aucun.",
+  normal: "Normal · décisions variées parmi les meilleures options raisonnables.",
+  expert: "Expert · lecture tactique solide avec une légère marge d'incertitude.",
+  champion: "Champion · projections complètes et décisions presque optimales.",
+  legend: "Légende · analyse maximale, adaptation rapide et précision constante.",
+  ranking: "Selon classement · N°1 Légende, N°2 et N°3 Champion, N°4 à N°10 Expert, au-delà Normal.",
+};
+const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
+const AI_BONUS_LABELS = {
+  none: "SANS",
+  ascendant: "ASCENDANT",
+  domination: "DOMINATION",
+  nemesis: "BÊTE NOIRE",
+};
+const AI_BONUS_COUNTS = {
+  none: 0,
+  ascendant: 1,
+  domination: 2,
+  nemesis: 3,
+};
+const AI_BONUS_DESCRIPTIONS = {
+  none: "Sans · aucun bonus pour les joueurs IA.",
+  ascendant: "Ascendant · 1 bonus aléatoire pour chaque joueur IA.",
+  domination: "Domination · 2 bonus aléatoires différents pour chaque joueur IA.",
+  nemesis: "Bête noire · 3 bonus aléatoires différents pour chaque joueur IA.",
 };
 
 const EMPTY_TOURNAMENT = {
@@ -192,6 +205,7 @@ const EMPTY_TOURNAMENT = {
   visible: false,
   difficulty: "normal",
   aiClubHouse: false,
+  bonusLevel: "none",
   weekly: false,
   league: false,
   competitionId: null,
@@ -1232,6 +1246,7 @@ const els = {
   openAiClubHouseButton: document.querySelector("#openAiClubHouseButton"),
   startAiClubHouseButton: document.querySelector("#startAiClubHouseButton"),
   aiLevelDescription: document.querySelector("#aiLevelDescription"),
+  aiBonusDescription: document.querySelector("#aiBonusDescription"),
   aiClubHouseSummary: document.querySelector("#aiClubHouseSummary"),
   aiClubSettingButtons: document.querySelectorAll("[data-ai-club-setting]"),
   gameApp: document.querySelector(".game-app"),
@@ -1368,13 +1383,16 @@ function tournamentDifficultyLabel(value = "normal") {
   return AI_DIFFICULTY_LABELS[normalizeAiDifficulty(value)];
 }
 
-function aiDifficultyBonusCount(value = "normal") {
-  return AI_DIFFICULTY_BONUS_COUNTS[normalizeAiDifficulty(value)] || 0;
+function normalizeAiBonusLevel(value) {
+  return AI_BONUS_LEVELS.includes(value) ? value : "none";
 }
 
-function aiDifficultyBonusLabel(value = "normal") {
-  const normalized = normalizeAiDifficulty(value);
-  return normalized === "ranking" ? "bonus selon classement" : `${aiDifficultyBonusCount(normalized)} bonus`;
+function aiBonusCount(value = "none") {
+  return AI_BONUS_COUNTS[normalizeAiBonusLevel(value)] || 0;
+}
+
+function aiBonusLabel(value = "none") {
+  return AI_BONUS_LABELS[normalizeAiBonusLevel(value)];
 }
 
 function characterNameFromId(characterId) {
@@ -3293,12 +3311,14 @@ function openReturnLobbyDialog() {
 
 function renderAiClubHouse() {
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
+  AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   els.aiClubSettingButtons?.forEach((button) => {
     const setting = button.dataset.aiClubSetting;
     const expected = {
       format: AI_CLUB_HOUSE.format,
       sets: String(AI_CLUB_HOUSE.targetSets),
       difficulty: AI_CLUB_HOUSE.difficulty,
+      bonus: AI_CLUB_HOUSE.bonus,
       players: AI_CLUB_HOUSE.players,
       distribution: AI_CLUB_HOUSE.distribution,
     }[setting];
@@ -3307,11 +3327,12 @@ function renderAiClubHouse() {
   if (els.aiLevelDescription) {
     els.aiLevelDescription.textContent = AI_DIFFICULTY_DESCRIPTIONS[AI_CLUB_HOUSE.difficulty];
   }
+  if (els.aiBonusDescription) {
+    els.aiBonusDescription.textContent = AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
+  }
   if (els.aiClubHouseSummary) {
     const format = AI_CLUB_HOUSE.format === "league" ? "League" : "Tournoi";
-    const bonusText = AI_CLUB_HOUSE.difficulty === "ranking"
-      ? "bonus selon classement"
-      : `${aiDifficultyBonusCount(AI_CLUB_HOUSE.difficulty)} bonus IA`;
+    const bonusText = `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
     els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
@@ -3328,6 +3349,9 @@ function updateAiClubHouseSetting(setting, value) {
   } else if (setting === "difficulty") {
     AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(value);
     localStorage.setItem("tennisLightAiClubDifficulty", AI_CLUB_HOUSE.difficulty);
+  } else if (setting === "bonus") {
+    AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(value);
+    localStorage.setItem("tennisLightAiClubBonus", AI_CLUB_HOUSE.bonus);
   } else if (setting === "players") {
     AI_CLUB_HOUSE.players = value === "best" ? "best" : "random";
     localStorage.setItem("tennisLightAiClubPlayers", AI_CLUB_HOUSE.players);
@@ -3369,6 +3393,7 @@ async function startAiClubHouseCompetition() {
   const options = {
     aiClubHouse: true,
     difficulty: AI_CLUB_HOUSE.difficulty,
+    bonus: AI_CLUB_HOUSE.bonus,
     players: AI_CLUB_HOUSE.players,
     distribution: AI_CLUB_HOUSE.distribution,
   };
@@ -6432,7 +6457,59 @@ function resolveSoloPendingChoice(forceClose = false) {
 }
 
 function chooseSoloAIStyle() {
-  return "expert";
+  if (!state.tournament?.aiClubHouse) return "expert";
+  return aiIntelligenceForEntry(SOLO_AI.characterId, state.tournament.difficulty || SOLO_AI.difficulty);
+}
+
+function normalizeAiIntelligence(value) {
+  return ["normal", "expert", "champion", "legend"].includes(value) ? value : "normal";
+}
+
+function aiIntelligenceForEntry(entry, difficulty = "normal") {
+  const normalized = normalizeAiDifficulty(difficulty);
+  if (normalized !== "ranking") return normalizeAiIntelligence(normalized);
+  const rank = aiCircuitPerformanceRank(entry);
+  if (rank === 1) return "legend";
+  if (rank && rank <= 3) return "champion";
+  if (rank && rank <= 10) return "expert";
+  return "normal";
+}
+
+function aiIntelligenceRank(level = SOLO_AI.style) {
+  return { normal: 0, expert: 1, champion: 2, legend: 3 }[normalizeAiIntelligence(level)] || 0;
+}
+
+function aiIntelligenceAtLeast(level) {
+  return aiIntelligenceRank() >= aiIntelligenceRank(level);
+}
+
+function aiRiskProjectionFactor() {
+  return { normal: 0.58, expert: 0.84, champion: 1, legend: 1.06 }[normalizeAiIntelligence(SOLO_AI.style)];
+}
+
+function chooseSoloScoredOption(options, scoreOf = (option) => option.score) {
+  if (!options.length) return null;
+  const ranked = [...options].sort((a, b) => scoreOf(b) - scoreOf(a));
+  const level = normalizeAiIntelligence(SOLO_AI.style);
+  const weights = {
+    normal: [0.55, 0.3, 0.15],
+    expert: [0.78, 0.18, 0.04],
+    champion: [0.92, 0.08],
+    legend: [1],
+  }[level];
+  const plausibleGap = { normal: 12, expert: 7, champion: 3, legend: 0 }[level];
+  const bestScore = scoreOf(ranked[0]);
+  const candidates = ranked
+    .filter((option) => bestScore - scoreOf(option) <= plausibleGap)
+    .slice(0, weights.length);
+  if (candidates.length === 1) return candidates[0];
+  const roll = Math.random();
+  let cursor = 0;
+  for (let index = 0; index < candidates.length; index += 1) {
+    cursor += weights[index] || 0;
+    if (roll <= cursor) return candidates[index];
+  }
+  return candidates[0];
 }
 
 function weightedSoloChoice(weights) {
@@ -6527,7 +6604,13 @@ function chooseSoloAttitude(playerIndex, reason = "lecture initiale") {
   SOLO_AI.attitude = attitude;
   SOLO_AI.attitudeReason = reason;
   SOLO_AI.attitudeRevisionAt = SOLO_AI.planRevision;
-  SOLO_AI.attitudeRevisionWindow = 2 + Math.floor(Math.random() * 3);
+  const revisionWindow = {
+    normal: [4, 6],
+    expert: [3, 5],
+    champion: [2, 4],
+    legend: [1, 3],
+  }[normalizeAiIntelligence(SOLO_AI.style)];
+  SOLO_AI.attitudeRevisionWindow = revisionWindow[0] + Math.floor(Math.random() * (revisionWindow[1] - revisionWindow[0] + 1));
   return attitude;
 }
 
@@ -6547,7 +6630,8 @@ function shouldReevaluateSoloAttitude(playerIndex) {
   const resourceSwing = Math.abs((SOLO_AI.plan.resources?.opponentEndurance ?? opponent.endurance) - opponent.endurance) >= 2
     || Math.abs((SOLO_AI.plan.resources?.opponentHand ?? opponent.hand.length) - opponent.hand.length) >= 2;
   const planContradicted = state.mandatoryPlacement || primaryBlocked || resourceSwing || opponent.hand.length <= 1 || opponent.endurance <= 0;
-  return planContradicted && Math.random() < 0.58;
+  const reevaluationChance = { normal: 0.35, expert: 0.52, champion: 0.68, legend: 0.82 }[normalizeAiIntelligence(SOLO_AI.style)];
+  return planContradicted && Math.random() < reevaluationChance;
 }
 
 function soloAttitudeLabel(attitude = SOLO_AI.attitude) {
@@ -6709,7 +6793,8 @@ function buildSoloScenarioPlan(playerIndex) {
   else if (SOLO_AI.attitude === "aggressive" && boostScore >= pointScore - 4) selectedObjective = "boost";
   else if (SOLO_AI.attitude === "opportunistic" && boostScore > pointScore + 1) selectedObjective = "boost";
   else if (isSetDangerForPlayer(playerIndex) && boostScore > -Infinity) selectedObjective = "boost";
-  const selectedPath = scenarios[selectedObjective].paths.find((path) => !["pass", "end_turn", "replan"].includes(path.type)) || scenarios.points.paths[0];
+  const playablePaths = scenarios[selectedObjective].paths.filter((path) => !["pass", "end_turn", "replan"].includes(path.type));
+  const selectedPath = chooseSoloScoredOption(playablePaths) || scenarios.points.paths[0];
   SOLO_AI.planRevision += 1;
   return {
     revision: SOLO_AI.planRevision,
@@ -6768,6 +6853,7 @@ function soloOpponentResponseProjection(playerIndex) {
   else if (!canAffordAny) risk = 0.04;
   else if (!canCounterBoost) risk = 0.16;
   else risk = defensiveTrap ? 0.44 : 0.32;
+  risk = Math.min(0.98, risk * aiRiskProjectionFactor());
   return {
     handCount: opponent.hand.length,
     endurance: opponent.endurance,
@@ -6795,6 +6881,8 @@ function soloPassProjection(playerIndex) {
 
 function chooseSoloPunitiveContinuation(playerIndex, plan) {
   if (!plan || state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
+  const attemptChance = { normal: 0.2, expert: 0.55, champion: 0.82, legend: 1 }[normalizeAiIntelligence(SOLO_AI.style)];
+  if (Math.random() > attemptChance) return null;
   const response = soloOpponentResponseProjection(playerIndex);
   const passProjection = soloPassProjection(playerIndex);
   const threshold = SOLO_AI.attitude === "aggressive" ? 0.34 : SOLO_AI.attitude === "prudent" ? 0.07 : 0.2;
@@ -6853,7 +6941,7 @@ function canSoloPassAndWin(playerIndex) {
     const projectedSetScore = previewSetMatchScore(exchangeWinner, getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers));
     if (isSetOver(projectedSetScore) && leadingSetPlayer(projectedSetScore) === playerIndex) return true;
   }
-  if (SOLO_AI.style === "expert" && exchangeWinner === playerIndex && shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowers)) {
+  if (aiIntelligenceAtLeast("champion") && exchangeWinner === playerIndex && shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowers)) {
     return false;
   }
   return exchangeWinner === playerIndex;
@@ -6938,7 +7026,7 @@ function wouldPassLoseSetOrMatch(playerIndex) {
 }
 
 function isExpertVulnerableToCounterPressure(playerIndex) {
-  if (SOLO_AI.style !== "expert") return false;
+  if (!aiIntelligenceAtLeast("expert")) return false;
   const player = state.players[playerIndex];
   const opponent = state.players[opponentOf(playerIndex)];
   if (player.endurance > 2 || opponent.hand.length < 2 || !state.lastCard) return false;
@@ -7042,8 +7130,9 @@ function expertCounterBoostThreat(playerIndex, boostedCard, sacrifice = null) {
   const remainingEndurance = player.endurance - effectiveCost(player, boostedCard);
   const canDefend = requiredPlacement === 0 || expertCanDefendBoostWithCards(playerIndex, remainingHand, remainingEndurance, requiredPlacement);
   const humanEndThreat = opponentIndex === 0 ? playerEndThreatScore(opponent) : 0;
-  const danger = probability * (canDefend ? 8 : 28 + requiredPlacement * 2) + humanEndThreat * 0.65;
-  return { probability, canDefend, danger, possibleCounters };
+  const projectedProbability = Math.min(0.98, probability * aiRiskProjectionFactor());
+  const danger = projectedProbability * (canDefend ? 8 : 28 + requiredPlacement * 2) + humanEndThreat * 0.65 * aiRiskProjectionFactor();
+  return { probability: projectedProbability, canDefend, danger, possibleCounters };
 }
 
 function expertCanDefendBoostWithCards(playerIndex, cards, endurance, requiredPlacement) {
@@ -7267,11 +7356,11 @@ function isSoloRemovalWorthCost(playerIndex, card, target) {
 function chooseSoloBoostPlay(playerIndex) {
   if (shouldAvoidOptionalBoostForSet(playerIndex)) return null;
   const options = soloBoostOptionCandidates(playerIndex).filter((option) => !option.rejected);
-  const best = options[0];
+  const best = chooseSoloScoredOption(options, (option) => option.boostedScore);
   if (!best) return null;
   const styleBoostMargin = SOLO_AI.attitude === "aggressive" ? 2 : SOLO_AI.attitude === "prudent" ? 7 : 4;
   const opponentEndThreat = playerEndThreatScore(state.players[opponentOf(playerIndex)]);
-  const expertBlocksRisk = SOLO_AI.style === "expert"
+  const expertBlocksRisk = aiIntelligenceAtLeast("expert")
     && !state.mandatoryPlacement
     && state.boostAvailableFor !== playerIndex
     && !best.passPressure
@@ -7282,8 +7371,8 @@ function chooseSoloBoostPlay(playerIndex) {
   const shouldBoost = !expertBlocksRisk
     && !forcedButIrrational
     && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
-  if (SOLO_AI.style === "expert" && best.threat.probability > 0.3) {
-    state.log.unshift(`IA Expert : risque de contre-boost estimé ${Math.round(best.threat.probability * 100)}%${best.threat.canDefend ? ", défense possible." : ", défense fragile."}`);
+  if (aiIntelligenceAtLeast("expert") && best.threat.probability > 0.3) {
+    state.log.unshift(`IA ${aiStyleLabel()} : risque de contre-boost estimé ${Math.round(best.threat.probability * 100)}%${best.threat.canDefend ? ", défense possible." : ", défense fragile."}`);
   }
   return shouldBoost ? {
     card: best.card,
@@ -7347,9 +7436,10 @@ function chooseSoloSacrifice(playerIndex, boostedCard) {
 
 function chooseSoloNormalCoup(playerIndex) {
   const player = state.players[playerIndex];
-  return player.hand
+  const options = player.hand
     .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
-    .sort((a, b) => (soloPlayableCoupScore(playerIndex, b) + aiScoreNoise()) - (soloPlayableCoupScore(playerIndex, a) + aiScoreNoise()))[0] ?? null;
+    .map((card) => ({ card, score: soloPlayableCoupScore(playerIndex, card) + aiScoreNoise() }));
+  return chooseSoloScoredOption(options)?.card ?? null;
 }
 
 function soloPlayableCoupScore(playerIndex, card) {
@@ -7395,15 +7485,16 @@ function soloCardScore(playerIndex, card, boosted = false) {
   if (card.effectType === "gainEndurance") score += 1;
   if (card.effectType === "drawCard") score += 1.2;
   if (card.effectType === "limitOpponentFamilies") score += 1.4;
-  if (SOLO_AI.style === "expert" && !boosted && state.boostAvailableFor !== playerIndex && opensLikelyBoostWindowForOpponent(playerIndex, card)) {
+  if (aiIntelligenceAtLeast("expert") && !boosted && state.boostAvailableFor !== playerIndex && opensLikelyBoostWindowForOpponent(playerIndex, card)) {
     score -= state.players[playerIndex].endurance <= 2 ? 8 : 3;
   }
   return score;
 }
 
 function aiScoreNoise(scale = 1.4) {
+  const multiplier = { normal: 5, expert: 2.2, champion: 0.8, legend: 0.15 }[normalizeAiIntelligence(SOLO_AI.style)];
   const adjustedScale = isLateCircuitRoundWithoutBonus(SOLO_AI.playerIndex) ? Math.min(0.45, scale) : scale;
-  return SOLO_AI.style === "expert" ? (Math.random() - 0.5) * adjustedScale : 0;
+  return (Math.random() - 0.5) * adjustedScale * multiplier;
 }
 
 function opensLikelyBoostWindowForOpponent(playerIndex, card) {
@@ -8945,6 +9036,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
+  const bonusLevel = normalizeAiBonusLevel(options.bonus || "none");
   const humanCharacterId = selectedCharacterId();
   const aiClubHouse = Boolean(options.aiClubHouse);
   const leagueDistribution = aiClubHouse ? options.distribution || "random" : "ranking";
@@ -8959,7 +9051,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     ? {}
     : buildTournamentPermanentBonuses(setup.seededEntries, [], dynamicBonusIds);
   const surfaceBonuses = aiClubHouse
-    ? buildAiLevelBonuses(setup.seededEntries, SOLO_AI.difficulty)
+    ? buildAiClubHouseBonuses(setup.seededEntries, bonusLevel)
     : {};
   state.tournament = {
     active: true,
@@ -8967,6 +9059,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     league: true,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
+    bonusLevel,
     playerSelection: options.players || "random",
     distribution: leagueDistribution,
     weekly: false,
@@ -8998,7 +9091,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   };
   state.tournament.matches = buildLeagueTournamentMatches(setup.groups, HUMAN_TOURNAMENT_ENTRY, targetSets, setup.seededEntries);
   prepareLeagueHumanMatch();
-  state.log.unshift(`CLUB HOUSE · LEAGUE ${targetSets} sets · niveau ${tournamentDifficultyLabel(SOLO_AI.difficulty)}.`);
+  state.log.unshift(`CLUB HOUSE · LEAGUE ${targetSets} sets · intelligence ${tournamentDifficultyLabel(SOLO_AI.difficulty)} · bonus ${aiBonusLabel(bonusLevel)}.`);
   render();
 }
 
@@ -9311,6 +9404,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
+  const bonusLevel = normalizeAiBonusLevel(options.bonus || "none");
   const humanCharacterId = selectedCharacterId();
   if (weeklyCompetition) {
     startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId);
@@ -9329,7 +9423,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     ? {}
     : buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
   const surfaceBonuses = aiClubHouse
-    ? buildAiLevelBonuses(positions, SOLO_AI.difficulty)
+    ? buildAiClubHouseBonuses(positions, bonusLevel)
     : {};
   state.tournament = {
     active: true,
@@ -9337,6 +9431,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     bracket16: true,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
+    bonusLevel,
     playerSelection: options.players || "random",
     distribution: options.distribution || "random",
     weekly: Boolean(weeklyCompetition),
@@ -9454,22 +9549,12 @@ function aiCircuitPerformanceRank(entry) {
   return index >= 0 ? index + 1 : null;
 }
 
-function aiLevelBonusCountForEntry(entry, difficulty = "normal") {
-  const normalized = normalizeAiDifficulty(difficulty);
-  if (normalized !== "ranking") return aiDifficultyBonusCount(normalized);
-  const rank = aiCircuitPerformanceRank(entry);
-  if (rank === 1) return 3;
-  if (rank && rank <= 3) return 2;
-  if (rank && rank <= 10) return 1;
-  return 0;
-}
-
-function buildAiLevelBonuses(entries = [], difficulty = "normal") {
+function buildAiClubHouseBonuses(entries = [], bonusLevel = "none") {
   const bonuses = {};
+  const bonusCount = aiBonusCount(bonusLevel);
+  if (!bonusCount) return bonuses;
   const aiEntries = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
   for (const entry of aiEntries) {
-    const bonusCount = aiLevelBonusCountForEntry(entry, difficulty);
-    if (!bonusCount) continue;
     bonuses[entry] = shuffle(allCircuitSeedBonuses()).slice(0, bonusCount);
   }
   return bonuses;
@@ -9737,8 +9822,12 @@ function aiTournamentStrength(characterId) {
   const historicBonus = isHistoric ? 8 : 0;
   const seededBonus = isSeeded ? 4 : 0;
   const permanentBonus = permanentBonuses.length ? 3 : 0;
+  const intelligenceLevel = state.tournament?.aiClubHouse
+    ? aiIntelligenceForEntry(characterId, state.tournament.difficulty)
+    : "expert";
+  const intelligenceBonus = { normal: 0, expert: 4, champion: 8, legend: 12 }[intelligenceLevel];
   const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
-  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + dynamicBonus + Math.floor(Math.random() * 17);
+  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + dynamicBonus + intelligenceBonus + Math.floor(Math.random() * 17);
 }
 
 function randomMatchSetScoresForWinner(winnerIndex, targetSets = 2) {
@@ -10367,10 +10456,12 @@ function refreshTournamentDerivedSlots() {
 }
 
 function aiStyleLabel() {
-  if (SOLO_AI.style === "expert") return "expert";
-  if (SOLO_AI.style === "aggressive") return "agressif";
-  if (SOLO_AI.style === "cautious") return "prudent";
-  return "équilibré";
+  return {
+    normal: "normal",
+    expert: "expert",
+    champion: "champion",
+    legend: "légende",
+  }[normalizeAiIntelligence(SOLO_AI.style)];
 }
 
 function nextSetExchange() {
@@ -10888,7 +10979,7 @@ function renderTournamentPanel() {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusLabel(state.tournament.difficulty)}</span>` : ""}
+        ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">Intelligence ${tournamentDifficultyLabel(state.tournament.difficulty)} · Bonus ${aiBonusLabel(state.tournament.bonusLevel)}</span>` : ""}
         ${state.tournament.competitionSurfaceLabel ? `<span class="difficulty-reminder">${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
         ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
         ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
@@ -11001,7 +11092,7 @@ function renderLeagueTournamentPanel(title, final, champion) {
       <div>
         <p class="eyebrow">Compétition</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${aiDifficultyBonusLabel(state.tournament.difficulty)}` : ""}</span>
+        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · Intelligence ${tournamentDifficultyLabel(state.tournament.difficulty)} · Bonus ${aiBonusLabel(state.tournament.bonusLevel)}` : ""}</span>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
@@ -11994,6 +12085,7 @@ function initServerSync() {
 function initMenu() {
   MENU_STATE.selectedPlayerIndex = COACH_OPTIONS[MENU_STATE.selectedPlayerIndex] ? MENU_STATE.selectedPlayerIndex : 0;
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
+  AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   updateMenuSelection();
   renderAiClubHouse();
   renderAuthState();
