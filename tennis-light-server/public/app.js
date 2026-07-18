@@ -5384,7 +5384,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v150",
+    gameVersion: "v151",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5624,7 +5624,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v150",
+    version: "v151",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5683,7 +5683,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v150",
+    version: "v151",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5697,7 +5697,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v150");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v151");
 }
 
 function resetSetMatch() {
@@ -6954,6 +6954,17 @@ function drawRankedAiIntelligence(rankIa) {
   return "amateur";
 }
 
+function drawLevelThreeAiIntelligence(rankIa) {
+  if (rankIa <= 2) return "legend";
+  if (rankIa === 3) return Math.random() < 0.5 ? "legend" : "champion";
+  if (rankIa <= 5) return "champion";
+  if (rankIa <= 8) return Math.random() < 0.5 ? "champion" : "expert";
+  if (rankIa <= 10) return "expert";
+  if (rankIa <= 12) return Math.random() < 0.5 ? "expert" : "normal";
+  if (rankIa <= 18) return "normal";
+  return Math.random() < 0.5 ? "normal" : "amateur";
+}
+
 function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal", options = {}) {
   const aiEntries = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
   const normalized = normalizeAiDifficulty(difficulty);
@@ -6961,10 +6972,13 @@ function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal"
     const level = normalizeAiIntelligence(normalized);
     return Object.fromEntries(aiEntries.map((entry) => [entry, level]));
   }
+  const levelFromRank = normalized === "circuit" && Number(options.humanLevel || 0) >= 3
+    ? drawLevelThreeAiIntelligence
+    : drawRankedAiIntelligence;
   return Object.fromEntries(
     rankedAiTournamentEntries(aiEntries).map((entry) => [
       entry,
-      drawRankedAiIntelligence(tournamentRankIa(entry)),
+      levelFromRank(tournamentRankIa(entry)),
     ]),
   );
 }
@@ -10264,15 +10278,33 @@ function buildWeeklyCircuitProBonuses(entries = [], seedEntries = [], surface = 
   const present = new Set(entries.filter(Boolean));
   const topSeeds = seedEntries.filter((entry) => present.has(entry)).slice(0, 4);
   const bonuses = {};
-  for (const entry of topSeeds) {
+  for (const [seedIndex, entry] of topSeeds.entries()) {
     const surfaceBonus = randomSurfaceBonus(surface);
     addCircuitBonus(bonuses, entry, surfaceBonus ? { ...surfaceBonus, surface } : null);
-    if (Math.random() < 0.5) {
+    if (humanLevel >= 3 && seedIndex < 2 && Math.random() < 0.75) {
       addCircuitBonus(
         bonuses,
         entry,
         randomCircuitBonus((bonuses[entry] || []).map((bonus) => bonus.id)),
       );
+    }
+    if (humanLevel >= 3 && seedIndex < 2 && Math.random() < 0.5) {
+      addCircuitBonus(
+        bonuses,
+        entry,
+        randomCircuitBonus((bonuses[entry] || []).map((bonus) => bonus.id)),
+      );
+    } else if (humanLevel < 3 && Math.random() < 0.5) {
+      addCircuitBonus(
+        bonuses,
+        entry,
+        randomCircuitBonus((bonuses[entry] || []).map((bonus) => bonus.id)),
+      );
+    }
+  }
+  if (humanLevel >= 3) {
+    for (const entry of entries.slice(5, 9).filter(Boolean)) {
+      if (Math.random() < 0.5) addCircuitBonus(bonuses, entry, randomCircuitBonus());
     }
   }
   return { bonuses, surface, topSeeds };
