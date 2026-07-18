@@ -3968,6 +3968,14 @@ h1 {
   background: #9d174d;
 }
 
+.circuit-info-main-title {
+  margin: 10px 0 18px;
+  color: #17212b;
+  font-size: clamp(1.8rem, 4vw, 3.4rem);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
 .circuit-info-feature {
   display: grid;
   grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);

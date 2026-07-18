@@ -5384,7 +5384,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v149",
+    gameVersion: "v150",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5624,7 +5624,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v149",
+    version: "v150",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5683,7 +5683,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v149",
+    version: "v150",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5697,7 +5697,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v149");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v150");
 }
 
 function resetSetMatch() {
@@ -9967,14 +9967,11 @@ function buildAiClubHouseClassicSetup(options = {}) {
   const positions = Array(17).fill(null);
   const rankedRoster = rankedTournamentEntries(roster);
   const seedEntries = rankedRoster.slice(0, 4);
-  let bracketEntries;
   if (options.distribution === "ranking") {
-    const bracketSeedOrder = [1, 16, 9, 8, 5, 12, 13, 4, 3, 14, 11, 6, 7, 10, 15, 2];
-    bracketEntries = bracketSeedOrder.map((seed) => rankedRoster[seed - 1]);
+    rankedRoster.forEach((entry, index) => { positions[index + 1] = entry; });
   } else {
-    bracketEntries = shuffle(roster);
+    shuffle(roster).forEach((entry, index) => { positions[index + 1] = entry; });
   }
-  bracketEntries.forEach((entry, index) => { positions[index + 1] = entry; });
   return {
     positions,
     seededHistorics: [],
@@ -10532,7 +10529,9 @@ function buildWeeklyTournamentMatches(positions, humanEntry, targetSets) {
   });
   const circuitPositionPairs = [[1, 16], [9, 8], [5, 12], [13, 4], [3, 14], [11, 6], [7, 10], [15, 2]];
   const displayOrderPairs = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12], [13, 14], [15, 16]];
-  const round16Pairs = state.tournament?.weekly ? circuitPositionPairs : displayOrderPairs;
+  const round16Pairs = state.tournament?.weekly || state.tournament?.distribution === "ranking"
+    ? circuitPositionPairs
+    : displayOrderPairs;
   return [
     ...round16Pairs.map(([positionA, positionB], index) => match(
       `r16_${index + 1}`,
@@ -10856,7 +10855,7 @@ function handleWeeklyTournamentMatchComplete() {
   match.liveScore = null;
   addHumanMatchPerformanceBonus(match);
   refreshWeeklyTournamentDerivedSlots();
-  revealNextTournamentAiSet();
+  revealAllTournamentAiSets(match.round);
   refreshWeeklyTournamentDerivedSlots();
   const human = humanTournamentEntry();
   if (winnerEntry !== human) {
@@ -11471,8 +11470,10 @@ function renderResultPanel() {
         ${setMatch.matchOver ? `<span>Match gagné par ${escapeHtml(playerName(setMatch.matchWinner))}</span>` : ""}
       </div>
     ` : ""}
+    ${renderResultTournamentActionButton()}
     ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>REJOUER LE MATCH</button>` : ""}
   `;
+  bindResultTournamentButton();
   els.resultPanel.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
     startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
   });
@@ -12416,6 +12417,12 @@ function isHumanTournamentRunOver() {
   return Boolean(last && last.winner !== human);
 }
 
+function renderResultTournamentActionButton() {
+  if (!state.tournament.active || !state.setMatch.matchOver) return "";
+  const action = renderCenterNextSetButton();
+  return /data-(start-tournament-next-match|exit-tournament)/.test(action) ? action : "";
+}
+
 function bindCenterButtons() {
   els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
   els.centerPlayedCard.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
@@ -12423,6 +12430,11 @@ function bindCenterButtons() {
   els.centerPlayedCard.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
   els.centerPlayedCard.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
   els.centerPlayedCard.querySelector("[data-return-club-house]")?.addEventListener("click", returnFriendlyMatchToClubHouse);
+}
+
+function bindResultTournamentButton() {
+  els.resultPanel.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
+  els.resultPanel.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
 }
 
 function returnFriendlyMatchToClubHouse() {
