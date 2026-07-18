@@ -1054,6 +1054,34 @@ body.tutorial-running .boost-button strong {
   gap: 12px;
 }
 
+.friendly-player-card.selectable {
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.friendly-player-card.selectable:hover,
+.friendly-player-card.selectable:focus-visible {
+  border-color: #0f8d68;
+  box-shadow: 0 0 0 3px rgba(15, 141, 104, 0.14);
+  outline: none;
+}
+
+.friendly-player-card.selected {
+  border-color: #0f8d68;
+  background: #dff8ee;
+  box-shadow: inset 4px 0 0 #0f8d68;
+}
+
+.ai-club-house-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ai-club-house-save-actions.hidden { display: none; }
+.replay-match-button { width: 100%; margin-top: 12px; }
+
 .friendly-player-card > div {
   min-width: 0;
 }
