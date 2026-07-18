@@ -81,6 +81,7 @@ const simulationContext = {
   displayPlayerName: (player) => player.nickname,
   playerName: (index) => simulationContext.state.players[index].nickname,
   formatSetScores: (scores) => scores.map((score) => score.join("/")).join(" - "),
+  randomMatchSetScoresForWinner: () => [[6, 1], [6, 4]],
   stopSoloTimers: () => {},
   updateTournamentSetProgress: () => { simulationContext.progressUpdates += 1; },
   recordAction: (kind, payload) => { simulationContext.recordedAction = { kind, payload }; },
@@ -95,7 +96,7 @@ vm.runInNewContext(`${functionSource("canAdminSimulateMatchScore")}; ${functionS
 assert.equal(simulationContext.state.gameOver, true);
 assert.equal(simulationContext.state.setMatch.matchOver, true);
 assert.deepEqual(Array.from(simulationContext.state.setMatch.setsWon), [2, 0]);
-assert.equal(JSON.stringify(simulationContext.state.setMatch.completedScores), JSON.stringify([[6, 2], [6, 3]]));
+assert.equal(JSON.stringify(simulationContext.state.setMatch.completedScores), JSON.stringify([[6, 1], [6, 4]]));
 assert.equal(simulationContext.recordedAction.kind, "exchange_end");
 assert.equal(simulationContext.recordedAction.payload.winType, "admin-simulation");
 assert.equal(simulationContext.completed, true);

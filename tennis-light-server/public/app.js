@@ -188,7 +188,7 @@ const AI_DIFFICULTY_DESCRIPTIONS = {
   expert: "Expert · lecture tactique solide avec une légère marge d'incertitude.",
   champion: "Champion · projections complètes et décisions presque optimales.",
   legend: "Légende · analyse maximale, adaptation rapide et précision constante.",
-  ranking: "Selon classement · niveaux déterminés par le RankIA, avec Amateur à partir de la 16e place.",
+  ranking: "Selon classement · niveaux déterminés par le RankIA global des 21 IA.",
   circuit: "Circuit Pro · niveaux selon classement et bonus automatiques du circuit.",
 };
 const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
@@ -337,6 +337,7 @@ const SURFACE_BONUSES = {
     { id: "clayBoostPower", label: "+2 puissance pour chaque BOOST joué" },
   ],
 };
+const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
 
 const HISTORIC_PERMANENT_BONUSES = [
   { id: "historicPermanentPlacement", label: "+1 placement permanent", placement: 1, precision: 0 },
@@ -4131,6 +4132,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     friendlySettingsLocked: Boolean(payload.settingsLocked),
     friendlyGroups: payload.groups || { A: [], B: [] },
     friendlyStandings: payload.standings || { A: [], B: [] },
+    tournamentSeedNumbers: payload.seedNumbers || {},
     leagueGroups: {
       A: (payload.groups?.A || []).map((player) => player.entry).filter(Boolean),
       B: (payload.groups?.B || []).map((player) => player.entry).filter(Boolean),
@@ -4372,7 +4374,7 @@ async function publishFriendlyTournamentLiveState() {
 function renderFriendlyLobbyMatchCard(match) {
   const status = match.liveScore && !match.winner ? match.liveScore : match.score || (match.winner ? "Terminé" : "En attente");
   const playerName = (entry) => {
-    const label = escapeHtml(tournamentPlayerLabel(entry) || "À déterminer");
+    const label = `${escapeHtml(tournamentPlayerLabel(entry) || "À déterminer")}${tournamentSeedNumberMarkup(entry)}`;
     return match.winner && match.winner === entry
       ? `<strong class="friendly-bracket-winner">${label}</strong>`
       : `<span class="friendly-bracket-player-name">${label}</span>`;
@@ -5261,7 +5263,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v146",
+    gameVersion: "v148",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5501,7 +5503,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v146",
+    version: "v148",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5560,7 +5562,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v146",
+    version: "v148",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5574,7 +5576,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v146");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v148");
 }
 
 function resetSetMatch() {
@@ -6820,29 +6822,15 @@ function aiIntelligenceForEntry(entry, difficulty = "normal") {
   return "normal";
 }
 
-function drawRankedAiIntelligence(rankIa, humanLevel = null) {
-  if (humanLevel === 1) {
-    if (rankIa === 1) return "expert";
-    if (rankIa === 2) return Math.random() < 0.5 ? "normal" : "expert";
-    if (rankIa <= 4) return "normal";
-    if (rankIa <= 12) return Math.random() < 0.5 ? "amateur" : "normal";
-    return "amateur";
-  }
-  if (humanLevel === 2) {
-    if (rankIa === 1) return "champion";
-    if (rankIa === 2) return Math.random() < 0.5 ? "expert" : "champion";
-    if (rankIa <= 4) return "expert";
-    if (rankIa <= 8) return Math.random() < 0.5 ? "normal" : "expert";
-    if (rankIa <= 12) return "normal";
-    return Math.random() < 0.5 ? "amateur" : "normal";
-  }
-  if (rankIa === 1) return Math.random() < 0.5 ? "champion" : "legend";
+function drawRankedAiIntelligence(rankIa) {
+  if (rankIa === 1) return "legend";
   if (rankIa === 2) return "champion";
   if (rankIa <= 4) return Math.random() < 0.5 ? "expert" : "champion";
   if (rankIa <= 6) return "expert";
   if (rankIa <= 10) return Math.random() < 0.5 ? "normal" : "expert";
-  if (humanLevel === 3) return "normal";
-  return rankIa >= 16 ? "amateur" : "normal";
+  if (rankIa <= 14) return "normal";
+  if (rankIa <= 18) return Math.random() < 0.5 ? "normal" : "amateur";
+  return "amateur";
 }
 
 function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal", options = {}) {
@@ -6855,7 +6843,7 @@ function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal"
   return Object.fromEntries(
     rankedAiTournamentEntries(aiEntries).map((entry) => [
       entry,
-      drawRankedAiIntelligence(tournamentRankIa(entry), options.humanLevel ?? null),
+      drawRankedAiIntelligence(tournamentRankIa(entry)),
     ]),
   );
 }
@@ -6864,9 +6852,8 @@ function aiIntelligenceBadgeMarkup(entry) {
   if (!state.tournament?.aiIntelligenceLevels || !entry || isHumanTournamentEntry(entry)) return "";
   if (!state.tournament.aiIntelligenceLevels[entry]) return "";
   const level = aiIntelligenceForEntry(entry, state.tournament.difficulty);
-  if (level === "normal") return "";
+  if (level === "normal" || level === "amateur") return "";
   const badges = {
-    amateur: { initial: "A", label: "Amateur" },
     expert: { initial: "E", label: "Expert" },
     champion: { initial: "C", label: "Champion" },
     legend: { initial: "L", label: "Légendaire" },
@@ -9487,6 +9474,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   const humanCharacterId = selectedCharacterId();
   const aiClubHouse = Boolean(options.aiClubHouse);
   const circuitRules = aiClubHouse && SOLO_AI.difficulty === "circuit";
+  const circuitSurface = circuitRules ? shuffle(Object.keys(SURFACE_BONUSES))[0] || "hard" : null;
   const bonusLevel = circuitRules ? "none" : normalizeAiBonusLevel(options.bonus || "none");
   const leagueDistribution = aiClubHouse ? options.distribution || "random" : "ranking";
   const setup = buildLeagueTournamentSetup({
@@ -9500,7 +9488,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     ? {}
     : buildTournamentPermanentBonuses(setup.seededEntries, [], dynamicBonusIds);
   const circuitBonusSetup = circuitRules
-    ? buildCircuitProBonuses(setup.seededEntries, rankedTournamentEntries(setup.seededEntries), null)
+    ? buildWeeklyCircuitProBonuses(setup.seededEntries, setup.seededEntries.slice(0, 4), circuitSurface)
     : null;
   const surfaceBonuses = circuitRules
     ? circuitBonusSetup.bonuses
@@ -9523,8 +9511,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     weekly: false,
     competitionId: null,
     competitionName: `LEAGUE ${targetSets} sets`,
-    competitionSurface: null,
-    competitionSurfaceLabel: null,
+    competitionSurface: circuitSurface,
+    competitionSurfaceLabel: circuitSurface ? SURFACE_LABELS[circuitSurface] : null,
     competitionPoints: null,
     matchBonusPoints: 0,
     matchBonusDetails: [],
@@ -9540,6 +9528,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     championCharacterId: null,
     leagueGroups: setup.groups,
     leagueSeededEntries: setup.seededEntries,
+    tournamentSeedNumbers: Object.fromEntries(setup.seededEntries.slice(0, 4).map((entry, index) => [entry, index + 1])),
     leagueCompletedDays: 0,
     circuitBonusSurface: circuitBonusSetup?.surface || null,
     surfaceBonuses,
@@ -9855,16 +9844,24 @@ function buildAiClubHouseClassicSetup(options = {}) {
   const selectedAi = selectAiClubHousePlayers(15, options.playerSelection, options.humanCharacterId);
   const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
   const positions = Array(17).fill(null);
+  const rankedRoster = rankedTournamentEntries(roster);
+  const seedEntries = rankedRoster.slice(0, 4);
   let bracketEntries;
   if (options.distribution === "ranking") {
-    const ranked = rankedTournamentEntries(roster);
     const bracketSeedOrder = [1, 16, 9, 8, 5, 12, 13, 4, 3, 14, 11, 6, 7, 10, 15, 2];
-    bracketEntries = bracketSeedOrder.map((seed) => ranked[seed - 1]);
+    bracketEntries = bracketSeedOrder.map((seed) => rankedRoster[seed - 1]);
   } else {
     bracketEntries = shuffle(roster);
   }
   bracketEntries.forEach((entry, index) => { positions[index + 1] = entry; });
-  return { positions, seededHistorics: [], roster };
+  return {
+    positions,
+    seededHistorics: [],
+    seedEntries,
+    seedNumbers: Object.fromEntries(seedEntries.map((entry, index) => [entry, index + 1])),
+    positionByEntry: tournamentPositionMap(positions),
+    roster,
+  };
 }
 
 function startTournamentMode(targetSets = 2, options = {}) {
@@ -9887,19 +9884,29 @@ function startTournamentMode(targetSets = 2, options = {}) {
   const aiClubHouse = Boolean(options.aiClubHouse);
   const circuitRules = aiClubHouse && SOLO_AI.difficulty === "circuit";
   const bonusLevel = circuitRules ? "none" : requestedBonusLevel;
-  const { positions, seededHistorics } = aiClubHouse
-    ? buildAiClubHouseClassicSetup({
+  const circuitSurface = circuitRules ? shuffle(Object.keys(SURFACE_BONUSES))[0] || "hard" : null;
+  const tournamentSetup = circuitRules
+    ? buildTournamentRound16Positions(humanCharacterId, circuitSurface)
+    : aiClubHouse
+      ? buildAiClubHouseClassicSetup({
       humanCharacterId,
       playerSelection: options.players || "random",
       distribution: options.distribution || "random",
     })
     : buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
+  const {
+    positions,
+    seededHistorics = [],
+    seedEntries = [],
+    seedNumbers = {},
+    positionByEntry = tournamentPositionMap(positions),
+  } = tournamentSetup;
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
   const permanentBonuses = aiClubHouse
     ? {}
     : buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
   const circuitBonusSetup = circuitRules
-    ? buildCircuitProBonuses(positions, rankedTournamentEntries(positions.filter(Boolean)), null)
+    ? buildWeeklyCircuitProBonuses(positions, seedEntries, circuitSurface)
     : null;
   const surfaceBonuses = circuitRules
     ? circuitBonusSetup.bonuses
@@ -9925,8 +9932,8 @@ function startTournamentMode(targetSets = 2, options = {}) {
     competitionCity: weeklyCompetition?.city || null,
     competitionCountry: weeklyCompetition?.country || null,
     competitionFlag: weeklyCompetition?.flag || null,
-    competitionSurface: weeklyCompetition?.surface || null,
-    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
+    competitionSurface: weeklyCompetition?.surface || circuitSurface,
+    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || (circuitSurface ? SURFACE_LABELS[circuitSurface] : null),
     competitionPoints: weeklyCompetition?.points || null,
     matchBonusPoints: 0,
     matchBonusDetails: [],
@@ -9941,10 +9948,12 @@ function startTournamentMode(targetSets = 2, options = {}) {
     nextHumanMatchId: null,
     championCharacterId: null,
     weeklyPositions: positions,
+    tournamentPositions: positionByEntry,
+    tournamentSeedNumbers: seedNumbers,
     circuitBonusSurface: circuitBonusSetup?.surface || null,
     surfaceBonuses,
     permanentBonuses,
-    seededCharacters: aiClubHouse ? [] : seededHistorics,
+    seededCharacters: circuitRules ? seedEntries : aiClubHouse ? [] : seededHistorics,
     dynamicBonusIds,
     matches: [],
   };
@@ -10138,13 +10147,9 @@ function buildWeeklyCircuitProBonuses(entries = [], seedEntries = [], surface = 
   const topSeeds = seedEntries.filter((entry) => present.has(entry)).slice(0, 4);
   const bonuses = {};
   for (const entry of topSeeds) {
-    if (humanLevel === 1) {
-      addCircuitBonus(bonuses, entry, randomCircuitBonus());
-      continue;
-    }
     const surfaceBonus = randomSurfaceBonus(surface);
     addCircuitBonus(bonuses, entry, surfaceBonus ? { ...surfaceBonus, surface } : null);
-    if (humanLevel === 3 && Math.random() < 0.5) {
+    if (Math.random() < 0.5) {
       addCircuitBonus(
         bonuses,
         entry,
@@ -10452,7 +10457,7 @@ function buildSimulatedTournamentMatch(id, label, playerA, playerB, targetSets, 
 function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2) {
   const strengthA = aiTournamentStrength(playerA);
   const strengthB = aiTournamentStrength(playerB);
-  const winChanceA = strengthA / Math.max(1, strengthA + strengthB);
+  const winChanceA = Math.max(0.1, Math.min(0.9, 1 / (1 + Math.exp(-(strengthA - strengthB) / 9))));
   const winner = Math.random() < winChanceA ? playerA : playerB;
   const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
@@ -10479,8 +10484,10 @@ function aiTournamentStrength(characterId) {
     ? aiIntelligenceForEntry(characterId, state.tournament.difficulty)
     : "expert";
   const intelligenceBonus = { amateur: -4, normal: 0, expert: 4, champion: 8, legend: 12 }[intelligenceLevel];
+  const rankIa = tournamentRankIa(characterId);
+  const rankIaBonus = rankIa < 99999 ? Math.max(0, 22 - rankIa) * 0.55 : 0;
   const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
-  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + dynamicBonus + intelligenceBonus + Math.floor(Math.random() * 17);
+  return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + dynamicBonus + intelligenceBonus + rankIaBonus + Math.floor(Math.random() * 13);
 }
 
 function randomMatchSetScoresForWinner(winnerIndex, targetSets = 2) {
@@ -11173,11 +11180,7 @@ function canAdminSimulateMatchScore() {
 }
 
 function adminSimulatedSetScores(winnerIndex, targetSets) {
-  const loserScores = [2, 3, 4];
-  return Array.from({ length: targetSets }, (_, index) => {
-    const score = [6, loserScores[index % loserScores.length]];
-    return winnerIndex === 0 ? score : [score[1], score[0]];
-  });
+  return randomMatchSetScoresForWinner(winnerIndex, targetSets);
 }
 
 function simulateAdminMatchScore() {
@@ -11418,12 +11421,26 @@ function render() {
   renderRemoveChoiceModal();
   renderWaitingRoomModal();
   attachImageZoomHandlers(els.gameApp || document);
+  window.requestAnimationFrame(() => adjustCardMagnificationOrigins(els.gameApp || document));
   applySpectatorControls();
   if (!SPECTATOR_MODE.enabled) {
     scheduleServerSync();
     scheduleSoloAINudge();
     maybeRunSoloAI();
   }
+}
+
+function adjustCardMagnificationOrigins(root = document) {
+  const viewportWidth = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+  root.querySelectorAll(".card.has-visual, .character-card, .played-visual").forEach((card) => {
+    const bounds = card.getBoundingClientRect();
+    const center = bounds.left + (bounds.width / 2);
+    card.style.transformOrigin = center < viewportWidth * 0.28
+      ? "left center"
+      : center > viewportWidth * 0.72
+        ? "right center"
+        : "center center";
+  });
 }
 
 function renderSpectatorBanner() {
@@ -11938,7 +11955,7 @@ function renderTournamentMatch(match, isFinal = false) {
 }
 
 function tournamentSeedNumberMarkup(entry) {
-  if (!state.tournament?.weekly || !entry) return "";
+  if (!entry) return "";
   const seedNumber = Number(state.tournament.tournamentSeedNumbers?.[entry] || 0);
   return seedNumber >= 1 && seedNumber <= 4
     ? `<span class="tournament-seed-number">(${seedNumber})</span>`

@@ -93,8 +93,8 @@ vm.runInNewContext(`
   advancedBonuses = buildWeeklyCircuitProBonuses(entries, seeds, "hard", 3);
 `, bonusContext);
 for (const entry of ["human", "ai1", "ai2", "ai3"]) {
-  assert.equal(bonusContext.amateurBonuses.bonuses[entry].length, 1);
-  assert.equal(bonusContext.middleBonuses.bonuses[entry].length, 1);
+  assert.equal(bonusContext.amateurBonuses.bonuses[entry].length, 2);
+  assert.equal(bonusContext.middleBonuses.bonuses[entry].length, 2);
   assert.equal(bonusContext.middleBonuses.bonuses[entry][0].id.startsWith("hard"), true);
   assert.equal(bonusContext.advancedBonuses.bonuses[entry].length, 2);
   assert.notEqual(bonusContext.advancedBonuses.bonuses[entry][0].id, bonusContext.advancedBonuses.bonuses[entry][1].id);

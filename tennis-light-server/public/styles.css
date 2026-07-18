@@ -2863,6 +2863,8 @@ h1 {
 
 .player-character-name {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
   max-width: 220px;
   margin-top: 6px;
   margin-bottom: 10px;
@@ -4312,7 +4314,7 @@ h1 {
 }
 
 .played-visual.history-card:hover {
-  transform: scale(5.4);
+  transform: scale(1.45);
 }
 
 .remise-forbid-overlay {

@@ -1,16 +1,27 @@
-Tennis Courts Academy - version serveur v146
+Tennis Courts Academy - version serveur v148
 
 Lancer en local :
 1. Ouvrir un terminal dans ce dossier.
 2. Lancer : npm start
 3. Ouvrir : http://localhost:3000/
 
+Principales evolutions v148 :
+- utiliser le RankIA global des 21 IA, independamment de leur position POS1 a POS16 dans un tournoi
+- selectionner quatre tetes de serie : deux specialistes de la surface et deux non-specialistes, puis les classer au RankIA
+- choisir POS5 a POS8 parmi quatre IA tirees dans le Top 6 restant et POS9 a POS16 parmi huit IA restantes tirees au hasard
+- attribuer aux quatre tetes de serie un bonus de surface garanti et 50 % de chances d'obtenir un second bonus different
+- afficher les numeros (1) a (4) dans les tableaux du circuit, du CLUB HOUSE et des tournois amicaux en ligne
+- appliquer la nouvelle grille Amateur, Normal, Expert, Champion et Legende selon les rangs RankIA 1 a 21
+- ne plus afficher la lettre A pour le niveau Amateur
+- rendre les scores simules variables et ponderer les rencontres IA par le RankIA, le niveau, la surface, les bonus et la forme du match
+- aligner la pastille de niveau avec le nom du personnage et contenir l'agrandissement des cartes dans la fenetre
+
 Le serveur affiche un menu/lobby commun :
 - choisir un pseudo et un coach
 - journaliser chaque partie impliquant un joueur humain sous un identifiant de match stable
 - conserver ensemble tous les echanges, actions, decisions IA, effets, suppressions, scores de sets et resultat final
 - envoyer les parties terminees au serveur et permettre leur export personnel ou administrateur
-- exporter un fichier dedie tennis-courts-human-matches-v146 avec les parties completes du circuit, contre l'IA et entre humains
+- exporter un fichier dedie tennis-courts-human-matches-v148 avec les parties completes du circuit, contre l'IA et entre humains
 - empecher l'IA de passer volontairement lorsqu'une reponse sure et abordable respecte le placement
 - preserver Suppression adverse lors des sacrifices et ne la jouer que sur une cible suffisamment rentable ou une menace obligatoire
 - absorber Annulez l'effet avec une carte moins chere lorsqu'un coup de suivi utile reste possible
@@ -28,7 +39,7 @@ Le serveur affiche un menu/lobby commun :
 - marquer avec le logo interdit toute carte utilisee en Remise et agrandir proprement les cartes deja jouees
 - ouvrir une entree unique CLUB HOUSE pour configurer une competition amicale hors circuit
 - choisir les adversaires IA aleatoirement ou parmi les mieux classes, puis repartir le tableau aleatoirement ou selon le classement
-- proposer un niveau IA selon classement : 3 bonus au meilleur IA, 2 aux IA n°2 et n°3, 1 aux IA n°4 a n°10
+- proposer un niveau IA selon classement, calcule a partir du RankIA global des 21 IA
 - choisir un TOURNOI ou une LEAGUE en 2 ou 3 sets gagnants contre des adversaires IA tires par la competition
 - regler le niveau IA : NORMAL sans bonus, EXPERT avec 1 bonus, CHAMPION avec 2 bonus ou LEGENDE avec 3 bonus
 - tirer les bonus IA sans doublon parmi les 9 bonus de tetes de serie du Tennis Courts Pro Circuit

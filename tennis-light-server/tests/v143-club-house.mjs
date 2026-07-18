@@ -19,7 +19,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v146<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v148<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);
@@ -53,11 +53,11 @@ assert.match(app, /bonuses\[entry\] = shuffle\(allCircuitSeedBonuses\(\)\)\.slic
 assert.match(app, /function aiIntelligenceForEntry\(entry, difficulty = "normal"\)/);
 assert.match(app, /function buildTournamentAiIntelligenceLevels\(entries = \[\], difficulty = "normal", options = \{\}\)/);
 assert.match(app, /function buildCircuitProBonuses\(entries = \[\], seededEntries = \[\], surface = null\)/);
-assert.match(app, /if \(rankIa === 1\) return Math\.random\(\) < 0\.5 \? "champion" : "legend"/);
-assert.match(app, /return rankIa >= 16 \? "amateur" : "normal"/);
+assert.match(app, /if \(rankIa === 1\) return "legend"/);
+assert.match(app, /if \(rankIa <= 18\) return Math\.random\(\) < 0\.5 \? "normal" : "amateur"/);
 assert.match(app, /aiIntelligenceLevels,/);
 assert.match(app, /function aiIntelligenceBadgeMarkup\(entry\)/);
-assert.match(app, /amateur: \{ initial: "A", label: "Amateur" \}/);
+assert.match(app, /if \(level === "normal" \|\| level === "amateur"\) return ""/);
 assert.match(app, /expert: \{ initial: "E", label: "Expert" \}/);
 assert.match(app, /champion: \{ initial: "C", label: "Champion" \}/);
 assert.match(app, /legend: \{ initial: "L", label: "Légendaire" \}/);
@@ -96,6 +96,7 @@ const classicContext = {
   selectedCharacterId: () => "human-character",
   selectAiClubHousePlayers: () => Array.from({ length: 15 }, (_, index) => `ai${index + 1}`),
   rankedTournamentEntries: (entries) => entries,
+  tournamentPositionMap: (positions) => Object.fromEntries(positions.map((entry, index) => entry ? [entry, index] : null).filter(Boolean)),
   shuffle: (entries) => entries,
 };
 vm.runInNewContext(`${functionSource("buildAiClubHouseClassicSetup")}; result = buildAiClubHouseClassicSetup({ distribution: "ranking" });`, classicContext);
@@ -125,8 +126,7 @@ const amateurBadgeContext = {
   aiIntelligenceForEntry: () => "amateur",
 };
 vm.runInNewContext(`${functionSource("aiIntelligenceBadgeMarkup")}; result = aiIntelligenceBadgeMarkup("ai1");`, amateurBadgeContext);
-assert.match(amateurBadgeContext.result, /class="ai-intelligence-badge amateur"/);
-assert.match(amateurBadgeContext.result, /aria-label="Niveau Amateur">A<\/span>/);
+assert.equal(amateurBadgeContext.result, "");
 
 const intelligenceContext = {
   HUMAN_TOURNAMENT_ENTRY: "human",

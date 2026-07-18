@@ -28,7 +28,8 @@ assert.match(app, /data-image-zoom/);
 assert.match(app, /profile-character-visuals/);
 assert.match(app, /remise-forbid-overlay/);
 assert.match(css, /\.played-visual\.history-card:hover/);
-assert.match(css, /transform: scale\(5\.4\)/);
+assert.match(css, /transform: scale\(1\.45\)/);
+assert.match(app, /function adjustCardMagnificationOrigins\(root = document\)/);
 assert.match(css, /\.image-zoom-figure/);
 
 console.log("v143 stratégies IA et affichages: OK");

@@ -560,12 +560,27 @@ function seededRandom(seed) {
   return hash.readUInt32BE(0) / 0xffffffff;
 }
 
-function aiMatchStrength(characterId, competition, season, week, slot, bonusTopIds = [], simulationNonce = "") {
-  let score = seededRandom(`${simulationNonce}:${characterId}:${competition.id}:${season}:${week}:${slot}`);
-  if (HISTORIC_CHARACTER_IDS.includes(characterId)) score += 0.18;
-  if (bonusTopIds.includes(characterId)) score += 0.12;
-  if (AI_SURFACE_PREFERENCES[characterId] === competition.surface) score += 0.16;
-  return score;
+function simulatedAiIntelligence(rankIa, seed = "") {
+  if (rankIa === 1) return "legend";
+  if (rankIa === 2) return "champion";
+  if (rankIa <= 4) return seededRandom(`${seed}:level`) < 0.5 ? "expert" : "champion";
+  if (rankIa <= 6) return "expert";
+  if (rankIa <= 10) return seededRandom(`${seed}:level`) < 0.5 ? "normal" : "expert";
+  if (rankIa <= 14) return "normal";
+  if (rankIa <= 18) return seededRandom(`${seed}:level`) < 0.5 ? "normal" : "amateur";
+  return "amateur";
+}
+
+function aiMatchStrength(characterId, competition, season, week, slot, bonusTopIds = [], simulationNonce = "", rankingOrder = [], seedBonusCounts = {}) {
+  const rankIa = Math.max(1, rankingOrder.indexOf(characterId) + 1 || CIRCUIT_AI_CHARACTER_IDS.length);
+  const intelligence = simulatedAiIntelligence(rankIa, `${simulationNonce}:${competition.id}:${season}:${week}:${characterId}`);
+  const intelligenceBonus = { amateur: -5, normal: 0, expert: 5, champion: 10, legend: 15 }[intelligence] || 0;
+  const rankBonus = Math.max(0, CIRCUIT_AI_CHARACTER_IDS.length + 1 - rankIa) * 0.7;
+  const surfaceBonus = AI_SURFACE_PREFERENCES[characterId] === competition.surface ? 3 : 0;
+  const protectedBonus = bonusTopIds.includes(characterId) ? 2 : 0;
+  const tournamentBonus = Number(seedBonusCounts[characterId] || 0) * 4;
+  const matchForm = (seededRandom(`${simulationNonce}:${characterId}:${competition.id}:${season}:${week}:${slot}:form`) - 0.5) * 12;
+  return 50 + rankBonus + intelligenceBonus + surfaceBonus + protectedBonus + tournamentBonus + matchForm;
 }
 
 function deterministicShuffle(items, seed) {
@@ -602,28 +617,36 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
   const rankById = new Map(rankingOrder.map((characterId, index) => [characterId, index + 1]));
   const rankOf = (characterId) => rankById.get(characterId) || 99999;
   const byRanking = (a, b) => rankOf(a) - rankOf(b) || aiCharacterName(a).localeCompare(aiCharacterName(b), "fr");
-  const specialists = (TOURNAMENT_SEED_CANDIDATES[competition.surface] || [])
-    .filter((characterId) => CIRCUIT_AI_CHARACTER_IDS.includes(characterId))
-    .sort(byRanking);
-  const seeds = specialists.slice(0, 2);
-  if (seeds.length < 2) {
-    seeds.push(...CIRCUIT_AI_CHARACTER_IDS.filter((id) => !seeds.includes(id)).sort(byRanking).slice(0, 2 - seeds.length));
-  }
+  const specialists = CIRCUIT_AI_CHARACTER_IDS
+    .filter((characterId) => AI_SURFACE_PREFERENCES[characterId] === competition.surface)
+    .sort(byRanking)
+    .slice(0, 2);
+  const nonSpecialists = CIRCUIT_AI_CHARACTER_IDS
+    .filter((characterId) => AI_SURFACE_PREFERENCES[characterId] !== competition.surface)
+    .sort(byRanking)
+    .slice(0, 2);
+  const seeds = [...specialists, ...nonSpecialists].sort(byRanking);
   const positions = Array(17).fill(null);
-  positions[1] = seeds[0];
-  positions[16] = seeds[1];
-  const protectedPositions = [8, 9, 12, 5, 13, 4];
-  const protectedPlayers = CIRCUIT_AI_CHARACTER_IDS.filter((id) => !seeds.includes(id)).sort(byRanking).slice(0, 6);
-  protectedPlayers.forEach((characterId, index) => { positions[protectedPositions[index]] = characterId; });
-  const used = new Set(positions.filter(Boolean));
-  const remaining = CIRCUIT_AI_CHARACTER_IDS.filter((id) => !used.has(id)).sort(byRanking);
-  const selected = [
-    ...remaining.slice(0, 5),
-    ...deterministicShuffle(remaining.slice(5), `${simulationNonce}:${competition.id}:${season}:${week}:draw`).slice(0, 3),
-  ];
-  const openPositions = [2, 3, 6, 7, 10, 11, 14, 15];
-  deterministicShuffle(selected, `${simulationNonce}:${competition.id}:${season}:${week}:positions`)
-    .forEach((characterId, index) => { positions[openPositions[index]] = characterId; });
+  seeds.forEach((characterId, index) => { positions[index + 1] = characterId; });
+
+  const groupTwoPool = CIRCUIT_AI_CHARACTER_IDS.filter((id) => !seeds.includes(id)).sort(byRanking).slice(0, 6);
+  const groupTwo = deterministicShuffle(groupTwoPool, `${simulationNonce}:${competition.id}:${season}:${week}:group2`)
+    .slice(0, 4)
+    .sort(byRanking);
+  groupTwo.forEach((characterId, index) => { positions[index + 5] = characterId; });
+
+  const placed = new Set(positions.filter(Boolean));
+  const groupThree = deterministicShuffle(
+    CIRCUIT_AI_CHARACTER_IDS.filter((id) => !placed.has(id)),
+    `${simulationNonce}:${competition.id}:${season}:${week}:group3-selection`,
+  ).slice(0, 8);
+  deterministicShuffle(groupThree, `${simulationNonce}:${competition.id}:${season}:${week}:group3-positions`)
+    .forEach((characterId, index) => { positions[index + 9] = characterId; });
+
+  const seedBonusCounts = Object.fromEntries(seeds.map((characterId) => [
+    characterId,
+    1 + (seededRandom(`${simulationNonce}:${competition.id}:${season}:${week}:${characterId}:second-bonus`) < 0.5 ? 1 : 0),
+  ]));
 
   const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
   const awards = new Map();
@@ -633,9 +656,9 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
     for (let index = 0; index < players.length; index += 2) {
       const playerA = players[index];
       const playerB = players[index + 1];
-      const strengthA = aiMatchStrength(playerA, competition, season, week, `${roundLabel}:${index}`, bonusTopIds, simulationNonce);
-      const strengthB = aiMatchStrength(playerB, competition, season, week, `${roundLabel}:${index + 1}`, bonusTopIds, simulationNonce);
-      const chanceA = strengthA / Math.max(0.001, strengthA + strengthB);
+      const strengthA = aiMatchStrength(playerA, competition, season, week, `${roundLabel}:${index}`, bonusTopIds, simulationNonce, rankingOrder, seedBonusCounts);
+      const strengthB = aiMatchStrength(playerB, competition, season, week, `${roundLabel}:${index + 1}`, bonusTopIds, simulationNonce, rankingOrder, seedBonusCounts);
+      const chanceA = Math.max(0.08, Math.min(0.92, 1 / (1 + Math.exp(-(strengthA - strengthB) / 10))));
       const roll = seededRandom(`${simulationNonce}:${competition.id}:${season}:${week}:${roundLabel}:${index}:winner`);
       const winner = roll < chanceA ? playerA : playerB;
       const loser = winner === playerA ? playerB : playerA;
@@ -654,7 +677,8 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
     }
     return winners;
   };
-  const round16 = positions.slice(1);
+  const bracketPositionOrder = [1, 16, 9, 8, 5, 12, 13, 4, 3, 14, 11, 6, 7, 10, 15, 2];
+  const round16 = bracketPositionOrder.map((position) => positions[position]);
   const quarterFinalists = playRound(round16, "round16", table.qualif || 0);
   const semiFinalists = playRound(quarterFinalists, "quarter", table.quarter || 0);
   const finalists = playRound(semiFinalists, "semi", table.semi || 0);
@@ -3632,6 +3656,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     format: tournament.format || "classic",
     targetSets: Number(tournament.targetSets || 2),
     distribution: tournament.distribution || "random",
+    seedNumbers: Object.fromEntries(Object.entries(tournament.seedRanks || {}).filter(([, rank]) => Number(rank) >= 1 && Number(rank) <= 4)),
     settingsLocked: tournament.status !== "waiting",
     participants: activeParticipants.map((item) => ({
       id: item.id,
