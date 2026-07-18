@@ -88,4 +88,4 @@ assert.equal(doubleContext.result.duplicatedPower, 4);
 assert.equal(doubleContext.result.changesLeader, true);
 assert.equal(doubleContext.result.viable, true);
 
-console.log("v142 politique IA: OK");
+console.log("v143 politique IA: OK");

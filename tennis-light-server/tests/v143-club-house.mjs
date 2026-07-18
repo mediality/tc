@@ -19,7 +19,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v142<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v143<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);
@@ -237,4 +237,4 @@ vm.runInNewContext(`${functionSource("chooseSoloScoredOption")};
 assert.equal(choiceContext.normalResult, "second");
 assert.equal(choiceContext.legendResult, "best");
 
-console.log("v142 CLUB HOUSE: OK");
+console.log("v143 CLUB HOUSE: OK");

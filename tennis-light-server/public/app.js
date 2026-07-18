@@ -2706,10 +2706,19 @@ async function startWeeklyCompetition(competitionId) {
     renderAuthState(error.message);
     return;
   }
-  showGameScreen();
   applySurfaceBackground(competition.surface);
   const targetSets = Number(competition.targetSets || 2);
-  startTournamentMode(targetSets, { competition });
+  try {
+    startTournamentMode(targetSets, { competition });
+    showGameScreen();
+    render();
+  } catch (error) {
+    resetTournament();
+    SOLO_AI.enabled = false;
+    showMenuScreen();
+    renderAuthState("Le tournoi n'a pas pu démarrer. Réessaie depuis le lobby.");
+    console.error("Circuit tournament launch failed", error);
+  }
 }
 
 function nicknameValue() {
@@ -3492,11 +3501,20 @@ async function startAiClubHouseCompetition() {
     players: AI_CLUB_HOUSE.players,
     distribution: AI_CLUB_HOUSE.distribution,
   };
-  showGameScreen();
-  if (AI_CLUB_HOUSE.format === "league") {
-    startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
-  } else {
-    startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+  try {
+    if (AI_CLUB_HOUSE.format === "league") {
+      startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+    } else {
+      startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+    }
+    showGameScreen();
+    render();
+  } catch (error) {
+    resetTournament();
+    SOLO_AI.enabled = false;
+    showMenuScreen();
+    renderAuthState("Le tournoi n'a pas pu démarrer. Vérifie sa configuration puis réessaie.");
+    console.error("Club House tournament launch failed", error);
   }
 }
 
@@ -5054,7 +5072,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v142",
+    gameVersion: "v143",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5294,7 +5312,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v142",
+    version: "v143",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5353,7 +5371,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v142",
+    version: "v143",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5367,7 +5385,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v142");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v143");
 }
 
 function resetSetMatch() {
@@ -6764,11 +6782,12 @@ function chooseSoloAttitude(playerIndex, reason = "lecture initiale") {
   SOLO_AI.attitudeReason = reason;
   SOLO_AI.attitudeRevisionAt = SOLO_AI.planRevision;
   const revisionWindow = {
+    amateur: [5, 7],
     normal: [4, 6],
     expert: [3, 5],
     champion: [2, 4],
     legend: [1, 3],
-  }[normalizeAiIntelligence(SOLO_AI.style)];
+  }[normalizeAiIntelligence(SOLO_AI.style)] || [5, 7];
   SOLO_AI.attitudeRevisionWindow = revisionWindow[0] + Math.floor(Math.random() * (revisionWindow[1] - revisionWindow[0] + 1));
   return attitude;
 }
@@ -6789,7 +6808,13 @@ function shouldReevaluateSoloAttitude(playerIndex) {
   const resourceSwing = Math.abs((SOLO_AI.plan.resources?.opponentEndurance ?? opponent.endurance) - opponent.endurance) >= 2
     || Math.abs((SOLO_AI.plan.resources?.opponentHand ?? opponent.hand.length) - opponent.hand.length) >= 2;
   const planContradicted = state.mandatoryPlacement || primaryBlocked || resourceSwing || opponent.hand.length <= 1 || opponent.endurance <= 0;
-  const reevaluationChance = { normal: 0.35, expert: 0.52, champion: 0.68, legend: 0.82 }[normalizeAiIntelligence(SOLO_AI.style)];
+  const reevaluationChance = {
+    amateur: 0.18,
+    normal: 0.35,
+    expert: 0.52,
+    champion: 0.68,
+    legend: 0.82,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0.18;
   return planContradicted && Math.random() < reevaluationChance;
 }
 
@@ -7040,7 +7065,13 @@ function soloPassProjection(playerIndex) {
 
 function chooseSoloPunitiveContinuation(playerIndex, plan) {
   if (!plan || state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
-  const attemptChance = { normal: 0.2, expert: 0.55, champion: 0.82, legend: 1 }[normalizeAiIntelligence(SOLO_AI.style)];
+  const attemptChance = {
+    amateur: 0.08,
+    normal: 0.2,
+    expert: 0.55,
+    champion: 0.82,
+    legend: 1,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0.08;
   if (Math.random() > attemptChance) return null;
   const response = soloOpponentResponseProjection(playerIndex);
   const passProjection = soloPassProjection(playerIndex);
@@ -7651,7 +7682,13 @@ function soloCardScore(playerIndex, card, boosted = false) {
 }
 
 function aiScoreNoise(scale = 1.4) {
-  const multiplier = { normal: 5, expert: 2.2, champion: 0.8, legend: 0.15 }[normalizeAiIntelligence(SOLO_AI.style)];
+  const multiplier = {
+    amateur: 7,
+    normal: 5,
+    expert: 2.2,
+    champion: 0.8,
+    legend: 0.15,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 7;
   const adjustedScale = isLateCircuitRoundWithoutBonus(SOLO_AI.playerIndex) ? Math.min(0.45, scale) : scale;
   return (Math.random() - 0.5) * adjustedScale * multiplier;
 }

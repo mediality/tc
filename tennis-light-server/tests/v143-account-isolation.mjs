@@ -70,4 +70,4 @@ assert.equal(context.AUTH_STATE.gameplayRanking, null);
 assert.equal(context.AUTH_STATE.competitions, null);
 assert.equal(context.AUTH_STATE.rankingPage, 1);
 
-console.log("v142 account isolation and Circuit level: OK");
+console.log("v143 account isolation and Circuit level: OK");

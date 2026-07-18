@@ -125,4 +125,4 @@ assert.match(server, /function simulatedAiMatchPerformancePoints/);
 assert.match(server, /5 \+ Math\.abs\(score\[0\] - score\[1\]\)/);
 assert.match(server, /if \(loserSets === 0\).*\+ 5/);
 
-console.log("v142 RankIA, tirages Circuit Pro et points IA: OK");
+console.log("v143 RankIA, tirages Circuit Pro et points IA: OK");

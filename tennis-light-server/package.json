@@ -5,14 +5,15 @@
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
     "start": "node server.js",
-    "test:club-house": "node tests/v142-club-house.mjs",
-    "test:ai-logging": "node tests/v142-ai-logging.mjs",
-    "test:ai-policy": "node tests/v142-ai-policy-unit.mjs",
-    "test:ai-strategy": "node tests/v142-ai-strategy.mjs",
-    "test:account-isolation": "node tests/v142-account-isolation.mjs",
-    "test:rankia": "node tests/v142-rankia-circuit.mjs",
-    "test:removal-rules": "node tests/v142-removal-rules.mjs",
-    "test:v142-features": "node tests/v142-player-effects-ui.mjs"
+    "test:club-house": "node tests/v143-club-house.mjs",
+    "test:ai-logging": "node tests/v143-ai-logging.mjs",
+    "test:ai-policy": "node tests/v143-ai-policy-unit.mjs",
+    "test:ai-strategy": "node tests/v143-ai-strategy.mjs",
+    "test:account-isolation": "node tests/v143-account-isolation.mjs",
+    "test:rankia": "node tests/v143-rankia-circuit.mjs",
+    "test:removal-rules": "node tests/v143-removal-rules.mjs",
+    "test:tournament-lifecycle": "node tests/v143-tournament-lifecycle.mjs",
+    "test:v143-features": "node tests/v143-player-effects-ui.mjs"
   },
   "dependencies": {
     "pg": "^8.12.0"

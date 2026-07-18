@@ -28,4 +28,4 @@ assert.match(server, /async function saveHumanMatchLog\(user, payload\)/);
 assert.match(server, /url\.pathname === "\/api\/human-match-logs"/);
 assert.match(server, /url\.pathname === "\/api\/admin\/human-match-logs"/);
 
-console.log("v142 IA et journal des parties humaines: OK");
+console.log("v143 IA et journal des parties humaines: OK");

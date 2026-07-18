@@ -143,4 +143,4 @@ assert.equal(poweredOwner.power, 7, "only the printed power must be removed");
 assert.equal(removedCard.removed, true);
 assert.match(context.state.log[0], /bonus.*acquis.*appliqu/i);
 
-console.log("v142 removal rules: OK");
+console.log("v143 removal rules: OK");
