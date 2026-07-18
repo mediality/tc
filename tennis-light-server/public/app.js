@@ -2016,27 +2016,89 @@ function attachImageZoomHandlers(root = document) {
   });
 }
 
+function academyOrderedCards() {
+  return CARD_LIBRARY
+    .map((card, libraryIndex) => ({ card, libraryIndex }))
+    .sort((left, right) => {
+      const leftEffect = left.card.family === "Remise" ? 1 : 0;
+      const rightEffect = right.card.family === "Remise" ? 1 : 0;
+      return leftEffect - rightEffect
+        || right.card.cost - left.card.cost
+        || left.libraryIndex - right.libraryIndex;
+    })
+    .map(({ card }) => card);
+}
+
+function openAcademyDeckGallery(startIndex = 0) {
+  document.querySelector(".image-zoom-backdrop")?.remove();
+  const cards = academyOrderedCards();
+  if (!cards.length) return;
+  let currentIndex = ((Number(startIndex) % cards.length) + cards.length) % cards.length;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop image-zoom-backdrop academy-gallery-backdrop";
+  backdrop.innerHTML = `
+    <button class="image-zoom-close" type="button" aria-label="Fermer l'agrandissement">×</button>
+    <button class="academy-gallery-arrow previous" type="button" data-academy-gallery-direction="-1" aria-label="Carte précédente">‹</button>
+    <figure class="image-zoom-figure academy-gallery-figure" role="dialog" aria-modal="true">
+      <img alt="" />
+    </figure>
+    <button class="academy-gallery-arrow next" type="button" data-academy-gallery-direction="1" aria-label="Carte suivante">›</button>
+  `;
+  document.body.append(backdrop);
+  const image = backdrop.querySelector(".academy-gallery-figure img");
+  const figure = backdrop.querySelector(".academy-gallery-figure");
+  const renderCurrentCard = () => {
+    const card = cards[currentIndex];
+    const cardLabel = `${card.name} - ${card.subtitle ?? card.family}`;
+    image.src = CARD_IMAGES[card.id] || CARD_BACK_IMAGE;
+    image.alt = cardLabel;
+    figure.setAttribute("aria-label", `${cardLabel} agrandie`);
+  };
+  const move = (direction) => {
+    currentIndex = (currentIndex + direction + cards.length) % cards.length;
+    renderCurrentCard();
+  };
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKeyDown);
+  };
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") close();
+    if (event.key === "ArrowLeft") move(-1);
+    if (event.key === "ArrowRight") move(1);
+  };
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop || event.target.closest(".image-zoom-close")) close();
+  });
+  backdrop.querySelectorAll("[data-academy-gallery-direction]").forEach((button) => {
+    button.addEventListener("click", () => move(Number(button.dataset.academyGalleryDirection)));
+  });
+  document.addEventListener("keydown", onKeyDown);
+  renderCurrentCard();
+}
+
 function academyDeckMarkup() {
-  return CARD_LIBRARY.map((card, index) => {
+  return academyOrderedCards().map((card, index) => {
     const imageUrl = CARD_IMAGES[card.id] || CARD_BACK_IMAGE;
     const cardLabel = `${card.name} - ${card.subtitle ?? card.family}`;
     return `
-      <button class="academy-deck-card" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(cardLabel)}" aria-label="Agrandir ${escapeHtml(cardLabel)}">
+      <button class="academy-deck-card" type="button" data-academy-gallery-index="${index}" aria-label="Agrandir ${escapeHtml(cardLabel)}">
         <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(cardLabel)}" loading="lazy" />
-        <span class="academy-deck-card-caption">
-          <small>Carte ${String(index + 1).padStart(2, "0")}</small>
-          <strong>${escapeHtml(card.name)}</strong>
-          <span>${escapeHtml(card.subtitle ?? card.family)}</span>
-        </span>
       </button>
     `;
   }).join("");
 }
 
+function attachAcademyDeckHandlers() {
+  els.academyDeckList?.querySelectorAll("[data-academy-gallery-index]").forEach((button) => {
+    button.addEventListener("click", () => openAcademyDeckGallery(Number(button.dataset.academyGalleryIndex)));
+  });
+}
+
 function renderAcademyDeck() {
   if (!els.academyDeckList) return;
   els.academyDeckList.innerHTML = academyDeckMarkup();
-  attachImageZoomHandlers(els.academyDeckList);
+  attachAcademyDeckHandlers();
 }
 
 function profileMarkup(profile) {
@@ -5126,7 +5188,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v143",
+    gameVersion: "v145",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5366,7 +5428,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v143",
+    version: "v145",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5425,7 +5487,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v143",
+    version: "v145",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5439,7 +5501,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v143");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v145");
 }
 
 function resetSetMatch() {

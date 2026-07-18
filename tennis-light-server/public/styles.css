@@ -3772,6 +3772,7 @@ h1 {
   border-radius: 8px;
   padding: 0;
   color: #17212b;
+  line-height: 0;
   text-align: left;
   background: #f8fbfc;
   box-shadow: 0 7px 16px rgba(10, 32, 44, 0.13);
@@ -3793,32 +3794,36 @@ h1 {
   image-rendering: auto;
 }
 
-.academy-deck-card-caption {
+.academy-gallery-arrow {
+  position: fixed;
+  top: 50%;
+  z-index: 142;
   display: grid;
-  align-content: start;
-  min-height: 74px;
-  padding: 9px 10px 10px;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 2px solid rgba(255, 255, 255, 0.84);
+  border-radius: 50%;
+  padding: 0 0 5px;
+  color: #fff;
+  background: rgba(190, 24, 93, 0.94);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+  font-size: 2.7rem;
+  line-height: 1;
+  transform: translateY(-50%);
 }
 
-.academy-deck-card-caption small {
-  color: #0f8d68;
-  font-size: 0.66rem;
-  font-weight: 950;
-  text-transform: uppercase;
+.academy-gallery-arrow.previous {
+  left: max(12px, calc(50% - 360px));
 }
 
-.academy-deck-card-caption strong {
-  margin-top: 2px;
-  font-size: 0.84rem;
-  line-height: 1.2;
+.academy-gallery-arrow.next {
+  right: max(12px, calc(50% - 360px));
 }
 
-.academy-deck-card-caption > span {
-  margin-top: 2px;
-  color: #647484;
-  font-size: 0.72rem;
-  font-weight: 750;
-  line-height: 1.25;
+.academy-gallery-arrow:hover,
+.academy-gallery-arrow:focus-visible {
+  background: #9d174d;
 }
 
 .academy-copy-grid {
@@ -3865,25 +3870,53 @@ h1 {
 }
 
 .academy-info-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
   margin: 6px -18px -18px;
-  padding: 24px 18px;
   color: #fff;
   background: #102a43;
 }
 
-.academy-info-footer p {
+.academy-shop-banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.academy-shop-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 18px;
+}
+
+.academy-shop-callout p {
   max-width: 660px;
   margin: 0;
   line-height: 1.55;
 }
 
 .academy-shop-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
+  min-height: 44px;
+  border: 1px solid #be185d;
+  padding: 8px 18px;
+  color: #fff;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
+  background: #be185d;
+  box-shadow: 0 2px 0 rgba(75, 8, 36, 0.58);
+}
+
+.academy-shop-button:hover,
+.academy-shop-button:focus-visible {
+  color: #fff;
+  background: #9d174d;
 }
 
 .circuit-info-grid {
@@ -4555,9 +4588,15 @@ h1 {
     padding-left: 0;
   }
 
-  .academy-info-footer {
+  .academy-shop-callout {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .academy-gallery-arrow {
+    width: 44px;
+    height: 44px;
+    font-size: 2.25rem;
   }
 
   .academy-shop-button {
