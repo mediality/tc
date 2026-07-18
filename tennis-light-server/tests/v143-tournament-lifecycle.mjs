@@ -18,8 +18,8 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /styles\.css\?v=143\.2/);
-assert.match(html, /app\.js\?v=143\.2/);
+assert.match(html, /styles\.css\?v=146\.1/);
+assert.match(html, /app\.js\?v=146\.1/);
 
 const attitudeContext = {
   state: {

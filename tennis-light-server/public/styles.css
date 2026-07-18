@@ -3692,6 +3692,25 @@ h1 {
   margin-left: auto;
 }
 
+.info-highlight-button,
+#menuScreen .info-highlight-button {
+  min-height: 38px;
+  border: 1px solid #cf6485;
+  padding: 0 14px;
+  color: #2e101a;
+  background: #e57d9d;
+  box-shadow: 0 3px 0 rgba(113, 39, 64, 0.38), 0 8px 18px rgba(93, 30, 52, 0.18);
+  font-weight: 950;
+}
+
+.info-highlight-button:hover:not(:disabled),
+.info-highlight-button:focus-visible {
+  border-color: #b94d70;
+  color: #210b12;
+  background: #ee9ab3;
+  transform: translateY(-1px);
+}
+
 .academy-info-menu-button {
   grid-column: 1 / -1;
 }
@@ -3917,6 +3936,43 @@ h1 {
 .academy-shop-button:focus-visible {
   color: #fff;
   background: #9d174d;
+}
+
+.circuit-info-feature {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);
+  gap: 30px;
+  align-items: stretch;
+  margin-top: 20px;
+  padding-bottom: 8px;
+}
+
+.circuit-info-visual {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(10, 56, 78, 0.2);
+  border-radius: 8px;
+  background: #eef4f5;
+  box-shadow: 0 16px 32px rgba(10, 42, 58, 0.16);
+}
+
+.circuit-info-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 410px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.circuit-info-feature-copy {
+  display: grid;
+  align-content: center;
+}
+
+.circuit-info-feature-copy .circuit-info-section:first-child {
+  border-top: 0;
 }
 
 .circuit-info-grid {
@@ -4368,6 +4424,68 @@ h1 {
   background: rgba(16, 24, 40, 0.48);
 }
 
+.tournament-loading-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(5, 20, 31, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.tournament-loading-panel {
+  display: grid;
+  gap: 9px;
+  width: min(420px, 100%);
+  border: 1px solid rgba(229, 125, 157, 0.82);
+  border-radius: 8px;
+  padding: 24px;
+  color: #fff;
+  text-align: center;
+  background: #0b3448;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.45);
+}
+
+.tournament-loading-kicker {
+  color: #f2abc0;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.tournament-loading-panel strong {
+  font-size: 1.2rem;
+}
+
+.tournament-loading-panel p {
+  margin: 0;
+  color: #dcecf2;
+  line-height: 1.45;
+}
+
+.tournament-loading-track {
+  height: 7px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.tournament-loading-track span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: #e57d9d;
+  animation: tournamentLoadingProgress 1.15s ease-in-out infinite;
+}
+
+@keyframes tournamentLoadingProgress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(340%); }
+}
+
 .image-zoom-backdrop {
   z-index: 140;
   cursor: zoom-out;
@@ -4606,6 +4724,16 @@ h1 {
 
   .circuit-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .circuit-info-feature {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .circuit-info-visual img {
+    height: auto;
+    min-height: 0;
   }
 
   .circuit-info-section:nth-child(2) {

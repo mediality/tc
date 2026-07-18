@@ -4,12 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=145" />
+    <link rel="stylesheet" href="./styles.css?v=146.1" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
       <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v145</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
 
         <div class="menu-grid">
@@ -58,7 +58,7 @@
                 <button class="tutorial-menu-button hidden" type="button" data-start-tutorial data-required-role="admin">Tutoriel</button>
                 <button class="primary-button menu-exchange-button" type="button" data-start-solo="exchange">Échange</button>
                 <button class="small-button" type="button" data-start-solo="set">Set</button>
-                <button id="openAcademyInfoButton" class="small-button academy-info-menu-button" type="button">Découvrir l'Academy</button>
+                <button id="openAcademyInfoButton" class="small-button info-highlight-button academy-info-menu-button" type="button">DÉCOUVRIR L'ACADEMIE</button>
               </div>
               <div class="menu-mode-group">
                 <p class="label">Exhibition</p>
@@ -97,7 +97,7 @@
           <section class="menu-panel weekly-circuit-panel restricted-pro" data-required-role="pro">
             <div class="lobby-header">
               <p class="label">Tennis Courts Pro Circuit</p>
-              <button id="openCircuitInfoButton" class="small-button circuit-info-button" type="button">En savoir plus</button>
+              <button id="openCircuitInfoButton" class="small-button info-highlight-button circuit-info-button" type="button">EN SAVOIR PLUS</button>
             </div>
             <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
             <p class="access-note">Réservé aux joueurs Pro.</p>
@@ -121,7 +121,7 @@
 
     <section id="academyInfoScreen" class="menu-screen hidden">
       <div class="menu-shell academy-info-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v145</span></p>
+        <p class="eyebrow">Tennis Courts Academy <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel academy-info-panel">
           <div class="lobby-header academy-info-header">
@@ -190,7 +190,7 @@
 
     <section id="profileScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v145</span></p>
+        <p class="eyebrow">Profil joueur <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -204,7 +204,7 @@
 
     <section id="characterScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v145</span></p>
+        <p class="eyebrow">Personnage <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -221,7 +221,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v145</span></p>
+        <p class="eyebrow">Réinitialisation <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -237,7 +237,7 @@
 
     <section id="rankingScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v145</span></p>
+        <p class="eyebrow">Classement général <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <div class="lobby-header">
@@ -261,22 +261,29 @@
 
     <section id="circuitInfoScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v145</span></p>
+        <p class="eyebrow">Tennis Courts Pro Circuit <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel circuit-info-panel">
           <div class="lobby-header">
             <p class="label">Comprendre le circuit</p>
             <button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour lobby</button>
           </div>
+          <div class="circuit-info-feature">
+            <figure class="circuit-info-visual">
+              <img src="./assets/circuit-pro-contigoat.jpg" alt="Championne Tennis Courts dans la galerie des trophées" />
+            </figure>
+            <div class="circuit-info-feature-copy">
+              <article class="circuit-info-section">
+                <h2>Les tournois</h2>
+                <p>Chaque semaine de Tennis Courts propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour du circuit le mercredi à 14 h et le dimanche à 2 h (heure de Paris). Les catégories sont Challenge 400, Major 600, Premier 1000, Crown 1500, Slam 2000 et Finals 4000. Le nombre indique l'importance du tournoi et les points attribués au vainqueur.</p>
+              </article>
+              <article class="circuit-info-section">
+                <h2>Classement</h2>
+                <p>Votre classement mondial est calculé à partir du cumul des points obtenus sur les 4 dernières semaines de compétition. Chaque nouveau tournoi est donc l'occasion d'améliorer votre position.</p>
+              </article>
+            </div>
+          </div>
           <div class="circuit-info-grid">
-            <article class="circuit-info-section">
-              <h2>Les tournois</h2>
-              <p>Chaque semaine de Tennis Courts propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour du circuit le mercredi à 14 h et le dimanche à 2 h (heure de Paris). Les catégories sont Challenge 400, Major 600, Premier 1000, Crown 1500, Slam 2000 et Finals 4000. Le nombre indique l'importance du tournoi et les points attribués au vainqueur.</p>
-            </article>
-            <article class="circuit-info-section">
-              <h2>Classement</h2>
-              <p>Votre classement mondial est calculé à partir du cumul des points obtenus sur les 4 dernières semaines de compétition. Chaque nouveau tournoi est donc l'occasion d'améliorer votre position.</p>
-            </article>
             <article class="circuit-info-section">
               <h2>Retenter sa chance</h2>
               <p>Vous pouvez rejouer un tournoi jusqu'à 5 fois afin de tenter de réaliser une meilleure performance. Seul votre meilleur résultat est conservé. Au total, vous disposez de 5 tentatives d'amélioration par semaine, à répartir librement entre les différents tournois disponibles.</p>
@@ -320,7 +327,7 @@
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v145</span></p>
+        <p class="eyebrow">Administration <span>v146</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -376,7 +383,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v145</span></p>
+            <p class="eyebrow">CLUB HOUSE · Tournoi amical en ligne <span>v146</span></p>
             <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -391,7 +398,7 @@
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE · Compétition contre l'IA <span>v145</span></p>
+            <p class="eyebrow">CLUB HOUSE · Compétition contre l'IA <span>v146</span></p>
             <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
@@ -499,7 +506,7 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v145</span></p>
+          <p class="eyebrow">Tennis Courts Academy <span>v146</span></p>
           <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
             <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
@@ -538,6 +545,15 @@
       </section>
     </main>
 
-    <script src="./app.js?v=145"></script>
+    <div id="tournamentLoadingDialog" class="tournament-loading-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="tournamentLoadingTitle" aria-describedby="tournamentLoadingMessage">
+      <div class="tournament-loading-panel">
+        <span class="tournament-loading-kicker">TENNIS COURTS</span>
+        <strong id="tournamentLoadingTitle">Chargement du tournoi</strong>
+        <p id="tournamentLoadingMessage">Le tournoi est en train d'être chargé.</p>
+        <div class="tournament-loading-track" aria-hidden="true"><span></span></div>
+      </div>
+    </div>
+
+    <script src="./app.js?v=146.1"></script>
   </body>
 </html>

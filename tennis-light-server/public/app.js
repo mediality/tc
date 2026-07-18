@@ -1315,6 +1315,9 @@ const els = {
   openAcademyInfoButton: document.querySelector("#openAcademyInfoButton"),
   backToLobbyFromAcademyInfoButton: document.querySelector("#backToLobbyFromAcademyInfoButton"),
   academyDeckList: document.querySelector("#academyDeckList"),
+  tournamentLoadingDialog: document.querySelector("#tournamentLoadingDialog"),
+  tournamentLoadingTitle: document.querySelector("#tournamentLoadingTitle"),
+  tournamentLoadingMessage: document.querySelector("#tournamentLoadingMessage"),
   backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
@@ -2763,16 +2766,21 @@ async function fetchSavedTournamentProgress(competitionId) {
 }
 
 async function resumeWeeklyCompetition(competitionId) {
-  const saved = await fetchSavedTournamentProgress(competitionId);
-  if (!saved || !restoreStateSnapshot(saved)) {
-    renderAuthState("Sauvegarde indisponible.");
-    renderCompetitions();
-    return;
+  await showTournamentLoadingDialog("Votre tournoi du Circuit Pro est en train d'être chargé.");
+  try {
+    const saved = await fetchSavedTournamentProgress(competitionId);
+    if (!saved || !restoreStateSnapshot(saved)) {
+      renderAuthState("Sauvegarde indisponible.");
+      renderCompetitions();
+      return;
+    }
+    resetTutorialMode();
+    showGameScreen();
+    applySurfaceBackground(state.tournament?.competitionSurface);
+    render();
+  } finally {
+    hideTournamentLoadingDialog();
   }
-  resetTutorialMode();
-  showGameScreen();
-  applySurfaceBackground(state.tournament?.competitionSurface);
-  render();
 }
 
 async function startWeeklyCompetition(competitionId) {
@@ -2781,32 +2789,37 @@ async function startWeeklyCompetition(competitionId) {
     renderAuthState("Le Tennis Courts Pro Circuit est réservé aux joueurs Pro.");
     return;
   }
-  await ensureGameplayRanking();
-  await ensureGameplayProfile(true);
-  const competition = weeklyCompetitionById(competitionId);
-  if (!competition) {
-    renderAuthState("Tournoi indisponible. Actualise le classement.");
-    return;
-  }
+  await showTournamentLoadingDialog("Votre tournoi du Circuit Pro est en train d'être créé.");
   try {
-    await authRequest(`/api/competitions/${encodeURIComponent(competitionId)}/attempt`, {});
-    await loadCompetitions();
-  } catch (error) {
-    renderAuthState(error.message);
-    return;
-  }
-  applySurfaceBackground(competition.surface);
-  const targetSets = Number(competition.targetSets || 2);
-  try {
-    startTournamentMode(targetSets, { competition });
-    showGameScreen();
-    render();
-  } catch (error) {
-    resetTournament();
-    SOLO_AI.enabled = false;
-    showMenuScreen();
-    renderAuthState("Le tournoi n'a pas pu démarrer. Réessaie depuis le lobby.");
-    console.error("Circuit tournament launch failed", error);
+    await ensureGameplayRanking();
+    await ensureGameplayProfile(true);
+    const competition = weeklyCompetitionById(competitionId);
+    if (!competition) {
+      renderAuthState("Tournoi indisponible. Actualise le classement.");
+      return;
+    }
+    try {
+      await authRequest(`/api/competitions/${encodeURIComponent(competitionId)}/attempt`, {});
+      await loadCompetitions();
+    } catch (error) {
+      renderAuthState(error.message);
+      return;
+    }
+    applySurfaceBackground(competition.surface);
+    const targetSets = Number(competition.targetSets || 2);
+    try {
+      startTournamentMode(targetSets, { competition });
+      showGameScreen();
+      render();
+    } catch (error) {
+      resetTournament();
+      SOLO_AI.enabled = false;
+      showMenuScreen();
+      renderAuthState("Le tournoi n'a pas pu démarrer. Réessaie depuis le lobby.");
+      console.error("Circuit tournament launch failed", error);
+    }
+  } finally {
+    hideTournamentLoadingDialog();
   }
 }
 
@@ -2831,6 +2844,22 @@ function applySurfaceBackground(surface = null) {
   if (surface === "grass") document.body.classList.add("surface-grass");
   if (surface === "clay") document.body.classList.add("surface-clay");
   if (surface === "hard") document.body.classList.add("surface-hard");
+}
+
+function showTournamentLoadingDialog(message = "Le tournoi est en train d'être chargé.", title = "Chargement du tournoi") {
+  if (!els.tournamentLoadingDialog) return Promise.resolve();
+  if (els.tournamentLoadingTitle) els.tournamentLoadingTitle.textContent = title;
+  if (els.tournamentLoadingMessage) els.tournamentLoadingMessage.textContent = message;
+  els.tournamentLoadingDialog.classList.remove("hidden");
+  els.tournamentLoadingDialog.setAttribute("aria-hidden", "false");
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+  });
+}
+
+function hideTournamentLoadingDialog() {
+  els.tournamentLoadingDialog?.classList.add("hidden");
+  els.tournamentLoadingDialog?.setAttribute("aria-hidden", "true");
 }
 
 function showGameScreen() {
@@ -2980,6 +3009,7 @@ function showCircuitInfoScreen() {
   els.gameApp?.classList.add("hidden");
   els.circuitInfoScreen?.classList.remove("hidden");
   applySurfaceBackground(null);
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function showAcademyInfoScreen() {
@@ -3608,29 +3638,34 @@ async function startAiClubHouseCompetition() {
   }
   resetTutorialMode();
   MENU_STATE.espoirResolvedCharacterId = null;
-  await ensureGameplayRanking();
-  await ensureGameplayProfile(true);
-  const options = {
-    aiClubHouse: true,
-    difficulty: AI_CLUB_HOUSE.difficulty,
-    bonus: AI_CLUB_HOUSE.bonus,
-    players: AI_CLUB_HOUSE.players,
-    distribution: AI_CLUB_HOUSE.distribution,
-  };
+  await showTournamentLoadingDialog("Votre tournoi du Club House est en train d'être créé.");
   try {
-    if (AI_CLUB_HOUSE.format === "league") {
-      startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
-    } else {
-      startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+    await ensureGameplayRanking();
+    await ensureGameplayProfile(true);
+    const options = {
+      aiClubHouse: true,
+      difficulty: AI_CLUB_HOUSE.difficulty,
+      bonus: AI_CLUB_HOUSE.bonus,
+      players: AI_CLUB_HOUSE.players,
+      distribution: AI_CLUB_HOUSE.distribution,
+    };
+    try {
+      if (AI_CLUB_HOUSE.format === "league") {
+        startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+      } else {
+        startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+      }
+      showGameScreen();
+      render();
+    } catch (error) {
+      resetTournament();
+      SOLO_AI.enabled = false;
+      showMenuScreen();
+      renderAuthState("Le tournoi n'a pas pu démarrer. Vérifie sa configuration puis réessaie.");
+      console.error("Club House tournament launch failed", error);
     }
-    showGameScreen();
-    render();
-  } catch (error) {
-    resetTournament();
-    SOLO_AI.enabled = false;
-    showMenuScreen();
-    renderAuthState("Le tournoi n'a pas pu démarrer. Vérifie sa configuration puis réessaie.");
-    console.error("Club House tournament launch failed", error);
+  } finally {
+    hideTournamentLoadingDialog();
   }
 }
 
@@ -3769,6 +3804,8 @@ async function createFriendlyTournament() {
     if (els.lobbyRooms) els.lobbyRooms.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
+  let navigating = false;
+  await showTournamentLoadingDialog("Le Club House du tournoi en ligne est en train d'être créé.");
   try {
     const response = await fetch("/api/lobby/friendly-tournaments", {
       method: "POST",
@@ -3780,13 +3817,19 @@ async function createFriendlyTournament() {
       throw new Error(data.error || "create failed");
     }
     const data = await response.json();
+    if (!data.playerUrl) throw new Error("Adresse du tournoi indisponible.");
+    navigating = true;
     window.location.href = data.playerUrl;
   } catch (error) {
     els.lobbyRooms.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message || "Impossible de créer le tournoi.")}</div>`;
+  } finally {
+    if (!navigating) hideTournamentLoadingDialog();
   }
 }
 
 async function joinFriendlyTournament(tournamentId) {
+  let navigating = false;
+  await showTournamentLoadingDialog("Le tournoi en ligne est en train d'être chargé.");
   try {
     const response = await fetch(`/api/lobby/friendly-tournaments/${encodeURIComponent(tournamentId)}/join`, {
       method: "POST",
@@ -3795,13 +3838,19 @@ async function joinFriendlyTournament(tournamentId) {
     });
     if (!response.ok) throw new Error("join failed");
     const data = await response.json();
+    if (!data.playerUrl) throw new Error("Adresse du tournoi indisponible.");
+    navigating = true;
     window.location.href = data.playerUrl;
   } catch (error) {
     await refreshLobbyRooms();
+  } finally {
+    if (!navigating) hideTournamentLoadingDialog();
   }
 }
 
 async function resumeFriendlyTournament(tournamentId) {
+  let navigating = false;
+  await showTournamentLoadingDialog("Votre tournoi en ligne est en train d'être chargé.");
   try {
     const response = await fetch(`/api/lobby/friendly-tournaments/${encodeURIComponent(tournamentId)}/resume`, {
       method: "POST",
@@ -3810,10 +3859,13 @@ async function resumeFriendlyTournament(tournamentId) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.playerUrl) throw new Error(data.error || "resume failed");
+    navigating = true;
     window.location.href = data.playerUrl;
   } catch (error) {
     MENU_STATE.lobbyNotice = error.message || "Ce tournoi ne peut plus être repris.";
     await refreshLobbyRooms();
+  } finally {
+    if (!navigating) hideTournamentLoadingDialog();
   }
 }
 
@@ -3875,6 +3927,8 @@ async function createLobbyRoom() {
     return;
   }
   const targetSets = Number(els.onlineFormatSelect?.value || 2);
+  let navigating = false;
+  await showTournamentLoadingDialog("La partie en ligne est en train d'être créée.", "Chargement de la partie");
   try {
     const response = await fetch("/api/lobby/rooms", {
       method: "POST",
@@ -3887,13 +3941,19 @@ async function createLobbyRoom() {
     });
     if (!response.ok) throw new Error("create failed");
     const data = await response.json();
+    if (!data.playerUrl) throw new Error("Adresse de la partie indisponible.");
+    navigating = true;
     window.location.href = data.playerUrl;
   } catch (error) {
     els.lobbyRooms.innerHTML = '<div class="lobby-empty">Impossible de créer une partie depuis cette version. Lancez la version serveur.</div>';
+  } finally {
+    if (!navigating) hideTournamentLoadingDialog();
   }
 }
 
 async function joinLobbyRoom(roomId) {
+  let navigating = false;
+  await showTournamentLoadingDialog("La partie en ligne est en train d'être chargée.", "Chargement de la partie");
   try {
     const response = await fetch(`/api/lobby/rooms/${encodeURIComponent(roomId)}/join`, {
       method: "POST",
@@ -3902,9 +3962,13 @@ async function joinLobbyRoom(roomId) {
     });
     if (!response.ok) throw new Error("join failed");
     const data = await response.json();
+    if (!data.playerUrl) throw new Error("Adresse de la partie indisponible.");
+    navigating = true;
     window.location.href = data.playerUrl;
   } catch (error) {
     await refreshLobbyRooms();
+  } finally {
+    if (!navigating) hideTournamentLoadingDialog();
   }
 }
 
@@ -4675,6 +4739,7 @@ async function startFriendlyTournamentFromLobby() {
   const formatLabel = (state.tournament?.friendlyFormat || "classic") === "league" ? "LEAGUE" : "CLASSIC";
   const setsLabel = Number(state.tournament?.targetSets || 2);
   if (!window.confirm(`Lancer le tournoi ${formatLabel} en ${setsLabel} sets gagnants ? La configuration sera verrouillée et plus aucun joueur ne pourra rejoindre le CLUB HOUSE.`)) return;
+  await showTournamentLoadingDialog("Le tableau du tournoi en ligne est en train d'être créé.");
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
       method: "POST",
@@ -4688,6 +4753,8 @@ async function startFriendlyTournamentFromLobby() {
   } catch (error) {
     state.log.unshift("Impossible de lancer le tournoi amical.");
     render();
+  } finally {
+    hideTournamentLoadingDialog();
   }
 }
 
@@ -5188,7 +5255,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v145",
+    gameVersion: "v146",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5428,7 +5495,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v145",
+    version: "v146",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5487,7 +5554,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v145",
+    version: "v146",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5501,7 +5568,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v145");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v146");
 }
 
 function resetSetMatch() {
