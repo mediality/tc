@@ -19,7 +19,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v141<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v142<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);
@@ -57,15 +57,19 @@ assert.match(app, /if \(rankIa === 1\) return Math\.random\(\) < 0\.5 \? "champi
 assert.match(app, /return rankIa >= 16 \? "amateur" : "normal"/);
 assert.match(app, /aiIntelligenceLevels,/);
 assert.match(app, /function aiIntelligenceBadgeMarkup\(entry\)/);
+assert.match(app, /amateur: \{ initial: "A", label: "Amateur" \}/);
 assert.match(app, /expert: \{ initial: "E", label: "Expert" \}/);
 assert.match(app, /champion: \{ initial: "C", label: "Champion" \}/);
 assert.match(app, /legend: \{ initial: "L", label: "Légendaire" \}/);
+assert.match(styles, /\.ai-intelligence-badge\.amateur\s*\{[\s\S]*?color: #111827;[\s\S]*?background: #fff;/);
 assert.match(styles, /\.ai-intelligence-badge\.expert/);
 assert.match(styles, /\.ai-intelligence-badge\.champion/);
 assert.match(styles, /\.ai-intelligence-badge\.legend/);
 assert.match(styles, /\.ai-intelligence-badge \{[\s\S]*?border-radius: 50%/);
 assert.match(styles, /\.friendly-setting-row\.setting-disabled/);
-assert.match(app, /button\.disabled = circuitMode/);
+assert.match(app, /button\.disabled = setting === "bonus" && circuitMode/);
+assert.match(app, /aiClubHouseScreen\?\.addEventListener\("click"/);
+assert.match(styles, /\.ai-club-house-settings \.friendly-setting-button\s*\{[\s\S]*?min-height: 34px/);
 assert.match(app, /function chooseSoloScoredOption\(options,/);
 assert.match(app, /amateur: \[0\.35, 0\.4, 0\.25\]/);
 assert.match(app, /normal: \[0\.55, 0\.3, 0\.15\]/);
@@ -99,6 +103,30 @@ assert.deepEqual(
   Array.from(classicContext.result.positions.slice(1)),
   ["human", "ai15", "ai8", "ai7", "ai4", "ai11", "ai12", "ai3", "ai2", "ai13", "ai10", "ai5", "ai6", "ai9", "ai14", "ai1"],
 );
+
+const amateurSelectionContext = {
+  AI_DIFFICULTIES: ["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"],
+  AI_CLUB_HOUSE: { format: "tournament", targetSets: 2, difficulty: "normal", bonus: "none", players: "random", distribution: "random" },
+  localStorage: { setItem: (key, value) => { amateurSelectionContext.stored = { key, value }; } },
+  renderAiClubHouse: () => { amateurSelectionContext.rendered = true; },
+};
+vm.runInNewContext(`
+  ${functionSource("normalizeAiDifficulty")}
+  ${functionSource("updateAiClubHouseSetting")}
+  updateAiClubHouseSetting("difficulty", "amateur");
+`, amateurSelectionContext);
+assert.equal(amateurSelectionContext.AI_CLUB_HOUSE.difficulty, "amateur");
+assert.deepEqual(amateurSelectionContext.stored, { key: "tennisLightAiClubDifficulty", value: "amateur" });
+assert.equal(amateurSelectionContext.rendered, true);
+
+const amateurBadgeContext = {
+  state: { tournament: { aiIntelligenceLevels: { ai1: "amateur" }, difficulty: "amateur" } },
+  isHumanTournamentEntry: () => false,
+  aiIntelligenceForEntry: () => "amateur",
+};
+vm.runInNewContext(`${functionSource("aiIntelligenceBadgeMarkup")}; result = aiIntelligenceBadgeMarkup("ai1");`, amateurBadgeContext);
+assert.match(amateurBadgeContext.result, /class="ai-intelligence-badge amateur"/);
+assert.match(amateurBadgeContext.result, /aria-label="Niveau Amateur">A<\/span>/);
 
 const intelligenceContext = {
   HUMAN_TOURNAMENT_ENTRY: "human",
@@ -209,4 +237,4 @@ vm.runInNewContext(`${functionSource("chooseSoloScoredOption")};
 assert.equal(choiceContext.normalResult, "second");
 assert.equal(choiceContext.legendResult, "best");
 
-console.log("v141 CLUB HOUSE: OK");
+console.log("v142 CLUB HOUSE: OK");

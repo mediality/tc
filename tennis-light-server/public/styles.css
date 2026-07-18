@@ -844,11 +844,34 @@ body.tutorial-running .boost-button strong {
 }
 
 .ai-club-house-panel {
-  gap: 20px;
+  gap: 16px;
 }
 
 .ai-club-house-photo img {
-  max-height: 350px;
+  max-height: 300px;
+}
+
+.ai-club-house-settings {
+  gap: 9px;
+  padding-top: 11px;
+}
+
+.ai-club-house-settings .friendly-setting-row {
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.38);
+}
+
+.ai-club-house-settings .friendly-setting-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ai-club-house-settings .friendly-setting-button {
+  min-height: 34px;
+  padding: 5px 7px;
+  font-size: 0.7rem;
+  touch-action: manipulation;
 }
 
 .ai-club-house-footer {
@@ -861,10 +884,14 @@ body.tutorial-running .boost-button strong {
 .ai-club-house-footer .friendly-lobby-status {
   display: flex;
   align-items: center;
+  padding: 9px 10px;
+  font-size: 0.82rem;
 }
 
 .ai-club-house-start-button {
-  min-height: 52px;
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
 }
 
 .opponent-hand-reveal-controls {
@@ -3530,6 +3557,12 @@ h1 {
   line-height: 1;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.ai-intelligence-badge.amateur {
+  border-color: #94a3b8;
+  color: #111827;
+  background: #fff;
 }
 
 .ai-intelligence-badge.expert {

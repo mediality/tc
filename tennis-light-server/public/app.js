@@ -154,6 +154,11 @@ const AUTH_STATE = {
   rankingSort: "points",
   competitions: null,
   profile: null,
+  profileUserId: null,
+  gameplayRankingUserId: null,
+  rankingUserId: null,
+  lobbyRankingUserId: null,
+  competitionsUserId: null,
 };
 
 let weeklyCountdownTimer = null;
@@ -1570,7 +1575,40 @@ async function authRequest(path, payload = null, requestOptions = {}) {
   return data;
 }
 
+function authenticatedUserId(user = AUTH_STATE.user) {
+  return user?.id == null ? null : String(user.id);
+}
+
+function clearAuthenticatedCircuitCaches() {
+  AUTH_STATE.profile = null;
+  AUTH_STATE.profileUserId = null;
+  AUTH_STATE.gameplayRanking = null;
+  AUTH_STATE.gameplayRankingUserId = null;
+  AUTH_STATE.ranking = null;
+  AUTH_STATE.rankingUserId = null;
+  AUTH_STATE.lobbyRanking = null;
+  AUTH_STATE.lobbyRankingUserId = null;
+  AUTH_STATE.competitions = null;
+  AUTH_STATE.competitionsUserId = null;
+  AUTH_STATE.rankingPage = 1;
+}
+
+function refreshAuthenticatedCircuitData(userId) {
+  window.setTimeout(() => {
+    if (!userId || authenticatedUserId() !== userId) return;
+    ensureGameplayProfile(true);
+    ensureGameplayRanking();
+    loadRanking(1);
+    loadLobbyRanking();
+    loadCompetitions();
+  }, 0);
+}
+
 function applyAuthenticatedUser(user) {
+  const previousUserId = authenticatedUserId();
+  const nextUserId = authenticatedUserId(user);
+  const accountChanged = previousUserId !== nextUserId;
+  if (accountChanged) clearAuthenticatedCircuitCaches();
   AUTH_STATE.user = user || null;
   if (user?.nickname) {
     MENU_STATE.nickname = user.nickname;
@@ -1582,6 +1620,7 @@ function applyAuthenticatedUser(user) {
   updateAccessControls();
   if (AUTH_STATE.user) {
     window.setTimeout(uploadPendingHumanMatchLogs, 250);
+    if (accountChanged) refreshAuthenticatedCircuitData(nextUserId);
   }
 }
 
@@ -2138,7 +2177,10 @@ async function loadProfile(userId = null) {
   try {
     const ownProfile = !userId || userId === AUTH_STATE.user?.id;
     const profile = ownProfile ? await authRequest("/api/profile") : await authRequest(`/api/profiles/${encodeURIComponent(userId)}`);
-    if (ownProfile) AUTH_STATE.profile = profile;
+    if (ownProfile && authenticatedUserId() === String(profile?.user?.id || "")) {
+      AUTH_STATE.profile = profile;
+      AUTH_STATE.profileUserId = authenticatedUserId();
+    }
     if (els.profileContent) els.profileContent.innerHTML = profileMarkup(profile);
     if (ownProfile) {
       document.querySelector("#saveProfileNicknameButton")?.addEventListener("click", saveProfileNickname);
@@ -2394,10 +2436,13 @@ async function loadRanking(page = AUTH_STATE.rankingPage || 1) {
     if (els.rankingFullList) els.rankingFullList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
+  const userId = authenticatedUserId();
   try {
     AUTH_STATE.rankingPage = page;
     const data = await authRequest(`/api/ranking?page=${encodeURIComponent(page)}&pageSize=25&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
+    if (authenticatedUserId() !== userId || String(data?.currentUserRank?.id || "") !== userId) return;
     AUTH_STATE.ranking = data;
+    AUTH_STATE.rankingUserId = userId;
     renderRanking();
   } catch (error) {
     if (els.rankingFullList) els.rankingFullList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
@@ -2409,8 +2454,12 @@ async function loadLobbyRanking() {
     if (els.rankingList) els.rankingList.innerHTML = '<div class="lobby-empty">Réservé aux joueurs Pro.</div>';
     return;
   }
+  const userId = authenticatedUserId();
   try {
-    AUTH_STATE.lobbyRanking = await authRequest(`/api/ranking?page=1&pageSize=20&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
+    const ranking = await authRequest(`/api/ranking?page=1&pageSize=20&sort=${encodeURIComponent(AUTH_STATE.rankingSort)}`);
+    if (authenticatedUserId() !== userId || String(ranking?.currentUserRank?.id || "") !== userId) return;
+    AUTH_STATE.lobbyRanking = ranking;
+    AUTH_STATE.lobbyRankingUserId = userId;
     renderRanking();
   } catch (error) {
     if (els.rankingList) els.rankingList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
@@ -2492,8 +2541,12 @@ async function loadCompetitions() {
     if (els.weeklyCompetitionsList) els.weeklyCompetitionsList.innerHTML = "";
     return;
   }
+  const userId = authenticatedUserId();
   try {
-    AUTH_STATE.competitions = await authRequest("/api/competitions");
+    const competitions = await authRequest("/api/competitions");
+    if (authenticatedUserId() !== userId) return;
+    AUTH_STATE.competitions = competitions;
+    AUTH_STATE.competitionsUserId = userId;
     renderCompetitions();
   } catch (error) {
     if (els.weeklyCompetitionsList) els.weeklyCompetitionsList.innerHTML = `<div class="lobby-empty">${escapeHtml(error.message)}</div>`;
@@ -2507,7 +2560,8 @@ function weeklyCompetitionById(competitionId) {
 function currentCircuitSaveKey(competitionId, period = {}) {
   const season = Number(period.season || AUTH_STATE.competitions?.season || 1);
   const week = Number(period.week || AUTH_STATE.competitions?.week || 1);
-  return `tennisLightTournamentSave:${season}:${week}:${competitionId}`;
+  const userId = authenticatedUserId() || "guest";
+  return `tennisLightTournamentSave:${userId}:${season}:${week}:${competitionId}`;
 }
 
 function savedTournamentProgress(competitionId) {
@@ -2639,7 +2693,7 @@ async function startWeeklyCompetition(competitionId) {
     return;
   }
   await ensureGameplayRanking();
-  await ensureGameplayProfile();
+  await ensureGameplayProfile(true);
   const competition = weeklyCompetitionById(competitionId);
   if (!competition) {
     renderAuthState("Tournoi indisponible. Actualise le classement.");
@@ -3350,7 +3404,7 @@ function renderAiClubHouse() {
       distribution: AI_CLUB_HOUSE.distribution,
     }[setting];
     button.classList.toggle("active", button.dataset.aiClubValue === expected);
-    if (setting === "bonus") button.disabled = circuitMode;
+    button.disabled = setting === "bonus" && circuitMode;
   });
   els.aiBonusSettingRow?.classList.toggle("setting-disabled", circuitMode);
   if (els.aiLevelDescription) {
@@ -3394,10 +3448,15 @@ function updateAiClubHouseSetting(setting, value) {
   renderAiClubHouse();
 }
 
-async function ensureGameplayProfile() {
-  if (!AUTH_STATE.user || AUTH_STATE.profile) return;
+async function ensureGameplayProfile(force = false) {
+  const userId = authenticatedUserId();
+  if (!userId) return;
+  if (!force && AUTH_STATE.profile && AUTH_STATE.profileUserId === userId) return;
   try {
-    AUTH_STATE.profile = await authRequest("/api/profile");
+    const profile = await authRequest("/api/profile");
+    if (authenticatedUserId() !== userId || String(profile?.user?.id || "") !== userId) return;
+    AUTH_STATE.profile = profile;
+    AUTH_STATE.profileUserId = userId;
   } catch (error) {
     // Une indisponibilité du profil ne doit pas empêcher le lancement de la partie.
   }
@@ -3405,8 +3464,12 @@ async function ensureGameplayProfile() {
 
 async function ensureGameplayRanking() {
   if (!canAccessProFeatures()) return;
+  const userId = authenticatedUserId();
   try {
-    AUTH_STATE.gameplayRanking = await authRequest(`/api/ranking?page=1&pageSize=100&sort=points`);
+    const ranking = await authRequest(`/api/ranking?page=1&pageSize=100&sort=points`);
+    if (authenticatedUserId() !== userId || String(ranking?.currentUserRank?.id || "") !== userId) return;
+    AUTH_STATE.gameplayRanking = ranking;
+    AUTH_STATE.gameplayRankingUserId = userId;
   } catch (error) {
     if (!AUTH_STATE.ranking) await loadRanking();
   }
@@ -3421,7 +3484,7 @@ async function startAiClubHouseCompetition() {
   resetTutorialMode();
   MENU_STATE.espoirResolvedCharacterId = null;
   await ensureGameplayRanking();
-  await ensureGameplayProfile();
+  await ensureGameplayProfile(true);
   const options = {
     aiClubHouse: true,
     difficulty: AI_CLUB_HOUSE.difficulty,
@@ -4991,7 +5054,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v141",
+    gameVersion: "v142",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5231,7 +5294,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v141",
+    version: "v142",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5290,7 +5353,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v141",
+    version: "v142",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5304,7 +5367,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v141");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v142");
 }
 
 function resetSetMatch() {
@@ -5584,7 +5647,8 @@ function frenchOrdinalRank(rank) {
 function currentOpponentConfrontationStatus() {
   if (!state.tournament.active || !SOLO_AI.enabled) return null;
   const opponent = state.players?.[SOLO_AI.playerIndex];
-  const row = (AUTH_STATE.profile?.aiResults || []).find((result) => (
+  const profile = AUTH_STATE.profileUserId === authenticatedUserId() ? AUTH_STATE.profile : null;
+  const row = (profile?.aiResults || []).find((result) => (
     String(result.ai_character_id || result.aiCharacterId || "") === String(opponent?.characterId || "")
   ));
   if (!row) return null;
@@ -6558,8 +6622,9 @@ function aiIntelligenceBadgeMarkup(entry) {
   if (!state.tournament?.aiIntelligenceLevels || !entry || isHumanTournamentEntry(entry)) return "";
   if (!state.tournament.aiIntelligenceLevels[entry]) return "";
   const level = aiIntelligenceForEntry(entry, state.tournament.difficulty);
-  if (level === "amateur" || level === "normal") return "";
+  if (level === "normal") return "";
   const badges = {
+    amateur: { initial: "A", label: "Amateur" },
     expert: { initial: "E", label: "Expert" },
     champion: { initial: "C", label: "Champion" },
     legend: { initial: "L", label: "Légendaire" },
@@ -9635,8 +9700,23 @@ function startTournamentMode(targetSets = 2, options = {}) {
   render();
 }
 
+function currentUserTournamentRanking() {
+  const userId = authenticatedUserId();
+  if (!userId) return null;
+  const candidates = [
+    [AUTH_STATE.gameplayRanking, AUTH_STATE.gameplayRankingUserId],
+    [AUTH_STATE.ranking, AUTH_STATE.rankingUserId],
+    [AUTH_STATE.lobbyRanking, AUTH_STATE.lobbyRankingUserId],
+  ];
+  return candidates.find(([ranking, ownerId]) => (
+    ranking
+    && ownerId === userId
+    && String(ranking.currentUserRank?.id || "") === userId
+  ))?.[0] || null;
+}
+
 function currentRankingTotalPoints() {
-  const current = (AUTH_STATE.gameplayRanking || AUTH_STATE.ranking)?.currentUserRank;
+  const current = currentUserTournamentRanking()?.currentUserRank;
   return Number(current?.score_ref || 0);
 }
 
@@ -9648,7 +9728,7 @@ function circuitHumanLevel(points = currentRankingTotalPoints()) {
 }
 
 function tournamentRankingEntries() {
-  const ranking = AUTH_STATE.gameplayRanking || AUTH_STATE.ranking;
+  const ranking = currentUserTournamentRanking();
   const rows = [...(ranking?.top || [])];
   const current = ranking?.currentUserRank;
   if (current && !rows.some((row) => row.id === current.id)) rows.push(current);
@@ -9708,7 +9788,8 @@ function tournamentWorldRankForEntry(entry) {
 }
 
 function tournamentHeadToHeadBonus(aiCharacterId) {
-  const row = (AUTH_STATE.profile?.aiResults || []).find((result) => (
+  const profile = AUTH_STATE.profileUserId === authenticatedUserId() ? AUTH_STATE.profile : null;
+  const row = (profile?.aiResults || []).find((result) => (
     String(result.ai_character_id || result.aiCharacterId || "") === String(aiCharacterId || "")
   ));
   const wins = Number(row?.wins || 0);
@@ -12567,11 +12648,12 @@ function initMenu() {
   els.aiClubHouseHomeButton?.addEventListener("click", showMenuScreen);
   els.aiClubHouseLogoButton?.addEventListener("click", showMenuScreen);
   els.startAiClubHouseButton?.addEventListener("click", startAiClubHouseCompetition);
-  els.aiClubSettingButtons?.forEach((button) => {
-    button.addEventListener("click", () => updateAiClubHouseSetting(
-      button.dataset.aiClubSetting,
-      button.dataset.aiClubValue,
-    ));
+  els.aiClubHouseScreen?.addEventListener("click", (event) => {
+    const button = event.target instanceof Element
+      ? event.target.closest("[data-ai-club-setting]")
+      : null;
+    if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+    updateAiClubHouseSetting(button.dataset.aiClubSetting, button.dataset.aiClubValue);
   });
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createLobbyRoom);
