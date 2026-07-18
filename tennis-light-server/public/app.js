@@ -121,6 +121,8 @@ const SOLO_AI = {
   attitudeRevisionWindow: 2,
   plan: null,
   planRevision: 0,
+  recoveryTurnKey: null,
+  recoveryCount: 0,
 };
 
 const MENU_STATE = {
@@ -2741,6 +2743,8 @@ function restoreStateSnapshot(snapshot) {
   Object.assign(SOLO_AI, cloneData(snapshot.soloAi || {}));
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
+  SOLO_AI.recoveryTurnKey = null;
+  SOLO_AI.recoveryCount = 0;
   SOLO_AI.timer = null;
   SOLO_AI.nudgeTimer = null;
   SOLO_AI.nudgeAutoTimer = null;
@@ -3412,6 +3416,8 @@ function stopSoloTimers() {
   SOLO_AI.executing = false;
   SOLO_AI.nudgeVisible = false;
   SOLO_AI.nudgeWatchedTurn = null;
+  SOLO_AI.recoveryTurnKey = null;
+  SOLO_AI.recoveryCount = 0;
 }
 
 function leaveOnlineRoom() {
@@ -5607,6 +5613,8 @@ function newGame(options = {}) {
   window.clearTimeout(SOLO_AI.watchdogTimer);
   SOLO_AI.nudgeVisible = false;
   SOLO_AI.nudgeWatchedTurn = null;
+  SOLO_AI.recoveryTurnKey = null;
+  SOLO_AI.recoveryCount = 0;
   const deck = shuffle(CARD_LIBRARY.map(cloneCard));
   const profiles = SERVER_SYNC.enabled
     ? [onlineProfileForSeat(0), onlineProfileForSeat(1)]
@@ -6443,6 +6451,17 @@ function runSoloAITurn() {
     }
 
     if (state.turnDirty && state.turnSnapshot) {
+      const repeatedRecovery = registerSoloTurnRecovery(playerIndex);
+      if (repeatedRecovery) {
+        recordSoloAiDecision("forced_pass_after_repeated_recovery", {
+          recoveryCount: SOLO_AI.recoveryCount,
+          reason: "same_turn_dead_end",
+        });
+        restoreTurnSnapshot();
+        pass(playerIndex);
+        ensureSoloProgress(beforeSignature);
+        return;
+      }
       restoreTurnSnapshot();
       ensureSoloProgress(beforeSignature);
       return;
@@ -6514,6 +6533,28 @@ function soloTurnSignature() {
     turnHasEffect: state.turnHasEffect[SOLO_AI.playerIndex],
     turnPlacement: state.turnPlacement[SOLO_AI.playerIndex],
   });
+}
+
+function soloTurnRecoveryKey(playerIndex) {
+  const snapshot = state.turnSnapshot;
+  const player = snapshot?.players?.[playerIndex];
+  return JSON.stringify({
+    exchangeNumber: snapshot?.setMatch?.exchangeNumber ?? state.setMatch.exchangeNumber ?? 0,
+    activePlayer: snapshot?.activePlayer ?? state.activePlayer,
+    endurance: player?.endurance ?? state.players[playerIndex]?.endurance,
+    hand: (player?.hand ?? state.players[playerIndex]?.hand ?? []).map((card) => card.uid).sort(),
+    lastCard: snapshot?.lastCard?.playedUid ?? state.lastCard?.playedUid ?? null,
+    mandatoryPlacement: snapshot?.mandatoryPlacement ?? state.mandatoryPlacement,
+    mandatoryPlacementReason: snapshot?.mandatoryPlacementReason ?? state.mandatoryPlacementReason,
+  });
+}
+
+function registerSoloTurnRecovery(playerIndex) {
+  const recoveryKey = soloTurnRecoveryKey(playerIndex);
+  const repeatedRecovery = SOLO_AI.recoveryTurnKey === recoveryKey && SOLO_AI.recoveryCount >= 1;
+  SOLO_AI.recoveryTurnKey = recoveryKey;
+  SOLO_AI.recoveryCount = repeatedRecovery ? SOLO_AI.recoveryCount + 1 : 1;
+  return repeatedRecovery;
 }
 
 function ensureSoloProgress(beforeSignature) {
@@ -6631,6 +6672,7 @@ function chooseSoloBoostEscapeEffect(playerIndex) {
 function soloBoostEscapeEffectScore(playerIndex, card) {
   const player = state.players[playerIndex];
   const opponent = state.players[opponentOf(playerIndex)];
+  if (opponent.cancelNextOpponentEffect) return 0;
   const remainingEndurance = player.endurance - effectiveCost(player, card);
   if (remainingEndurance < 0) return 0;
   const followUpCoups = player.hand
@@ -6641,7 +6683,6 @@ function soloBoostEscapeEffectScore(playerIndex, card) {
   const followUpValue = bestFollowUp ? 18 + soloPlayableCoupScore(playerIndex, bestFollowUp) : 0;
   if (card.effectType === "jokerResponse") return 20 + followUpValue - effectiveCost(player, card) * 4;
   if (card.effectType === "removeOpponentLast") {
-    if (opponent.cancelNextOpponentEffect) return 0;
     const target = bestRemovalTargetFor(playerIndex);
     if (!target) return 0;
     if (!isSoloRemovalWorthCost(playerIndex, card, target)) return 0;
@@ -7654,6 +7695,7 @@ function chooseSoloStrategicEffect(playerIndex) {
   const player = state.players[playerIndex];
   const opponent = state.players[opponentOf(playerIndex)];
   if (opponent.cancelNextOpponentEffect) {
+    if (state.mandatoryPlacement) return null;
     return chooseSoloCancellationBait(playerIndex);
   }
   const effects = player.hand
