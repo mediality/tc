@@ -102,4 +102,4 @@ assert.equal(simulationContext.completed, true);
 assert.equal(simulationContext.markedDirty, true);
 assert.equal(simulationContext.rendered, true);
 
-console.log("v140 effets joueurs et interfaces: OK");
+console.log("v141 effets joueurs et interfaces: OK");

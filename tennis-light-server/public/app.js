@@ -165,8 +165,9 @@ const ROLE_LABELS = {
   admin: "ADMIN",
 };
 
-const AI_DIFFICULTIES = ["normal", "expert", "champion", "legend", "ranking", "circuit"];
+const AI_DIFFICULTIES = ["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"];
 const AI_DIFFICULTY_LABELS = {
+  amateur: "AMATEUR",
   normal: "NORMAL",
   expert: "EXPERT",
   champion: "CHAMPION",
@@ -175,11 +176,12 @@ const AI_DIFFICULTY_LABELS = {
   circuit: "CIRCUIT PRO",
 };
 const AI_DIFFICULTY_DESCRIPTIONS = {
+  amateur: "Amateur · lecture immédiate et choix souvent corrects, mais rarement optimaux.",
   normal: "Normal · décisions variées parmi les meilleures options raisonnables.",
   expert: "Expert · lecture tactique solide avec une légère marge d'incertitude.",
   champion: "Champion · projections complètes et décisions presque optimales.",
   legend: "Légende · analyse maximale, adaptation rapide et précision constante.",
-  ranking: "Selon classement · niveaux tirés au début du tournoi : tête de liste Champion ou Légende, puis difficulté progressive jusqu’à Normal.",
+  ranking: "Selon classement · niveaux déterminés par le RankIA, avec Amateur à partir de la 16e place.",
   circuit: "Circuit Pro · niveaux selon classement et bonus automatiques du circuit.",
 };
 const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
@@ -208,6 +210,9 @@ const EMPTY_TOURNAMENT = {
   difficulty: "normal",
   aiClubHouse: false,
   aiIntelligenceLevels: {},
+  tournamentPositions: {},
+  tournamentSeedNumbers: {},
+  humanCircuitLevel: null,
   bonusLevel: "none",
   weekly: false,
   league: false,
@@ -293,11 +298,21 @@ const NEW_TOURNAMENT_PLAYERS = [
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const HUMAN_TOURNAMENT_ENTRY = "__human__";
-const SURFACE_SPECIALISTS = {
-  grass: ["kojiIwata", "elianaMarquez", "calvinBrentwood"],
-  hard: ["petraEckermann", "bryanGoodwin", "alessandraConti", "kjellBlomqvist"],
-  clay: ["saharaJackson", "javierRamirez", "theoBriancourt"],
+const AI_SURFACE_PREFERENCES = {
+  theoBriancourt: "clay", alessandraConti: "hard", saharaJackson: "clay",
+  kjellBlomqvist: "hard", kojiIwata: "grass", elianaMarquez: "grass",
+  bryanGoodwin: "hard", calvinBrentwood: "grass", javierRamirez: "clay",
+  petraEckermann: "hard", jonasFalkenried: "hard", yunaSeo: "hard",
+  ikerSalvat: "clay", loganBrooks: "grass", kavyaSaran: "hard",
+  zariaCampbell: "grass", renAoshima: "hard", yasmineElMansouri: "clay",
+  daanVermeer: "grass", lukasEberhardt: "clay", milanVerhaegen: "grass",
 };
+const SURFACE_SPECIALISTS = Object.fromEntries(["grass", "hard", "clay"].map((surface) => [
+  surface,
+  Object.entries(AI_SURFACE_PREFERENCES)
+    .filter(([, preference]) => preference === surface)
+    .map(([characterId]) => characterId),
+]));
 const SURFACE_BONUSES = {
   grass: [
     { id: "grassPowerVolleySmash", label: "+2 puissance pour chaque Volée ou Smash joué" },
@@ -4733,6 +4748,7 @@ function createPlayer(name, characterId, nickname = name) {
     nextExtraCost: 0,
     nextExtraCostSources: [],
     nextPowerMultiplier: 1,
+    nextPowerMultiplierSourceUid: null,
     nextPowerCap: null,
     nextPowerCapSourceUid: null,
     exchangePrecisionBonus: 0,
@@ -4789,6 +4805,7 @@ function cardLogInfo(card) {
     family: card.family,
     cost: card.cost,
     power: card.power,
+    basePowerGained: card.basePowerGained,
     precision: card.precision,
     placement: card.placement,
     boostPower: card.boostPower,
@@ -4974,7 +4991,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v140",
+    gameVersion: "v141",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5214,7 +5231,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v140",
+    version: "v141",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5273,7 +5290,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v140",
+    version: "v141",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5287,7 +5304,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v140");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v141");
 }
 
 function resetSetMatch() {
@@ -5735,6 +5752,7 @@ function clearNextShotBonuses(player) {
   player.nextAnyPlacementBonus = 0;
   player.nextAnyPlacementSources = [];
   player.nextPowerMultiplier = 1;
+  player.nextPowerMultiplierSourceUid = null;
   player.nextPowerCap = null;
   player.nextPowerCapSourceUid = null;
 }
@@ -6485,7 +6503,7 @@ function chooseSoloAIStyle() {
 }
 
 function normalizeAiIntelligence(value) {
-  return ["normal", "expert", "champion", "legend"].includes(value) ? value : "normal";
+  return ["amateur", "normal", "expert", "champion", "legend"].includes(value) ? value : "normal";
 }
 
 function aiIntelligenceForEntry(entry, difficulty = "normal") {
@@ -6496,16 +6514,32 @@ function aiIntelligenceForEntry(entry, difficulty = "normal") {
   return "normal";
 }
 
-function drawRankedAiIntelligence(position) {
-  if (position === 1) return Math.random() < 0.5 ? "champion" : "legend";
-  if (position === 2) return "champion";
-  if (position <= 4) return Math.random() < 0.5 ? "expert" : "champion";
-  if (position <= 6) return "expert";
-  if (position <= 10) return Math.random() < 0.5 ? "normal" : "expert";
-  return "normal";
+function drawRankedAiIntelligence(rankIa, humanLevel = null) {
+  if (humanLevel === 1) {
+    if (rankIa === 1) return "expert";
+    if (rankIa === 2) return Math.random() < 0.5 ? "normal" : "expert";
+    if (rankIa <= 4) return "normal";
+    if (rankIa <= 12) return Math.random() < 0.5 ? "amateur" : "normal";
+    return "amateur";
+  }
+  if (humanLevel === 2) {
+    if (rankIa === 1) return "champion";
+    if (rankIa === 2) return Math.random() < 0.5 ? "expert" : "champion";
+    if (rankIa <= 4) return "expert";
+    if (rankIa <= 8) return Math.random() < 0.5 ? "normal" : "expert";
+    if (rankIa <= 12) return "normal";
+    return Math.random() < 0.5 ? "amateur" : "normal";
+  }
+  if (rankIa === 1) return Math.random() < 0.5 ? "champion" : "legend";
+  if (rankIa === 2) return "champion";
+  if (rankIa <= 4) return Math.random() < 0.5 ? "expert" : "champion";
+  if (rankIa <= 6) return "expert";
+  if (rankIa <= 10) return Math.random() < 0.5 ? "normal" : "expert";
+  if (humanLevel === 3) return "normal";
+  return rankIa >= 16 ? "amateur" : "normal";
 }
 
-function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal") {
+function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal", options = {}) {
   const aiEntries = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
   const normalized = normalizeAiDifficulty(difficulty);
   if (normalized !== "ranking" && normalized !== "circuit") {
@@ -6513,7 +6547,10 @@ function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal"
     return Object.fromEntries(aiEntries.map((entry) => [entry, level]));
   }
   return Object.fromEntries(
-    rankedTournamentEntries(aiEntries).map((entry, index) => [entry, drawRankedAiIntelligence(index + 1)]),
+    rankedAiTournamentEntries(aiEntries).map((entry) => [
+      entry,
+      drawRankedAiIntelligence(tournamentRankIa(entry), options.humanLevel ?? null),
+    ]),
   );
 }
 
@@ -6521,7 +6558,7 @@ function aiIntelligenceBadgeMarkup(entry) {
   if (!state.tournament?.aiIntelligenceLevels || !entry || isHumanTournamentEntry(entry)) return "";
   if (!state.tournament.aiIntelligenceLevels[entry]) return "";
   const level = aiIntelligenceForEntry(entry, state.tournament.difficulty);
-  if (level === "normal") return "";
+  if (level === "amateur" || level === "normal") return "";
   const badges = {
     expert: { initial: "E", label: "Expert" },
     champion: { initial: "C", label: "Champion" },
@@ -6532,7 +6569,7 @@ function aiIntelligenceBadgeMarkup(entry) {
 }
 
 function aiIntelligenceRank(level = SOLO_AI.style) {
-  return { normal: 0, expert: 1, champion: 2, legend: 3 }[normalizeAiIntelligence(level)] || 0;
+  return { amateur: -1, normal: 0, expert: 1, champion: 2, legend: 3 }[normalizeAiIntelligence(level)] ?? 0;
 }
 
 function aiIntelligenceAtLeast(level) {
@@ -6540,7 +6577,7 @@ function aiIntelligenceAtLeast(level) {
 }
 
 function aiRiskProjectionFactor() {
-  return { normal: 0.58, expert: 0.84, champion: 1, legend: 1.06 }[normalizeAiIntelligence(SOLO_AI.style)];
+  return { amateur: 0.4, normal: 0.58, expert: 0.84, champion: 1, legend: 1.06 }[normalizeAiIntelligence(SOLO_AI.style)];
 }
 
 function chooseSoloScoredOption(options, scoreOf = (option) => option.score) {
@@ -6548,12 +6585,13 @@ function chooseSoloScoredOption(options, scoreOf = (option) => option.score) {
   const ranked = [...options].sort((a, b) => scoreOf(b) - scoreOf(a));
   const level = normalizeAiIntelligence(SOLO_AI.style);
   const weights = {
+    amateur: [0.35, 0.4, 0.25],
     normal: [0.55, 0.3, 0.15],
     expert: [0.78, 0.18, 0.04],
     champion: [0.92, 0.08],
     legend: [1],
   }[level];
-  const plausibleGap = { normal: 12, expert: 7, champion: 3, legend: 0 }[level];
+  const plausibleGap = { amateur: 18, normal: 12, expert: 7, champion: 3, legend: 0 }[level];
   const bestScore = scoreOf(ranked[0]);
   const candidates = ranked
     .filter((option) => bestScore - scoreOf(option) <= plausibleGap)
@@ -7743,6 +7781,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     costPaid: cost,
     powerGained: stats.power,
     cardPowerGained: rawStats.power,
+    basePowerGained: boosted ? card.boostPower : card.power,
     effectPowerGained: 0,
     answeredBoostConstraint,
     precision: stats.precision,
@@ -8140,7 +8179,11 @@ function openRemoveChoice(playerIndex, sourceCard) {
     state.log.unshift(opponent.protectedFromRemoval ? `${displayPlayerName(opponent)} est protégé : aucune carte ne peut être supprimée.` : "Aucune carte adverse à supprimer.");
     return;
   }
-  state.pendingRemoveChoice = { playerIndex, opponentIndex, sourcePlayedUid: sourceCard.playedUid };
+  state.pendingRemoveChoice = {
+    playerIndex,
+    opponentIndex,
+    sourcePlayedUid: sourceCard.resolutionPlayedUid || sourceCard.playedUid,
+  };
   state.log.unshift(`${playerName(playerIndex)} doit choisir une carte adverse à supprimer.`);
 }
 
@@ -8267,13 +8310,17 @@ function removeOpponentPlayed(opponentIndex, targetPlayedUid) {
   if (target.boosted && target.sacrificedCard) {
     target.sacrificedCard.removed = true;
   }
-  const removedPower = target.cardPowerGained ?? target.powerGained;
+  const removedPower = target.basePowerGained
+    ?? (target.boosted ? target.boostPower : target.power)
+    ?? target.cardPowerGained
+    ?? target.powerGained
+    ?? 0;
   opponent.power -= removedPower;
   clearActiveEffectsFromRemovedCard(target);
   if (target.boosted && target.sacrificedCard) {
     state.log.unshift(`La carte sacrifiée sous le BOOST (${target.sacrificedCard.name}) est aussi supprimée.`);
   }
-  state.log.unshift(`${target.name} est supprimée : ${displayPlayerName(state.players[opponentIndex])} perd ${removedPower} puissance. Les effets déjà appliqués restent acquis.`);
+  state.log.unshift(`${target.name} est supprimée : ${displayPlayerName(state.players[opponentIndex])} perd uniquement ses ${removedPower} points de puissance initiaux. Les bonus déjà acquis restent appliqués.`);
 }
 
 function clearActiveEffectsFromRemovedCard(card) {
@@ -8282,6 +8329,11 @@ function clearActiveEffectsFromRemovedCard(card) {
       player.nextPowerCap = null;
       player.nextPowerCapSourceUid = null;
       state.log.unshift(`La limitation de puissance créée par ${card.name} est annulée.`);
+    }
+    if (player.nextPowerMultiplierSourceUid === card.playedUid) {
+      player.nextPowerMultiplier = 1;
+      player.nextPowerMultiplierSourceUid = null;
+      state.log.unshift(`Le multiplicateur de puissance créé par ${card.name} est annulé.`);
     }
     const removedPrecision = removeSourcedNextBonus(player, "nextPrecisionBonus", "nextPrecisionSources", card.playedUid);
     const removedPlacement = removeSourcedNextBonus(player, "nextPlacementBonus", "nextPlacementSources", card.playedUid);
@@ -8384,19 +8436,20 @@ function effectChoicesFor(sourcePlayedUid, options = {}) {
 }
 
 function openEffectChoice(playerIndex, sourceCard) {
-  const choices = effectChoicesFor(sourceCard.playedUid, { shotsOnly: true });
+  const sourcePlayedUid = sourceCard.resolutionPlayedUid || sourceCard.playedUid;
+  const choices = effectChoicesFor(sourcePlayedUid, { shotsOnly: true });
   if (choices.length === 0) {
     state.log.unshift("Aucun effet déjà joué à choisir.");
     setEffectNotice("sans choix", sourceCard, "Aucun effet déjà joué ne peut être choisi.");
     return;
   }
-  state.pendingEffectChoice = { playerIndex, sourcePlayedUid: sourceCard.playedUid };
+  state.pendingEffectChoice = { playerIndex, sourcePlayedUid };
   state.log.unshift(`${playerName(playerIndex)} doit choisir un effet déjà joué.`);
 }
 
 function resolveEffectChoice(chosenPlayedUid) {
   if (!state.pendingEffectChoice) return;
-  const { playerIndex, sourcePlayedUid, shotsOnly = true } = state.pendingEffectChoice;
+  const { playerIndex, sourcePlayedUid, effectSourceUid = null, shotsOnly = true } = state.pendingEffectChoice;
   if (!canUseSeat(playerIndex)) return;
   markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
@@ -8411,7 +8464,8 @@ function resolveEffectChoice(chosenPlayedUid) {
   }
   const effectCard = {
     ...chosen,
-    playedUid: sourceCard.playedUid,
+    playedUid: effectSourceUid || sourceCard.playedUid,
+    resolutionPlayedUid: sourceCard.playedUid,
     name: chosen.name,
   };
   state.log.unshift(`${displayPlayerName(player)} choisit l'effet de ${chosen.name}.`);
@@ -8421,7 +8475,7 @@ function resolveEffectChoice(chosenPlayedUid) {
     sourceCard.effectType = "choosePlayedEffect";
     sourceCard.copiedEffectType = "choosePlayedEffect";
     sourceCard.effect = chosen.effect;
-    state.pendingEffectChoice = { playerIndex, sourcePlayedUid: sourceCard.playedUid, shotsOnly: true };
+    state.pendingEffectChoice = { playerIndex, sourcePlayedUid: sourceCard.playedUid, effectSourceUid, shotsOnly: true };
     state.log.unshift(`${displayPlayerName(player)} doit maintenant choisir l'effet à dupliquer.`);
     setEffectNotice("appliqué", chosen, "Effet de duplication choisi : choisissez maintenant l'effet copié.");
     render();
@@ -8498,10 +8552,20 @@ function characterEffectLogMarker(effect) {
   return `[[tc-effect-${side}:${effect?.label || "Effet personnage"}]]`;
 }
 
+function characterEffectSourceUid(playedCard) {
+  const sourceUid = playedCard.starEffectSourceUid || `${playedCard.playedUid}:star`;
+  playedCard.starEffectSourceUid = sourceUid;
+  if (state.latestPlayedCard?.playedUid === playedCard.playedUid) {
+    state.latestPlayedCard.starEffectSourceUid = sourceUid;
+  }
+  return sourceUid;
+}
+
 function applyCharacterEffect(playerIndex, playedCard) {
   const player = state.players[playerIndex];
   const character = characterOf(player);
   const effect = currentCharacterEffect(player);
+  const effectSourceUid = characterEffectSourceUid(playedCard);
   flipCharacter(player);
   state.log.unshift(`${character.name} active ${characterEffectLogMarker(effect)}.`);
 
@@ -8595,7 +8659,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
       setEffectNotice("coach", { name: character.name }, `${effect.label}. Aucun effet engagé ne peut être dupliqué.`);
       return false;
     }
-    state.pendingEffectChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid, shotsOnly: false };
+    state.pendingEffectChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid, effectSourceUid, shotsOnly: false };
     state.log.unshift(`${character.name} (${effect.side}) : +${value} puissance, puis ${displayPlayerName(player)} choisit un effet engagé à dupliquer.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return true;
@@ -8603,7 +8667,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
   if (effect.type === "nextDiscount") {
     const value = effect.value ?? 1;
-    addNextDiscount(player, value, playedCard.playedUid);
+    addNextDiscount(player, value, effectSourceUid);
     state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(player)} coûte ${value} endurance en moins.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8613,7 +8677,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const value = effect.value ?? 2;
     const opponent = state.players[opponentOf(playerIndex)];
     opponent.nextPowerCap = value;
-    opponent.nextPowerCapSourceUid = playedCard.playedUid;
+    opponent.nextPowerCapSourceUid = effectSourceUid;
     state.log.unshift(`${character.name} (${effect.side}) : le prochain Coup de ${displayPlayerName(opponent)} rapportera ${value} puissance maximum.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8622,7 +8686,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "opponentNextExtraCost") {
     const value = effect.value ?? 1;
     const opponent = state.players[opponentOf(playerIndex)];
-    addNextExtraCost(opponent, value, playedCard.playedUid);
+    addNextExtraCost(opponent, value, effectSourceUid);
     state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(opponent)} coûte ${value} endurance de plus.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8631,6 +8695,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "nextPowerMultiplier") {
     const value = effect.value ?? 2;
     player.nextPowerMultiplier = Math.max(player.nextPowerMultiplier ?? 1, value);
+    player.nextPowerMultiplierSourceUid = effectSourceUid;
     state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(player)} comptera puissance x${value}.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8640,7 +8705,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const value = effect.value ?? 2;
     player.exchangePrecisionBonus = (player.exchangePrecisionBonus ?? 0) + value;
     player.exchangePrecisionSources = player.exchangePrecisionSources ?? [];
-    player.exchangePrecisionSources.push({ sourceUid: playedCard.playedUid, value });
+    player.exchangePrecisionSources.push({ sourceUid: effectSourceUid, value });
     state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${displayPlayerName(player)} gagnent +${value} précision jusqu'à la fin de l'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8650,7 +8715,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const value = effect.value ?? 2;
     player.exchangePlacementBonus = (player.exchangePlacementBonus ?? 0) + value;
     player.exchangePlacementSources = player.exchangePlacementSources ?? [];
-    player.exchangePlacementSources.push({ sourceUid: playedCard.playedUid, value });
+    player.exchangePlacementSources.push({ sourceUid: effectSourceUid, value });
     state.log.unshift(`${character.name} (${effect.side}) : toutes les cartes de ${displayPlayerName(player)} gagnent +${value} placement jusqu'à la fin de l'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8659,7 +8724,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "exchangeFamilyPowerBonus") {
     const value = effect.value ?? 1;
     const bonus = {
-      sourceUid: playedCard.playedUid,
+      sourceUid: effectSourceUid,
       value,
       families: effect.families ?? [],
       excludedFamilies: effect.excludedFamilies ?? [],
@@ -8674,7 +8739,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const value = effect.value ?? 2;
     player.exchangeAfterFamilyPlacementBonuses = [
       ...(player.exchangeAfterFamilyPlacementBonuses ?? []),
-      { sourceUid: playedCard.playedUid, afterFamily: effect.afterFamily, value },
+      { sourceUid: effectSourceUid, afterFamily: effect.afterFamily, value },
     ];
     state.log.unshift(`${character.name} (${effect.side}) : ${effect.label}.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
@@ -8686,7 +8751,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
     player.placementPerOpponentLowPowerCardBonuses = [
       ...(player.placementPerOpponentLowPowerCardBonuses ?? []),
       {
-        sourceUid: playedCard.playedUid,
+        sourceUid: effectSourceUid,
         threshold: effect.threshold ?? 5,
         value: effect.value ?? 2,
         seenPlayedUids: (opponent?.played ?? []).map((card) => card.playedUid).filter(Boolean),
@@ -8699,7 +8764,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
   if (effect.type === "preventOpponentRemoval") {
     player.protectedFromRemoval = true;
-    player.protectedFromRemovalSourceUid = playedCard.playedUid;
+    player.protectedFromRemovalSourceUid = effectSourceUid;
     state.log.unshift(`${character.name} (${effect.side}) : les cartes de ${displayPlayerName(player)} ne peuvent plus être supprimées jusqu'à la fin de l'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8707,7 +8772,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
   if (effect.type === "cancelNextOpponentEffect") {
     player.cancelNextOpponentEffect = true;
-    player.cancelNextOpponentEffectSourceUid = playedCard.playedUid;
+    player.cancelNextOpponentEffectSourceUid = effectSourceUid;
     state.log.unshift(`${character.name} (${effect.side}) : le prochain effet adverse sera annulé.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -8781,7 +8846,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   }
 
   if (effect.type === "endDoubleLastShot") {
-    player.endBonuses.push({ type: "doubleLastShot", sourceUid: playedCard.playedUid });
+    player.endBonuses.push({ type: "doubleLastShot", sourceUid: effectSourceUid });
     state.log.unshift(`${character.name} (${effect.side}) : prépare un doublement de la dernière carte Coup en fin d'échange.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -9167,6 +9232,11 @@ function rankedTournamentEntries(entries = []) {
   const rankByEntry = new Map(tournamentRankingEntries().map((entry) => [entry.entry, entry.rank]));
   const rankOf = (entry) => rankByEntry.get(entry) ?? 99999;
   return [...entries].sort((a, b) => rankOf(a) - rankOf(b) || tournamentPlayerLabel(a).localeCompare(tournamentPlayerLabel(b), "fr"));
+}
+
+function rankedAiTournamentEntries(entries = []) {
+  return [...entries].sort((a, b) => tournamentRankIa(a) - tournamentRankIa(b)
+    || characterNameFromId(a).localeCompare(characterNameFromId(b), "fr"));
 }
 
 function selectAiClubHousePlayers(count, selection = "random", humanCharacterId = selectedCharacterId()) {
@@ -9566,8 +9636,15 @@ function startTournamentMode(targetSets = 2, options = {}) {
 }
 
 function currentRankingTotalPoints() {
-  const current = AUTH_STATE.ranking?.currentUserRank;
+  const current = (AUTH_STATE.gameplayRanking || AUTH_STATE.ranking)?.currentUserRank;
   return Number(current?.score_ref || 0);
+}
+
+function circuitHumanLevel(points = currentRankingTotalPoints()) {
+  const total = Number(points || 0);
+  if (total < 1000) return 1;
+  if (total <= 3000) return 2;
+  return 3;
 }
 
 function tournamentRankingEntries() {
@@ -9578,10 +9655,26 @@ function tournamentRankingEntries() {
   return rows
     .map((row) => {
       if (row.is_ai || String(row.id || "").startsWith("ai:")) {
-        return { entry: String(row.id).replace(/^ai:/, ""), rank: Number(row.points_rank || row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
+        return {
+          entry: String(row.id).replace(/^ai:/, ""),
+          rank: Number(row.points_rank || row.rank || 9999),
+          worldRank: Number(row.points_rank || row.rank || 9999),
+          scoreRef: Number(row.score_ref || 0),
+          scoreWeek: Number(row.score_week || 0),
+          scoreTotal: Number(row.score_total || 0),
+          previousWeek: Number(row.score_previous_week || 0),
+        };
       }
       if (AUTH_STATE.user && String(row.id) === String(AUTH_STATE.user.id)) {
-        return { entry: HUMAN_TOURNAMENT_ENTRY, rank: Number(row.points_rank || row.rank || 9999), previousWeek: Number(row.score_previous_week || 0) };
+        return {
+          entry: HUMAN_TOURNAMENT_ENTRY,
+          rank: Number(row.points_rank || row.rank || 9999),
+          worldRank: Number(row.points_rank || row.rank || 9999),
+          scoreRef: Number(row.score_ref || 0),
+          scoreWeek: Number(row.score_week || 0),
+          scoreTotal: Number(row.score_total || 0),
+          previousWeek: Number(row.score_previous_week || 0),
+        };
       }
       return null;
     })
@@ -9589,8 +9682,29 @@ function tournamentRankingEntries() {
     .sort((a, b) => a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"));
 }
 
+function tournamentAiRankingEntries() {
+  return tournamentRankingEntries()
+    .filter((entry) => entry.entry !== HUMAN_TOURNAMENT_ENTRY)
+    .sort((a, b) => b.scoreRef - a.scoreRef
+      || b.scoreWeek - a.scoreWeek
+      || b.scoreTotal - a.scoreTotal
+      || characterNameFromId(a.entry).localeCompare(characterNameFromId(b.entry), "fr"))
+    .map((entry, index) => ({ ...entry, rankIa: index + 1 }));
+}
+
+function tournamentRankIa(entry) {
+  const ranked = tournamentAiRankingEntries();
+  const stored = ranked.find((item) => item.entry === entry)?.rankIa;
+  if (stored) return stored;
+  const missing = TOURNAMENT_CHARACTER_POOL
+    .filter((characterId) => !ranked.some((item) => item.entry === characterId))
+    .sort((a, b) => characterNameFromId(a).localeCompare(characterNameFromId(b), "fr"));
+  const index = missing.indexOf(entry);
+  return index >= 0 ? ranked.length + index + 1 : 99999;
+}
+
 function tournamentWorldRankForEntry(entry) {
-  return tournamentRankingEntries().find((row) => row.entry === entry)?.rank ?? null;
+  return tournamentRankingEntries().find((row) => row.entry === entry)?.worldRank ?? null;
 }
 
 function tournamentHeadToHeadBonus(aiCharacterId) {
@@ -9642,7 +9756,7 @@ function addCircuitBonus(target, entry, bonus) {
 
 function buildCircuitProBonuses(entries = [], seededEntries = [], surface = null) {
   const presentAi = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
-  const rankedAi = rankedTournamentEntries(presentAi);
+  const rankedAi = rankedAiTournamentEntries(presentAi);
   const topSeeds = [...new Set(seededEntries.filter((entry) => presentAi.includes(entry)))].slice(0, 2);
   for (const entry of rankedAi) {
     if (topSeeds.length >= 2) break;
@@ -9665,7 +9779,7 @@ function buildCircuitProBonuses(entries = [], seededEntries = [], surface = null
     if (Math.random() < 0.5) addCircuitBonus(bonuses, entry, randomCircuitBonus());
   }
 
-  const worldNumberOne = tournamentRankingEntries().find((entry) => entry.rank === 1)?.entry || null;
+  const worldNumberOne = tournamentAiRankingEntries().find((entry) => entry.rankIa === 1)?.entry || null;
   if (worldNumberOne && presentAi.includes(worldNumberOne) && (bonuses[worldNumberOne] || []).length < 2) {
     addCircuitBonus(
       bonuses,
@@ -9676,12 +9790,31 @@ function buildCircuitProBonuses(entries = [], seededEntries = [], surface = null
   return { bonuses, surface: circuitSurface, topSeeds };
 }
 
+function buildWeeklyCircuitProBonuses(entries = [], seedEntries = [], surface = "hard", humanLevel = 1) {
+  const present = new Set(entries.filter(Boolean));
+  const topSeeds = seedEntries.filter((entry) => present.has(entry)).slice(0, 4);
+  const bonuses = {};
+  for (const entry of topSeeds) {
+    if (humanLevel === 1) {
+      addCircuitBonus(bonuses, entry, randomCircuitBonus());
+      continue;
+    }
+    const surfaceBonus = randomSurfaceBonus(surface);
+    addCircuitBonus(bonuses, entry, surfaceBonus ? { ...surfaceBonus, surface } : null);
+    if (humanLevel === 3 && Math.random() < 0.5) {
+      addCircuitBonus(
+        bonuses,
+        entry,
+        randomCircuitBonus((bonuses[entry] || []).map((bonus) => bonus.id)),
+      );
+    }
+  }
+  return { bonuses, surface, topSeeds };
+}
+
 function aiCircuitPerformanceRank(entry) {
-  const aiEntries = tournamentRankingEntries()
-    .filter((item) => item.entry !== HUMAN_TOURNAMENT_ENTRY)
-    .sort((a, b) => a.rank - b.rank || String(a.entry).localeCompare(String(b.entry), "fr"));
-  const index = aiEntries.findIndex((item) => item.entry === entry);
-  return index >= 0 ? index + 1 : null;
+  const rankIa = tournamentRankIa(entry);
+  return rankIa < 99999 ? rankIa : null;
 }
 
 function buildAiClubHouseBonuses(entries = [], bonusLevel = "none") {
@@ -9780,55 +9913,82 @@ function buildWeeklySurfaceBonuses(surface, seededCharacters) {
   return bonuses;
 }
 
-function buildTournamentRound16Positions(humanCharacterId, surface = "hard") {
-  const ranked = tournamentRankingEntries();
-  const rankByEntry = new Map(ranked.map((entry) => [entry.entry, entry.rank]));
-  const rankOf = (entry) => rankByEntry.get(entry) ?? 99999;
-  const allEntries = [...TOURNAMENT_CHARACTER_POOL, HUMAN_TOURNAMENT_ENTRY];
-  const specialistEntries = (SURFACE_SPECIALISTS[surface] || [])
-    .filter((entry) => TOURNAMENT_CHARACTER_POOL.includes(entry));
-  const seededHistorics = [...new Set(specialistEntries)]
-    .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"))
-    .slice(0, 2);
-  if (seededHistorics.length < 2) {
-    const fallbacks = allEntries
-      .filter((entry) => !seededHistorics.includes(entry))
-      .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"));
-    seededHistorics.push(...fallbacks.slice(0, 2 - seededHistorics.length));
-  }
+function sortTournamentEntriesByWorldRank(entries = []) {
+  return [...entries].sort((a, b) => {
+    const rankDifference = (tournamentWorldRankForEntry(a) ?? 99999) - (tournamentWorldRankForEntry(b) ?? 99999);
+    if (rankDifference) return rankDifference;
+    return tournamentPlayerLabel(a).localeCompare(tournamentPlayerLabel(b), "fr");
+  });
+}
+
+function tournamentPositionMap(positions = []) {
+  return Object.fromEntries(positions
+    .map((entry, position) => entry ? [entry, position] : null)
+    .filter(Boolean));
+}
+
+function buildTournamentRound16Positions(humanCharacterId, surface = "hard", points = currentRankingTotalPoints()) {
+  const humanLevel = circuitHumanLevel(points);
   const positions = Array(17).fill(null);
-  positions[1] = seededHistorics[0];
-  positions[16] = seededHistorics[1];
-  const rankedEntries = allEntries
-    .filter((entry) => !seededHistorics.includes(entry))
-    .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"));
-  const protectedPositions = [8, 9, 12, 5, 13, 4];
-  rankedEntries.slice(0, 6).forEach((entry, index) => { positions[protectedPositions[index]] = entry; });
-  const used = new Set(positions.filter(Boolean));
-  const humanAlreadyPlaced = used.has(HUMAN_TOURNAMENT_ENTRY);
-  const remainingAi = TOURNAMENT_CHARACTER_POOL
-    .filter((entry) => !used.has(entry))
-    .sort((a, b) => rankOf(a) - rankOf(b) || String(a).localeCompare(String(b), "fr"));
-  const automaticCount = humanAlreadyPlaced ? 2 : 1;
-  const automatic = remainingAi.slice(0, automaticCount);
-  const randomCount = 6;
-  const randomDraw = shuffle(remainingAi.slice(automaticCount)).slice(0, randomCount);
-  const finalEntries = humanAlreadyPlaced
-    ? [...automatic, ...randomDraw]
-    : [HUMAN_TOURNAMENT_ENTRY, ...automatic, ...randomDraw];
-  const remainingPositions = [2, 3, 6, 7, 10, 11, 14, 15];
-  shuffle(finalEntries).forEach((entry, index) => { positions[remainingPositions[index]] = entry; });
-  return { positions, seededHistorics };
+  const rankedAi = rankedAiTournamentEntries(TOURNAMENT_CHARACTER_POOL);
+
+  if (humanLevel === 1) {
+    const roster = [HUMAN_TOURNAMENT_ENTRY, ...shuffle(rankedAi).slice(0, 15)];
+    const rankedRoster = sortTournamentEntriesByWorldRank(roster);
+    rankedRoster.slice(0, 4).forEach((entry, index) => { positions[index + 1] = entry; });
+    shuffle(rankedRoster.slice(4)).forEach((entry, index) => { positions[index + 5] = entry; });
+  } else {
+    const specialistCandidates = rankedAi.filter((entry) => AI_SURFACE_PREFERENCES[entry] === surface).slice(0, 2);
+    const otherCandidates = rankedAi.filter((entry) => AI_SURFACE_PREFERENCES[entry] !== surface).slice(0, 2);
+    const groupOne = sortTournamentEntriesByWorldRank([
+      ...specialistCandidates,
+      ...otherCandidates,
+      HUMAN_TOURNAMENT_ENTRY,
+    ]);
+    groupOne.slice(0, 4).forEach((entry, index) => { positions[index + 1] = entry; });
+
+    const topSeedSet = new Set(positions.slice(1, 5).filter(Boolean));
+    const groupTwoPool = rankedAi.filter((entry) => !topSeedSet.has(entry)).slice(0, 6);
+    const groupTwo = topSeedSet.has(HUMAN_TOURNAMENT_ENTRY)
+      ? shuffle(groupTwoPool).slice(0, 5)
+      : [...shuffle(groupTwoPool).slice(0, 4), HUMAN_TOURNAMENT_ENTRY];
+    sortTournamentEntriesByWorldRank(groupTwo).slice(0, 4)
+      .forEach((entry, index) => { positions[index + 5] = entry; });
+
+    const placed = new Set(positions.slice(1, 9).filter(Boolean));
+    const remainingAi = rankedAi.filter((entry) => !placed.has(entry));
+    const finalGroup = placed.has(HUMAN_TOURNAMENT_ENTRY)
+      ? shuffle(remainingAi).slice(0, 8)
+      : [HUMAN_TOURNAMENT_ENTRY, ...shuffle(remainingAi).slice(0, 7)];
+    shuffle(finalGroup).forEach((entry, index) => { positions[index + 9] = entry; });
+  }
+
+  const seedEntries = positions.slice(1, 5);
+  return {
+    positions,
+    seededHistorics: seedEntries.filter((entry) => entry !== HUMAN_TOURNAMENT_ENTRY),
+    seedEntries,
+    seedNumbers: Object.fromEntries(seedEntries.map((entry, index) => [entry, index + 1])),
+    positionByEntry: tournamentPositionMap(positions),
+    humanLevel,
+    humanCharacterId,
+  };
 }
 
 function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId) {
   const surface = weeklyCompetition.surface || "hard";
   applySurfaceBackground(surface);
-  const { positions, seededHistorics } = buildTournamentRound16Positions(humanCharacterId, surface);
+  const {
+    positions,
+    seedEntries,
+    seedNumbers,
+    positionByEntry,
+    humanLevel,
+  } = buildTournamentRound16Positions(humanCharacterId, surface);
   SOLO_AI.difficulty = "circuit";
-  const circuitBonusSetup = buildCircuitProBonuses(positions, seededHistorics, surface);
+  const circuitBonusSetup = buildWeeklyCircuitProBonuses(positions, seedEntries, surface, humanLevel);
   const surfaceBonuses = circuitBonusSetup.bonuses;
-  const aiIntelligenceLevels = buildTournamentAiIntelligenceLevels(positions, "circuit");
+  const aiIntelligenceLevels = buildTournamentAiIntelligenceLevels(positions, "circuit", { humanLevel });
   const dynamicBonusIds = [];
   const permanentBonuses = {};
   state.tournament = {
@@ -9861,10 +10021,13 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     nextHumanMatchId: null,
     championCharacterId: null,
     weeklyPositions: positions,
+    tournamentPositions: positionByEntry,
+    tournamentSeedNumbers: seedNumbers,
+    humanCircuitLevel: humanLevel,
     circuitBonusSurface: circuitBonusSetup.surface,
     surfaceBonuses,
     permanentBonuses,
-    seededCharacters: seededHistorics,
+    seededCharacters: seedEntries,
     dynamicBonusIds,
     matches: [],
   };
@@ -9887,6 +10050,8 @@ function buildWeeklyTournamentMatches(positions, humanEntry, targetSets) {
     round,
     playerA,
     playerB,
+    positionA: state.tournament?.tournamentPositions?.[playerA] ?? null,
+    positionB: state.tournament?.tournamentPositions?.[playerB] ?? null,
     winner: null,
     score: null,
     liveScore: null,
@@ -9896,15 +10061,17 @@ function buildWeeklyTournamentMatches(positions, humanEntry, targetSets) {
     hiddenSetScores: null,
     revealedSetScores: [],
   });
+  const circuitPositionPairs = [[1, 16], [9, 8], [5, 12], [13, 4], [3, 14], [11, 6], [7, 10], [15, 2]];
+  const displayOrderPairs = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12], [13, 14], [15, 16]];
+  const round16Pairs = state.tournament?.weekly ? circuitPositionPairs : displayOrderPairs;
   return [
-    match("r16_1", "8e de finale 1", "round16", positions[1], positions[2]),
-    match("r16_2", "8e de finale 2", "round16", positions[3], positions[4]),
-    match("r16_3", "8e de finale 3", "round16", positions[5], positions[6]),
-    match("r16_4", "8e de finale 4", "round16", positions[7], positions[8]),
-    match("r16_5", "8e de finale 5", "round16", positions[9], positions[10]),
-    match("r16_6", "8e de finale 6", "round16", positions[11], positions[12]),
-    match("r16_7", "8e de finale 7", "round16", positions[13], positions[14]),
-    match("r16_8", "8e de finale 8", "round16", positions[15], positions[16]),
+    ...round16Pairs.map(([positionA, positionB], index) => match(
+      `r16_${index + 1}`,
+      `8e de finale ${index + 1}`,
+      "round16",
+      positions[positionA],
+      positions[positionB],
+    )),
     match("qf1", "Quart de finale 1", "quarter", null, null),
     match("qf2", "Quart de finale 2", "quarter", null, null),
     match("qf3", "Quart de finale 3", "quarter", null, null),
@@ -9968,7 +10135,7 @@ function aiTournamentStrength(characterId) {
   const intelligenceLevel = usesAssignedIntelligence || state.tournament?.aiClubHouse
     ? aiIntelligenceForEntry(characterId, state.tournament.difficulty)
     : "expert";
-  const intelligenceBonus = { normal: 0, expert: 4, champion: 8, legend: 12 }[intelligenceLevel];
+  const intelligenceBonus = { amateur: -4, normal: 0, expert: 4, champion: 8, legend: 12 }[intelligenceLevel];
   const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
   return base + historicBonus + seededBonus + surfaceBonus + permanentBonus + dynamicBonus + intelligenceBonus + Math.floor(Math.random() * 17);
 }
@@ -10037,6 +10204,8 @@ function setMatchPlayers(match, playerA, playerB) {
   const wasReady = Boolean(match.playerA && match.playerB);
   match.playerA = playerA ?? null;
   match.playerB = playerB ?? null;
+  match.positionA = state.tournament?.tournamentPositions?.[match.playerA] ?? null;
+  match.positionB = state.tournament?.tournamentPositions?.[match.playerB] ?? null;
   match.playable = isHumanTournamentEntry(match.playerA) || isHumanTournamentEntry(match.playerB);
   match.simulated = Boolean(match.playerA && match.playerB && !match.playable);
   if (!wasReady && match.simulated) {
@@ -10600,6 +10769,7 @@ function refreshTournamentDerivedSlots() {
 
 function aiStyleLabel() {
   return {
+    amateur: "amateur",
     normal: "normal",
     expert: "expert",
     champion: "champion",
@@ -11412,16 +11582,24 @@ function renderTournamentMatch(match, isFinal = false) {
     <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
       <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
       <div class="tournament-player-row ${playerAWon ? "winner" : ""} ${isHumanTournamentEntry(match.playerA) ? "human-player" : ""}">
-        <span class="tournament-player-identity">${playerA} ${aiIntelligenceBadgeMarkup(match.playerA)}</span>
+        <span class="tournament-player-identity">${playerA}${tournamentSeedNumberMarkup(match.playerA)} ${aiIntelligenceBadgeMarkup(match.playerA)}</span>
         ${playerAWon ? "<strong>✓</strong>" : ""}
       </div>
       <div class="tournament-player-row ${playerBWon ? "winner" : ""} ${isHumanTournamentEntry(match.playerB) ? "human-player" : ""}">
-        <span class="tournament-player-identity">${playerB} ${aiIntelligenceBadgeMarkup(match.playerB)}</span>
+        <span class="tournament-player-identity">${playerB}${tournamentSeedNumberMarkup(match.playerB)} ${aiIntelligenceBadgeMarkup(match.playerB)}</span>
         ${playerBWon ? "<strong>✓</strong>" : ""}
       </div>
       ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
     </article>
   `;
+}
+
+function tournamentSeedNumberMarkup(entry) {
+  if (!state.tournament?.weekly || !entry) return "";
+  const seedNumber = Number(state.tournament.tournamentSeedNumbers?.[entry] || 0);
+  return seedNumber >= 1 && seedNumber <= 4
+    ? `<span class="tournament-seed-number">(${seedNumber})</span>`
+    : "";
 }
 
 function tournamentPlayerLabel(entry) {

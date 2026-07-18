@@ -19,7 +19,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v140<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v141<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);
@@ -27,7 +27,7 @@ assert.match(html, /data-ai-club-value="league"/);
 assert.match(html, /data-ai-club-value="2"/);
 assert.match(html, /data-ai-club-value="3"/);
 
-for (const difficulty of ["normal", "expert", "champion", "legend", "ranking", "circuit"]) {
+for (const difficulty of ["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"]) {
   assert.match(html, new RegExp(`data-ai-club-value="${difficulty}"`));
 }
 for (const bonus of ["none", "ascendant", "domination", "nemesis"]) {
@@ -46,17 +46,15 @@ assert.match(aiClubHouseHtml, /Répartition/);
 assert.match(aiClubHouseHtml, /Bonus/);
 assert.doesNotMatch(html, /data-start-solo="(?:tournament|league)/);
 
-assert.match(app, /const AI_DIFFICULTIES = \["normal", "expert", "champion", "legend", "ranking", "circuit"\]/);
+assert.match(app, /const AI_DIFFICULTIES = \["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"\]/);
 assert.match(app, /const AI_BONUS_COUNTS = \{\s+none: 0,\s+ascendant: 1,\s+domination: 2,\s+nemesis: 3,/);
 assert.match(app, /function allCircuitSeedBonuses\(\)/);
 assert.match(app, /bonuses\[entry\] = shuffle\(allCircuitSeedBonuses\(\)\)\.slice\(0, bonusCount\)/);
 assert.match(app, /function aiIntelligenceForEntry\(entry, difficulty = "normal"\)/);
-assert.match(app, /function buildTournamentAiIntelligenceLevels\(entries = \[\], difficulty = "normal"\)/);
+assert.match(app, /function buildTournamentAiIntelligenceLevels\(entries = \[\], difficulty = "normal", options = \{\}\)/);
 assert.match(app, /function buildCircuitProBonuses\(entries = \[\], seededEntries = \[\], surface = null\)/);
-assert.match(app, /if \(position === 1\) return Math\.random\(\) < 0\.5 \? "champion" : "legend"/);
-assert.match(app, /if \(position === 2\) return "champion"/);
-assert.match(app, /if \(position <= 4\) return Math\.random\(\) < 0\.5 \? "expert" : "champion"/);
-assert.match(app, /if \(position <= 10\) return Math\.random\(\) < 0\.5 \? "normal" : "expert"/);
+assert.match(app, /if \(rankIa === 1\) return Math\.random\(\) < 0\.5 \? "champion" : "legend"/);
+assert.match(app, /return rankIa >= 16 \? "amateur" : "normal"/);
 assert.match(app, /aiIntelligenceLevels,/);
 assert.match(app, /function aiIntelligenceBadgeMarkup\(entry\)/);
 assert.match(app, /expert: \{ initial: "E", label: "Expert" \}/);
@@ -69,6 +67,7 @@ assert.match(styles, /\.ai-intelligence-badge \{[\s\S]*?border-radius: 50%/);
 assert.match(styles, /\.friendly-setting-row\.setting-disabled/);
 assert.match(app, /button\.disabled = circuitMode/);
 assert.match(app, /function chooseSoloScoredOption\(options,/);
+assert.match(app, /amateur: \[0\.35, 0\.4, 0\.25\]/);
 assert.match(app, /normal: \[0\.55, 0\.3, 0\.15\]/);
 assert.match(app, /expert: \[0\.78, 0\.18, 0\.04\]/);
 assert.match(app, /champion: \[0\.92, 0\.08\]/);
@@ -105,13 +104,14 @@ const intelligenceContext = {
   HUMAN_TOURNAMENT_ENTRY: "human",
   normalizeAiDifficulty: (value) => value,
   normalizeAiIntelligence: (value) => value,
-  rankedTournamentEntries: (entries) => [...entries].sort((a, b) => Number(a.slice(2)) - Number(b.slice(2))),
+  rankedAiTournamentEntries: (entries) => [...entries].sort((a, b) => Number(a.slice(2)) - Number(b.slice(2))),
+  tournamentRankIa: (entry) => Number(entry.slice(2)),
   Math: { random: () => 0.75 },
 };
-vm.runInNewContext(`${functionSource("drawRankedAiIntelligence")}; ${functionSource("buildTournamentAiIntelligenceLevels")}; result = buildTournamentAiIntelligenceLevels(["human", "ai10", "ai2", "ai1", "ai3", "ai4", "ai5", "ai6", "ai7", "ai8", "ai9", "ai11"], "ranking");`, intelligenceContext);
+vm.runInNewContext(`${functionSource("drawRankedAiIntelligence")}; ${functionSource("buildTournamentAiIntelligenceLevels")}; result = buildTournamentAiIntelligenceLevels(["human", "ai16", "ai10", "ai2", "ai1", "ai3", "ai4", "ai5", "ai6", "ai7", "ai8", "ai9", "ai11"], "ranking");`, intelligenceContext);
 assert.deepEqual(
   { ...intelligenceContext.result },
-  { ai1: "legend", ai2: "champion", ai3: "champion", ai4: "champion", ai5: "expert", ai6: "expert", ai7: "expert", ai8: "expert", ai9: "expert", ai10: "expert", ai11: "normal" },
+  { ai1: "legend", ai2: "champion", ai3: "champion", ai4: "champion", ai5: "expert", ai6: "expert", ai7: "expert", ai8: "expert", ai9: "expert", ai10: "expert", ai11: "normal", ai16: "amateur" },
 );
 
 const leagueFinalContext = {
@@ -158,8 +158,8 @@ const circuitBonusContext = {
     clay: [1, 2, 3].map((number) => ({ id: `clay${number}`, label: `Terre ${number}` })),
   },
   shuffle: (entries) => [...entries],
-  rankedTournamentEntries: (entries) => [...entries].sort((a, b) => Number(a.slice(2)) - Number(b.slice(2))),
-  tournamentRankingEntries: () => Array.from({ length: 12 }, (_, index) => ({ entry: `ai${index + 1}`, rank: index + 1 })),
+  rankedAiTournamentEntries: (entries) => [...entries].sort((a, b) => Number(a.slice(2)) - Number(b.slice(2))),
+  tournamentAiRankingEntries: () => Array.from({ length: 12 }, (_, index) => ({ entry: `ai${index + 1}`, rankIa: index + 1 })),
   circuitEntries: ["human", ...Array.from({ length: 10 }, (_, index) => `ai${index + 1}`)],
   Math: { random: () => 0.75, floor: Math.floor },
 };
@@ -180,8 +180,8 @@ assert.equal(circuitBonusContext.leaderOutsideSeeds.bonuses.ai1.length, 1, "le n
 
 const weeklyStartSource = functionSource("startWeeklyTournamentMode");
 assert.match(weeklyStartSource, /SOLO_AI\.difficulty = "circuit"/);
-assert.match(weeklyStartSource, /buildTournamentAiIntelligenceLevels\(positions, "circuit"\)/);
-assert.match(weeklyStartSource, /buildCircuitProBonuses\(positions, seededHistorics, surface\)/);
+assert.match(weeklyStartSource, /buildTournamentAiIntelligenceLevels\(positions, "circuit", \{ humanLevel \}\)/);
+assert.match(weeklyStartSource, /buildWeeklyCircuitProBonuses\(positions, seedEntries, surface, humanLevel\)/);
 assert.doesNotMatch(weeklyStartSource, /buildWeeklySurfaceBonuses|buildTournamentPermanentBonuses|previousWeekDynamicBonusIds/);
 
 const bonusContext = {
@@ -209,4 +209,4 @@ vm.runInNewContext(`${functionSource("chooseSoloScoredOption")};
 assert.equal(choiceContext.normalResult, "second");
 assert.equal(choiceContext.legendResult, "best");
 
-console.log("v140 CLUB HOUSE: OK");
+console.log("v141 CLUB HOUSE: OK");

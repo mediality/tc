@@ -106,7 +106,7 @@ const COUNTRY_FLAGS = {
   "Royaume-Uni": "🇬🇧", Serbie: "🇷🇸", Suede: "🇸🇪", Suède: "🇸🇪", Suisse: "🇨🇭",
 };
 const LEVEL_LABELS = {
-  Circuit: "Circuit 400",
+  Circuit: "Challenge 400",
   Major: "Major 600",
   Premier: "Premier 1000",
   Crown: "Crown 1500",
@@ -326,7 +326,7 @@ function countCircuitBoundariesBetween(storedKey, currentKey) {
 function loadWorldTourDefinitions() {
   if (!fs.existsSync(WORLD_TOUR_CSV)) {
     return [
-      { id: "circuit400", week: 1, slot: 1, type: "Circuit 400", level: "Circuit", name: "Blue Lantern Cup", city: "Vancouver", country: "Canada", flag: "🇨🇦", surface: "hard", surfaceLabel: "DUR", difficulty: "normal", targetSets: 2, points: POINT_TABLES[400], directThreshold: DIRECT_THRESHOLDS[400], value: 400 },
+      { id: "circuit400", week: 1, slot: 1, type: "Challenge 400", level: "Circuit", name: "Blue Lantern Cup", city: "Vancouver", country: "Canada", flag: "🇨🇦", surface: "hard", surfaceLabel: "DUR", difficulty: "normal", targetSets: 2, points: POINT_TABLES[400], directThreshold: DIRECT_THRESHOLDS[400], value: 400 },
       { id: "major600", week: 1, slot: 2, type: "Major 600", level: "Major", name: "Clayforge Open", city: "Valence", country: "Espagne", flag: "🇪🇸", surface: "clay", surfaceLabel: "TERRE-BATTUE", difficulty: "champion", targetSets: 2, points: POINT_TABLES[600], directThreshold: DIRECT_THRESHOLDS[600], value: 600 },
       { id: "premier1000", week: 1, slot: 3, type: "Premier 1000", level: "Premier", name: "Oakspire Masters", city: "Copenhague", country: "Danemark", flag: "🇩🇰", surface: "grass", surfaceLabel: "HERBE", difficulty: "normal", targetSets: 2, points: POINT_TABLES[1000], directThreshold: DIRECT_THRESHOLDS[1000], value: 1000 },
       { id: "crown1500", week: 1, slot: 4, type: "Crown 1500", level: "Crown", name: "Sunbridge Crown", city: "Tokyo", country: "Japon", flag: "🇯🇵", surface: "hard", surfaceLabel: "DUR", difficulty: "champion", targetSets: 2, points: POINT_TABLES[1500], directThreshold: DIRECT_THRESHOLDS[1500], value: 1500 },
@@ -575,6 +575,29 @@ function deterministicShuffle(items, seed) {
     .map((entry) => entry.item);
 }
 
+function simulatedAiMatchPerformancePoints(playerA, playerB, winner, targetSets, seed) {
+  const loser = winner === playerA ? playerB : playerA;
+  const points = new Map([[playerA, 0], [playerB, 0]]);
+  const winningSetScores = [[6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
+  const losingSetScores = [[4, 6], [3, 6], [5, 7], [6, 7]];
+  let winnerSets = 0;
+  let loserSets = 0;
+  let setIndex = 0;
+  while (winnerSets < targetSets) {
+    const winnerLosesSet = loserSets < targetSets - 1
+      && seededRandom(`${seed}:set:${setIndex}:outcome`) < 0.28;
+    const pool = winnerLosesSet ? losingSetScores : winningSetScores;
+    const score = pool[Math.floor(seededRandom(`${seed}:set:${setIndex}:score`) * pool.length)];
+    const setWinner = winnerLosesSet ? loser : winner;
+    points.set(setWinner, (points.get(setWinner) || 0) + 5 + Math.abs(score[0] - score[1]));
+    if (winnerLosesSet) loserSets += 1;
+    else winnerSets += 1;
+    setIndex += 1;
+  }
+  if (loserSets === 0) points.set(winner, (points.get(winner) || 0) + 5);
+  return points;
+}
+
 function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = [], simulationNonce = "", rankingOrder = []) {
   const rankById = new Map(rankingOrder.map((characterId, index) => [characterId, index + 1]));
   const rankOf = (characterId) => rankById.get(characterId) || 99999;
@@ -604,6 +627,7 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
 
   const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
   const awards = new Map();
+  const performanceAwards = new Map();
   const playRound = (players, roundLabel, loserPoints) => {
     const winners = [];
     for (let index = 0; index < players.length; index += 2) {
@@ -615,6 +639,16 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
       const roll = seededRandom(`${simulationNonce}:${competition.id}:${season}:${week}:${roundLabel}:${index}:winner`);
       const winner = roll < chanceA ? playerA : playerB;
       const loser = winner === playerA ? playerB : playerA;
+      const matchPerformance = simulatedAiMatchPerformancePoints(
+        playerA,
+        playerB,
+        winner,
+        Number(competition.targetSets || 2),
+        `${simulationNonce}:${competition.id}:${season}:${week}:${roundLabel}:${index}`,
+      );
+      matchPerformance.forEach((points, characterId) => {
+        performanceAwards.set(characterId, (performanceAwards.get(characterId) || 0) + points);
+      });
       awards.set(loser, loserPoints || 0);
       winners.push(winner);
     }
@@ -626,7 +660,10 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
   const finalists = playRound(semiFinalists, "semi", table.semi || 0);
   const winner = playRound(finalists, "final", table.finalist || 0)[0];
   if (winner) awards.set(winner, table.winner || 0);
-  return awards;
+  return new Map([...awards].map(([characterId, points]) => [
+    characterId,
+    points + (performanceAwards.get(characterId) || 0),
+  ]));
 }
 
 async function topAiIdsForReference(season, week, limit = 8) {
@@ -725,16 +762,17 @@ async function aiCircuitStandingsForBoost(season, week) {
 function applyAiWeeklyPerformanceCoefficients(totals, standings, maxSem) {
   if (!maxSem) return totals;
   const boostedTopSet = new Set(standings.boostedTopIds || []);
-  const worldRankById = new Map((standings.worldOrderIds || []).map((characterId, index) => [characterId, index + 1]));
+  const rankIaById = new Map((standings.worldOrderIds || []).map((characterId, index) => [characterId, index + 1]));
   const standingById = new Map((standings.rows || []).map((entry) => [entry.characterId, entry]));
   const adjusted = new Map();
   const cappedCandidates = [];
   for (const [characterId, points] of totals) {
-    const worldRank = worldRankById.get(characterId) || 0;
+    const rankIa = rankIaById.get(characterId) || 0;
     let multiplier = 1.5;
-    if (boostedTopSet.has(characterId)) multiplier = 2;
-    else if (worldRank === 2) multiplier = 1.8;
-    else if (worldRank === 3) multiplier = 1.6;
+    if (boostedTopSet.has(characterId)) multiplier = 2.2;
+    else if (rankIa === 2 || rankIa === 3) multiplier = 2;
+    else if (rankIa === 4) multiplier = 1.8;
+    else if (rankIa === 5) multiplier = 1.6;
     const boostedPoints = Math.round(points * multiplier);
     adjusted.set(characterId, Math.min(boostedPoints, maxSem));
     if (boostedPoints > maxSem) {

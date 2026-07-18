@@ -770,6 +770,23 @@ body.tutorial-running .boost-button strong {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.friendly-setting-switch.seven-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.friendly-setting-switch.seven-options .friendly-setting-button:nth-child(4) {
+  border-right: 0;
+}
+
+.friendly-setting-switch.seven-options .friendly-setting-button:nth-child(-n + 4) {
+  border-bottom: 1px solid #94a3b8;
+}
+
+.friendly-setting-switch.seven-options .friendly-setting-button:nth-child(7) {
+  grid-column: span 2;
+  border-right: 0;
+}
+
 .friendly-setting-switch.six-options .friendly-setting-button:nth-child(3) {
   border-right: 0;
 }
@@ -2242,6 +2259,10 @@ body.spectator-mode .player-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .friendly-setting-switch.seven-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .friendly-setting-switch.three-options .friendly-setting-button {
     border-right: 0;
     border-bottom: 1px solid #94a3b8;
@@ -2277,6 +2298,18 @@ body.spectator-mode .player-panel {
   }
 
   .friendly-setting-switch.six-options .friendly-setting-button:nth-child(-n + 4) {
+    border-bottom: 1px solid #94a3b8;
+  }
+
+  .friendly-setting-switch.seven-options .friendly-setting-button:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .friendly-setting-switch.seven-options .friendly-setting-button:nth-child(4) {
+    border-right: 0;
+  }
+
+  .friendly-setting-switch.seven-options .friendly-setting-button:nth-child(-n + 6) {
     border-bottom: 1px solid #94a3b8;
   }
 
@@ -3475,6 +3508,12 @@ h1 {
   min-width: 0;
 }
 
+.tournament-seed-number {
+  margin-left: 2px;
+  font-size: 0.72em;
+  font-weight: 400;
+}
+
 .ai-intelligence-badge {
   display: inline-flex;
   align-items: center;
@@ -3644,6 +3683,56 @@ h1 {
 .circuit-info-section p {
   margin: 0;
   line-height: 1.6;
+}
+
+.circuit-points-section {
+  margin-top: 18px;
+  border-top: 1px solid rgba(99, 115, 129, 0.24);
+  padding-top: 18px;
+}
+
+.circuit-points-section h2 {
+  margin: 3px 0 6px;
+  color: #17212b;
+  font-size: 1.15rem;
+}
+
+.circuit-points-section p {
+  margin: 0 0 14px;
+  color: #526170;
+  line-height: 1.55;
+}
+
+.circuit-points-table-wrap {
+  overflow-x: auto;
+}
+
+.circuit-points-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  color: #17212b;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.circuit-points-table th,
+.circuit-points-table td {
+  border-bottom: 1px solid rgba(99, 115, 129, 0.2);
+  padding: 10px 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.circuit-points-table th:first-child,
+.circuit-points-table td:first-child {
+  text-align: left;
+}
+
+.circuit-points-table thead th {
+  color: #fff;
+  background: #174b58;
+  font-size: 0.75rem;
+  text-transform: uppercase;
 }
 
 .ranking-full-list .ranking-row,
