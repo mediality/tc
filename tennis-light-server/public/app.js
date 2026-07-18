@@ -1257,6 +1257,7 @@ const els = {
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
+  academyInfoScreen: document.querySelector("#academyInfoScreen"),
   profileScreen: document.querySelector("#profileScreen"),
   characterScreen: document.querySelector("#characterScreen"),
   resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
@@ -1311,6 +1312,9 @@ const els = {
   backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
   openCircuitInfoButton: document.querySelector("#openCircuitInfoButton"),
   backToLobbyFromCircuitInfoButton: document.querySelector("#backToLobbyFromCircuitInfoButton"),
+  openAcademyInfoButton: document.querySelector("#openAcademyInfoButton"),
+  backToLobbyFromAcademyInfoButton: document.querySelector("#backToLobbyFromAcademyInfoButton"),
+  academyDeckList: document.querySelector("#academyDeckList"),
   backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
@@ -2010,6 +2014,29 @@ function attachImageZoomHandlers(root = document) {
     button.dataset.zoomBound = "1";
     button.addEventListener("click", () => openImageZoom(button.dataset.imageZoom, button.dataset.imageLabel));
   });
+}
+
+function academyDeckMarkup() {
+  return CARD_LIBRARY.map((card, index) => {
+    const imageUrl = CARD_IMAGES[card.id] || CARD_BACK_IMAGE;
+    const cardLabel = `${card.name} - ${card.subtitle ?? card.family}`;
+    return `
+      <button class="academy-deck-card" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(cardLabel)}" aria-label="Agrandir ${escapeHtml(cardLabel)}">
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(cardLabel)}" loading="lazy" />
+        <span class="academy-deck-card-caption">
+          <small>Carte ${String(index + 1).padStart(2, "0")}</small>
+          <strong>${escapeHtml(card.name)}</strong>
+          <span>${escapeHtml(card.subtitle ?? card.family)}</span>
+        </span>
+      </button>
+    `;
+  }).join("");
+}
+
+function renderAcademyDeck() {
+  if (!els.academyDeckList) return;
+  els.academyDeckList.innerHTML = academyDeckMarkup();
+  attachImageZoomHandlers(els.academyDeckList);
 }
 
 function profileMarkup(profile) {
@@ -2749,6 +2776,7 @@ function showGameScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2762,6 +2790,7 @@ function showFriendlyLobbyScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2779,6 +2808,7 @@ function showAiClubHouseScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2792,6 +2822,7 @@ function showRankingScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
@@ -2807,6 +2838,7 @@ function showMenuScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2825,6 +2857,7 @@ function showProfileScreen(userId = null) {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -2839,6 +2872,7 @@ function showCharacterScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
@@ -2851,6 +2885,7 @@ function showResetPasswordScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
@@ -2863,6 +2898,7 @@ function showAdminScreen() {
   els.gameApp?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.adminScreen?.classList.remove("hidden");
@@ -2875,12 +2911,30 @@ function showCircuitInfoScreen() {
   els.menuScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
+  els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.circuitInfoScreen?.classList.remove("hidden");
   applySurfaceBackground(null);
+}
+
+function showAcademyInfoScreen() {
+  els.menuScreen?.classList.add("hidden");
+  els.adminScreen?.classList.add("hidden");
+  els.rankingScreen?.classList.add("hidden");
+  els.circuitInfoScreen?.classList.add("hidden");
+  els.profileScreen?.classList.add("hidden");
+  els.characterScreen?.classList.add("hidden");
+  els.resetPasswordScreen?.classList.add("hidden");
+  els.friendlyLobbyScreen?.classList.add("hidden");
+  els.aiClubHouseScreen?.classList.add("hidden");
+  els.gameApp?.classList.add("hidden");
+  els.academyInfoScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
+  renderAcademyDeck();
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function cardByIdForTutorial(cardId, copyIndex) {
@@ -12662,6 +12716,8 @@ function initMenu() {
   els.rankingNextPageButton?.addEventListener("click", () => loadRanking(Math.min(Number(AUTH_STATE.ranking?.totalPages || 1), AUTH_STATE.rankingPage + 1)));
   els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
   els.backToLobbyFromCircuitInfoButton?.addEventListener("click", showMenuScreen);
+  els.openAcademyInfoButton?.addEventListener("click", showAcademyInfoScreen);
+  els.backToLobbyFromAcademyInfoButton?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
   els.backToProfileFromCharacterButton?.addEventListener("click", showProfileScreen);
   els.backToLobbyFromCharacterButton?.addEventListener("click", showMenuScreen);

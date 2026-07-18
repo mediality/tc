@@ -5,6 +5,7 @@
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
     "start": "node server.js",
+    "test:academy-info": "node tests/v143-academy-info.mjs",
     "test:club-house": "node tests/v143-club-house.mjs",
     "test:ai-logging": "node tests/v143-ai-logging.mjs",
     "test:ai-policy": "node tests/v143-ai-policy-unit.mjs",

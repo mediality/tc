@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=143" />
+    <link rel="stylesheet" href="./styles.css?v=143.1" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen">
@@ -58,6 +58,7 @@
                 <button class="tutorial-menu-button hidden" type="button" data-start-tutorial data-required-role="admin">Tutoriel</button>
                 <button class="primary-button menu-exchange-button" type="button" data-start-solo="exchange">Échange</button>
                 <button class="small-button" type="button" data-start-solo="set">Set</button>
+                <button id="openAcademyInfoButton" class="small-button academy-info-menu-button" type="button">Découvrir l'Academy</button>
               </div>
               <div class="menu-mode-group">
                 <p class="label">Exhibition</p>
@@ -115,6 +116,72 @@
             <button id="openRankingPageButton" class="small-button full-ranking-button" type="button">Voir le classement général</button>
           </section>
         </div>
+      </div>
+    </section>
+
+    <section id="academyInfoScreen" class="menu-screen hidden">
+      <div class="menu-shell academy-info-shell">
+        <p class="eyebrow">Tennis Courts Academy <span>v143</span></p>
+        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+        <section class="menu-panel academy-info-panel">
+          <div class="lobby-header academy-info-header">
+            <p class="label">Découvrir l'Academy</p>
+            <button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour lobby</button>
+          </div>
+
+          <header class="academy-info-intro">
+            <p class="label">Tennis Courts Academy</p>
+            <h1>Apprenez les bases avec un deck unique</h1>
+            <p>Dans <strong>Tennis Courts Academy</strong>, les deux joueurs utilisent <strong>le même deck de 18 cartes</strong>.</p>
+            <p>Cette sélection a été spécialement conçue pour vous faire découvrir les mécaniques essentielles de <strong>Tennis Courts</strong> : servir, construire un échange, gérer son endurance, choisir le bon coup au bon moment et terminer le point.</p>
+            <p>Grâce à ce format simplifié, les parties sont rapides, équilibrées et idéales pour apprendre à jouer.</p>
+            <p class="academy-info-highlight"><strong>Une fois ces 18 cartes maîtrisées, vous serez prêt à découvrir le jeu complet, qui propose plus de 500 cartes différentes et de nombreuses stratégies supplémentaires.</strong></p>
+          </header>
+
+          <section class="academy-info-section academy-deck-section">
+            <div class="academy-section-heading">
+              <p class="label">Le deck partagé</p>
+              <h2>Contenu du deck Academy</h2>
+            </div>
+            <div id="academyDeckList" class="academy-deck-grid" aria-label="Les 18 cartes du deck Academy"></div>
+          </section>
+
+          <section class="academy-info-section academy-copy-grid">
+            <div>
+              <p class="label">Un apprentissage progressif</p>
+              <h2>Pourquoi seulement 18 cartes ?</h2>
+              <p>Le mode Academy a été conçu pour :</p>
+              <ul class="academy-benefits-list">
+                <li>apprendre les règles sans être submergé</li>
+                <li>découvrir les mécaniques principales</li>
+                <li>jouer une partie en quelques minutes</li>
+                <li>prendre rapidement les bonnes habitudes</li>
+                <li>préparer la transition vers Tennis Courts</li>
+              </ul>
+            </div>
+
+            <div>
+              <p class="label">La suite de votre parcours</p>
+              <h2>Et ensuite ?</h2>
+              <p>Lorsque vous serez à l'aise avec ces 18 cartes, vous pourrez passer au <strong>Starter Tennis Courts</strong>.</p>
+              <p>Vous découvrirez alors :</p>
+              <ul class="academy-discovery-list">
+                <li>plus de <strong>500 cartes</strong> à collectionner ;</li>
+                <li>des personnages aux styles de jeu différents ;</li>
+                <li>des surfaces de jeu : terre battue, gazon et dur ;</li>
+                <li>des cartes rares et légendaires ;</li>
+                <li>des techniques avancées ;</li>
+                <li>des effets de jeu beaucoup plus variés ;</li>
+                <li>de nombreuses stratégies pour construire votre propre style de jeu.</li>
+              </ul>
+            </div>
+          </section>
+
+          <footer class="academy-info-footer">
+            <p><strong>Le mode Academy n'est que le début de l'aventure. Bienvenue dans l'univers de Tennis Courts !</strong></p>
+            <a class="primary-button academy-shop-button" href="https://www.mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer">Découvrir la boutique Tennis Courts</a>
+          </footer>
+        </section>
       </div>
     </section>
 
@@ -468,6 +535,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=143"></script>
+    <script src="./app.js?v=143.1"></script>
   </body>
 </html>
