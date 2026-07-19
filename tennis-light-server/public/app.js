@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "163";
+const CARD_ASSET_VERSION = "164";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -200,9 +200,9 @@ const AI_DIFFICULTY_LABELS = {
 const AI_DIFFICULTY_DESCRIPTIONS = {
   amateur: "Amateur · lecture immédiate et choix souvent corrects, mais rarement optimaux.",
   normal: "Normal · décisions variées parmi les meilleures options raisonnables.",
-  expert: "Expert · lecture tactique solide avec une légère marge d'incertitude.",
-  champion: "Champion · projections complètes et décisions presque optimales.",
-  legend: "Légende · analyse maximale, adaptation rapide et précision constante.",
+  expert: "Expert · projections complètes et décisions presque optimales.",
+  champion: "Champion · analyse maximale, adaptation rapide et précision constante.",
+  legend: "Légende · stratégie renforcée, adaptation immédiate et décisions optimisées.",
   ranking: "Selon classement · niveaux déterminés par le RankIA global des 21 IA.",
   circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur.",
 };
@@ -5649,7 +5649,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v163",
+    gameVersion: "v164",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5889,7 +5889,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v163",
+    version: "v164",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5948,7 +5948,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v163",
+    version: "v164",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5962,7 +5962,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v163");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v164");
 }
 
 function resetSetMatch() {
@@ -7282,7 +7282,7 @@ function aiIntelligenceAtLeast(level) {
 }
 
 function aiRiskProjectionFactor() {
-  return { amateur: 0.4, normal: 0.58, expert: 0.84, champion: 1, legend: 1.06 }[normalizeAiIntelligence(SOLO_AI.style)];
+  return { amateur: 0.4, normal: 0.58, expert: 1, champion: 1.06, legend: 1.18 }[normalizeAiIntelligence(SOLO_AI.style)];
 }
 
 function chooseSoloScoredOption(options, scoreOf = (option) => option.score) {
@@ -7292,11 +7292,11 @@ function chooseSoloScoredOption(options, scoreOf = (option) => option.score) {
   const weights = {
     amateur: [0.35, 0.4, 0.25],
     normal: [0.55, 0.3, 0.15],
-    expert: [0.78, 0.18, 0.04],
-    champion: [0.92, 0.08],
+    expert: [0.92, 0.08],
+    champion: [1],
     legend: [1],
   }[level];
-  const plausibleGap = { amateur: 18, normal: 12, expert: 7, champion: 3, legend: 0 }[level];
+  const plausibleGap = { amateur: 18, normal: 12, expert: 3, champion: 0, legend: 0 }[level];
   const bestScore = scoreOf(ranked[0]);
   const candidates = ranked
     .filter((option) => bestScore - scoreOf(option) <= plausibleGap)
@@ -7399,16 +7399,19 @@ function chooseSoloAttitude(playerIndex, reason = "lecture initiale") {
     weights.opportunistic += 3;
     weights.aggressive += 2;
   }
-  const attitude = weightedSoloChoice(weights);
+  const intelligence = normalizeAiIntelligence(SOLO_AI.style);
+  const attitude = intelligence === "legend"
+    ? Object.entries(weights).sort((a, b) => b[1] - a[1])[0]?.[0] || "opportunistic"
+    : weightedSoloChoice(weights);
   SOLO_AI.attitude = attitude;
   SOLO_AI.attitudeReason = reason;
   SOLO_AI.attitudeRevisionAt = SOLO_AI.planRevision;
   const revisionWindow = {
     amateur: [5, 7],
     normal: [4, 6],
-    expert: [3, 5],
-    champion: [2, 4],
-    legend: [1, 3],
+    expert: [2, 4],
+    champion: [1, 3],
+    legend: [1, 1],
   }[normalizeAiIntelligence(SOLO_AI.style)] || [5, 7];
   SOLO_AI.attitudeRevisionWindow = revisionWindow[0] + Math.floor(Math.random() * (revisionWindow[1] - revisionWindow[0] + 1));
   return attitude;
@@ -7430,14 +7433,15 @@ function shouldReevaluateSoloAttitude(playerIndex) {
   const resourceSwing = Math.abs((SOLO_AI.plan.resources?.opponentEndurance ?? opponent.endurance) - opponent.endurance) >= 2
     || Math.abs((SOLO_AI.plan.resources?.opponentHand ?? opponent.hand.length) - opponent.hand.length) >= 2;
   const planContradicted = state.mandatoryPlacement || primaryBlocked || resourceSwing || opponent.hand.length <= 1 || opponent.endurance <= 0;
+  const intelligence = normalizeAiIntelligence(SOLO_AI.style);
   const reevaluationChance = {
     amateur: 0.18,
     normal: 0.35,
-    expert: 0.52,
-    champion: 0.68,
-    legend: 0.82,
-  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0.18;
-  return planContradicted && Math.random() < reevaluationChance;
+    expert: 0.68,
+    champion: 0.82,
+    legend: 1,
+  }[intelligence] ?? 0.18;
+  return planContradicted && (intelligence === "legend" || Math.random() < reevaluationChance);
 }
 
 function soloAttitudeLabel(attitude = SOLO_AI.attitude) {
@@ -7690,14 +7694,18 @@ function chooseSoloPunitiveContinuation(playerIndex, plan) {
   const attemptChance = {
     amateur: 0.08,
     normal: 0.2,
-    expert: 0.55,
-    champion: 0.82,
+    expert: 0.82,
+    champion: 1,
     legend: 1,
   }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0.08;
   if (Math.random() > attemptChance) return null;
   const response = soloOpponentResponseProjection(playerIndex);
   const passProjection = soloPassProjection(playerIndex);
-  const threshold = SOLO_AI.attitude === "aggressive" ? 0.34 : SOLO_AI.attitude === "prudent" ? 0.07 : 0.2;
+  const legendary = normalizeAiIntelligence(SOLO_AI.style) === "legend";
+  if (legendary && (passProjection.matchClinched || (passProjection.setOver && passProjection.setWinner === playerIndex))) return null;
+  const threshold = legendary
+    ? 0.08
+    : SOLO_AI.attitude === "aggressive" ? 0.34 : SOLO_AI.attitude === "prudent" ? 0.07 : 0.2;
   if ((passProjection.matchClinched || (passProjection.setOver && passProjection.setWinner === playerIndex)) && response.risk > 0.02) return null;
   if (response.risk > threshold) return null;
   const alternateObjective = plan.selectedObjective === "boost" ? "points" : "boost";
@@ -7753,7 +7761,8 @@ function canSoloPassAndWin(playerIndex) {
     const projectedSetScore = previewSetMatchScore(exchangeWinner, getProjectedExchangeSetScore(exchangeWinner, "power", projectedPowers));
     if (isSetOver(projectedSetScore) && leadingSetPlayer(projectedSetScore) === playerIndex) return true;
   }
-  if (aiIntelligenceAtLeast("champion") && exchangeWinner === playerIndex && shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowers)) {
+  if (aiIntelligenceAtLeast("expert") && exchangeWinner === playerIndex && shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowers)) {
+    if (normalizeAiIntelligence(SOLO_AI.style) === "legend" && soloOpponentResponseProjection(playerIndex).risk > 0.08) return true;
     return false;
   }
   return exchangeWinner === playerIndex;
@@ -8171,14 +8180,20 @@ function chooseSoloBoostPlay(playerIndex) {
   const options = soloBoostOptionCandidates(playerIndex).filter((option) => !option.rejected);
   const best = chooseSoloScoredOption(options, (option) => option.boostedScore);
   if (!best) return null;
-  const styleBoostMargin = SOLO_AI.attitude === "aggressive" ? 2 : SOLO_AI.attitude === "prudent" ? 7 : 4;
+  const legendary = normalizeAiIntelligence(SOLO_AI.style) === "legend";
+  const styleBoostMargin = legendary
+    ? SOLO_AI.attitude === "aggressive" ? 0 : SOLO_AI.attitude === "prudent" ? 3 : 1
+    : SOLO_AI.attitude === "aggressive" ? 2 : SOLO_AI.attitude === "prudent" ? 7 : 4;
   const opponentEndThreat = playerEndThreatScore(state.players[opponentOf(playerIndex)]);
+  const unsafeRiskThreshold = legendary
+    ? opponentEndThreat > 0 ? 0.2 : 0.28
+    : opponentEndThreat > 0 ? 0.32 : 0.42;
   const expertBlocksRisk = aiIntelligenceAtLeast("expert")
     && !state.mandatoryPlacement
     && state.boostAvailableFor !== playerIndex
     && !best.passPressure
     && !isSetDangerForPlayer(playerIndex)
-    && best.threat.probability >= (opponentEndThreat > 0 ? 0.32 : 0.42)
+    && best.threat.probability >= unsafeRiskThreshold
     && !best.threat.canDefend;
   const forcedButIrrational = !best.threat.canDefend && best.boostedScore < 0;
   const shouldBoost = !expertBlocksRisk
@@ -8305,12 +8320,13 @@ function soloCardScore(playerIndex, card, boosted = false) {
 }
 
 function aiScoreNoise(scale = 1.4) {
+  if (normalizeAiIntelligence(SOLO_AI.style) === "legend") return 0;
   const multiplier = {
     amateur: 7,
     normal: 5,
-    expert: 2.2,
-    champion: 0.8,
-    legend: 0.15,
+    expert: 0.8,
+    champion: 0.15,
+    legend: 0,
   }[normalizeAiIntelligence(SOLO_AI.style)] ?? 7;
   const adjustedScale = isLateCircuitRoundWithoutBonus(SOLO_AI.playerIndex) ? Math.min(0.45, scale) : scale;
   return (Math.random() - 0.5) * adjustedScale * multiplier;
@@ -10919,7 +10935,7 @@ function aiTournamentStrength(characterId) {
   const intelligenceLevel = usesAssignedIntelligence || state.tournament?.aiClubHouse
     ? aiIntelligenceForEntry(characterId, state.tournament.difficulty)
     : "expert";
-  const intelligenceBonus = { amateur: -4, normal: 0, expert: 4, champion: 8, legend: 12 }[intelligenceLevel];
+  const intelligenceBonus = { amateur: -4, normal: 0, expert: 8, champion: 12, legend: 17 }[intelligenceLevel];
   const rankIa = tournamentRankIa(characterId);
   const rankIaBonus = rankIa < 99999 ? Math.max(0, 22 - rankIa) * 0.55 : 0;
   const base = COACH_OPTIONS.includes(characterId) ? 48 : 54;
