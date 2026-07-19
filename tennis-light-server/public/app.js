@@ -1976,7 +1976,7 @@ function confrontationStatus(wins, losses) {
   const total = wins + losses;
   if (total < 6) return null;
   const ratio = (wins / total) * 100;
-  if (ratio > 90) return { label: "Domination humaine", className: "domination" };
+  if (total >= 10 && ratio > 90) return { label: "Domination humaine", className: "domination" };
   if (ratio > 80) return { label: "Ascendant humain", className: "ascendant-positive" };
   if (ratio < 35) return { label: "Bête noire", className: "bete-noire" };
   if (ratio < 50) return { label: "Ascendant IA", className: "ascendant-negative" };
@@ -5384,7 +5384,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v151",
+    gameVersion: "v152",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5624,7 +5624,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v151",
+    version: "v152",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5683,7 +5683,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v151",
+    version: "v152",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5697,7 +5697,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v151");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v152");
 }
 
 function resetSetMatch() {
@@ -5754,7 +5754,10 @@ function newGame(options = {}) {
     const tournamentEntry = state.tournament.active && playerIndex === 0
       ? HUMAN_TOURNAMENT_ENTRY
       : player.characterId;
-    const assignedSurfaceBonuses = state.tournament.active && state.tournament.surfaceBonuses
+    const humanInProCircuit = state.tournament.active
+      && state.tournament.difficulty === "circuit"
+      && tournamentEntry === HUMAN_TOURNAMENT_ENTRY;
+    const assignedSurfaceBonuses = state.tournament.active && !humanInProCircuit && state.tournament.surfaceBonuses
       ? state.tournament.surfaceBonuses[tournamentEntry] ?? null
       : null;
     player.surfaceBonuses = Array.isArray(assignedSurfaceBonuses)
@@ -5763,7 +5766,7 @@ function newGame(options = {}) {
         ? [cloneData(assignedSurfaceBonuses)]
         : [];
     player.surfaceBonus = player.surfaceBonuses[0] ?? null;
-    player.permanentBonuses = state.tournament.active && state.tournament.permanentBonuses
+    player.permanentBonuses = state.tournament.active && !humanInProCircuit && state.tournament.permanentBonuses
       ? cloneData(state.tournament.permanentBonuses[tournamentEntry] ?? [])
       : [];
     player.worldRank = state.tournament.active
@@ -10198,10 +10201,12 @@ function tournamentHeadToHeadBonus(aiCharacterId) {
   const wins = Number(row?.wins || 0);
   const losses = Number(row?.losses || 0);
   const matches = wins + losses;
-  if (matches <= 5) return null;
   const winRatio = (wins / matches) * 100;
-  if (winRatio > 90) return { target: "human", placement: 2, label: "Domination : +2 placement" };
-  if (winRatio > 70) return { target: "human", placement: 1, label: "Ascendant : +1 placement" };
+  if (matches >= 10 && winRatio > 90) return { target: "human", placement: 2, label: "Domination : +2 placement" };
+  if (matches <= 5) return null;
+  if (winRatio > 70 && state.tournament?.difficulty !== "circuit") {
+    return { target: "human", placement: 1, label: "Ascendant : +1 placement" };
+  }
   if (winRatio < 20) return { target: "ai", placement: 2, label: "Bête noire : +2 placement" };
   if (winRatio < 30) return { target: "ai", placement: 1, label: "Ascendant : +1 placement" };
   return null;
@@ -10279,6 +10284,7 @@ function buildWeeklyCircuitProBonuses(entries = [], seedEntries = [], surface = 
   const topSeeds = seedEntries.filter((entry) => present.has(entry)).slice(0, 4);
   const bonuses = {};
   for (const [seedIndex, entry] of topSeeds.entries()) {
+    if (entry === HUMAN_TOURNAMENT_ENTRY) continue;
     const surfaceBonus = randomSurfaceBonus(surface);
     addCircuitBonus(bonuses, entry, surfaceBonus ? { ...surfaceBonus, surface } : null);
     if (humanLevel >= 3 && seedIndex < 2 && Math.random() < 0.75) {
@@ -10303,7 +10309,7 @@ function buildWeeklyCircuitProBonuses(entries = [], seedEntries = [], surface = 
     }
   }
   if (humanLevel >= 3) {
-    for (const entry of entries.slice(5, 9).filter(Boolean)) {
+    for (const entry of entries.slice(5, 9).filter((candidate) => candidate && candidate !== HUMAN_TOURNAMENT_ENTRY)) {
       if (Math.random() < 0.5) addCircuitBonus(bonuses, entry, randomCircuitBonus());
     }
   }
@@ -10354,7 +10360,7 @@ function buildTournamentPermanentBonuses(entries = [], seededEntries = [], dynam
   const seeded = new Set(seededEntries);
   const usedEntries = new Set(entries.filter(Boolean));
 
-  if (worldLeader && usedEntries.has(worldLeader) && !seeded.has(worldLeader)) {
+  if (worldLeader && worldLeader !== HUMAN_TOURNAMENT_ENTRY && usedEntries.has(worldLeader) && !seeded.has(worldLeader)) {
     addPermanentBonus(bonuses, worldLeader, {
       id: "worldNumberOnePermanent",
       label: "Numéro 1 mondial : +2 précision / +2 placement",

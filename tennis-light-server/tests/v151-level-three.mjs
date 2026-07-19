@@ -20,7 +20,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v151<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v152<\/span>/);
 
 const intelligenceSource = functionSource("drawLevelThreeAiIntelligence");
 const intelligence = (rankIa, random) => {
@@ -48,6 +48,7 @@ function runBonusDraw(randomValue) {
   for (let position = 1; position <= 16; position += 1) entries[position] = `P${position}`;
   const context = {
     entries,
+    HUMAN_TOURNAMENT_ENTRY: "__human__",
     Math: { random: () => randomValue },
     randomSurfaceBonus: () => ({ id: "surface", label: "Surface" }),
     randomCircuitBonus: (excluded = []) => {

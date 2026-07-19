@@ -60,15 +60,17 @@ const confrontationContext = {};
 vm.runInNewContext(`${functionSource("confrontationStatus")}; results = [
   confrontationStatus(5, 0),
   confrontationStatus(6, 0),
+  confrontationStatus(10, 0),
   confrontationStatus(9, 1),
   confrontationStatus(4, 6),
   confrontationStatus(2, 4),
 ];`, confrontationContext);
 assert.equal(confrontationContext.results[0], null);
-assert.equal(confrontationContext.results[1].label, "Domination humaine");
-assert.equal(confrontationContext.results[2].label, "Ascendant humain");
-assert.equal(confrontationContext.results[3].label, "Ascendant IA");
-assert.equal(confrontationContext.results[4].label, "Bête noire");
+assert.equal(confrontationContext.results[1].label, "Ascendant humain");
+assert.equal(confrontationContext.results[2].label, "Domination humaine");
+assert.equal(confrontationContext.results[3].label, "Ascendant humain");
+assert.equal(confrontationContext.results[4].label, "Ascendant IA");
+assert.equal(confrontationContext.results[5].label, "Bête noire");
 
 const doubleContext = {
   state: {
