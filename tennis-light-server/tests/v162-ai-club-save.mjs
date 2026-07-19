@@ -63,4 +63,4 @@ storage.clear();
 vm.runInContext('state.tournament.stage = "complete"', context);
 assert.equal(vm.runInContext("saveAiClubHouseProgress()", context), false, "une compétition terminée ne doit pas être sauvegardée");
 
-console.log("v166 première sauvegarde amicale, limite à une sauvegarde et format compact: OK");
+console.log("v168 première sauvegarde amicale, limite à une sauvegarde et format compact: OK");

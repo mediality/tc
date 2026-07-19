@@ -1267,8 +1267,12 @@ body.tutorial-running .boost-button strong {
   background: #b91c1c;
 }
 
-body.spectator-mode .game-app button:not(#spectatorQuitButton) {
+body.spectator-mode .game-app button:not(#spectatorQuitButton):not([data-image-zoom]) {
   display: none !important;
+}
+
+body.spectator-mode .game-app [data-image-zoom] {
+  cursor: zoom-in;
 }
 
 body.spectator-mode .player-panel {

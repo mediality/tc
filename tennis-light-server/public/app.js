@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "166";
+const CARD_ASSET_VERSION = "168";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -5717,7 +5717,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v166",
+    gameVersion: "v168",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5957,7 +5957,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v166",
+    version: "v168",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -6016,7 +6016,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v166",
+    version: "v168",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -6030,7 +6030,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v166");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v168");
 }
 
 function resetSetMatch() {
@@ -7563,6 +7563,7 @@ function chooseSoloAttitude(playerIndex, reason = "lecture initiale") {
   const opponent = state.players[opponentOf(playerIndex)];
   const hand = soloInitialHandProfile(playerIndex);
   const experience = soloOpponentExperience(playerIndex);
+  const informationExposure = soloInformationExposureProfile(playerIndex);
   const intelligence = normalizeAiIntelligence(SOLO_AI.style);
   const weights = { aggressive: 3, prudent: 3, opportunistic: 4 };
   if (hand.strongShots >= 2 || hand.boostPairs >= 2) weights.aggressive += 4;
@@ -7577,6 +7578,11 @@ function chooseSoloAttitude(playerIndex, reason = "lecture initiale") {
   if (experience.jokerRate + experience.preparedDefenseRate >= 0.12) weights.opportunistic += 2;
   if (experience.sampleExchanges >= 3 && experience.aiBoostSuccessRate >= 0.62) weights.aggressive += 3;
   if (experience.sampleExchanges >= 3 && experience.aiBoostSuccessRate <= 0.38) weights.prudent += 3;
+  if (informationExposure.opponentConservative && !informationExposure.pressureWindow) {
+    weights.opportunistic += 4;
+    weights.prudent += 3;
+  }
+  if (informationExposure.opponentMoreCommitted || informationExposure.pressureWindow) weights.aggressive += 4;
   if (opponent.hand.length <= 2 || (opponent.endurance <= 1 && !opponent.nextDiscount)) weights.aggressive += 4;
   if (isSetDangerForPlayer(playerIndex) || isMatchDangerForPlayer(playerIndex)) weights.aggressive += 2;
   if (isLateCircuitRoundWithoutBonus(playerIndex)) {
@@ -7615,7 +7621,10 @@ function shouldReevaluateSoloAttitude(playerIndex) {
   const primaryBlocked = primaryUid && !player.hand.some((card) => card.uid === primaryUid);
   const resourceSwing = Math.abs((SOLO_AI.plan.resources?.opponentEndurance ?? opponent.endurance) - opponent.endurance) >= 2
     || Math.abs((SOLO_AI.plan.resources?.opponentHand ?? opponent.hand.length) - opponent.hand.length) >= 2;
-  const planContradicted = state.mandatoryPlacement || primaryBlocked || resourceSwing || opponent.hand.length <= 1 || opponent.endurance <= 0;
+  const informationExposure = soloInformationExposureProfile(playerIndex);
+  const informationShift = Boolean(SOLO_AI.plan.resources?.informationExposure?.opponentConservative) !== informationExposure.opponentConservative
+    || Boolean(SOLO_AI.plan.resources?.informationExposure?.pressureWindow) !== informationExposure.pressureWindow;
+  const planContradicted = state.mandatoryPlacement || primaryBlocked || resourceSwing || informationShift || opponent.hand.length <= 1 || opponent.endurance <= 0;
   const intelligence = normalizeAiIntelligence(SOLO_AI.style);
   const reevaluationChance = {
     amateur: 0.18,
@@ -7663,6 +7672,96 @@ function soloDoubleProjection(playerIndex, card) {
   };
 }
 
+function soloInformationExposureProfile(playerIndex) {
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  const committedCards = (player.played || []).filter((card) => !card.removed).length;
+  const opponentCommittedCards = (opponent.played || []).filter((card) => !card.removed).length;
+  const totalCommittedCards = committedCards + opponentCommittedCards;
+  const opening = totalCommittedCards <= 4;
+  const opponentHoldingResources = opponent.hand.length >= 3 && opponent.endurance >= 2;
+  const opponentMoreCommitted = opponentCommittedCards > committedCards;
+  const commitmentLead = Math.max(0, committedCards - opponentCommittedCards);
+  const powerLead = player.power - opponent.power;
+  let patience = opening ? 0.18 : 0.06;
+  if (opponentHoldingResources) patience += 0.18;
+  if (opponentCommittedCards === 0) patience += 0.22;
+  patience += Math.min(0.32, commitmentLead * 0.16);
+  if (powerLead >= 4) patience += 0.12;
+  if (opponentMoreCommitted) patience -= 0.22;
+  if (opponent.hand.length <= 2 || opponent.endurance <= 1) patience -= 0.28;
+  patience = Math.max(0, Math.min(1, patience));
+  return {
+    opening,
+    patience,
+    opponentConservative: patience >= 0.45,
+    opponentHoldingResources,
+    opponentMoreCommitted,
+    committedCards,
+    opponentCommittedCards,
+    commitmentLead,
+    powerLead,
+    alreadyExposed: commitmentLead > 0 || powerLead >= 5,
+    pressureWindow: opponent.hand.length <= 2 || opponent.endurance <= 1,
+  };
+}
+
+function soloCommitmentDiscipline(playerIndex, options = {}) {
+  const profile = soloInformationExposureProfile(playerIndex);
+  const intelligence = normalizeAiIntelligence(SOLO_AI.style);
+  const tier = { amateur: 0, normal: 0.15, expert: 0.5, champion: 0.78, legend: 1 }[intelligence] ?? 0;
+  const forced = state.mandatoryPlacement
+    || state.boostAvailableFor === playerIndex
+    || isSetDangerForPlayer(playerIndex)
+    || isMatchDangerForPlayer(playerIndex)
+    || wouldPassLoseSetOrMatch(playerIndex);
+  if (!tier || forced) return { score: 0, penalty: 0, aggressionBonus: 0, safeSequence: false, profile };
+
+  const player = state.players[playerIndex];
+  const stats = options.stats || (options.card ? getCardStats(player, options.card, Boolean(options.boosted)) : {});
+  const power = Math.max(0, Number(options.power ?? stats.power ?? 0));
+  const cost = Math.max(0, Number(options.cost ?? (options.card ? effectiveCost(player, options.card) : 0)));
+  const cardsCommitted = Math.max(1, Number(options.cardsCommitted || (options.boosted ? 2 : 1)));
+  const remainingEndurance = Number(options.remainingEndurance ?? (player.endurance - cost));
+  const reserve = Math.max(0, Number(options.reserve || 0));
+  const risk = Math.max(0, Number(options.risk || 0));
+  const canDefend = Boolean(options.canDefend);
+  const projectedPowerLead = profile.powerLead + power;
+  const safeSequence = Boolean(
+    options.plannedSequence
+    && risk <= 0.24
+    && remainingEndurance >= reserve
+    && (canDefend || risk <= 0.1),
+  );
+  const commitmentLoad = Math.max(0, power - 2) * 1.25
+    + cost * 1.4
+    + (options.boosted ? 4.5 : 0)
+    + Math.max(0, cardsCommitted - 1) * 2.5
+    + Math.max(0, projectedPowerLead - 5) * 0.45;
+  let penalty = profile.patience * commitmentLoad * tier * (profile.opening ? 1.15 : 0.75);
+  if (profile.opponentConservative && !options.plannedSequence) {
+    penalty += Math.max(0, power - 3) * 3.2 * tier * (profile.opening ? 1 : 0.65);
+  }
+  if (profile.alreadyExposed && !profile.opponentMoreCommitted) {
+    penalty += (2 + Math.max(0, profile.powerLead) * 0.35) * tier;
+  }
+
+  let aggressionBonus = 0;
+  if (profile.opponentConservative && !options.plannedSequence && power <= 3 && cost <= 1) aggressionBonus += 2.5 * tier;
+  if (options.passPressure) aggressionBonus += 9 * tier;
+  if (safeSequence) aggressionBonus += (8 + Math.max(0, power - 3) * 0.65) * tier;
+  if (profile.pressureWindow) aggressionBonus += 6 * tier;
+  if (profile.opponentMoreCommitted) aggressionBonus += 2.5 * tier;
+  if (SOLO_AI.attitude === "aggressive" && safeSequence) aggressionBonus += 3 * tier;
+  return {
+    score: aggressionBonus - penalty,
+    penalty,
+    aggressionBonus,
+    safeSequence,
+    profile,
+  };
+}
+
 function soloBoostOptionCandidates(playerIndex) {
   const player = state.players[playerIndex];
   return player.hand
@@ -7675,7 +7774,18 @@ function soloBoostOptionCandidates(playerIndex) {
       const normalScore = canPlayNormal(playerIndex, card) ? soloCardScore(playerIndex, card) : -Infinity;
       const passPressure = wouldOpponentBeAbleToPassAndWin(playerIndex, card, true);
       const threat = expertCounterBoostThreat(playerIndex, card, sacrifice);
-      const boostedScore = rawBoostedScore - threat.danger;
+      const remainingEndurance = player.endurance - effectiveCost(player, card);
+      const informationDiscipline = soloCommitmentDiscipline(playerIndex, {
+        card,
+        boosted: true,
+        cardsCommitted: 2,
+        remainingEndurance,
+        risk: threat.probability,
+        canDefend: threat.canDefend,
+        passPressure,
+        plannedSequence: true,
+      });
+      const boostedScore = rawBoostedScore - threat.danger + informationDiscipline.score;
       const catastrophicRisk = !state.mandatoryPlacement && !threat.canDefend && boostedScore < 0;
       const destroysSuppression = sacrifice.effectType === "removeOpponentLast";
       return {
@@ -7687,6 +7797,7 @@ function soloBoostOptionCandidates(playerIndex) {
         normalScore,
         passPressure,
         sacrificeScore,
+        informationDiscipline,
         rejected: catastrophicRisk || (destroysSuppression && !state.mandatoryPlacement),
         rejectionReason: catastrophicRisk ? "projection négative sans défense" : destroysSuppression ? "Suppression préservée" : null,
       };
@@ -7741,15 +7852,19 @@ function buildSoloScenarioPlan(playerIndex) {
     .forEach((path) => pointPaths.push(path));
   player.hand
     .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
-    .map((card) => ({
-      objective: "points",
-      type: "normal",
-      cardUid: card.uid,
-      cardName: card.name,
-      score: soloPlayableCoupScore(playerIndex, card),
-      projectedPower: player.power + getCardStats(player, card, false).power + projectedEndBonuses(player),
-      label: `${card.name} pour la puissance finale`,
-    }))
+    .map((card) => {
+      const informationDiscipline = soloCommitmentDiscipline(playerIndex, { card });
+      return {
+        objective: "points",
+        type: "normal",
+        cardUid: card.uid,
+        cardName: card.name,
+        score: soloPlayableCoupScore(playerIndex, card) + informationDiscipline.score,
+        projectedPower: player.power + getCardStats(player, card, false).power + projectedEndBonuses(player),
+        informationDiscipline,
+        label: `${card.name} pour la puissance finale`,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .forEach((path) => pointPaths.push(path));
 
@@ -7810,6 +7925,7 @@ function buildSoloScenarioPlan(playerIndex) {
       opponentEndurance: opponent.endurance,
       opponentHand: opponent.hand.length,
       knownOpponentCards: expertKnownOpponentCards(playerIndex).map(cardLogInfo),
+      informationExposure: soloInformationExposureProfile(playerIndex),
     },
   };
 }
@@ -7969,7 +8085,14 @@ function buildLegendarySequencePlan(playerIndex) {
     const threat = legendaryCounterBoostThreat(playerIndex, card);
     const resource = legendarySequenceResourceScore(playerIndex, [card.uid], player.endurance - cost, threat);
     const risk = threat.probability * (resource.defense.canDefendBoost ? 0.45 : 1);
-    const score = soloPlayableCoupScore(playerIndex, card) + resource.score - risk * 24;
+    const informationDiscipline = soloCommitmentDiscipline(playerIndex, {
+      card,
+      remainingEndurance: player.endurance - cost,
+      reserve: resource.reserve,
+      risk,
+      canDefend: resource.defense.canDefendBoost,
+    });
+    const score = soloPlayableCoupScore(playerIndex, card) + resource.score - risk * 24 + informationDiscipline.score;
     candidates.push({
       objective: "points",
       type: "normal_sequence",
@@ -7980,6 +8103,7 @@ function buildLegendarySequencePlan(playerIndex) {
       canDefendCounterBoost: resource.defense.canDefendBoost,
       remainingEndurance: player.endurance - cost,
       reserve: resource.reserve,
+      informationDiscipline,
       steps: [
         { actor: "ai", type: "normal", cardUid: card.uid, cardName: card.name },
         { actor: "opponent", type: "projected_response", probability: threat.probability },
@@ -8002,7 +8126,18 @@ function buildLegendarySequencePlan(playerIndex) {
     const threat = legendaryCounterBoostThreat(playerIndex, option.card, option.sacrifice);
     const resource = legendarySequenceResourceScore(playerIndex, excluded, remainingEndurance, threat);
     const risk = threat.probability * (resource.defense.canDefendBoost ? 0.35 : 1);
-    const score = option.rawBoostedScore + resource.score - risk * 34;
+    const informationDiscipline = soloCommitmentDiscipline(playerIndex, {
+      card: option.card,
+      boosted: true,
+      cardsCommitted: 2,
+      remainingEndurance,
+      reserve: resource.reserve,
+      risk,
+      canDefend: resource.defense.canDefendBoost,
+      passPressure: option.passPressure,
+      plannedSequence: true,
+    });
+    const score = option.rawBoostedScore + resource.score - risk * 34 + informationDiscipline.score;
     candidates.push({
       objective: "boost",
       type: "boost_sequence",
@@ -8013,6 +8148,7 @@ function buildLegendarySequencePlan(playerIndex) {
       canDefendCounterBoost: resource.defense.canDefendBoost,
       remainingEndurance,
       reserve: resource.reserve,
+      informationDiscipline,
       steps: [
         { actor: "ai", type: "boost", cardUid: option.card.uid, cardName: option.card.name, sacrificeUid: option.sacrifice.uid },
         { actor: "opponent", type: "counter_boost", probability: threat.probability },
@@ -8047,7 +8183,17 @@ function buildLegendarySequencePlan(playerIndex) {
         const effectValue = Math.max(soloImmediateEffectValue(playerIndex, effect), soloEffectScore(effect) * 1.5);
         const synergy = legendaryEffectFollowUpBonus(effect, coup);
         const risk = threat.probability * (resource.defense.canDefendBoost ? 0.4 : 1);
-        const score = effectValue + synergy + soloPlayableCoupScore(playerIndex, coup) + resource.score - risk * 27;
+        const informationDiscipline = soloCommitmentDiscipline(playerIndex, {
+          power: getCardStats(player, coup, false).power,
+          cost: effectCost + coupCost,
+          cardsCommitted: 2,
+          remainingEndurance,
+          reserve: resource.reserve,
+          risk,
+          canDefend: resource.defense.canDefendBoost,
+          plannedSequence: true,
+        });
+        const score = effectValue + synergy + soloPlayableCoupScore(playerIndex, coup) + resource.score - risk * 27 + informationDiscipline.score;
         candidates.push({
           objective: "points",
           type: "effect_coup_sequence",
@@ -8058,6 +8204,7 @@ function buildLegendarySequencePlan(playerIndex) {
           canDefendCounterBoost: resource.defense.canDefendBoost,
           remainingEndurance,
           reserve: resource.reserve,
+          informationDiscipline,
           steps: [
             { actor: "ai", type: "effect", cardUid: effect.uid, cardName: effect.name },
             { actor: "ai", type: "normal", cardUid: coup.uid, cardName: coup.name },
@@ -8092,6 +8239,7 @@ function buildLegendarySequencePlan(playerIndex) {
       canDefendCounterBoost: candidate.canDefendCounterBoost,
       remainingEndurance: candidate.remainingEndurance,
       reserve: candidate.reserve,
+      informationDiscipline: candidate.informationDiscipline,
       steps: candidate.steps,
     })),
   };
@@ -8789,7 +8937,10 @@ function chooseSoloNormalCoup(playerIndex) {
   const player = state.players[playerIndex];
   const options = player.hand
     .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
-    .map((card) => ({ card, score: soloPlayableCoupScore(playerIndex, card) + aiScoreNoise() }));
+    .map((card) => ({
+      card,
+      score: soloPlayableCoupScore(playerIndex, card) + soloCommitmentDiscipline(playerIndex, { card }).score + aiScoreNoise(),
+    }));
   return chooseSoloScoredOption(options)?.card ?? null;
 }
 
@@ -12449,7 +12600,8 @@ function applySpectatorControls() {
   document.body.classList.toggle("spectator-mode", SPECTATOR_MODE.enabled);
   if (!SPECTATOR_MODE.enabled || !els.gameApp) return;
   els.gameApp.querySelectorAll("button").forEach((button) => {
-    button.disabled = button !== els.spectatorQuitButton;
+    const isReadOnlyCardPreview = button.matches("[data-image-zoom]");
+    button.disabled = button !== els.spectatorQuitButton && !isReadOnlyCardPreview;
   });
 }
 

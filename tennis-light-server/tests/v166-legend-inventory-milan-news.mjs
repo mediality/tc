@@ -22,10 +22,10 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v166<\/span>/);
-assert.match(html, /styles\.css\?v=166\.0/);
-assert.match(html, /app\.js\?v=166\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "166"/);
+assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
+assert.match(html, /styles\.css\?v=168\.0/);
+assert.match(html, /app\.js\?v=168\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "168"/);
 
 const effectGuard = functionSource(app, "legendaryEffectSequenceIsUseful");
 assert.match(effectGuard, /effect\.effectType !== "freeBoostNext"/);
@@ -130,4 +130,4 @@ assert.equal(vm.runInContext("pendingNewsForUser({ role: 'pro', seenNews: '' }).
 assert.equal(vm.runInContext("pendingNewsForUser({ role: 'pro', seenNews: 'v166-milan-verhaegen-pro-unlock' }).length", newsContext), 0);
 assert.equal(vm.runInContext("pendingNewsForUser({ role: 'free', seenNews: '' }).length", newsContext), 0);
 
-console.log("v166 inventaire de contre-boost Légende, Milan PRO et actualité persistante: OK");
+console.log("v168 inventaire de contre-boost Légende, Milan PRO et actualité persistante: OK");
