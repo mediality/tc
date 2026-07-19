@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "165";
+const CARD_ASSET_VERSION = "166";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -264,6 +264,7 @@ const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
+const PRO_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, "milanVerhaegen"];
 const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.webp",
   coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp",
@@ -319,6 +320,17 @@ const NEW_TOURNAMENT_PLAYERS = [
 ];
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
+const GAME_NEWS = [
+  {
+    id: "v166-milan-verhaegen-pro-unlock",
+    publishedAt: "2026-07-19",
+    title: "Milan Verhaegen rejoint les joueurs PRO",
+    characterId: "milanVerhaegen",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l'utiliser, choisissez le depuis votre page profil. A bientôt sur les courts ! (signé - Coach Ju)",
+    signature: "Coach Ju",
+  },
+];
 const HUMAN_TOURNAMENT_ENTRY = "__human__";
 const AI_SURFACE_PREFERENCES = {
   theoBriancourt: "clay", alessandraConti: "hard", saharaJackson: "clay",
@@ -1205,6 +1217,7 @@ let confrontationIntroActive = false;
 const state = {
   players: [],
   deck: [],
+  discardedCards: [],
   activePlayer: 0,
   server: 0,
   lastCard: null,
@@ -1531,7 +1544,8 @@ function canAccessAllCharacters() {
 }
 
 function profileCharacterOptionsForCurrentUser() {
-  return canAccessAllCharacters() ? FULL_PROFILE_CHARACTER_OPTIONS : PROFILE_CHARACTER_OPTIONS;
+  if (canAccessAllCharacters()) return FULL_PROFILE_CHARACTER_OPTIONS;
+  return currentUserRole() === "pro" ? PRO_PROFILE_CHARACTER_OPTIONS : PROFILE_CHARACTER_OPTIONS;
 }
 
 function updateAccessControls() {
@@ -1649,7 +1663,59 @@ function applyAuthenticatedUser(user) {
   if (AUTH_STATE.user) {
     window.setTimeout(uploadPendingHumanMatchLogs, 250);
     if (accountChanged) refreshAuthenticatedCircuitData(nextUserId);
+    if (accountChanged) window.setTimeout(showNextProNewsDialog, 80);
   }
+}
+
+function pendingProNewsForCurrentUser() {
+  if (!AUTH_STATE.user || !canAccessProFeatures()) return [];
+  const serverNews = Array.isArray(AUTH_STATE.user.pendingNews) ? AUTH_STATE.user.pendingNews : [];
+  const allowedIds = new Set(GAME_NEWS.map((item) => item.id));
+  return serverNews.filter((item) => allowedIds.has(item.id));
+}
+
+async function markProNewsAsSeen(newsId) {
+  if (!newsId || !AUTH_STATE.user) return;
+  AUTH_STATE.user.pendingNews = pendingProNewsForCurrentUser().filter((item) => item.id !== newsId);
+  try {
+    await authRequest(`/api/news/${encodeURIComponent(newsId)}/seen`, {});
+  } catch (error) {
+    // La fermeture de l'annonce ne doit jamais bloquer l'accès au jeu.
+  }
+}
+
+function showNextProNewsDialog() {
+  const news = pendingProNewsForCurrentUser()[0];
+  if (!news || document.querySelector(".pro-news-backdrop")) return;
+  const canonicalNews = GAME_NEWS.find((item) => item.id === news.id) || news;
+  const characterId = canonicalNews.characterId || "milanVerhaegen";
+  const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop pro-news-backdrop";
+  backdrop.innerHTML = `
+    <article class="modal pro-news-modal" role="dialog" aria-modal="true" aria-labelledby="proNewsTitle" aria-describedby="proNewsMessage">
+      <div class="pro-news-card-frame">
+        <img src="${escapeHtml(image)}" alt="Carte de ${escapeHtml(characterNameFromId(characterId))}" />
+      </div>
+      <div class="pro-news-copy">
+        <p class="label">ACTUALITÉ · JOUEURS PRO</p>
+        <h2 id="proNewsTitle">${escapeHtml(canonicalNews.title)}</h2>
+        <p id="proNewsMessage">${escapeHtml(canonicalNews.message)}</p>
+        <div class="dialog-actions">
+          <button class="primary-button" type="button" data-close-pro-news>À bientôt sur les courts !</button>
+        </div>
+      </div>
+    </article>
+  `;
+  const close = () => {
+    backdrop.remove();
+    markProNewsAsSeen(news.id);
+  };
+  backdrop.querySelector("[data-close-pro-news]")?.addEventListener("click", close);
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) close();
+  });
+  document.body.append(backdrop);
 }
 
 async function loadAuthState() {
@@ -2666,7 +2732,9 @@ function characterPageMarkup(profile) {
   }).join("");
   const roleHint = canAccessAllCharacters()
     ? "Tous les personnages sont disponibles pour ce compte."
-    : "Les comptes Free et Pro peuvent choisir parmi les 4 coachs.";
+    : currentUserRole() === "pro"
+      ? "Votre compte PRO peut choisir parmi les 4 coachs et Milan Verhaegen."
+      : "Les comptes Free peuvent choisir parmi les 4 coachs.";
   return `
     <div class="profile-card profile-wide">
       <p class="label">${escapeHtml(roleHint)}</p>
@@ -5649,7 +5717,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v165",
+    gameVersion: "v166",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5889,7 +5957,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v165",
+    version: "v166",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5948,7 +6016,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v165",
+    version: "v166",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5962,7 +6030,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v165");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v166");
 }
 
 function resetSetMatch() {
@@ -6052,6 +6120,7 @@ function newGame(options = {}) {
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
+  state.discardedCards = [];
   state.server = serverOverride ?? (Math.random() < 0.5 ? 0 : 1);
   state.activePlayer = state.server;
   state.lastCard = null;
@@ -6133,6 +6202,7 @@ function newGame(options = {}) {
 const SNAPSHOT_KEYS = [
   "players",
   "deck",
+  "discardedCards",
   "activePlayer",
   "server",
   "lastCard",
@@ -6579,6 +6649,12 @@ function canPlayNormal(playerIndex, card) {
   if (!satisfiesReturnServiceRestriction(card)) return false;
   const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
   if (state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) return false;
+  return true;
+}
+
+function canPlayEffectMode(playerIndex, card) {
+  if (!canPlayNormal(playerIndex, card) || !isRemise(card)) return false;
+  if (card.effectType === "freeBoostNext" && !isFreeBoostNextWindow(playerIndex)) return false;
   return true;
 }
 
@@ -7874,6 +7950,15 @@ function legendaryEffectFollowUpBonus(effect, coup) {
   return score;
 }
 
+function legendaryEffectSequenceIsUseful(playerIndex, effect, coup) {
+  if (effect.effectType !== "freeBoostNext") return true;
+  if (!isFreeBoostNextWindow(playerIndex)) return false;
+  const player = state.players[playerIndex];
+  const enduranceAfterEffect = player.endurance - effectiveCost(player, effect);
+  if (effectiveCost(player, coup) > enduranceAfterEffect) return false;
+  return player.hand.some((card) => card.uid !== effect.uid && card.uid !== coup.uid);
+}
+
 function buildLegendarySequencePlan(playerIndex) {
   const player = state.players[playerIndex];
   const response = soloOpponentResponseProjection(playerIndex);
@@ -7881,7 +7966,7 @@ function buildLegendarySequencePlan(playerIndex) {
 
   for (const card of player.hand.filter((candidate) => !isRemise(candidate) && canPlayNormal(playerIndex, candidate))) {
     const cost = effectiveCost(player, card);
-    const threat = expertCounterBoostThreat(playerIndex, card);
+    const threat = legendaryCounterBoostThreat(playerIndex, card);
     const resource = legendarySequenceResourceScore(playerIndex, [card.uid], player.endurance - cost, threat);
     const risk = threat.probability * (resource.defense.canDefendBoost ? 0.45 : 1);
     const score = soloPlayableCoupScore(playerIndex, card) + resource.score - risk * 24;
@@ -7890,6 +7975,8 @@ function buildLegendarySequencePlan(playerIndex) {
       type: "normal_sequence",
       score,
       risk,
+      counterBoostRemaining: threat.remainingCounterCount,
+      counterBoostFamilies: threat.byFamily,
       canDefendCounterBoost: resource.defense.canDefendBoost,
       remainingEndurance: player.endurance - cost,
       reserve: resource.reserve,
@@ -7912,20 +7999,23 @@ function buildLegendarySequencePlan(playerIndex) {
   for (const option of soloBoostOptionCandidates(playerIndex).filter((candidate) => !candidate.rejected)) {
     const remainingEndurance = player.endurance - effectiveCost(player, option.card);
     const excluded = [option.card.uid, option.sacrifice.uid];
-    const resource = legendarySequenceResourceScore(playerIndex, excluded, remainingEndurance, option.threat);
-    const risk = option.threat.probability * (resource.defense.canDefendBoost ? 0.35 : 1);
+    const threat = legendaryCounterBoostThreat(playerIndex, option.card, option.sacrifice);
+    const resource = legendarySequenceResourceScore(playerIndex, excluded, remainingEndurance, threat);
+    const risk = threat.probability * (resource.defense.canDefendBoost ? 0.35 : 1);
     const score = option.rawBoostedScore + resource.score - risk * 34;
     candidates.push({
       objective: "boost",
       type: "boost_sequence",
       score,
       risk,
+      counterBoostRemaining: threat.remainingCounterCount,
+      counterBoostFamilies: threat.byFamily,
       canDefendCounterBoost: resource.defense.canDefendBoost,
       remainingEndurance,
       reserve: resource.reserve,
       steps: [
         { actor: "ai", type: "boost", cardUid: option.card.uid, cardName: option.card.name, sacrificeUid: option.sacrifice.uid },
-        { actor: "opponent", type: "counter_boost", probability: option.threat.probability },
+        { actor: "opponent", type: "counter_boost", probability: threat.probability },
         { actor: "ai", type: "projected_defense", available: resource.defense.canDefendBoost },
       ],
       firstAction: {
@@ -7937,20 +8027,21 @@ function buildLegendarySequencePlan(playerIndex) {
         sacrificeName: option.sacrifice.name,
         score,
         sequenceType: "boost_counter_defense",
-        counterBoostProbability: option.threat.probability,
+        counterBoostProbability: threat.probability,
         canDefendCounterBoost: resource.defense.canDefendBoost,
       },
     });
   }
 
   if (!state.turnHasEffect[playerIndex] && !state.mandatoryPlacement) {
-    const effects = player.hand.filter((card) => isRemise(card) && canPlayNormal(playerIndex, card));
+    const effects = player.hand.filter((card) => isRemise(card) && canPlayEffectMode(playerIndex, card));
     for (const effect of effects) {
       const effectCost = effectiveCost(player, effect);
       for (const coup of player.hand.filter((card) => card.uid !== effect.uid && !isRemise(card) && canPlayNormal(playerIndex, card))) {
         const coupCost = effectiveCost(player, coup);
         if (effectCost + coupCost > player.endurance) continue;
-        const threat = expertCounterBoostThreat(playerIndex, coup);
+        if (!legendaryEffectSequenceIsUseful(playerIndex, effect, coup)) continue;
+        const threat = legendaryCounterBoostThreat(playerIndex, coup);
         const remainingEndurance = player.endurance - effectCost - coupCost;
         const resource = legendarySequenceResourceScore(playerIndex, [effect.uid, coup.uid], remainingEndurance, threat);
         const effectValue = Math.max(soloImmediateEffectValue(playerIndex, effect), soloEffectScore(effect) * 1.5);
@@ -7962,6 +8053,8 @@ function buildLegendarySequencePlan(playerIndex) {
           type: "effect_coup_sequence",
           score,
           risk,
+          counterBoostRemaining: threat.remainingCounterCount,
+          counterBoostFamilies: threat.byFamily,
           canDefendCounterBoost: resource.defense.canDefendBoost,
           remainingEndurance,
           reserve: resource.reserve,
@@ -7994,6 +8087,8 @@ function buildLegendarySequencePlan(playerIndex) {
       type: candidate.type,
       score: Math.round(candidate.score * 10) / 10,
       risk: Math.round(candidate.risk * 1000) / 1000,
+      counterBoostRemaining: candidate.counterBoostRemaining ?? null,
+      counterBoostFamilies: candidate.counterBoostFamilies ?? null,
       canDefendCounterBoost: candidate.canDefendCounterBoost,
       remainingEndurance: candidate.remainingEndurance,
       reserve: candidate.reserve,
@@ -8006,6 +8101,7 @@ function legendaryPassSafetyDecision(playerIndex, legendaryPlan) {
   if (normalizeAiIntelligence(SOLO_AI.style) !== "legend" || state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
   const best = legendaryPlan?.best;
   if (!best) return null;
+  if (best.counterBoostRemaining === 0 || best.risk < 0.25) return null;
   const passProjection = soloPassProjection(playerIndex);
   if (passProjection.projectedWinner === playerIndex) return null;
   const opponentIndex = opponentOf(playerIndex);
@@ -8273,6 +8369,87 @@ function canFamilyBoostAfter(previousFamily, cardFamily) {
   return COLOR_BOOST_RULES[cardFamily]?.includes(previousFamily);
 }
 
+function probabilityAtLeastOneCard(totalCards, matchingCards, draws) {
+  const total = Math.max(0, Number(totalCards || 0));
+  const matches = Math.max(0, Math.min(total, Number(matchingCards || 0)));
+  const sample = Math.max(0, Math.min(total, Number(draws || 0)));
+  if (!matches || !sample || !total) return 0;
+  if (sample > total - matches) return 1;
+  let missesOnly = 1;
+  for (let index = 0; index < sample; index += 1) {
+    missesOnly *= (total - matches - index) / (total - index);
+  }
+  return Math.max(0, Math.min(1, 1 - missesOnly));
+}
+
+function legendaryUnavailableCardIds(playerIndex) {
+  const player = state.players[playerIndex];
+  return new Set([
+    ...player.hand.map((card) => card.id),
+    ...state.players.flatMap((candidate) => candidate.played.flatMap((card) => [card.id, card.sacrificedCard?.id].filter(Boolean))),
+    ...(state.discardedCards ?? []).map((card) => card.id),
+  ]);
+}
+
+function legendaryCounterBoostThreat(playerIndex, exposedCard, sacrifice = null) {
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const opponent = state.players[opponentIndex];
+  const boosted = Boolean(sacrifice);
+  const placementExposure = Boolean(
+    state.lastCard
+    && !state.turnIgnoresPlacement[playerIndex]
+    && !state.turnCannotOpenBoost[playerIndex]
+    && totalTurnPlacement(playerIndex, exposedCard, boosted) < state.lastCard.precision
+  );
+  const allPotentialCounters = CARD_LIBRARY
+    .filter((card) => !isRemise(card) && card.family !== "Service")
+    .filter((card) => placementExposure || canFamilyBoostAfter(exposedCard.family, card.family));
+  const colorExposure = !placementExposure && allPotentialCounters.length > 0;
+  const unavailableIds = legendaryUnavailableCardIds(playerIndex);
+  const remainingCards = CARD_LIBRARY.filter((card) => !unavailableIds.has(card.id));
+  const remainingCounters = allPotentialCounters
+    .filter((card) => !unavailableIds.has(card.id))
+    .filter((card) => effectiveCost(opponent, card) <= opponent.endurance);
+  const knownOpponentCards = expertKnownOpponentCards(playerIndex);
+  const knownIds = new Set(knownOpponentCards.map((card) => card.id));
+  const knownCounters = remainingCounters.filter((card) => knownIds.has(card.id));
+  const unknownCards = remainingCards.filter((card) => !knownIds.has(card.id));
+  const unknownCounters = remainingCounters.filter((card) => !knownIds.has(card.id));
+  const unknownHandSlots = Math.max(0, opponent.hand.length - knownOpponentCards.length);
+  let probability = 0;
+  if (opponent.hand.length >= 2 && opponent.endurance > 0 && (placementExposure || colorExposure)) {
+    probability = knownCounters.length
+      ? 1
+      : probabilityAtLeastOneCard(unknownCards.length, unknownCounters.length, unknownHandSlots);
+  }
+  const requiredPlacement = remainingCounters.reduce((max, card) => Math.max(max, Number(card.boostPrecision || 0)), 0);
+  const remainingHand = player.hand.filter((card) => card.uid !== exposedCard.uid && card.uid !== sacrifice?.uid);
+  const remainingEndurance = player.endurance - effectiveCost(player, exposedCard);
+  const canDefend = requiredPlacement === 0
+    || expertCanDefendBoostWithCards(playerIndex, remainingHand, remainingEndurance, requiredPlacement);
+  const counterFamilies = [...new Set(allPotentialCounters.map((card) => card.family))];
+  const byFamily = Object.fromEntries(counterFamilies.map((family) => [family, {
+    total: allPotentialCounters.filter((card) => card.family === family).length,
+    remaining: remainingCounters.filter((card) => card.family === family).length,
+    knownInOpponentHand: knownCounters.filter((card) => card.family === family).length,
+  }]));
+  const humanEndThreat = opponentIndex === 0 ? playerEndThreatScore(opponent) : 0;
+  const danger = probability * (canDefend ? 8 : 30 + requiredPlacement * 2)
+    + humanEndThreat * 0.65 * aiRiskProjectionFactor();
+  return {
+    probability,
+    canDefend,
+    danger,
+    possibleCounters: remainingCounters,
+    remainingCounterCount: remainingCounters.length,
+    knownCounterCount: knownCounters.length,
+    placementExposure,
+    colorExposure,
+    byFamily,
+  };
+}
+
 function expertCounterBoostThreat(playerIndex, boostedCard, sacrifice = null) {
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
@@ -8452,7 +8629,7 @@ function chooseSoloStrategicEffect(playerIndex) {
     return chooseSoloCancellationBait(playerIndex);
   }
   const effects = player.hand
-    .filter((card) => isRemise(card) && canPlayNormal(playerIndex, card))
+    .filter((card) => isRemise(card) && canPlayEffectMode(playerIndex, card))
     .map((card) => ({ card, score: soloImmediateEffectValue(playerIndex, card) }))
     .filter((choice) => choice.score >= 6)
     .sort((a, b) => b.score - a.score);
@@ -8462,7 +8639,7 @@ function chooseSoloStrategicEffect(playerIndex) {
 function chooseSoloCancellationBait(playerIndex) {
   const player = state.players[playerIndex];
   const candidates = player.hand
-    .filter((card) => isRemise(card) && card.effectType !== "removeOpponentLast" && canPlayNormal(playerIndex, card))
+    .filter((card) => isRemise(card) && card.effectType !== "removeOpponentLast" && canPlayEffectMode(playerIndex, card))
     .filter((card) => effectiveCost(player, card) <= 2)
     .map((card) => {
       const remainingEndurance = player.endurance - effectiveCost(player, card);
@@ -8631,7 +8808,7 @@ function chooseSoloEffectCard(playerIndex) {
   const player = state.players[playerIndex];
   const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
   const remises = player.hand
-    .filter((card) => isRemise(card) && canPlayNormal(playerIndex, card))
+    .filter((card) => isRemise(card) && canPlayEffectMode(playerIndex, card))
     .filter((card) => !effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2));
   const joker = remises
     .filter((card) => card.effectType === "jokerResponse" && state.lastCard?.boosted)
@@ -8808,6 +8985,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   }
   if (boosted && !canPlayBoost(playerIndex, card)) return;
   if (!boosted && !canPlayNormal(playerIndex, card)) return;
+  if (!boosted && isRemise(card) && remiseMode === "effect" && !canPlayEffectMode(playerIndex, card)) return;
   state.turnDirty = true;
   markLocalServerDirty(playerIndex);
 
@@ -9213,6 +9391,7 @@ function applyEffect(playerIndex, card) {
       }
       if (opponent.hand.length > 0) {
         const discarded = opponent.hand.splice(Math.floor(Math.random() * opponent.hand.length), 1)[0];
+        state.discardedCards.push(discarded);
         state.log.unshift(`${displayPlayerName(opponent)} défausse ${discarded.name}.`);
       }
       break;
@@ -13306,7 +13485,7 @@ function renderCard(playerIndex, card) {
     : SOLO_AI.enabled
       ? playerIndex === SOLO_AI.playerIndex && !(state.gameOver && state.revealAiCards)
       : playerIndex !== state.activePlayer && !state.gameOver));
-  const effectModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "effect", false);
+  const effectModeAllowed = canPlayEffectMode(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "effect", false);
   const placementModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "placement", false);
   const normalAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "normal", false);
   const boostAllowed = canPlayBoost(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "boost", true);

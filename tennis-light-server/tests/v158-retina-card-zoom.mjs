@@ -32,9 +32,9 @@ function webpDimensions(buffer) {
   throw new Error(`Flux WebP non pris en charge: ${chunk}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v165<\/span>/);
-assert.match(html, /styles\.css\?v=165\.0/);
-assert.match(html, /app\.js\?v=165\.0/);
+assert.match(html, /Tennis Courts Academy <span>v166<\/span>/);
+assert.match(html, /styles\.css\?v=166\.0/);
+assert.match(html, /app\.js\?v=166\.0/);
 
 const webpCards = cardFiles.filter((file) => file.toLowerCase().endsWith(".webp"));
 assert.equal(webpCards.length, 158);
@@ -44,7 +44,7 @@ const dimensions = await Promise.all(webpCards.map(async (file) => ({
 })));
 assert.equal(dimensions.filter(({ width, height }) => width >= 1462 && height >= 2076).length, 158);
 
-assert.match(app, /const CARD_ASSET_VERSION = "165"/);
+assert.match(app, /const CARD_ASSET_VERSION = "166"/);
 assert.match(app, /value\.startsWith\("assets\/cards\/"\) \? `\$\{value\}\?v=\$\{CARD_ASSET_VERSION\}`/);
 assert.match(app, /function fitZoomImageToScreen\(image\)/);
 assert.match(app, /window\.devicePixelRatio/);
@@ -55,4 +55,4 @@ assert.match(app, /attachResolutionAwareZoom\(backdrop\.querySelector\("\.image-
 assert.match(app, /attachResolutionAwareZoom\(image\)/);
 assert.match(styles, /\.card-image-zoom-trigger\s*\{[\s\S]*cursor: zoom-in/);
 
-console.log("v165 cartes WebP x2, cache actualisé et loupe adaptée à la densité: OK");
+console.log("v166 cartes WebP x2, cache actualisé et loupe adaptée à la densité: OK");

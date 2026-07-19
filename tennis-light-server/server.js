@@ -28,6 +28,7 @@ const PASSWORD_ITERATIONS = 210000;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
 const USER_ROLES = new Set(["free", "pro", "pro_plus", "admin"]);
+const PRO_ROLES = new Set(["pro", "pro_plus", "admin"]);
 const COACH_CHARACTER_IDS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
 const HISTORIC_CHARACTER_IDS = [
   "theoBriancourt", "alessandraConti", "saharaJackson", "kjellBlomqvist", "kojiIwata", "elianaMarquez",
@@ -38,6 +39,18 @@ const NEW_CHARACTER_IDS = [
   "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen",
 ];
 const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
+const PRO_REWARD_CHARACTER_IDS = ["milanVerhaegen"];
+const GAME_NEWS = [
+  {
+    id: "v166-milan-verhaegen-pro-unlock",
+    publishedAt: "2026-07-19",
+    title: "Milan Verhaegen rejoint les joueurs PRO",
+    characterId: "milanVerhaegen",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l'utiliser, choisissez le depuis votre page profil. A bientôt sur les courts ! (signé - Coach Ju)",
+    signature: "Coach Ju",
+  },
+];
 const CIRCUIT_AI_CHARACTER_IDS = [...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
 const AI_CHARACTER_NAMES = {
   theoBriancourt: "Theo Briancourt",
@@ -220,6 +233,19 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function seenNewsIds(user) {
+  const raw = user?.seen_news || user?.seenNews || "";
+  return new Set(String(raw).split(",").map((id) => id.trim()).filter(Boolean));
+}
+
+function pendingNewsForUser(user) {
+  if (!user) return [];
+  const role = normalizeRole(user.role);
+  if (!PRO_ROLES.has(role)) return [];
+  const seen = seenNewsIds(user);
+  return GAME_NEWS.filter((news) => news.audienceRoles.includes(role) && !seen.has(news.id));
+}
+
 function publicUser(user) {
   return user ? {
     id: user.id,
@@ -230,6 +256,7 @@ function publicUser(user) {
     proCode: user.pro_code || user.proCode || null,
     selectedCharacterId: user.selected_character_id || user.selectedCharacterId || "tennisHope",
     unlockedCharacters: userUnlockedCharacters(user),
+    pendingNews: pendingNewsForUser(user),
     bestWorldRank: user.best_world_rank || user.bestWorldRank || null,
     weeksWorldNumberOne: user.weeks_world_number_one || user.weeksWorldNumberOne || 0,
     weeksWorldTop3: user.weeks_world_top3 || user.weeksWorldTop3 || 0,
@@ -1224,6 +1251,7 @@ async function initAuthStorage() {
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_code TEXT UNIQUE");
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_character_id TEXT NOT NULL DEFAULT 'tennisHope'");
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS unlocked_characters TEXT NOT NULL DEFAULT 'coachJu,coachMax,coachCarla,coachClem'");
+  await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS seen_news TEXT NOT NULL DEFAULT ''");
   await db.query("CREATE SEQUENCE IF NOT EXISTS users_account_number_seq START WITH 1");
   await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number BIGINT");
   await db.query("UPDATE users SET account_number = nextval('users_account_number_seq') WHERE account_number IS NULL");
@@ -2042,6 +2070,7 @@ async function createUser({ email, password, nickname: requestedNickname }) {
     proCode: normalizeEmail(email) === ADMIN_EMAIL ? "JUL1EN" : null,
     selectedCharacterId: "tennisHope",
     unlockedCharacters: "coachJu,coachMax,coachCarla,coachClem",
+    seenNews: "",
     createdAt: new Date().toISOString(),
   };
   if (db) {
@@ -2153,6 +2182,7 @@ async function assignProCodeToUser(user, code) {
 function userUnlockedCharacters(user) {
   const role = normalizeRole(user?.role);
   if (role === "admin" || role === "pro_plus") return ALL_PROFILE_CHARACTER_IDS;
+  if (role === "pro") return [...COACH_CHARACTER_IDS, ...PRO_REWARD_CHARACTER_IDS];
   return COACH_CHARACTER_IDS;
 }
 
@@ -2160,6 +2190,7 @@ function canSelectCharacter(user, characterId) {
   const role = normalizeRole(user?.role);
   if (characterId === "tennisHope") return true;
   if ((role === "admin" || role === "pro_plus") && ALL_PROFILE_CHARACTER_IDS.includes(characterId)) return true;
+  if (role === "pro" && PRO_REWARD_CHARACTER_IDS.includes(characterId)) return true;
   return COACH_CHARACTER_IDS.includes(characterId);
 }
 
@@ -2560,6 +2591,21 @@ async function requirePro(req, res) {
   return user;
 }
 
+async function markNewsSeen(user, newsId) {
+  const news = GAME_NEWS.find((item) => item.id === newsId);
+  if (!news || !news.audienceRoles.includes(normalizeRole(user?.role))) return false;
+  const seen = seenNewsIds(user);
+  seen.add(newsId);
+  const serialized = [...seen].join(",");
+  if (db) {
+    await db.query("UPDATE users SET seen_news = $1 WHERE id = $2", [serialized, user.id]);
+    user.seen_news = serialized;
+  } else {
+    user.seenNews = serialized;
+  }
+  return true;
+}
+
 async function handleAuth(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/me") {
     sendJson(res, 200, { user: publicUser(await currentUser(req)) });
@@ -2609,6 +2655,22 @@ async function handleAuth(req, res, url) {
     await deleteSession(unpackSessionCookie(parseCookies(req)[SESSION_COOKIE]));
     clearSessionCookie(res);
     sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  const seenNewsMatch = url.pathname.match(/^\/api\/news\/([^/]+)\/seen$/);
+  if (req.method === "POST" && seenNewsMatch) {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    const newsId = decodeURIComponent(seenNewsMatch[1]);
+    if (!await markNewsSeen(user, newsId)) {
+      sendJson(res, 404, { error: "Actualité inconnue." });
+      return true;
+    }
+    sendJson(res, 200, { ok: true, newsId });
     return true;
   }
 

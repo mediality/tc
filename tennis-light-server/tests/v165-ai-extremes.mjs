@@ -20,10 +20,10 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v165<\/span>/);
-assert.match(html, /styles\.css\?v=165\.0/);
-assert.match(html, /app\.js\?v=165\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "165"/);
+assert.match(html, /Tennis Courts Academy <span>v166<\/span>/);
+assert.match(html, /styles\.css\?v=166\.0/);
+assert.match(html, /app\.js\?v=166\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "166"/);
 
 const attitude = functionSource("chooseSoloAttitude");
 assert.match(attitude, /intelligence === "legend"\) weights\.opportunistic \+= 4/);
@@ -84,4 +84,4 @@ safetyContext.state.setMatch.setsWon = [1, 0];
 const refusedMatchLoss = vm.runInContext("legendaryPassSafetyDecision(1, { best: { risk: 0.95, canDefendCounterBoost: false, remainingEndurance: 0, reserve: 2, type: 'boost_sequence' } })", safetyContext);
 assert.equal(refusedMatchLoss, null);
 
-console.log("v165 Légendaire multi-séquences et Amateur très accessible: OK");
+console.log("v166 Légendaire multi-séquences et Amateur très accessible: OK");

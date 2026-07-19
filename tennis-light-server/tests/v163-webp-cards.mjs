@@ -13,10 +13,10 @@ const [html, app, styles, server, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v165<\/span>/);
-assert.match(html, /styles\.css\?v=165\.0/);
-assert.match(html, /app\.js\?v=165\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "165"/);
+assert.match(html, /Tennis Courts Academy <span>v166<\/span>/);
+assert.match(html, /styles\.css\?v=166\.0/);
+assert.match(html, /app\.js\?v=166\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "166"/);
 
 const webpCards = files.filter((file) => file.toLowerCase().endsWith(".webp"));
 assert.equal(webpCards.length, 158);
@@ -42,4 +42,4 @@ assert.match(styles, /src\*="\.webp"/);
 assert.doesNotMatch(styles, /image-rendering: -webkit-optimize-contrast/);
 assert.doesNotMatch(app, /assets\/cards\/[^"']+\.jpg/);
 
-console.log("v165: 158 cartes WebP, références, cache, MIME et rendu naturel: OK");
+console.log("v166: 158 cartes WebP, références, cache, MIME et rendu naturel: OK");
