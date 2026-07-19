@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_BACK_IMAGE = "assets/cards/Demo-TC-_0000_VERSO-CARTES.png";
+const CARD_BACK_IMAGE = "assets/cards/Demo-TC-_0000_VERSO-CARTES.jpg";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -252,32 +252,32 @@ const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
 const PROFILE_CHARACTER_IMAGES = {
-  tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
-  coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.png",
-  coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.png",
-  coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.png",
-  coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.png",
-  theoBriancourt: "assets/cards/LOBBY-Briancourt.png",
-  alessandraConti: "assets/cards/LOBBY-Conti.png",
-  saharaJackson: "assets/cards/LOBBY-Jackson.png",
-  kjellBlomqvist: "assets/cards/LOBBY-Blomqvist.png",
-  kojiIwata: "assets/cards/LOBBY-Iwata.png",
-  elianaMarquez: "assets/cards/LOBBY-Marquez.png",
-  bryanGoodwin: "assets/cards/LOBBY-Goodwin.png",
-  calvinBrentwood: "assets/cards/LOBBY-Brentwood.png",
-  javierRamirez: "assets/cards/LOBBY-Ramirez.png",
-  petraEckermann: "assets/cards/LOBBY-Eckermann.png",
-  jonasFalkenried: "assets/cards/LOBBY-Jonas-Falkenried.png",
-  yunaSeo: "assets/cards/LOBBY-Yuna-Seo.png",
-  ikerSalvat: "assets/cards/LOBBY-Iker-Salvat.png",
-  loganBrooks: "assets/cards/LOBBY-Logan-Brooks.png",
-  kavyaSaran: "assets/cards/LOBBY-Kavya-Saran.png",
-  zariaCampbell: "assets/cards/LOBBY-Zaria-Campbell.png",
-  renAoshima: "assets/cards/LOBBY-Ren-Aoshima.png",
-  yasmineElMansouri: "assets/cards/LOBBY-Yasmine-El-Mansouri.png",
-  daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.png",
-  lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.png",
-  milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.png",
+  tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
+  coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.jpg",
+  coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.jpg",
+  coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.jpg",
+  coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.jpg",
+  theoBriancourt: "assets/cards/LOBBY-Briancourt.jpg",
+  alessandraConti: "assets/cards/LOBBY-Conti.jpg",
+  saharaJackson: "assets/cards/LOBBY-Jackson.jpg",
+  kjellBlomqvist: "assets/cards/LOBBY-Blomqvist.jpg",
+  kojiIwata: "assets/cards/LOBBY-Iwata.jpg",
+  elianaMarquez: "assets/cards/LOBBY-Marquez.jpg",
+  bryanGoodwin: "assets/cards/LOBBY-Goodwin.jpg",
+  calvinBrentwood: "assets/cards/LOBBY-Brentwood.jpg",
+  javierRamirez: "assets/cards/LOBBY-Ramirez.jpg",
+  petraEckermann: "assets/cards/LOBBY-Eckermann.jpg",
+  jonasFalkenried: "assets/cards/LOBBY-Jonas-Falkenried.jpg",
+  yunaSeo: "assets/cards/LOBBY-Yuna-Seo.jpg",
+  ikerSalvat: "assets/cards/LOBBY-Iker-Salvat.jpg",
+  loganBrooks: "assets/cards/LOBBY-Logan-Brooks.jpg",
+  kavyaSaran: "assets/cards/LOBBY-Kavya-Saran.jpg",
+  zariaCampbell: "assets/cards/LOBBY-Zaria-Campbell.jpg",
+  renAoshima: "assets/cards/LOBBY-Ren-Aoshima.jpg",
+  yasmineElMansouri: "assets/cards/LOBBY-Yasmine-El-Mansouri.jpg",
+  daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.jpg",
+  lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.jpg",
+  milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.jpg",
 };
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -538,237 +538,237 @@ const CHARACTERS = {
 
 const CHARACTER_IMAGES = {
   coachUnknown: [
-    "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
-    "assets/cards/Demo-TC-_0027_Coach-INCONNU.png",
+    "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
+    "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
   ],
   tennisHope: [
     "assets/ESPOIRRECTO.png",
     "assets/ESPOIRVERSO.png",
   ],
   coachJu: [
-    "assets/cards/Demo-TC-_0004_Coach-JU-RECTO.png",
-    "assets/cards/Demo-TC-_0003_Coach-JU-VERSO-.png",
+    "assets/cards/Demo-TC-_0004_Coach-JU-RECTO.jpg",
+    "assets/cards/Demo-TC-_0003_Coach-JU-VERSO-.jpg",
   ],
   coachMax: [
-    "assets/cards/Demo-TC-_0002_Coach-MAX-VERSO.png",
-    "assets/cards/Demo-TC-_0001_Coach-MAX-VERSO.png",
+    "assets/cards/Demo-TC-_0002_Coach-MAX-VERSO.jpg",
+    "assets/cards/Demo-TC-_0001_Coach-MAX-VERSO.jpg",
   ],
   coachCarla: [
-    "assets/cards/Demo-TC-_0025_Coach-CARLA-RECTO.png",
-    "assets/cards/Demo-TC-_0026_Coach-CARLA-VERSO.png",
+    "assets/cards/Demo-TC-_0025_Coach-CARLA-RECTO.jpg",
+    "assets/cards/Demo-TC-_0026_Coach-CARLA-VERSO.jpg",
   ],
   coachClem: [
-    "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.png",
-    "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.png",
+    "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.jpg",
+    "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.jpg",
   ],
   theoBriancourt: [
-    "assets/cards/_0023_BRIANCOURT.png",
-    "assets/cards/_0022_BRIANCOURT-VERSO.png",
+    "assets/cards/_0023_BRIANCOURT.jpg",
+    "assets/cards/_0022_BRIANCOURT-VERSO.jpg",
   ],
   alessandraConti: [
-    "assets/cards/_0021_CONTI.png",
-    "assets/cards/_0020_CONTI-VERSO.png",
+    "assets/cards/_0021_CONTI.jpg",
+    "assets/cards/_0020_CONTI-VERSO.jpg",
   ],
   saharaJackson: [
-    "assets/cards/_0019_JACKSON.png",
-    "assets/cards/_0018_JACKSON-VERSO.png",
+    "assets/cards/_0019_JACKSON.jpg",
+    "assets/cards/_0018_JACKSON-VERSO.jpg",
   ],
   kjellBlomqvist: [
-    "assets/cards/_0017_BLOMQVIST.png",
-    "assets/cards/_0016_BLOMQVIST-VERSO.png",
+    "assets/cards/_0017_BLOMQVIST.jpg",
+    "assets/cards/_0016_BLOMQVIST-VERSO.jpg",
   ],
   kojiIwata: [
-    "assets/cards/_0015_IWATA.png",
-    "assets/cards/_0014_IWATA-VERSO.png",
+    "assets/cards/_0015_IWATA.jpg",
+    "assets/cards/_0014_IWATA-VERSO.jpg",
   ],
   elianaMarquez: [
-    "assets/cards/_0013_MARQUEZ.png",
-    "assets/cards/_0012_MARQUEZ-VERSO.png",
+    "assets/cards/_0013_MARQUEZ.jpg",
+    "assets/cards/_0012_MARQUEZ-VERSO.jpg",
   ],
   bryanGoodwin: [
-    "assets/cards/HISTO4-Bryan-Goodwin.png",
-    "assets/cards/HISTO4-Bryan-Goodwin-VERSO.png",
+    "assets/cards/HISTO4-Bryan-Goodwin.jpg",
+    "assets/cards/HISTO4-Bryan-Goodwin-VERSO.jpg",
   ],
   calvinBrentwood: [
-    "assets/cards/HISTO4-Calvin-Brentwood.png",
-    "assets/cards/HISTO4-Calvin-Brentwood-VERSO.png",
+    "assets/cards/HISTO4-Calvin-Brentwood.jpg",
+    "assets/cards/HISTO4-Calvin-Brentwood-VERSO.jpg",
   ],
   javierRamirez: [
-    "assets/cards/HISTO4-Javier-Ramirez.png",
-    "assets/cards/HISTO4-Javier-Ramirez-VERSO.png",
+    "assets/cards/HISTO4-Javier-Ramirez.jpg",
+    "assets/cards/HISTO4-Javier-Ramirez-VERSO.jpg",
   ],
   petraEckermann: [
-    "assets/cards/HISTO4-Petra-Eckermann.png",
-    "assets/cards/HISTO4-Petra-Eckermann-VERSO.png",
+    "assets/cards/HISTO4-Petra-Eckermann.jpg",
+    "assets/cards/HISTO4-Petra-Eckermann-VERSO.jpg",
   ],
   jonasFalkenried: [
-    "assets/cards/TC-new-Jonas-Falkenried.png",
-    "assets/cards/TC-new-Jonas-Falkenried-VERSO.png",
+    "assets/cards/TC-new-Jonas-Falkenried.jpg",
+    "assets/cards/TC-new-Jonas-Falkenried-VERSO.jpg",
   ],
   yunaSeo: [
-    "assets/cards/TC-new-Yuna-Seo.png",
-    "assets/cards/TC-new-Yuna-Seo-VERSO.png",
+    "assets/cards/TC-new-Yuna-Seo.jpg",
+    "assets/cards/TC-new-Yuna-Seo-VERSO.jpg",
   ],
   ikerSalvat: [
-    "assets/cards/TC-new-Iker-Salvat.png",
-    "assets/cards/TC-new-Iker-Salvat-VERSO.png",
+    "assets/cards/TC-new-Iker-Salvat.jpg",
+    "assets/cards/TC-new-Iker-Salvat-VERSO.jpg",
   ],
   loganBrooks: [
-    "assets/cards/TC-new-Logan-Brooks.png",
-    "assets/cards/TC-new-Logan-Brooks-VERSO.png",
+    "assets/cards/TC-new-Logan-Brooks.jpg",
+    "assets/cards/TC-new-Logan-Brooks-VERSO.jpg",
   ],
   kavyaSaran: [
-    "assets/cards/TC-new-Kavya-Saran.png",
-    "assets/cards/TC-new-Kavya-Saran-VERSO.png",
+    "assets/cards/TC-new-Kavya-Saran.jpg",
+    "assets/cards/TC-new-Kavya-Saran-VERSO.jpg",
   ],
   zariaCampbell: [
-    "assets/cards/TC-new-Zaria-Campbell.png",
-    "assets/cards/TC-new-Zaria-Campbell-VERSO.png",
+    "assets/cards/TC-new-Zaria-Campbell.jpg",
+    "assets/cards/TC-new-Zaria-Campbell-VERSO.jpg",
   ],
   renAoshima: [
-    "assets/cards/TC-new-Ren-Aoshima.png",
-    "assets/cards/TC-new-Ren-Aoshima-VERSO.png",
+    "assets/cards/TC-new-Ren-Aoshima.jpg",
+    "assets/cards/TC-new-Ren-Aoshima-VERSO.jpg",
   ],
   yasmineElMansouri: [
-    "assets/cards/TC-new-Yasmine-El-Mansouri.png",
-    "assets/cards/TC-new-Yasmine-El-Mansouri-VERSO.png",
+    "assets/cards/TC-new-Yasmine-El-Mansouri.jpg",
+    "assets/cards/TC-new-Yasmine-El-Mansouri-VERSO.jpg",
   ],
   daanVermeer: [
-    "assets/cards/TC-new-Daan-Vermeer.png",
-    "assets/cards/TC-new-Daan-Vermeer-VERSO.png",
+    "assets/cards/TC-new-Daan-Vermeer.jpg",
+    "assets/cards/TC-new-Daan-Vermeer-VERSO.jpg",
   ],
   lukasEberhardt: [
-    "assets/cards/TC-new-Lukas-Eberhardt.png",
-    "assets/cards/TC-new-Lukas-Eberhardt-VERSO.png",
+    "assets/cards/TC-new-Lukas-Eberhardt.jpg",
+    "assets/cards/TC-new-Lukas-Eberhardt-VERSO.jpg",
   ],
   milanVerhaegen: [
-    "assets/cards/TC-new-Milan-Verhaegen.png",
-    "assets/cards/TC-new-Milan-Verhaegen-VERSO.png",
+    "assets/cards/TC-new-Milan-Verhaegen.jpg",
+    "assets/cards/TC-new-Milan-Verhaegen-VERSO.jpg",
   ],
 };
 
 const MATCH_RESULT_IMAGES = {
   coachJu: {
-    win: "assets/cards/CoachJuWin.png",
-    lose: "assets/cards/CoachJuLoose.png",
+    win: "assets/cards/CoachJuWin.jpg",
+    lose: "assets/cards/CoachJuLoose.jpg",
   },
   coachMax: {
-    win: "assets/cards/CoachMaxWin.png",
-    lose: "assets/cards/CoachMaxLoose.png",
+    win: "assets/cards/CoachMaxWin.jpg",
+    lose: "assets/cards/CoachMaxLoose.jpg",
   },
   coachCarla: {
-    win: "assets/cards/CoachClaraWin.png",
-    lose: "assets/cards/CoachClaraLoose.png",
+    win: "assets/cards/CoachClaraWin.jpg",
+    lose: "assets/cards/CoachClaraLoose.jpg",
   },
   coachClem: {
-    win: "assets/cards/CoachClemWin.png",
-    lose: "assets/cards/CoachClemLoose.png",
+    win: "assets/cards/CoachClemWin.jpg",
+    lose: "assets/cards/CoachClemLoose.jpg",
   },
   theoBriancourt: {
-    win: "assets/cards/_0002_BRIANCOURT-WIN.png",
-    lose: "assets/cards/_0003_BRIANCOURT-LOSE.png",
+    win: "assets/cards/_0002_BRIANCOURT-WIN.jpg",
+    lose: "assets/cards/_0003_BRIANCOURT-LOSE.jpg",
   },
   alessandraConti: {
-    win: "assets/cards/_0006_CONTI-WIN.png",
-    lose: "assets/cards/_0007_CONTI-LOSE.png",
+    win: "assets/cards/_0006_CONTI-WIN.jpg",
+    lose: "assets/cards/_0007_CONTI-LOSE.jpg",
   },
   saharaJackson: {
-    win: "assets/cards/_0005_JACKSON-WIN.png",
-    lose: "assets/cards/_0004_JACKSON-LOSE.png",
+    win: "assets/cards/_0005_JACKSON-WIN.jpg",
+    lose: "assets/cards/_0004_JACKSON-LOSE.jpg",
   },
   kjellBlomqvist: {
-    win: "assets/cards/_0001_BLOMQVIST-WIN.png",
-    lose: "assets/cards/_0000_BLOMQVIST-LOSE.png",
+    win: "assets/cards/_0001_BLOMQVIST-WIN.jpg",
+    lose: "assets/cards/_0000_BLOMQVIST-LOSE.jpg",
   },
   kojiIwata: {
-    win: "assets/cards/_0008_IWATA-WIN.png",
-    lose: "assets/cards/_0009_IWATA-LOSE.png",
+    win: "assets/cards/_0008_IWATA-WIN.jpg",
+    lose: "assets/cards/_0009_IWATA-LOSE.jpg",
   },
   elianaMarquez: {
-    win: "assets/cards/_0011_MARQUEZ-WIN.png",
-    lose: "assets/cards/_0010_MARQUEZ-LOSE.png",
+    win: "assets/cards/_0011_MARQUEZ-WIN.jpg",
+    lose: "assets/cards/_0010_MARQUEZ-LOSE.jpg",
   },
   bryanGoodwin: {
-    win: "assets/cards/HISTO4-Bryan-Goodwin-WIN.png",
-    lose: "assets/cards/HISTO4-Bryan-Goodwin-LOSE.png",
+    win: "assets/cards/HISTO4-Bryan-Goodwin-WIN.jpg",
+    lose: "assets/cards/HISTO4-Bryan-Goodwin-LOSE.jpg",
   },
   calvinBrentwood: {
-    win: "assets/cards/HISTO4-Calvin-Brentwood-WIN.png",
-    lose: "assets/cards/HISTO4-Calvin-Brentwood-LOSE.png",
+    win: "assets/cards/HISTO4-Calvin-Brentwood-WIN.jpg",
+    lose: "assets/cards/HISTO4-Calvin-Brentwood-LOSE.jpg",
   },
   javierRamirez: {
-    win: "assets/cards/HISTO4-Javier-Ramirez-WIN.png",
-    lose: "assets/cards/HISTO4-Javier-Ramirez-LOSE.png",
+    win: "assets/cards/HISTO4-Javier-Ramirez-WIN.jpg",
+    lose: "assets/cards/HISTO4-Javier-Ramirez-LOSE.jpg",
   },
   petraEckermann: {
-    win: "assets/cards/HISTO4-Petra-Eckermann-WIN.png",
-    lose: "assets/cards/HISTO4-Petra-Eckermann-LOSE.png",
+    win: "assets/cards/HISTO4-Petra-Eckermann-WIN.jpg",
+    lose: "assets/cards/HISTO4-Petra-Eckermann-LOSE.jpg",
   },
   jonasFalkenried: {
-    win: "assets/cards/TC-result-Jonas-Falkenried-WIN.png",
-    lose: "assets/cards/TC-result-Jonas-Falkenried-LOSE.png",
+    win: "assets/cards/TC-result-Jonas-Falkenried-WIN.jpg",
+    lose: "assets/cards/TC-result-Jonas-Falkenried-LOSE.jpg",
   },
   yunaSeo: {
-    win: "assets/cards/TC-result-Yuna-Seo-WIN.png",
-    lose: "assets/cards/TC-result-Yuna-Seo-LOSE.png",
+    win: "assets/cards/TC-result-Yuna-Seo-WIN.jpg",
+    lose: "assets/cards/TC-result-Yuna-Seo-LOSE.jpg",
   },
   ikerSalvat: {
-    win: "assets/cards/TC-result-Iker-Salvat-WIN.png",
-    lose: "assets/cards/TC-result-Iker-Salvat-LOSE.png",
+    win: "assets/cards/TC-result-Iker-Salvat-WIN.jpg",
+    lose: "assets/cards/TC-result-Iker-Salvat-LOSE.jpg",
   },
   loganBrooks: {
-    win: "assets/cards/TC-result-Logan-Brooks-WIN.png",
-    lose: "assets/cards/TC-result-Logan-Brooks-LOSE.png",
+    win: "assets/cards/TC-result-Logan-Brooks-WIN.jpg",
+    lose: "assets/cards/TC-result-Logan-Brooks-LOSE.jpg",
   },
   kavyaSaran: {
-    win: "assets/cards/TC-result-Kavya-Saran-WIN.png",
-    lose: "assets/cards/TC-result-Kavya-Saran-LOSE.png",
+    win: "assets/cards/TC-result-Kavya-Saran-WIN.jpg",
+    lose: "assets/cards/TC-result-Kavya-Saran-LOSE.jpg",
   },
   zariaCampbell: {
-    win: "assets/cards/TC-result-Zaria-Campbell-WIN.png",
-    lose: "assets/cards/TC-result-Zaria-Campbell-LOSE.png",
+    win: "assets/cards/TC-result-Zaria-Campbell-WIN.jpg",
+    lose: "assets/cards/TC-result-Zaria-Campbell-LOSE.jpg",
   },
   renAoshima: {
-    win: "assets/cards/TC-result-Ren-Aoshima-WIN.png",
-    lose: "assets/cards/TC-result-Ren-Aoshima-LOSE.png",
+    win: "assets/cards/TC-result-Ren-Aoshima-WIN.jpg",
+    lose: "assets/cards/TC-result-Ren-Aoshima-LOSE.jpg",
   },
   yasmineElMansouri: {
-    win: "assets/cards/TC-result-Yasmine-El-Mansouri-WIN.png",
-    lose: "assets/cards/TC-result-Yasmine-El-Mansouri-LOSE.png",
+    win: "assets/cards/TC-result-Yasmine-El-Mansouri-WIN.jpg",
+    lose: "assets/cards/TC-result-Yasmine-El-Mansouri-LOSE.jpg",
   },
   daanVermeer: {
-    win: "assets/cards/TC-result-Daan-Vermeer-WIN.png",
-    lose: "assets/cards/TC-result-Daan-Vermeer-LOSE.png",
+    win: "assets/cards/TC-result-Daan-Vermeer-WIN.jpg",
+    lose: "assets/cards/TC-result-Daan-Vermeer-LOSE.jpg",
   },
   lukasEberhardt: {
-    win: "assets/cards/TC-result-Lukas-Eberhardt-WIN.png",
-    lose: "assets/cards/TC-result-Lukas-Eberhardt-LOSE.png",
+    win: "assets/cards/TC-result-Lukas-Eberhardt-WIN.jpg",
+    lose: "assets/cards/TC-result-Lukas-Eberhardt-LOSE.jpg",
   },
   milanVerhaegen: {
-    win: "assets/cards/TC-result-Milan-Verhaegen-WIN.png",
-    lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.png",
+    win: "assets/cards/TC-result-Milan-Verhaegen-WIN.jpg",
+    lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.jpg",
   },
 };
 
 const CARD_IMAGES = {
-  double: "assets/cards/Demo-TC-_0005_DOUBLE-x2.png",
-  joker: "assets/cards/Demo-TC-_0006_JOKER-x2.png",
-  "sup-adv": "assets/cards/Demo-TC-_0007_SUP-ADV.png",
-  "amortie-2-1-4": "assets/cards/Demo-TC-_0011_030---AMORTIE-2-1-4.png",
-  "retour-service": "assets/cards/Demo-TC-_0008_RETOUR-DE-SERVICE.png",
-  "volee-2-2-3": "assets/cards/Demo-TC-_0010_031---VOLEE-2-2-3.png",
-  "volee-3-4-1": "assets/cards/Demo-TC-_0013_026---VOLEE-3-4-1.png",
-  "coup-droit-2-2-2": "assets/cards/Demo-TC-_0022_002---CP-DROIT-2-2-2.png",
-  "passing-1-1-4": "assets/cards/Demo-TC-_0009_029---PASSING-1-1-4.png",
-  "lob-2-0-4": "assets/cards/Demo-TC-_0012_027---LOB-2-0-4.png",
-  "coup-droit-4-3-5": "assets/cards/Demo-TC-_0019_010---CP-DROIT-4-3-5.png",
-  "service-coup-droit": "assets/cards/Demo-TC-_0015_020---CP-DROIT-SERV-3.png",
-  "revers-3-3-3": "assets/cards/Demo-TC-_0018_012---REVERS-3-3-3.png",
-  "coup-droit-3-3-3": "assets/cards/Demo-TC-_0020_007---CP-DROIT-3-3-3.png",
-  "revers-5-4-1": "assets/cards/Demo-TC-_0016_016---REVERS-5-4-1.png",
-  "smash-4-2-1": "assets/cards/Demo-TC-_0014_023---SMASH-4-2-1.png",
-  "revers-3-3-0": "assets/cards/Demo-TC-_0021_005---REVERS-3-3-0.png",
-  "revers-2": "assets/cards/Demo-TC-_0017_013---REVERS-2.png",
+  double: "assets/cards/Demo-TC-_0005_DOUBLE-x2.jpg",
+  joker: "assets/cards/Demo-TC-_0006_JOKER-x2.jpg",
+  "sup-adv": "assets/cards/Demo-TC-_0007_SUP-ADV.jpg",
+  "amortie-2-1-4": "assets/cards/Demo-TC-_0011_030---AMORTIE-2-1-4.jpg",
+  "retour-service": "assets/cards/Demo-TC-_0008_RETOUR-DE-SERVICE.jpg",
+  "volee-2-2-3": "assets/cards/Demo-TC-_0010_031---VOLEE-2-2-3.jpg",
+  "volee-3-4-1": "assets/cards/Demo-TC-_0013_026---VOLEE-3-4-1.jpg",
+  "coup-droit-2-2-2": "assets/cards/Demo-TC-_0022_002---CP-DROIT-2-2-2.jpg",
+  "passing-1-1-4": "assets/cards/Demo-TC-_0009_029---PASSING-1-1-4.jpg",
+  "lob-2-0-4": "assets/cards/Demo-TC-_0012_027---LOB-2-0-4.jpg",
+  "coup-droit-4-3-5": "assets/cards/Demo-TC-_0019_010---CP-DROIT-4-3-5.jpg",
+  "service-coup-droit": "assets/cards/Demo-TC-_0015_020---CP-DROIT-SERV-3.jpg",
+  "revers-3-3-3": "assets/cards/Demo-TC-_0018_012---REVERS-3-3-3.jpg",
+  "coup-droit-3-3-3": "assets/cards/Demo-TC-_0020_007---CP-DROIT-3-3-3.jpg",
+  "revers-5-4-1": "assets/cards/Demo-TC-_0016_016---REVERS-5-4-1.jpg",
+  "smash-4-2-1": "assets/cards/Demo-TC-_0014_023---SMASH-4-2-1.jpg",
+  "revers-3-3-0": "assets/cards/Demo-TC-_0021_005---REVERS-3-3-0.jpg",
+  "revers-2": "assets/cards/Demo-TC-_0017_013---REVERS-2.jpg",
 };
 
 const CARD_LIBRARY = [
@@ -3569,6 +3569,7 @@ function renderAiClubHouse() {
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   const circuitMode = AI_CLUB_HOUSE.difficulty === "circuit";
+  if (circuitMode) AI_CLUB_HOUSE.format = "tournament";
   els.aiClubSettingButtons?.forEach((button) => {
     const setting = button.dataset.aiClubSetting;
     const expected = {
@@ -3580,7 +3581,7 @@ function renderAiClubHouse() {
       distribution: AI_CLUB_HOUSE.distribution,
     }[setting];
     button.classList.toggle("active", button.dataset.aiClubValue === expected);
-    button.disabled = setting === "bonus" && circuitMode;
+    button.disabled = circuitMode && ["format", "bonus", "players", "distribution"].includes(setting);
   });
   els.aiBonusSettingRow?.classList.toggle("setting-disabled", circuitMode);
   if (els.aiLevelDescription) {
@@ -3596,7 +3597,9 @@ function renderAiClubHouse() {
     const bonusText = circuitMode ? "bonus Circuit Pro" : `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
-    els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
+    els.aiClubHouseSummary.textContent = circuitMode
+      ? `Tournoi classique à 16 · ${AI_CLUB_HOUSE.targetSets} sets gagnants · Circuit Pro · sélection, tableau, niveaux IA et bonus du Circuit Pro`
+      : `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
   }
   els.aiClubHouseSaveActions?.classList.toggle("hidden", !readAiClubHouseSave());
 }
@@ -3646,7 +3649,7 @@ function deleteAiClubHouseSave() {
 }
 
 function updateAiClubHouseSetting(setting, value) {
-  if (setting === "bonus" && AI_CLUB_HOUSE.difficulty === "circuit") return;
+  if (["format", "bonus", "players", "distribution"].includes(setting) && AI_CLUB_HOUSE.difficulty === "circuit") return;
   if (setting === "format") {
     AI_CLUB_HOUSE.format = value === "league" ? "league" : "tournament";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
@@ -3656,6 +3659,10 @@ function updateAiClubHouseSetting(setting, value) {
   } else if (setting === "difficulty") {
     AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(value);
     localStorage.setItem("tennisLightAiClubDifficulty", AI_CLUB_HOUSE.difficulty);
+    if (AI_CLUB_HOUSE.difficulty === "circuit") {
+      AI_CLUB_HOUSE.format = "tournament";
+      localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
+    }
   } else if (setting === "bonus") {
     AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(value);
     localStorage.setItem("tennisLightAiClubBonus", AI_CLUB_HOUSE.bonus);
@@ -3716,7 +3723,7 @@ async function startAiClubHouseCompetition() {
       distribution: AI_CLUB_HOUSE.distribution,
     };
     try {
-      if (AI_CLUB_HOUSE.format === "league") {
+      if (AI_CLUB_HOUSE.format === "league" && AI_CLUB_HOUSE.difficulty !== "circuit") {
         startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
       } else {
         startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
@@ -5384,7 +5391,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v152",
+    gameVersion: "v154",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5624,7 +5631,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v152",
+    version: "v154",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5683,7 +5690,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v152",
+    version: "v154",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5697,7 +5704,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v152");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v154");
 }
 
 function resetSetMatch() {
@@ -5773,7 +5780,9 @@ function newGame(options = {}) {
       ? tournamentWorldRankForEntry(tournamentEntry)
       : null;
   });
-  if (state.tournament.active && !state.tournament.aiClubHouse && !SERVER_SYNC.enabled) {
+  if (state.tournament.active
+    && (!state.tournament.aiClubHouse || state.tournament.difficulty === "circuit")
+    && !SERVER_SYNC.enabled) {
     const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
     if (headToHead) {
       const targetIndex = headToHead.target === "human" ? 0 : 1;
@@ -9605,6 +9614,10 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     render();
     return;
   }
+  if (options.aiClubHouse && normalizeAiDifficulty(options.difficulty) === "circuit") {
+    startTournamentMode(targetSets, { ...options, aiClubHouse: true, distribution: "ranking" });
+    return;
+  }
   resetTournament();
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
@@ -10035,13 +10048,16 @@ function startTournamentMode(targetSets = 2, options = {}) {
     seedEntries = [],
     seedNumbers = {},
     positionByEntry = tournamentPositionMap(positions),
+    humanLevel = circuitHumanLevel(),
   } = tournamentSetup;
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
-  const permanentBonuses = aiClubHouse
+  const permanentBonuses = circuitRules
+    ? buildCircuitSeedPermanentBonuses(seedEntries)
+    : aiClubHouse
     ? {}
     : buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
   const circuitBonusSetup = circuitRules
-    ? buildWeeklyCircuitProBonuses(positions, seedEntries, circuitSurface)
+    ? buildWeeklyCircuitProBonuses(positions, seedEntries, circuitSurface, humanLevel)
     : null;
   const surfaceBonuses = circuitRules
     ? circuitBonusSetup.bonuses
@@ -10049,7 +10065,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
       ? buildAiClubHouseBonuses(positions, bonusLevel)
       : {};
   const aiIntelligenceLevels = aiClubHouse
-    ? buildTournamentAiIntelligenceLevels(positions, SOLO_AI.difficulty)
+    ? buildTournamentAiIntelligenceLevels(positions, SOLO_AI.difficulty, { humanLevel })
     : {};
   state.tournament = {
     active: true,
@@ -10059,8 +10075,8 @@ function startTournamentMode(targetSets = 2, options = {}) {
     difficulty: SOLO_AI.difficulty,
     aiIntelligenceLevels,
     bonusLevel,
-    playerSelection: options.players || "random",
-    distribution: options.distribution || "random",
+    playerSelection: circuitRules ? "circuit" : options.players || "random",
+    distribution: circuitRules ? "ranking" : options.distribution || "random",
     weekly: Boolean(weeklyCompetition),
     competitionId: weeklyCompetition?.id || null,
     competitionName: weeklyCompetition?.name || (aiClubHouse ? "TOURNOI CLUB HOUSE" : null),
@@ -10085,6 +10101,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     weeklyPositions: positions,
     tournamentPositions: positionByEntry,
     tournamentSeedNumbers: seedNumbers,
+    humanCircuitLevel: circuitRules ? humanLevel : null,
     circuitBonusSurface: circuitBonusSetup?.surface || null,
     surfaceBonuses,
     permanentBonuses,
@@ -10353,6 +10370,20 @@ function addPermanentBonus(target, entry, bonus) {
   target[entry] = [...(target[entry] || []), { ...bonus }];
 }
 
+function buildCircuitSeedPermanentBonuses(seedEntries = []) {
+  const bonuses = {};
+  for (const entry of seedEntries.slice(0, 4)) {
+    if (!entry || entry === HUMAN_TOURNAMENT_ENTRY || Math.random() >= 0.5) continue;
+    addPermanentBonus(bonuses, entry, {
+      id: "circuitSeedPrecisionPlacement",
+      label: "Tête de série IA : +1 précision / +1 placement",
+      precision: 1,
+      placement: 1,
+    });
+  }
+  return bonuses;
+}
+
 function buildTournamentPermanentBonuses(entries = [], seededEntries = [], dynamicBonusIds = []) {
   const bonuses = {};
   const ranked = tournamentRankingEntries();
@@ -10494,7 +10525,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
   const surfaceBonuses = circuitBonusSetup.bonuses;
   const aiIntelligenceLevels = buildTournamentAiIntelligenceLevels(positions, "circuit", { humanLevel });
   const dynamicBonusIds = [];
-  const permanentBonuses = {};
+  const permanentBonuses = buildCircuitSeedPermanentBonuses(seedEntries);
   state.tournament = {
     active: true,
     visible: false,

@@ -4809,3 +4809,21 @@ h1 {
     padding: 12px;
   }
 }
+
+/* Les cartes V154 sont des JPG sans transparence. Cette bordure arrondie
+   recouvre les quatre coins blancs et restitue la découpe des anciens PNG. */
+.card-visual > img[src*="assets/cards/"][src$=".jpg"]:not(.forbid-effect-overlay),
+.character-card > img[src*="assets/cards/"][src$=".jpg"],
+.played-visual > img[src*="assets/cards/"][src$=".jpg"]:not(.remise-forbid-overlay),
+.profile-character-visual img[src*="assets/cards/"][src$=".jpg"],
+.profile-character-choice img[src*="assets/cards/"][src$=".jpg"],
+.academy-deck-card > img[src*="assets/cards/"][src$=".jpg"],
+.image-zoom-figure img[src*="assets/cards/"][src$=".jpg"],
+.choice-card-visual img[src*="assets/cards/"][src$=".jpg"],
+.tutorial-card-showcase img[src*="assets/cards/"][src$=".jpg"],
+.confrontation-intro-player img[src*="assets/cards/"][src$=".jpg"] {
+  box-sizing: border-box;
+  border: clamp(1px, 0.28vw, 3px) solid rgba(255, 255, 255, 0.94);
+  border-radius: 5% / 3.55%;
+  background: #f7faf8;
+}
