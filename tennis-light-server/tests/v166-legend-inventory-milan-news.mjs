@@ -22,10 +22,10 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
-assert.match(html, /styles\.css\?v=168\.0/);
-assert.match(html, /app\.js\?v=168\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "168"/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=169\.0/);
+assert.match(html, /app\.js\?v=169\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 const effectGuard = functionSource(app, "legendaryEffectSequenceIsUseful");
 assert.match(effectGuard, /effect\.effectType !== "freeBoostNext"/);
@@ -115,10 +115,13 @@ assert.ok(app.includes(announcement));
 assert.ok(server.includes(announcement));
 assert.match(server, /ALTER TABLE users ADD COLUMN IF NOT EXISTS seen_news/);
 assert.match(server, /\/api\\\/news\\\/\(\[\^\/\]\+\)\\\/seen/);
-assert.match(app, /showNextProNewsDialog/);
+assert.doesNotMatch(app, /showNextProNewsDialog/);
+assert.match(app, /function renderLatestNewsPanel\(\)/);
+assert.match(app, /function showGameNewsDialog\(newsId\)/);
 assert.match(app, /TC-new-Milan-Verhaegen\.webp/);
 assert.match(css, /\.pro-news-modal/);
 assert.match(css, /\.pro-news-card-frame/);
+assert.match(css, /\.latest-news-panel/);
 
 const newsContext = vm.createContext({
   PRO_ROLES: new Set(["pro", "pro_plus", "admin"]),
@@ -130,4 +133,4 @@ assert.equal(vm.runInContext("pendingNewsForUser({ role: 'pro', seenNews: '' }).
 assert.equal(vm.runInContext("pendingNewsForUser({ role: 'pro', seenNews: 'v166-milan-verhaegen-pro-unlock' }).length", newsContext), 0);
 assert.equal(vm.runInContext("pendingNewsForUser({ role: 'free', seenNews: '' }).length", newsContext), 0);
 
-console.log("v168 inventaire de contre-boost Légende, Milan PRO et actualité persistante: OK");
+console.log("v169 inventaire de contre-boost Légende, Milan PRO et actualité persistante: OK");

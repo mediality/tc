@@ -20,10 +20,10 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
-assert.match(html, /styles\.css\?v=168\.0/);
-assert.match(html, /app\.js\?v=168\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "168"/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=169\.0/);
+assert.match(html, /app\.js\?v=169\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 const exposureSource = functionSource(app, "soloInformationExposureProfile");
 const disciplineSource = functionSource(app, "soloCommitmentDiscipline");
@@ -87,4 +87,4 @@ assert.match(functionSource(app, "buildSoloScenarioPlan"), /informationExposure:
 assert.match(functionSource(app, "buildLegendarySequencePlan"), /plannedSequence: true/);
 assert.match(functionSource(app, "chooseSoloNormalCoup"), /soloCommitmentDiscipline/);
 
-console.log("v168 IA: patience face à un humain prudent et agressivité conservée pour les séquences préparées: OK");
+console.log("v169 IA: patience face à un humain prudent et agressivité conservée pour les séquences préparées: OK");

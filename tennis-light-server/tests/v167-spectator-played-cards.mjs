@@ -22,10 +22,10 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
-assert.match(html, /styles\.css\?v=168\.0/);
-assert.match(html, /app\.js\?v=168\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "168"/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=169\.0/);
+assert.match(html, /app\.js\?v=169\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 assert.match(
   styles,
@@ -67,4 +67,4 @@ assert.equal(sanitized.latestPlayedCard.id, "played-shot");
 assert.equal(sanitized.turnPlayedCards[0].id, "played-shot");
 assert.equal(sanitized.deck.length, 0);
 
-console.log("v168 visionnage: dernière carte, historique joué et loupe visibles sans commandes de jeu: OK");
+console.log("v169 visionnage: dernière carte, historique joué et loupe visibles sans commandes de jeu: OK");

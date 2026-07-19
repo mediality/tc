@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "168";
+const CARD_ASSET_VERSION = "169";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -1370,6 +1370,7 @@ const els = {
   createFriendlyTournamentButton: document.querySelector("#createFriendlyTournamentButton"),
   onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
   lobbyRooms: document.querySelector("#lobbyRooms"),
+  latestNewsPanel: document.querySelector("#latestNewsPanel"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
   exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
@@ -1663,32 +1664,55 @@ function applyAuthenticatedUser(user) {
   if (AUTH_STATE.user) {
     window.setTimeout(uploadPendingHumanMatchLogs, 250);
     if (accountChanged) refreshAuthenticatedCircuitData(nextUserId);
-    if (accountChanged) window.setTimeout(showNextProNewsDialog, 80);
   }
 }
 
-function pendingProNewsForCurrentUser() {
-  if (!AUTH_STATE.user || !canAccessProFeatures()) return [];
-  const serverNews = Array.isArray(AUTH_STATE.user.pendingNews) ? AUTH_STATE.user.pendingNews : [];
-  const allowedIds = new Set(GAME_NEWS.map((item) => item.id));
-  return serverNews.filter((item) => allowedIds.has(item.id));
+function formatGameNewsDate(value) {
+  const date = new Date(`${value || ""}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "Date à venir";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
-async function markProNewsAsSeen(newsId) {
-  if (!newsId || !AUTH_STATE.user) return;
-  AUTH_STATE.user.pendingNews = pendingProNewsForCurrentUser().filter((item) => item.id !== newsId);
-  try {
-    await authRequest(`/api/news/${encodeURIComponent(newsId)}/seen`, {});
-  } catch (error) {
-    // La fermeture de l'annonce ne doit jamais bloquer l'accès au jeu.
+function latestGameNews() {
+  return [...GAME_NEWS].sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))[0] || null;
+}
+
+function renderLatestNewsPanel() {
+  if (!els.latestNewsPanel) return;
+  const news = latestGameNews();
+  if (!news) {
+    els.latestNewsPanel.classList.add("hidden");
+    return;
   }
+  els.latestNewsPanel.classList.remove("hidden");
+  const characterId = news.characterId || "milanVerhaegen";
+  const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
+  els.latestNewsPanel.innerHTML = `
+    <p class="label latest-news-heading">DERNIÈRES ACTU</p>
+    <article class="latest-news-item">
+      <div class="latest-news-thumbnail" aria-hidden="true">
+        <img src="${escapeHtml(image)}" alt="" />
+      </div>
+      <div class="latest-news-summary">
+        <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
+        <button class="latest-news-title" type="button" data-read-game-news="${escapeHtml(news.id)}">${escapeHtml(news.title)}</button>
+      </div>
+      <button class="latest-news-read-button" type="button" data-read-game-news="${escapeHtml(news.id)}">LIRE</button>
+    </article>
+  `;
+  els.latestNewsPanel.querySelectorAll("[data-read-game-news]").forEach((button) => {
+    button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
+  });
 }
 
-function showNextProNewsDialog() {
-  const news = pendingProNewsForCurrentUser()[0];
+function showGameNewsDialog(newsId) {
+  const news = GAME_NEWS.find((item) => item.id === newsId) || latestGameNews();
   if (!news || document.querySelector(".pro-news-backdrop")) return;
-  const canonicalNews = GAME_NEWS.find((item) => item.id === news.id) || news;
-  const characterId = canonicalNews.characterId || "milanVerhaegen";
+  const characterId = news.characterId || "milanVerhaegen";
   const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop pro-news-backdrop";
@@ -1698,18 +1722,17 @@ function showNextProNewsDialog() {
         <img src="${escapeHtml(image)}" alt="Carte de ${escapeHtml(characterNameFromId(characterId))}" />
       </div>
       <div class="pro-news-copy">
-        <p class="label">ACTUALITÉ · JOUEURS PRO</p>
-        <h2 id="proNewsTitle">${escapeHtml(canonicalNews.title)}</h2>
-        <p id="proNewsMessage">${escapeHtml(canonicalNews.message)}</p>
+        <p class="label">DERNIÈRES ACTU · ${escapeHtml(formatGameNewsDate(news.publishedAt))}</p>
+        <h2 id="proNewsTitle">${escapeHtml(news.title)}</h2>
+        <p id="proNewsMessage">${escapeHtml(news.message)}</p>
         <div class="dialog-actions">
-          <button class="primary-button" type="button" data-close-pro-news>À bientôt sur les courts !</button>
+          <button class="primary-button" type="button" data-close-pro-news>FERMER</button>
         </div>
       </div>
     </article>
   `;
   const close = () => {
     backdrop.remove();
-    markProNewsAsSeen(news.id);
   };
   backdrop.querySelector("[data-close-pro-news]")?.addEventListener("click", close);
   backdrop.addEventListener("click", (event) => {
@@ -5717,7 +5740,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v168",
+    gameVersion: "v169",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5957,7 +5980,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v168",
+    version: "v169",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -6016,7 +6039,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v168",
+    version: "v169",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -6030,7 +6053,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v168");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v169");
 }
 
 function resetSetMatch() {
@@ -14016,6 +14039,7 @@ function initMenu() {
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   updateMenuSelection();
   renderAiClubHouse();
+  renderLatestNewsPanel();
   renderAuthState();
   updateAccessControls();
   loadAuthState();

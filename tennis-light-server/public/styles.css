@@ -510,6 +510,7 @@ body.tutorial-running .boost-button strong {
 }
 
 .online-lobby-panel,
+.latest-news-panel,
 .lobby-poster-panel,
 .weekly-circuit-panel,
 .ranking-panel {
@@ -529,6 +530,106 @@ body.tutorial-running .boost-button strong {
   width: 100%;
   aspect-ratio: 1000 / 563;
   object-fit: cover;
+}
+
+.latest-news-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.latest-news-heading {
+  margin: 0;
+  color: #102a43;
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+}
+
+.latest-news-item {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 68px;
+  border-top: 1px solid rgba(16, 42, 67, 0.18);
+  padding-top: 10px;
+}
+
+.latest-news-thumbnail {
+  width: 50px;
+  height: 50px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.96);
+  border-radius: 8px;
+  background: #dff6f2;
+  box-shadow: 0 5px 14px rgba(10, 32, 44, 0.2);
+}
+
+.latest-news-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  transform: scale(1.85);
+  transform-origin: 50% 16%;
+}
+
+.latest-news-summary {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.latest-news-summary time {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.latest-news-title {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  color: #0b3448;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 950;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.latest-news-title:hover,
+.latest-news-title:focus-visible {
+  color: #0f8d68;
+  text-decoration: underline;
+}
+
+.latest-news-read-button {
+  align-self: end;
+  justify-self: end;
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: #3f2d00;
+  background: #facc15;
+  box-shadow: 0 5px 12px rgba(161, 98, 7, 0.24);
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.latest-news-read-button:hover,
+.latest-news-read-button:focus-visible {
+  background: #fde047;
+}
+
+@media (max-width: 560px) {
+  .latest-news-item {
+    grid-template-columns: 50px minmax(0, 1fr);
+  }
+
+  .latest-news-read-button {
+    grid-column: 2;
+  }
 }
 
 .friendly-lobby-shell {

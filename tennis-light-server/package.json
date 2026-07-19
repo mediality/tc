@@ -4,6 +4,7 @@
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
+    "test:v169": "node tests/v169-latest-news.mjs",
     "test:v168": "node tests/v168-ai-information-discipline.mjs",
     "test:v167": "node tests/v167-spectator-played-cards.mjs",
     "test:v166": "node tests/v166-legend-inventory-milan-news.mjs",

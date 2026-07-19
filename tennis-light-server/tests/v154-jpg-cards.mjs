@@ -12,9 +12,9 @@ const [html, app, styles, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
-assert.match(html, /styles\.css\?v=168\.0/);
-assert.match(html, /app\.js\?v=168\.0/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=169\.0/);
+assert.match(html, /app\.js\?v=169\.0/);
 
 const webpCards = files.filter((file) => file.toLowerCase().endsWith(".webp"));
 const jpgCards = files.filter((file) => file.toLowerCase().endsWith(".jpg"));
@@ -43,4 +43,4 @@ assert.doesNotMatch(styles, /\.character-card > img\s*[,\{]/);
 assert.match(styles, /border-radius: 6% \/ 4\.25%/);
 assert.match(styles, /border: clamp\(1px, 0\.28vw, 3px\) solid/);
 
-console.log("v168 remplacement intégral des cartes JPG par WebP et bordure de masquage: OK");
+console.log("v169 remplacement intégral des cartes JPG par WebP et bordure de masquage: OK");

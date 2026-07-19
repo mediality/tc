@@ -20,9 +20,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
-assert.match(html, /styles\.css\?v=168\.0/);
-assert.match(html, /app\.js\?v=168\.0/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=169\.0/);
+assert.match(html, /app\.js\?v=169\.0/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);
@@ -59,4 +59,4 @@ assert.doesNotMatch(tournament, /buildWeeklyCircuitProBonuses/);
 
 assert.match(app, /circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur\."/);
 
-console.log("v168 cartes sans agrandissement pixellisé et CLUB HOUSE Circuit Pro libre: OK");
+console.log("v169 cartes sans agrandissement pixellisé et CLUB HOUSE Circuit Pro libre: OK");

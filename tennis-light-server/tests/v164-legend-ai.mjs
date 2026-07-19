@@ -21,10 +21,10 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v168<\/span>/);
-assert.match(html, /styles\.css\?v=168\.0/);
-assert.match(html, /app\.js\?v=168\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "168"/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=169\.0/);
+assert.match(html, /app\.js\?v=169\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 const intelligenceContext = vm.createContext({ SOLO_AI: { style: "legend" }, Math });
 vm.runInContext([
@@ -76,4 +76,4 @@ assert.match(boostDecision, /opponentEndThreat > 0 \? 0\.2 : 0\.28/);
 
 assert.doesNotMatch(styles, /image-rendering: -webkit-optimize-contrast/);
 
-console.log("v168 IA Légendaire déterministe, prudente sur les gains acquis et plus précise sur les boosts: OK");
+console.log("v169 IA Légendaire déterministe, prudente sur les gains acquis et plus précise sur les boosts: OK");
