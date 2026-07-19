@@ -5,6 +5,7 @@
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
     "start": "node server.js",
+    "test:v155": "node tests/v155-progression-countdown-images.mjs",
     "test:v154": "node tests/v154-jpg-cards.mjs",
     "test:v153": "node tests/v153-circuit-club-house.mjs",
     "test:v151": "node tests/v151-level-three.mjs",

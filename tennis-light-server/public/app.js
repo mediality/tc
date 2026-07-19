@@ -5391,7 +5391,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v154",
+    gameVersion: "v155",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5631,7 +5631,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v154",
+    version: "v155",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5690,7 +5690,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v154",
+    version: "v155",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5704,7 +5704,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v154");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v155");
 }
 
 function resetSetMatch() {
@@ -6030,7 +6030,10 @@ function confrontationPlayerCardMarkup(player, playerIndex) {
 }
 
 function showConfrontationIntro() {
-  if (state.tutorial.active || !state.players?.[0] || !state.players?.[1]) return;
+  if (state.tutorial.active || !state.players?.[0] || !state.players?.[1]) {
+    confrontationIntroActive = false;
+    return;
+  }
   document.querySelector(".confrontation-intro-backdrop")?.remove();
   window.clearInterval(confrontationIntroTimer);
   confrontationIntroActive = true;
@@ -6068,6 +6071,11 @@ function showConfrontationIntro() {
 
 function queueConfrontationIntro() {
   window.clearInterval(confrontationIntroTimer);
+  if (state.tutorial.active || !state.players?.[0] || !state.players?.[1]) {
+    confrontationIntroActive = false;
+    return;
+  }
+  confrontationIntroActive = true;
   confrontationIntroTimer = window.setTimeout(showConfrontationIntro, 0);
 }
 
@@ -6466,7 +6474,7 @@ function maybeRunSoloAI() {
 function runSoloAITurn() {
   SOLO_AI.thinking = false;
   SOLO_AI.nudgeVisible = false;
-  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive || state.activePlayer !== SOLO_AI.playerIndex) return;
   SOLO_AI.executing = true;
   const beforeSignature = soloTurnSignature();
   try {
@@ -9597,6 +9605,7 @@ function startMatchMode(targetSets = null, options = {}) {
   state.setMatch.matchWinner = null;
   HUMAN_MATCH_TELEMETRY.forceNew = true;
   const server = Math.random() < 0.5 ? 0 : 1;
+  confrontationIntroActive = !state.tutorial.active;
   newGame({ preserveSet: true, serverOverride: server });
   const styleLabel = aiStyleLabel();
   const formatLabel = targetSets ? `match en ${targetSets} sets gagnants` : "set complet";
@@ -11539,7 +11548,7 @@ function renderResultPanel() {
         ${setMatch.matchOver ? `<span>Match gagné par ${escapeHtml(playerName(setMatch.matchWinner))}</span>` : ""}
       </div>
     ` : ""}
-    ${renderResultTournamentActionButton()}
+    ${renderProgressionButtons()}
     ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>REJOUER LE MATCH</button>` : ""}
   `;
   bindResultTournamentButton();
@@ -12486,24 +12495,29 @@ function isHumanTournamentRunOver() {
   return Boolean(last && last.winner !== human);
 }
 
-function renderResultTournamentActionButton() {
-  if (!state.tournament.active || !state.setMatch.matchOver) return "";
-  const action = renderCenterNextSetButton();
-  return /data-(start-tournament-next-match|exit-tournament)/.test(action) ? action : "";
+function renderProgressionButtons() {
+  return [
+    renderCenterNextSoloExchangeButton(),
+    renderCenterNextExchangeButton(),
+    renderCenterNextSetButton(),
+  ].filter(Boolean).join("");
+}
+
+function bindProgressionButtons(root) {
+  root?.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
+  root?.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
+  root?.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
+  root?.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
+  root?.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
+  root?.querySelector("[data-return-club-house]")?.addEventListener("click", returnFriendlyMatchToClubHouse);
 }
 
 function bindCenterButtons() {
-  els.centerPlayedCard.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
-  els.centerPlayedCard.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
-  els.centerPlayedCard.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
-  els.centerPlayedCard.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
-  els.centerPlayedCard.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
-  els.centerPlayedCard.querySelector("[data-return-club-house]")?.addEventListener("click", returnFriendlyMatchToClubHouse);
+  bindProgressionButtons(els.centerPlayedCard);
 }
 
 function bindResultTournamentButton() {
-  els.resultPanel.querySelector("[data-start-tournament-next-match]")?.addEventListener("click", startTournamentNextMatchFromCenter);
-  els.resultPanel.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
+  bindProgressionButtons(els.resultPanel);
 }
 
 function returnFriendlyMatchToClubHouse() {
@@ -12559,9 +12573,7 @@ function renderCenterPlayedCard() {
       ${renderCenterSetScore()}
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
-      ${renderCenterNextSoloExchangeButton()}
-      ${renderCenterNextExchangeButton()}
-      ${renderCenterNextSetButton()}
+      ${renderProgressionButtons()}
     `;
     bindCenterButtons();
     return;
@@ -12572,9 +12584,7 @@ function renderCenterPlayedCard() {
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
-    ${renderCenterNextSoloExchangeButton()}
-    ${renderCenterNextExchangeButton()}
-    ${renderCenterNextSetButton()}
+    ${renderProgressionButtons()}
   `;
   bindCenterButtons();
 }
