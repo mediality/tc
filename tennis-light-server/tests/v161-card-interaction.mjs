@@ -7,10 +7,10 @@ const [html, app, styles] = await Promise.all([
   readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v164<\/span>/);
-assert.match(html, /styles\.css\?v=164\.0/);
-assert.match(html, /app\.js\?v=164\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "164"/);
+assert.match(html, /Tennis Courts Academy <span>v165<\/span>/);
+assert.match(html, /styles\.css\?v=165\.0/);
+assert.match(html, /app\.js\?v=165\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "165"/);
 
 assert.match(app, /function showCardLocalPreview\(anchor, imageUrl, label = "Carte", immediate = false\)/);
 assert.doesNotMatch(app, /matchMedia\("\(hover: hover\) and \(pointer: fine\)"\)/);
@@ -67,4 +67,4 @@ assert.match(styles, /border-radius: 6% \/ 4\.25%/);
 assert.doesNotMatch(styles, /border-radius: 5% \/ 3\.55%/);
 assert.doesNotMatch(styles, /image-rendering: -webkit-optimize-contrast/);
 
-console.log("v164 arrondi, source x2 brute, appui mobile persistant et sauvegarde amicale compacte: OK");
+console.log("v165 arrondi, source x2 brute, appui mobile persistant et sauvegarde amicale compacte: OK");

@@ -12,9 +12,9 @@ const [html, app, styles, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v164<\/span>/);
-assert.match(html, /styles\.css\?v=164\.0/);
-assert.match(html, /app\.js\?v=164\.0/);
+assert.match(html, /Tennis Courts Academy <span>v165<\/span>/);
+assert.match(html, /styles\.css\?v=165\.0/);
+assert.match(html, /app\.js\?v=165\.0/);
 
 const webpCards = files.filter((file) => file.toLowerCase().endsWith(".webp"));
 const jpgCards = files.filter((file) => file.toLowerCase().endsWith(".jpg"));
@@ -34,7 +34,7 @@ const totalBytes = (await Promise.all(webpCards.map(async (file) => (await stat(
   .reduce((sum, size) => sum + size, 0);
 assert.ok(totalBytes < 30 * 1024 * 1024, `dossier WebP x2 trop volumineux: ${totalBytes} octets`);
 
-assert.match(styles, /Les cartes V164 sont des WebP sans transparence/);
+assert.match(styles, /Les cartes V165 sont des WebP sans transparence/);
 assert.match(styles, /\.card-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.webp"\]/);
 assert.match(styles, /\.character-card > img\[src\*="assets\/cards\/"\]\[src\*="\.webp"\]/);
 assert.match(styles, /\.played-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.webp"\]/);
@@ -43,4 +43,4 @@ assert.doesNotMatch(styles, /\.character-card > img\s*[,\{]/);
 assert.match(styles, /border-radius: 6% \/ 4\.25%/);
 assert.match(styles, /border: clamp\(1px, 0\.28vw, 3px\) solid/);
 
-console.log("v164 remplacement intégral des cartes JPG par WebP et bordure de masquage: OK");
+console.log("v165 remplacement intégral des cartes JPG par WebP et bordure de masquage: OK");

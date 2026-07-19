@@ -4839,7 +4839,7 @@ h1 {
   }
 }
 
-/* Les cartes V164 sont des WebP sans transparence. Cette bordure arrondie
+/* Les cartes V165 sont des WebP sans transparence. Cette bordure arrondie
    recouvre les quatre coins blancs et restitue la découpe des anciens PNG. */
 .card-visual > img[src*="assets/cards/"][src*=".webp"]:not(.forbid-effect-overlay),
 .character-card > img[src*="assets/cards/"][src*=".webp"],
