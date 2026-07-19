@@ -4532,7 +4532,7 @@ h1 {
   z-index: 1000;
   overflow: hidden;
   border: 3px solid rgba(255, 255, 255, 0.96);
-  border-radius: 5% / 3.55%;
+  border-radius: 5.35% / 3.75%;
   background: #f7faf8;
   opacity: 0;
   pointer-events: none;
@@ -4853,7 +4853,7 @@ h1 {
 .confrontation-intro-player img[src*="assets/cards/"][src*=".jpg"] {
   box-sizing: border-box;
   border: clamp(1px, 0.28vw, 3px) solid rgba(255, 255, 255, 0.94);
-  border-radius: 5% / 3.55%;
+  border-radius: 5.35% / 3.75%;
   background: #f7faf8;
 }
 

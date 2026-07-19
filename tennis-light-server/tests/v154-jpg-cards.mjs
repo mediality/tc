@@ -12,9 +12,9 @@ const [html, app, styles, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v160<\/span>/);
-assert.match(html, /styles\.css\?v=160\.0/);
-assert.match(html, /app\.js\?v=160\.0/);
+assert.match(html, /Tennis Courts Academy <span>v161<\/span>/);
+assert.match(html, /styles\.css\?v=161\.0/);
+assert.match(html, /app\.js\?v=161\.1/);
 
 const jpgCards = files.filter((file) => file.toLowerCase().endsWith(".jpg"));
 const pngCards = files.filter((file) => file.toLowerCase().endsWith(".png"));
@@ -38,7 +38,7 @@ assert.match(styles, /\.character-card > img\[src\*="assets\/cards\/"\]\[src\*="
 assert.match(styles, /\.played-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.jpg"\]/);
 assert.match(styles, /\.image-zoom-figure img\[src\*="assets\/cards\/"\]\[src\*="\.jpg"\]/);
 assert.doesNotMatch(styles, /\.character-card > img\s*[,\{]/);
-assert.match(styles, /border-radius: 5% \/ 3\.55%/);
+assert.match(styles, /border-radius: 5\.35% \/ 3\.75%/);
 assert.match(styles, /border: clamp\(1px, 0\.28vw, 3px\) solid/);
 
 console.log("v154 remplacement intégral des cartes PNG par JPG et bordure de masquage: OK");

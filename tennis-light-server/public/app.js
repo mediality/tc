@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "160";
+const CARD_ASSET_VERSION = "161";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -2006,11 +2006,37 @@ function profileCharacterVisuals(characterId) {
   };
 }
 
+function prepareRetinaCardImages(root = document) {
+  if (!root) return;
+  const selector = 'img[src*="assets/cards/"]';
+  const images = [
+    ...(root.matches?.(selector) ? [root] : []),
+    ...root.querySelectorAll(selector),
+  ];
+  images.forEach((image) => {
+    const source = image.getAttribute("src");
+    if (!source || image.dataset.retinaSource === source) return;
+    image.dataset.retinaSource = source;
+    image.setAttribute("srcset", `${source} 2x`);
+    image.setAttribute("decoding", "async");
+    image.dataset.sourcePixelWidth = "1462";
+    image.dataset.sourcePixelHeight = "2078";
+  });
+}
+
+function imageSourcePixelSize(image) {
+  return {
+    width: Number(image?.dataset?.sourcePixelWidth) || image?.naturalWidth || 0,
+    height: Number(image?.dataset?.sourcePixelHeight) || image?.naturalHeight || 0,
+  };
+}
+
 function fitZoomImageToScreen(image) {
-  if (!image?.naturalWidth || !image?.naturalHeight) return;
+  const sourcePixels = imageSourcePixelSize(image);
+  if (!sourcePixels.width || !sourcePixels.height) return;
   const pixelRatio = Math.max(1, Number(window.devicePixelRatio) || 1);
-  const nativeCssWidth = Math.floor(image.naturalWidth / pixelRatio);
-  const nativeCssHeight = Math.floor(image.naturalHeight / pixelRatio);
+  const nativeCssWidth = Math.floor(sourcePixels.width / pixelRatio);
+  const nativeCssHeight = Math.floor(sourcePixels.height / pixelRatio);
   image.style.maxWidth = `min(100%, ${nativeCssWidth}px)`;
   image.style.maxHeight = `min(calc(100vh - 42px), ${nativeCssHeight}px)`;
 }
@@ -2027,7 +2053,8 @@ let cardLocalPreview = null;
 let cardLocalPreviewAnchor = null;
 let cardLocalPreviewTimer = null;
 let lastCardPointerType = "mouse";
-let touchPreviewCanOpenMaximum = false;
+let suppressNextTouchMaximumZoom = false;
+const CARD_PREVIEW_ZONE_RATIO = 0.75;
 
 function closeCardLocalPreview() {
   window.clearTimeout(cardLocalPreviewTimer);
@@ -2035,17 +2062,17 @@ function closeCardLocalPreview() {
   cardLocalPreview?.remove();
   cardLocalPreview = null;
   cardLocalPreviewAnchor = null;
-  touchPreviewCanOpenMaximum = false;
 }
 
 function positionCardLocalPreview(preview, anchor, image) {
-  if (!preview || !anchor || !image?.naturalWidth || !image?.naturalHeight) return;
+  const sourcePixels = imageSourcePixelSize(image);
+  if (!preview || !anchor || !sourcePixels.width || !sourcePixels.height) return;
   const anchorRect = anchor.getBoundingClientRect();
   const pixelRatio = Math.max(1, Number(window.devicePixelRatio) || 1);
-  const imageRatio = image.naturalWidth / image.naturalHeight;
+  const imageRatio = sourcePixels.width / sourcePixels.height;
   const viewportMargin = 12;
-  const maximumNativeWidth = image.naturalWidth / pixelRatio;
-  const maximumNativeHeight = image.naturalHeight / pixelRatio;
+  const maximumNativeWidth = sourcePixels.width / pixelRatio;
+  const maximumNativeHeight = sourcePixels.height / pixelRatio;
   const maximumViewportWidth = window.innerWidth - (viewportMargin * 2);
   const maximumViewportHeight = window.innerHeight - (viewportMargin * 2);
   const desiredWidth = Math.max(260, anchorRect.width * 1.8);
@@ -2086,6 +2113,7 @@ function showCardLocalPreview(anchor, imageUrl, label = "Carte", immediate = fal
     image.alt = label;
     preview.append(image);
     document.body.append(preview);
+    prepareRetinaCardImages(preview);
     cardLocalPreview = preview;
     const position = () => positionCardLocalPreview(preview, anchor, image);
     image.addEventListener("load", position, { once: true });
@@ -2101,14 +2129,34 @@ function showCardLocalPreview(anchor, imageUrl, label = "Carte", immediate = fal
 
 function prepareCardTouchPreview(button, imageUrl, label) {
   lastCardPointerType = "touch";
-  touchPreviewCanOpenMaximum = cardLocalPreviewAnchor === button && Boolean(cardLocalPreview);
-  if (!touchPreviewCanOpenMaximum) showCardLocalPreview(button, imageUrl, label, true);
+  suppressNextTouchMaximumZoom = true;
+  showCardLocalPreview(button, imageUrl, label, true);
 }
 
-function keepLocalPreviewOnFirstTouch(button) {
-  if (lastCardPointerType !== "touch") return false;
-  if (touchPreviewCanOpenMaximum && cardLocalPreviewAnchor === button) return false;
-  return cardLocalPreviewAnchor === button && Boolean(cardLocalPreview);
+function suppressMaximumZoomAfterTouch() {
+  if (lastCardPointerType !== "touch" || !suppressNextTouchMaximumZoom) return false;
+  suppressNextTouchMaximumZoom = false;
+  return true;
+}
+
+function pointerIsInsideCardPreviewZone(button, event) {
+  const rect = button.getBoundingClientRect();
+  const horizontalMargin = rect.width * ((1 - CARD_PREVIEW_ZONE_RATIO) / 2);
+  const verticalMargin = rect.height * ((1 - CARD_PREVIEW_ZONE_RATIO) / 2);
+  return event.clientX >= rect.left + horizontalMargin
+    && event.clientX <= rect.right - horizontalMargin
+    && event.clientY >= rect.top + verticalMargin
+    && event.clientY <= rect.bottom - verticalMargin;
+}
+
+function updateMouseCardPreview(button, imageUrl, label, event) {
+  if (event.pointerType !== "mouse") return;
+  lastCardPointerType = "mouse";
+  if (!pointerIsInsideCardPreviewZone(button, event)) {
+    if (cardLocalPreviewAnchor === button) closeCardLocalPreview();
+    return;
+  }
+  if (cardLocalPreviewAnchor !== button) showCardLocalPreview(button, imageUrl, label);
 }
 
 function attachCardLocalPreviewHandlers(root = document) {
@@ -2118,23 +2166,29 @@ function attachCardLocalPreviewHandlers(root = document) {
     button.dataset.localZoomBound = "1";
     const imageUrl = button.dataset.imageHover || button.dataset.imageZoom;
     const label = button.dataset.imageLabel || "Carte";
-    button.addEventListener("pointerenter", (event) => {
-      if (event.pointerType !== "mouse") return;
-      lastCardPointerType = "mouse";
-      showCardLocalPreview(button, imageUrl, label);
-    });
+    button.addEventListener("pointerenter", (event) => updateMouseCardPreview(button, imageUrl, label, event));
+    button.addEventListener("pointermove", (event) => updateMouseCardPreview(button, imageUrl, label, event));
     button.addEventListener("pointerleave", (event) => {
       if (event.pointerType === "mouse") closeCardLocalPreview();
     });
     button.addEventListener("pointerdown", (event) => {
+      if (event.target.closest?.(".ai-nudge-button")) return;
       if (event.pointerType === "mouse") {
         lastCardPointerType = "mouse";
         return;
       }
       prepareCardTouchPreview(button, imageUrl, label);
     });
+    button.addEventListener("pointerup", (event) => {
+      if (event.pointerType !== "mouse") closeCardLocalPreview();
+    });
+    button.addEventListener("pointercancel", (event) => {
+      if (event.pointerType !== "mouse") closeCardLocalPreview();
+    });
     if (!("PointerEvent" in window)) {
       button.addEventListener("touchstart", () => prepareCardTouchPreview(button, imageUrl, label), { passive: true });
+      button.addEventListener("touchend", closeCardLocalPreview, { passive: true });
+      button.addEventListener("touchcancel", closeCardLocalPreview, { passive: true });
     }
   });
   if (document.documentElement.dataset.localZoomOutsideBound !== "1") {
@@ -2158,6 +2212,7 @@ function openImageZoom(imageUrl, label = "Carte") {
     </figure>
   `;
   document.body.append(backdrop);
+  prepareRetinaCardImages(backdrop);
   const detachResolutionFit = attachResolutionAwareZoom(backdrop.querySelector(".image-zoom-figure img"));
   const close = () => {
     detachResolutionFit();
@@ -2175,12 +2230,13 @@ function openImageZoom(imageUrl, label = "Carte") {
 }
 
 function attachImageZoomHandlers(root = document) {
+  prepareRetinaCardImages(root);
   attachCardLocalPreviewHandlers(root);
   root.querySelectorAll("[data-image-zoom]").forEach((button) => {
     if (button.dataset.zoomBound === "1") return;
     button.dataset.zoomBound = "1";
     button.addEventListener("click", () => {
-      if (keepLocalPreviewOnFirstTouch(button)) return;
+      if (suppressMaximumZoomAfterTouch()) return;
       openImageZoom(button.dataset.imageZoom, button.dataset.imageLabel);
     });
   });
@@ -2225,6 +2281,7 @@ function openAcademyDeckGallery(startIndex = 0) {
     image.src = CARD_IMAGES[card.id] || CARD_BACK_IMAGE;
     image.alt = cardLabel;
     figure.setAttribute("aria-label", `${cardLabel} agrandie`);
+    prepareRetinaCardImages(figure);
   };
   const move = (direction) => {
     currentIndex = (currentIndex + direction + cards.length) % cards.length;
@@ -2266,7 +2323,7 @@ function attachAcademyDeckHandlers() {
   attachCardLocalPreviewHandlers(els.academyDeckList);
   els.academyDeckList?.querySelectorAll("[data-academy-gallery-index]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (keepLocalPreviewOnFirstTouch(button)) return;
+      if (suppressMaximumZoomAfterTouch()) return;
       openAcademyDeckGallery(Number(button.dataset.academyGalleryIndex));
     });
   });
@@ -2275,6 +2332,7 @@ function attachAcademyDeckHandlers() {
 function renderAcademyDeck() {
   if (!els.academyDeckList) return;
   els.academyDeckList.innerHTML = academyDeckMarkup();
+  prepareRetinaCardImages(els.academyDeckList);
   attachAcademyDeckHandlers();
 }
 
@@ -5546,7 +5604,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v160",
+    gameVersion: "v161",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5786,7 +5844,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v160",
+    version: "v161",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5845,7 +5903,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v160",
+    version: "v161",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5859,7 +5917,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v160");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v161");
 }
 
 function resetSetMatch() {
@@ -12499,7 +12557,7 @@ function renderCharacterCard(player, playerIndex) {
     : "";
   return `
     <div class="character-zone">
-      <div class="character-card">
+      <div class="character-card" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
         ${aiNudge}
       </div>
