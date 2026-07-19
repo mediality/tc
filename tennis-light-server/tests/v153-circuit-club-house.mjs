@@ -20,9 +20,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v161<\/span>/);
-assert.match(html, /styles\.css\?v=161\.0/);
-assert.match(html, /app\.js\?v=161\.1/);
+assert.match(html, /Tennis Courts Academy <span>v162<\/span>/);
+assert.match(html, /styles\.css\?v=162\.0/);
+assert.match(html, /app\.js\?v=162\.0/);
 
 function seedPermanentBonuses(randomValue) {
   const context = {

@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "161";
+const CARD_ASSET_VERSION = "162";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -2017,7 +2017,10 @@ function prepareRetinaCardImages(root = document) {
     const source = image.getAttribute("src");
     if (!source || image.dataset.retinaSource === source) return;
     image.dataset.retinaSource = source;
-    image.setAttribute("srcset", `${source} 2x`);
+    // Les JPG du dossier cards sont déjà les fichiers x2 (1462 × 2078).
+    // On conserve leur résolution physique complète dans src : certains moteurs
+    // réduisent trop tôt une source déclarée uniquement avec le descripteur 2x.
+    image.removeAttribute("srcset");
     image.setAttribute("decoding", "async");
     image.dataset.sourcePixelWidth = "1462";
     image.dataset.sourcePixelHeight = "2078";
@@ -2054,6 +2057,8 @@ let cardLocalPreviewAnchor = null;
 let cardLocalPreviewTimer = null;
 let lastCardPointerType = "mouse";
 let suppressNextTouchMaximumZoom = false;
+let activeCardTouchIdentifier = null;
+let activeCardTouchButton = null;
 const CARD_PREVIEW_ZONE_RATIO = 0.75;
 
 function closeCardLocalPreview() {
@@ -2127,10 +2132,23 @@ function showCardLocalPreview(anchor, imageUrl, label = "Carte", immediate = fal
   cardLocalPreviewTimer = window.setTimeout(renderPreview, 90);
 }
 
-function prepareCardTouchPreview(button, imageUrl, label) {
+function prepareCardTouchPreview(button, imageUrl, label, touchIdentifier = null) {
   lastCardPointerType = "touch";
   suppressNextTouchMaximumZoom = true;
+  activeCardTouchIdentifier = touchIdentifier;
+  activeCardTouchButton = button;
   showCardLocalPreview(button, imageUrl, label, true);
+}
+
+function endActiveCardTouch(changedTouches = null) {
+  if (activeCardTouchButton == null) return;
+  if (changedTouches && activeCardTouchIdentifier != null) {
+    const ended = [...changedTouches].some((touch) => touch.identifier === activeCardTouchIdentifier);
+    if (!ended) return;
+  }
+  activeCardTouchIdentifier = null;
+  activeCardTouchButton = null;
+  closeCardLocalPreview();
 }
 
 function suppressMaximumZoomAfterTouch() {
@@ -2177,24 +2195,34 @@ function attachCardLocalPreviewHandlers(root = document) {
         lastCardPointerType = "mouse";
         return;
       }
-      prepareCardTouchPreview(button, imageUrl, label);
+      // touchstart mémorise également l'identifiant du doigt. Pointerdown sert
+      // de secours aux stylets et aux navigateurs sans événements tactiles.
+      if (event.pointerType !== "touch") prepareCardTouchPreview(button, imageUrl, label);
     });
     button.addEventListener("pointerup", (event) => {
-      if (event.pointerType !== "mouse") closeCardLocalPreview();
+      if (event.pointerType !== "mouse" && event.pointerType !== "touch") endActiveCardTouch();
     });
     button.addEventListener("pointercancel", (event) => {
-      if (event.pointerType !== "mouse") closeCardLocalPreview();
+      // Les navigateurs envoient pointercancel dès qu'un défilement commence.
+      // La loupe reste donc visible jusqu'au véritable touchend.
+      if (event.pointerType !== "mouse" && event.pointerType !== "touch") endActiveCardTouch();
     });
-    if (!("PointerEvent" in window)) {
-      button.addEventListener("touchstart", () => prepareCardTouchPreview(button, imageUrl, label), { passive: true });
-      button.addEventListener("touchend", closeCardLocalPreview, { passive: true });
-      button.addEventListener("touchcancel", closeCardLocalPreview, { passive: true });
-    }
+    button.addEventListener("touchstart", (event) => {
+      if (event.target.closest?.(".ai-nudge-button")) return;
+      const touch = event.changedTouches[0];
+      prepareCardTouchPreview(button, imageUrl, label, touch?.identifier ?? null);
+    }, { passive: true });
   });
   if (document.documentElement.dataset.localZoomOutsideBound !== "1") {
     document.documentElement.dataset.localZoomOutsideBound = "1";
     document.addEventListener("pointerdown", (event) => {
       if (!event.target.closest?.("[data-image-zoom], [data-image-hover]")) closeCardLocalPreview();
+    });
+    document.addEventListener("touchend", (event) => endActiveCardTouch(event.changedTouches), { passive: true });
+    document.addEventListener("touchcancel", (event) => endActiveCardTouch(event.changedTouches), { passive: true });
+    window.addEventListener("blur", () => endActiveCardTouch());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) endActiveCardTouch();
     });
   }
 }
@@ -3835,13 +3863,30 @@ function readAiClubHouseSave() {
   }
 }
 
+function compactAiClubHouseSaveState() {
+  const snapshot = cloneData(state);
+  // Les journaux d'analyse sont déjà conservés séparément. Les dupliquer dans
+  // la sauvegarde pouvait dépasser le quota local après plusieurs rencontres.
+  snapshot.log = Array.isArray(snapshot.log) ? snapshot.log.slice(0, 120) : [];
+  snapshot.actionLog = [];
+  if (snapshot.turnSnapshot) {
+    snapshot.turnSnapshot.log = Array.isArray(snapshot.turnSnapshot.log)
+      ? snapshot.turnSnapshot.log.slice(0, 40)
+      : [];
+    snapshot.turnSnapshot.actionLog = [];
+  }
+  return snapshot;
+}
+
 function saveAiClubHouseProgress() {
   if (!state.tournament?.aiClubHouse || state.tournament.stage === "complete" || readAiClubHouseSave()) return false;
   const save = {
     savedAt: new Date().toISOString(),
-    state: cloneData(state),
+    state: compactAiClubHouseSaveState(),
     soloAi: cloneData(SOLO_AI),
-    humanMatchTelemetry: cloneData(HUMAN_MATCH_TELEMETRY.active),
+    // La télémétrie reste dans son stockage dédié et n'est pas nécessaire pour
+    // reprendre la compétition au même échange.
+    humanMatchTelemetry: null,
   };
   if (save.state?.tutorial) save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
   try {
@@ -5604,7 +5649,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v161",
+    gameVersion: "v162",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5844,7 +5889,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v161",
+    version: "v162",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5903,7 +5948,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v161",
+    version: "v162",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5917,7 +5962,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v161");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v162");
 }
 
 function resetSetMatch() {

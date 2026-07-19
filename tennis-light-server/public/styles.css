@@ -4532,7 +4532,7 @@ h1 {
   z-index: 1000;
   overflow: hidden;
   border: 3px solid rgba(255, 255, 255, 0.96);
-  border-radius: 5.35% / 3.75%;
+  border-radius: 6% / 4.25%;
   background: #f7faf8;
   opacity: 0;
   pointer-events: none;
@@ -4853,8 +4853,15 @@ h1 {
 .confrontation-intro-player img[src*="assets/cards/"][src*=".jpg"] {
   box-sizing: border-box;
   border: clamp(1px, 0.28vw, 3px) solid rgba(255, 255, 255, 0.94);
-  border-radius: 5.35% / 3.75%;
+  border-radius: 6% / 4.25%;
   background: #f7faf8;
+}
+
+/* Les fichiers x2 restent chargés à leur résolution physique complète.
+   Ce mode améliore notamment le rééchantillonnage des textes fins dans
+   Chrome et Safari lorsque la carte normale est fortement réduite. */
+img[data-retina-source][src*="assets/cards/"] {
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .card-image-zoom-trigger {
