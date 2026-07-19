@@ -21,8 +21,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.0/);
-assert.match(html, /app\.js\?v=169\.0/);
+assert.match(html, /styles\.css\?v=169\.5/);
+assert.match(html, /app\.js\?v=169\.5/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);
@@ -36,10 +36,11 @@ for (const removedScale of ["scale(1.42)", "scale(2.45)", "scale(2.7)", "scale(1
 }
 
 const clubUi = functionSource("renderAiClubHouse");
-assert.match(clubUi, /button\.disabled = false/);
+assert.match(clubUi, /button\.disabled = button\.hasAttribute\("data-pro-format"\) && !proAccess/);
+assert.match(clubUi, /AI_CLUB_HOUSE\.format === "match"/);
 assert.doesNotMatch(clubUi, /AI_CLUB_HOUSE\.format = "tournament"/);
 assert.doesNotMatch(functionSource("updateAiClubHouseSetting"), /difficulty === "circuit"/);
-assert.match(functionSource("startAiClubHouseCompetition"), /if \(AI_CLUB_HOUSE\.format === "league"\)/);
+assert.match(functionSource("startAiClubHouseCompetition"), /AI_CLUB_HOUSE\.format === "league"/);
 
 const league = functionSource("startLeagueTournamentMode");
 assert.doesNotMatch(league, /startTournamentMode/);

@@ -147,7 +147,12 @@ const MENU_STATE = {
 };
 
 const AI_CLUB_HOUSE = {
-  format: localStorage.getItem("tennisLightAiClubFormat") === "league" ? "league" : "tournament",
+  format: (() => {
+    const storedFormat = localStorage.getItem("tennisLightAiClubFormat");
+    if (storedFormat === "league") return "league";
+    if (["classic", "tournament"].includes(storedFormat)) return "classic";
+    return "match";
+  })(),
   targetSets: Number(localStorage.getItem("tennisLightAiClubSets")) === 3 ? 3 : 2,
   difficulty: localStorage.getItem("tennisLightAiClubDifficulty") || "normal",
   bonus: localStorage.getItem("tennisLightAiClubBonus") || "none",
@@ -1285,6 +1290,16 @@ const els = {
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
   menuScreen: document.querySelector("#menuScreen"),
+  lobbySectionScreen: document.querySelector("#lobbySectionScreen"),
+  lobbySectionPanels: document.querySelectorAll("[data-lobby-section-panel]"),
+  lobbyModeCards: document.querySelectorAll("[data-open-lobby-section]"),
+  backToHomeButton: document.querySelector("#backToHomeButton"),
+  lobbyAccountPanel: document.querySelector("#lobbyAccountPanel"),
+  lobbySettingsButton: document.querySelector("#lobbySettingsButton"),
+  lobbyUserButton: document.querySelector("#lobbyUserButton"),
+  lobbyProfileAvatar: document.querySelector("#lobbyProfileAvatar"),
+  lobbyHeaderNickname: document.querySelector("#lobbyHeaderNickname"),
+  lobbyHeaderRole: document.querySelector("#lobbyHeaderRole"),
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
@@ -1305,6 +1320,8 @@ const els = {
   aiBonusDescription: document.querySelector("#aiBonusDescription"),
   aiBonusSettingRow: document.querySelector("#aiBonusSettingRow"),
   aiClubHouseSummary: document.querySelector("#aiClubHouseSummary"),
+  aiClubHouseSummaryTitle: document.querySelector("#aiClubHouseSummaryTitle"),
+  aiClubHouseAccessNote: document.querySelector("#aiClubHouseAccessNote"),
   aiClubHouseSaveActions: document.querySelector("#aiClubHouseSaveActions"),
   resumeAiClubHouseSaveButton: document.querySelector("#resumeAiClubHouseSaveButton"),
   deleteAiClubHouseSaveButton: document.querySelector("#deleteAiClubHouseSaveButton"),
@@ -1358,6 +1375,23 @@ const els = {
   rankingPrevPageButton: document.querySelector("#rankingPrevPageButton"),
   rankingNextPageButton: document.querySelector("#rankingNextPageButton"),
   rankingPageInfo: document.querySelector("#rankingPageInfo"),
+  circuitHeroPeriod: document.querySelector("#circuitHeroPeriod"),
+  circuitHeroCountdown: document.querySelector("#circuitHeroCountdown"),
+  circuitRankValue: document.querySelector("#circuitRankValue"),
+  circuitRankProjection: document.querySelector("#circuitRankProjection"),
+  circuitPointsValue: document.querySelector("#circuitPointsValue"),
+  circuitWeekPointsValue: document.querySelector("#circuitWeekPointsValue"),
+  circuitAttemptsValue: document.querySelector("#circuitAttemptsValue"),
+  circuitAttemptsCaption: document.querySelector("#circuitAttemptsCaption"),
+  circuitPlayerAvatar: document.querySelector("#circuitPlayerAvatar"),
+  circuitPlayerNickname: document.querySelector("#circuitPlayerNickname"),
+  circuitPlayerRole: document.querySelector("#circuitPlayerRole"),
+  circuitPlayerRank: document.querySelector("#circuitPlayerRank"),
+  circuitPlayerProjection: document.querySelector("#circuitPlayerProjection"),
+  circuitPlayerPoints: document.querySelector("#circuitPlayerPoints"),
+  circuitPlayerWeekPoints: document.querySelector("#circuitPlayerWeekPoints"),
+  circuitPlayerAttempts: document.querySelector("#circuitPlayerAttempts"),
+  circuitProfileButton: document.querySelector("#circuitProfileButton"),
   profileContent: document.querySelector("#profileContent"),
   characterContent: document.querySelector("#characterContent"),
   backToProfileFromCharacterButton: document.querySelector("#backToProfileFromCharacterButton"),
@@ -1555,6 +1589,7 @@ function updateAccessControls() {
   const role = currentUserRole();
   document.querySelectorAll("[data-required-role='pro']").forEach((section) => {
     section.classList.toggle("locked", !hasProAccess);
+    if (section.matches("button, select") && !section.classList.contains("lobby-mode-card")) section.disabled = !hasProAccess;
     section.querySelectorAll("button, select").forEach((control) => {
       control.disabled = !hasProAccess;
     });
@@ -1575,12 +1610,6 @@ function updateAccessControls() {
     if (els.adminUsersTable) els.adminUsersTable.innerHTML = "";
     if (els.adminProCodesList) els.adminProCodesList.innerHTML = "";
   }
-  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
-  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) {
-    loadLobbyRanking();
-    loadRanking(1);
-  }
-  if (hasProAccess && !els.menuScreen?.classList.contains("hidden")) loadCompetitions();
 }
 
 function renderAuthState(message = "") {
@@ -1592,9 +1621,12 @@ function renderAuthState(message = "") {
   els.authForm?.classList.toggle("hidden", Boolean(user));
   els.logoutButton?.classList.toggle("hidden", !user);
   els.profileButton?.classList.toggle("hidden", !user);
-  els.menuScreen?.classList.toggle("auth-only", !user);
   els.proCodePanel?.classList.toggle("hidden", !user || currentUserRole() !== "free");
   els.adminNextWeekButton?.classList.toggle("hidden", !canAccessAdminFeatures());
+  if (els.lobbyHeaderNickname) els.lobbyHeaderNickname.textContent = user?.nickname || "Se connecter";
+  if (els.lobbyHeaderRole) els.lobbyHeaderRole.textContent = user ? roleLabel : "Invité";
+  updateLobbyProfileAvatar();
+  renderCircuitDashboard();
   if (els.authNicknameInput && !els.authNicknameInput.value && MENU_STATE.nickname) {
     els.authNicknameInput.value = MENU_STATE.nickname;
   }
@@ -1637,14 +1669,7 @@ function clearAuthenticatedCircuitCaches() {
 }
 
 function refreshAuthenticatedCircuitData(userId) {
-  window.setTimeout(() => {
-    if (!userId || authenticatedUserId() !== userId) return;
-    ensureGameplayProfile(true);
-    ensureGameplayRanking();
-    loadRanking(1);
-    loadLobbyRanking();
-    loadCompetitions();
-  }, 0);
+  if (!userId || authenticatedUserId() !== userId) return;
 }
 
 function applyAuthenticatedUser(user) {
@@ -2014,24 +2039,28 @@ function rankingMarkup(ranking = AUTH_STATE.ranking) {
       </button>
     `;
   };
-  const weekCell = (row) => {
+  const rankCell = (row) => {
     const rank = Number(row.points_rank || row.rank || 0);
     const projectedRank = Number(row.projected_rank || rank || 0);
-    const trendClass = projectedRank && rank && projectedRank > rank ? " ranking-projection-down" : "";
-    const projection = projectedRank ? `<span class="ranking-projection${trendClass}">(${projectedRank})</span>` : "";
-    return `<span><strong>${Number(row.score_week || 0)}</strong> ${projection}</span>`;
+    const trendClass = projectedRank < rank
+      ? " ranking-projection-up"
+      : projectedRank > rank
+        ? " ranking-projection-down"
+        : " ranking-projection-neutral";
+    const projection = projectedRank ? `<small class="ranking-projection${trendClass}" title="Projection pour la prochaine semaine">(${projectedRank})</small>` : "";
+    return `<span class="ranking-position"><strong>${rank}</strong>${projection}</span>`;
   };
   const rows = top.map((row, index) => `
     <div class="ranking-row">
-      <span>${Number(row.rank || index + 1)}</span>
+      ${rankCell({ ...row, rank: Number(row.rank || index + 1) })}
       <strong>${profileName(row)}</strong>
       <span>${Number(row.score_ref || 0)}</span>
-      ${weekCell(row)}
+      <span><strong>${Number(row.score_week || 0)}</strong></span>
       <span>${Number(row.score_total || 0)}</span>
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user"><span>${current.rank}</span><strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span>${weekCell(current)}<span>${Number(current.score_total || 0)}</span></div>`
+    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user">${rankCell(current)}<strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span><span><strong>${Number(current.score_week || 0)}</strong></span><span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
     <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-points-heading">Points <small>(S-4)</small></span><span>Semaine</span><span>Saison</span></div>
@@ -2072,6 +2101,64 @@ function renderRanking() {
   document.querySelectorAll("[data-ranking-sort]").forEach((button) => {
     button.classList.toggle("active", button.dataset.rankingSort === AUTH_STATE.rankingSort);
   });
+  renderCircuitDashboard();
+}
+
+function circuitRankLabel(value) {
+  const rank = Number(value || 0);
+  if (!rank) return "--";
+  return rank === 1 ? "1er" : `${rank}e`;
+}
+
+function setCircuitProjection(element, rank, projectedRank) {
+  if (!element) return;
+  const current = Number(rank || 0);
+  const projected = Number(projectedRank || current || 0);
+  element.classList.remove("ranking-projection-up", "ranking-projection-down", "ranking-projection-neutral");
+  if (!projected) {
+    element.textContent = "Projection indisponible";
+    return;
+  }
+  element.textContent = `(${circuitRankLabel(projected)} projeté)`;
+  element.classList.add(projected < current
+    ? "ranking-projection-up"
+    : projected > current
+      ? "ranking-projection-down"
+      : "ranking-projection-neutral");
+}
+
+function renderCircuitDashboard() {
+  const ranking = AUTH_STATE.lobbyRanking || AUTH_STATE.ranking;
+  const current = ranking?.currentUserRank || null;
+  const competitions = AUTH_STATE.competitions;
+  const retriesUsed = Number(competitions?.retriesUsed || 0);
+  const retryLimit = Number(competitions?.retryLimit || 5);
+  const remainingAttempts = Math.max(0, retryLimit - retriesUsed);
+  const season = Number(competitions?.season || ranking?.season || 1);
+  const week = Number(competitions?.week || ranking?.week || 1);
+
+  if (els.circuitHeroPeriod) els.circuitHeroPeriod.textContent = `Saison ${season} · Semaine ${week} · Tournois de la semaine`;
+  if (els.circuitRankValue) els.circuitRankValue.textContent = circuitRankLabel(current?.rank);
+  setCircuitProjection(els.circuitRankProjection, current?.rank, current?.projected_rank);
+  if (els.circuitPointsValue) els.circuitPointsValue.textContent = String(Number(current?.score_ref || 0));
+  if (els.circuitWeekPointsValue) els.circuitWeekPointsValue.textContent = String(Number(current?.score_week || 0));
+  if (els.circuitAttemptsValue) els.circuitAttemptsValue.textContent = `${remainingAttempts}/${retryLimit}`;
+  if (els.circuitAttemptsCaption) els.circuitAttemptsCaption.textContent = remainingAttempts
+    ? `${remainingAttempts} amélioration${remainingAttempts > 1 ? "s" : ""} encore possible${remainingAttempts > 1 ? "s" : ""}`
+    : "Toutes les tentatives ont été utilisées";
+
+  const characterId = selectedCharacterId();
+  if (els.circuitPlayerAvatar) {
+    els.circuitPlayerAvatar.src = PROFILE_CHARACTER_IMAGES[characterId] || PROFILE_CHARACTER_IMAGES.coachJu;
+    els.circuitPlayerAvatar.alt = characterNameFromId(characterId);
+  }
+  if (els.circuitPlayerNickname) els.circuitPlayerNickname.textContent = AUTH_STATE.user?.nickname || selectedPlayerName();
+  if (els.circuitPlayerRole) els.circuitPlayerRole.textContent = ROLE_LABELS[currentUserRole()] || "PRO";
+  if (els.circuitPlayerRank) els.circuitPlayerRank.textContent = circuitRankLabel(current?.rank);
+  setCircuitProjection(els.circuitPlayerProjection, current?.rank, current?.projected_rank);
+  if (els.circuitPlayerPoints) els.circuitPlayerPoints.textContent = String(Number(current?.score_ref || 0));
+  if (els.circuitPlayerWeekPoints) els.circuitPlayerWeekPoints.textContent = String(Number(current?.score_week || 0));
+  if (els.circuitPlayerAttempts) els.circuitPlayerAttempts.textContent = `${remainingAttempts} / ${retryLimit}`;
 }
 
 function confrontationStatus(wins, losses) {
@@ -2871,7 +2958,7 @@ async function adminRestartSeasonOne() {
 function changeRankingSort(sortBy) {
   AUTH_STATE.rankingSort = ["points", "week", "season"].includes(sortBy) ? sortBy : "points";
   loadLobbyRanking();
-  loadRanking(1);
+  if (!els.rankingScreen?.classList.contains("hidden")) loadRanking(1);
 }
 
 async function loadRanking(page = AUTH_STATE.rankingPage || 1) {
@@ -2915,28 +3002,45 @@ function renderCompetitions() {
   const bestScores = AUTH_STATE.competitions?.bestScores || {};
   if (!competitions.length) {
     els.weeklyCompetitionsList.innerHTML = '<div class="lobby-empty">Aucune compétition générée.</div>';
+    renderCircuitDashboard();
     return;
   }
   const retriesUsed = Number(AUTH_STATE.competitions?.retriesUsed || 0);
   const retryLimit = Number(AUTH_STATE.competitions?.retryLimit || 5);
+  const remainingAttempts = Math.max(0, retryLimit - retriesUsed);
   els.weeklyCompetitionsList.innerHTML = `
-    <div class="weekly-competition-counter">Saison ${Number(AUTH_STATE.competitions?.season || 1)} · Semaine ${Number(AUTH_STATE.competitions?.week || 1)} · Nouvelles tentatives : ${retriesUsed}/${retryLimit} · <span id="weeklyCountdown">${escapeHtml(formatCountdown(AUTH_STATE.competitions?.nextUpdateAt))}</span></div>
+    <div class="circuit-attempt-banner ${remainingAttempts ? "" : "empty"}">
+      <span><strong>${remainingAttempts}</strong> tentative${remainingAttempts > 1 ? "s" : ""} d'amélioration restante${remainingAttempts > 1 ? "s" : ""}</span>
+      <small id="weeklyCountdown">${escapeHtml(formatCountdown(AUTH_STATE.competitions?.nextUpdateAt))}</small>
+    </div>
     ${competitions.map((competition) => {
       const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competition.id);
       const canReplay = !alreadyPlayed || retriesUsed < retryLimit;
       const label = alreadyPlayed ? "Rejouer" : "Jouer";
       const replayClass = alreadyPlayed ? "replay-button" : "";
       const saved = savedTournamentProgress(competition.id);
+      const category = String(competition.type || competition.name || "Tournoi");
+      const categoryKey = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
       return `
-      <article class="weekly-competition">
-        <div>
-          <strong>${escapeHtml(competition.type || competition.name)} - ${escapeHtml(competition.name)}</strong>
-          <span>${escapeHtml(competition.city || "")} · ${escapeHtml(competition.country || "")} ${escapeHtml(competition.flag || "")} · ${escapeHtml(competition.surfaceLabel)} · ${Number(competition.targetSets || 2)} sets</span>
+      <article class="weekly-competition circuit-competition-card" data-competition-category="${escapeHtml(categoryKey)}">
+        <div class="circuit-competition-head">
+          <span class="circuit-competition-category">${escapeHtml(category)}</span>
+          <span class="circuit-competition-state ${saved ? "saved" : alreadyPlayed ? "played" : "new"}">${saved ? "Sauvegardé" : alreadyPlayed ? "Déjà joué" : "À jouer"}</span>
         </div>
-        <span>Gains : ${Number(bestScores[competition.id] || 0)} pts</span>
-        <div class="weekly-competition-actions">
-          ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
-          ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
+        <div class="circuit-competition-copy">
+          <h3>${escapeHtml(competition.name)}</h3>
+          <span>${escapeHtml(competition.city || "")} · ${escapeHtml(competition.country || "")} ${escapeHtml(competition.flag || "")}</span>
+          <div class="circuit-competition-meta">
+            <span>${escapeHtml(competition.surfaceLabel)}</span>
+            <span>${Number(competition.targetSets || 2)} sets gagnants</span>
+          </div>
+        </div>
+        <div class="circuit-competition-footer">
+          <span><small>Meilleur résultat</small><strong>${Number(bestScores[competition.id] || 0)} pts</strong></span>
+          <div class="weekly-competition-actions">
+            ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
+            ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
+          </div>
         </div>
       </article>
     `;
@@ -2948,6 +3052,7 @@ function renderCompetitions() {
   els.weeklyCompetitionsList.querySelectorAll("[data-resume-weekly-competition]").forEach((button) => {
     button.addEventListener("click", () => resumeWeeklyCompetition(button.dataset.resumeWeeklyCompetition));
   });
+  renderCircuitDashboard();
   startWeeklyCountdown();
 }
 
@@ -2968,12 +3073,15 @@ function startWeeklyCountdown() {
   window.clearInterval(weeklyCountdownTimer);
   const tick = () => {
     const target = document.querySelector("#weeklyCountdown");
-    if (!target) {
+    const heroTarget = els.circuitHeroCountdown;
+    if (!target && !heroTarget) {
       window.clearInterval(weeklyCountdownTimer);
       weeklyCountdownTimer = null;
       return;
     }
-    target.textContent = formatCountdown(AUTH_STATE.competitions?.nextUpdateAt);
+    const countdown = formatCountdown(AUTH_STATE.competitions?.nextUpdateAt);
+    if (target) target.textContent = countdown;
+    if (heroTarget) heroTarget.textContent = countdown;
   };
   tick();
   weeklyCountdownTimer = window.setInterval(tick, 1000);
@@ -3190,6 +3298,16 @@ function updateMenuSelection() {
   els.coachChoiceButtons?.forEach((button) => {
     button.classList.toggle("active", Number(button.dataset.menuCoach) === MENU_STATE.selectedPlayerIndex);
   });
+  updateLobbyProfileAvatar();
+}
+
+function updateLobbyProfileAvatar() {
+  if (!els.lobbyProfileAvatar) return;
+  const characterId = selectedCharacterId();
+  els.lobbyProfileAvatar.src = PROFILE_CHARACTER_IMAGES[characterId]
+    || PROFILE_CHARACTER_IMAGES[profileSelectedCharacterId()]
+    || PROFILE_CHARACTER_IMAGES.coachJu;
+  els.lobbyProfileAvatar.alt = characterNameFromId(characterId);
 }
 
 function applySurfaceBackground(surface = null) {
@@ -3215,8 +3333,46 @@ function hideTournamentLoadingDialog() {
   els.tournamentLoadingDialog?.setAttribute("aria-hidden", "true");
 }
 
+function setLobbyAccountPanelOpen(open) {
+  const shouldOpen = Boolean(open);
+  els.lobbyAccountPanel?.classList.toggle("hidden", !shouldOpen);
+  els.lobbySettingsButton?.setAttribute("aria-expanded", String(shouldOpen));
+  els.lobbyUserButton?.setAttribute("aria-expanded", String(shouldOpen));
+  if (shouldOpen) renderLatestNewsPanel();
+}
+
+function hideLobbySectionScreen() {
+  els.lobbySectionScreen?.classList.add("hidden");
+}
+
+function showLobbySection(sectionName) {
+  const section = ["training", "solo", "online", "circuit"].includes(sectionName) ? sectionName : "training";
+  if (section === "solo") {
+    showAiClubHouseScreen();
+    return;
+  }
+  if (["online", "circuit"].includes(section) && !canAccessProFeatures()) {
+    setLobbyAccountPanelOpen(true);
+    renderAuthState("Réservé aux joueurs Pro.");
+    return;
+  }
+  setLobbyAccountPanelOpen(false);
+  els.menuScreen?.classList.add("hidden");
+  els.lobbySectionScreen?.classList.remove("hidden");
+  els.lobbySectionPanels?.forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.lobbySectionPanel !== section);
+  });
+  if (section === "online") refreshLobbyRooms();
+  if (section === "circuit") {
+    loadLobbyRanking();
+    loadCompetitions();
+  }
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
 function showGameScreen() {
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3231,6 +3387,7 @@ function showGameScreen() {
 
 function showFriendlyLobbyScreen() {
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3244,11 +3401,9 @@ function showFriendlyLobbyScreen() {
 }
 
 function showAiClubHouseScreen() {
-  if (!canAccessProFeatures()) {
-    renderAuthState("Réservé aux joueurs Pro.");
-    return;
-  }
+  if (!canAccessProFeatures() && AI_CLUB_HOUSE.format !== "match") AI_CLUB_HOUSE.format = "match";
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3264,6 +3419,7 @@ function showAiClubHouseScreen() {
 
 function showRankingScreen() {
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
@@ -3276,7 +3432,9 @@ function showRankingScreen() {
 
 function showMenuScreen() {
   resetTutorialMode();
+  setLobbyAccountPanelOpen(false);
   els.gameApp?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
@@ -3290,14 +3448,12 @@ function showMenuScreen() {
   applySurfaceBackground(null);
   renderAuthState();
   updateMenuSelection();
-  refreshLobbyRooms();
-  loadLobbyRanking();
-  loadCompetitions();
 }
 
 function showProfileScreen(userId = null) {
   if (!AUTH_STATE.user) return;
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3313,6 +3469,7 @@ function showProfileScreen(userId = null) {
 function showCharacterScreen() {
   if (!AUTH_STATE.user) return;
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3326,6 +3483,7 @@ function showCharacterScreen() {
 
 function showResetPasswordScreen() {
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3339,6 +3497,7 @@ function showResetPasswordScreen() {
 function showAdminScreen() {
   if (!canAccessAdminFeatures()) return;
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.gameApp?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3353,6 +3512,7 @@ function showAdminScreen() {
 
 function showCircuitInfoScreen() {
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
@@ -3367,6 +3527,7 @@ function showCircuitInfoScreen() {
 
 function showAcademyInfoScreen() {
   els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -3909,6 +4070,8 @@ function openReturnLobbyDialog() {
 }
 
 function renderAiClubHouse() {
+  const proAccess = canAccessProFeatures();
+  if (!proAccess && AI_CLUB_HOUSE.format !== "match") AI_CLUB_HOUSE.format = "match";
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   els.aiClubSettingButtons?.forEach((button) => {
@@ -3922,8 +4085,10 @@ function renderAiClubHouse() {
       distribution: AI_CLUB_HOUSE.distribution,
     }[setting];
     button.classList.toggle("active", button.dataset.aiClubValue === expected);
-    button.disabled = false;
+    button.disabled = button.hasAttribute("data-pro-format") && !proAccess;
   });
+  const isMatch = AI_CLUB_HOUSE.format === "match";
+  document.querySelectorAll("[data-competition-setting]").forEach((row) => row.classList.toggle("hidden", isMatch));
   els.aiBonusSettingRow?.classList.remove("setting-disabled");
   if (els.aiLevelDescription) {
     els.aiLevelDescription.textContent = AI_DIFFICULTY_DESCRIPTIONS[AI_CLUB_HOUSE.difficulty];
@@ -3932,13 +4097,20 @@ function renderAiClubHouse() {
     els.aiBonusDescription.textContent = AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
   }
   if (els.aiClubHouseSummary) {
-    const format = AI_CLUB_HOUSE.format === "league" ? "League" : "Tournoi";
+    const format = AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
     const bonusText = `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
-    els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
+    els.aiClubHouseSummary.textContent = isMatch
+      ? `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)}`
+      : `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
+    if (els.aiClubHouseSummaryTitle) els.aiClubHouseSummaryTitle.textContent = format;
   }
-  els.aiClubHouseSaveActions?.classList.toggle("hidden", !readAiClubHouseSave());
+  if (els.startAiClubHouseButton) {
+    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
+  }
+  els.aiClubHouseAccessNote?.classList.toggle("hidden", proAccess);
+  els.aiClubHouseSaveActions?.classList.toggle("hidden", !proAccess || !readAiClubHouseSave());
 }
 
 function aiClubHouseSaveKey() {
@@ -3989,6 +4161,7 @@ function saveAiClubHouseProgress() {
 }
 
 function resumeAiClubHouseSave() {
+  if (!canAccessProFeatures()) return;
   const saved = readAiClubHouseSave();
   if (!saved || !restoreStateSnapshot(saved)) return;
   showGameScreen();
@@ -4004,7 +4177,8 @@ function deleteAiClubHouseSave() {
 
 function updateAiClubHouseSetting(setting, value) {
   if (setting === "format") {
-    AI_CLUB_HOUSE.format = value === "league" ? "league" : "tournament";
+    if (["classic", "league"].includes(value) && !canAccessProFeatures()) return;
+    AI_CLUB_HOUSE.format = ["match", "classic", "league"].includes(value) ? value : "match";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
   } else if (setting === "sets") {
     AI_CLUB_HOUSE.targetSets = Number(value) === 3 ? 3 : 2;
@@ -4053,17 +4227,23 @@ async function ensureGameplayRanking() {
 }
 
 async function startAiClubHouseCompetition() {
-  if (!canAccessProFeatures()) {
+  const isMatch = AI_CLUB_HOUSE.format === "match";
+  if (!isMatch && !canAccessProFeatures()) {
     showMenuScreen();
     renderAuthState("Réservé aux joueurs Pro.");
     return;
   }
   resetTutorialMode();
   MENU_STATE.espoirResolvedCharacterId = null;
-  await showTournamentLoadingDialog("Votre tournoi du Club House est en train d'être créé.");
+  await showTournamentLoadingDialog(
+    isMatch ? "Votre match Solo est en train d'être préparé." : "Votre compétition du Club House est en train d'être créée.",
+    isMatch ? "Préparation du match" : "Chargement de la compétition",
+  );
   try {
-    await ensureGameplayRanking();
-    await ensureGameplayProfile(true);
+    if (!isMatch) {
+      await ensureGameplayRanking();
+      await ensureGameplayProfile(true);
+    }
     const options = {
       aiClubHouse: true,
       difficulty: AI_CLUB_HOUSE.difficulty,
@@ -4072,7 +4252,12 @@ async function startAiClubHouseCompetition() {
       distribution: AI_CLUB_HOUSE.distribution,
     };
     try {
-      if (AI_CLUB_HOUSE.format === "league") {
+      if (isMatch) {
+        resetTournament();
+        configureSoloOpponent();
+        SOLO_AI.difficulty = AI_CLUB_HOUSE.difficulty;
+        startMatchMode(AI_CLUB_HOUSE.targetSets, { keepSoloOpponent: true });
+      } else if (AI_CLUB_HOUSE.format === "league") {
         startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
       } else {
         startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
@@ -4083,8 +4268,8 @@ async function startAiClubHouseCompetition() {
       resetTournament();
       SOLO_AI.enabled = false;
       showMenuScreen();
-      renderAuthState("Le tournoi n'a pas pu démarrer. Vérifie sa configuration puis réessaie.");
-      console.error("Club House tournament launch failed", error);
+      renderAuthState("La partie n'a pas pu démarrer. Vérifie sa configuration puis réessaie.");
+      console.error("Club House launch failed", error);
     }
   } finally {
     hideTournamentLoadingDialog();
@@ -4151,7 +4336,8 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
     return;
   }
   const tournamentHtml = tournaments.map((tournament) => `
-    <article class="lobby-room friendly-tournament-room">
+    <article class="lobby-room friendly-tournament-room online-room-card">
+      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "schedule.svg" : tournament.format === "match" ? "SOLO.svg" : "trophy CIRCUIT.svg"}" alt="" aria-hidden="true" /></span>
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Partie en ligne</strong>
         <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
@@ -4171,7 +4357,8 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
     const format = room.targetSets === 3 ? "Match 3 sets" : "Match 2 sets";
     const coach = characterNameFromId(normalizeCharacterId(host?.characterId, "coachJu"));
     return `
-      <article class="lobby-room">
+      <article class="lobby-room online-room-card">
+        <span class="online-room-format-icon"><img src="./assets/icons/SOLO.svg" alt="" aria-hidden="true" /></span>
         <div>
           <strong>${host?.nickname ?? "Joueur"} · ${format}</strong>
           <span>${coach} · Salon ${room.id}</span>
@@ -4898,10 +5085,18 @@ function renderFriendlyLobbyScreen() {
     </section>
   ` : "";
   els.friendlyLobbyContent.innerHTML = `
-    <div class="friendly-lobby-title">
+    <header class="online-room-hero">
+      <img src="./assets/MODE-EN-LIGNE.jpg" alt="" aria-hidden="true" />
+      <div>
+        <p class="label">Club House en ligne</p>
+        <h1>${format === "league" ? "League" : format === "match" ? "Match" : "Tournoi Classic"}</h1>
+        <p>${participants.length}/4 joueurs connectés · ${targetSets} sets gagnants</p>
+      </div>
+    </header>
+    <div class="friendly-lobby-title clubhouse-room-heading">
       <div>
         <p class="label">CLUB HOUSE · ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
-        <h1>${FRIENDLY_TOURNAMENT.isSpectator ? "CLUB HOUSE · Spectateur" : "CLUB HOUSE"}</h1>
+        <h2>${FRIENDLY_TOURNAMENT.isSpectator ? "Vue spectateur" : "Configuration et joueurs"}</h2>
         <p>${participants.length}/4 connectés · ${participants.filter((participant) => participant.selected).length}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${targetSets} sets gagnants</p>
       </div>
     </div>
@@ -4909,7 +5104,7 @@ function renderFriendlyLobbyScreen() {
     <section class="friendly-settings-panel ${settingsLocked ? "locked" : ""}">
       <div class="friendly-setting-row">
         <div><strong>Type d'événement</strong><span>${settingsLocked ? "Configuration verrouillée" : "Choix de l'hôte"}</span></div>
-        <div class="friendly-setting-switch three-options">
+        <div class="friendly-setting-switch three-options clubhouse-inline-formats">
           ${settingButton("format", "match", "MATCH AMICAL", format === "match")}
           ${settingButton("format", "classic", "TOURNOI CLASSIQUE", format === "classic")}
           ${settingButton("format", "league", "LEAGUE", format === "league")}
@@ -14039,10 +14234,16 @@ function initMenu() {
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   updateMenuSelection();
   renderAiClubHouse();
-  renderLatestNewsPanel();
   renderAuthState();
   updateAccessControls();
   loadAuthState();
+  const toggleAccountPanel = () => setLobbyAccountPanelOpen(els.lobbyAccountPanel?.classList.contains("hidden"));
+  els.lobbySettingsButton?.addEventListener("click", toggleAccountPanel);
+  els.lobbyUserButton?.addEventListener("click", toggleAccountPanel);
+  els.lobbyModeCards?.forEach((card) => {
+    card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
+  });
+  els.backToHomeButton?.addEventListener("click", showMenuScreen);
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.forgotPasswordButton?.addEventListener("click", requestPasswordReset);
@@ -14070,7 +14271,8 @@ function initMenu() {
     button.addEventListener("click", () => changeRankingSort(button.dataset.rankingSort));
   });
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
-  els.backToLobbyFromRankingButton?.addEventListener("click", showMenuScreen);
+  els.circuitProfileButton?.addEventListener("click", () => showProfileScreen());
+  els.backToLobbyFromRankingButton?.addEventListener("click", () => showLobbySection("circuit"));
   els.rankingPrevPageButton?.addEventListener("click", () => loadRanking(Math.max(1, AUTH_STATE.rankingPage - 1)));
   els.rankingNextPageButton?.addEventListener("click", () => loadRanking(Math.min(Number(AUTH_STATE.ranking?.totalPages || 1), AUTH_STATE.rankingPage + 1)));
   els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
@@ -14112,14 +14314,20 @@ function initMenu() {
   els.refreshLobbyButton?.addEventListener("click", refreshLobbyRooms);
   els.createLobbyRoomButton?.addEventListener("click", createFriendlyTournament);
   els.createFriendlyTournamentButton?.addEventListener("click", createFriendlyTournament);
-  refreshLobbyRooms();
-  loadLobbyRanking();
-  loadRanking(1);
-  loadCompetitions();
   window.clearInterval(MENU_STATE.lobbyTimer);
   MENU_STATE.lobbyTimer = window.setInterval(() => {
-    if (!els.menuScreen?.classList.contains("hidden")) refreshLobbyRooms();
+    const onlineSection = document.querySelector("[data-lobby-section-panel='online']");
+    if (!els.lobbySectionScreen?.classList.contains("hidden") && !onlineSection?.classList.contains("hidden")) refreshLobbyRooms();
   }, 3500);
+  document.addEventListener("click", (event) => {
+    if (els.lobbyAccountPanel?.classList.contains("hidden")) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("#lobbyAccountPanel, #lobbySettingsButton, #lobbyUserButton, [data-open-lobby-section]")) return;
+    setLobbyAccountPanelOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setLobbyAccountPanelOpen(false);
+  });
   if (resetTokenFromUrl()) showResetPasswordScreen();
 }
 

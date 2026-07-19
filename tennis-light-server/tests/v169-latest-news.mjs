@@ -20,20 +20,66 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.0/);
-assert.match(html, /app\.js\?v=169\.0/);
+assert.match(html, /Tennis Courts Academy · v169/);
+assert.match(html, /styles\.css\?v=169\.5/);
+assert.match(html, /app\.js\?v=169\.5/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
-const onlineClubHouseIndex = html.indexOf('class="menu-panel online-lobby-panel');
 const latestNewsIndex = html.indexOf('id="latestNewsPanel"');
-const posterIndex = html.indexOf('class="lobby-poster-panel"');
-assert.ok(onlineClubHouseIndex >= 0 && latestNewsIndex > onlineClubHouseIndex);
-assert.ok(posterIndex > latestNewsIndex);
+const accountPanelIndex = html.indexOf('id="lobbyAccountPanel"');
+assert.ok(accountPanelIndex >= 0 && latestNewsIndex > accountPanelIndex);
+assert.match(html, /class="lobby-hero"/);
+assert.match(html, /src="\.\/assets\/HERO\.jpg"/);
+assert.match(html, /id="lobbyProfileAvatar"/);
+for (const asset of ["ENTRAINEMENT.jpg", "MODE-SOLO.jpg", "MODE-EN-LIGNE.jpg", "CIRCUIT-PRO.jpg"]) {
+  assert.match(html, new RegExp(`src="\\.\\/assets\\/${asset.replace(".", "\\.")}"`));
+}
+for (const icon of ["TRAINING.svg", "SOLO.svg", "ONLINE.svg", "trophy CIRCUIT.svg", "next.svg"]) {
+  assert.match(html, new RegExp(`src="\\.\\/assets\\/icons\\/${icon.replace(".", "\\.")}"`));
+}
+for (const section of ["training", "solo", "online", "circuit"]) {
+  assert.match(html, new RegExp(`data-open-lobby-section="${section}"`));
+}
+for (const format of ["match", "classic", "league"]) {
+  assert.match(html, new RegExp(`data-ai-club-value="${format}"`));
+}
+assert.match(html, /Centre d'entraînement/);
+assert.match(html, /Club House Solo/);
+assert.match(html, /Club House en ligne/);
+assert.match(html, /id="circuitRankProjection"/);
+assert.match(html, /id="circuitAttemptsValue"/);
+assert.match(html, /id="circuitPlayerProjection"/);
+assert.match(html, /<h2>Top 20<\/h2>/);
+assert.match(html, /Passez au jeu complet/);
+assert.match(html, /href="https:\/\/mediality\.fr\/shop"/);
 
 const authenticatedUser = functionSource(app, "applyAuthenticatedUser");
 assert.doesNotMatch(authenticatedUser, /NewsDialog|pendingNews/);
 assert.doesNotMatch(app, /showNextProNewsDialog/);
+
+const initMenu = functionSource(app, "initMenu");
+assert.doesNotMatch(initMenu, /loadLobbyRanking\(\)/);
+assert.doesNotMatch(initMenu, /loadRanking\(1\)/);
+assert.doesNotMatch(initMenu, /loadCompetitions\(\)/);
+assert.match(initMenu, /lobbySectionScreen[\s\S]*onlineSection[\s\S]*refreshLobbyRooms\(\)/);
+const authenticatedCircuitRefresh = functionSource(app, "refreshAuthenticatedCircuitData");
+assert.doesNotMatch(authenticatedCircuitRefresh, /fetch|loadRanking|loadLobbyRanking|loadCompetitions|ensureGameplayProfile|ensureGameplayRanking/);
+const lobbySection = functionSource(app, "showLobbySection");
+assert.match(lobbySection, /section === "solo"[\s\S]*showAiClubHouseScreen\(\)/);
+assert.match(lobbySection, /section === "online"\) refreshLobbyRooms\(\)/);
+assert.match(lobbySection, /section === "circuit"/);
+const avatar = functionSource(app, "updateLobbyProfileAvatar");
+assert.match(avatar, /PROFILE_CHARACTER_IMAGES\[characterId\]/);
+const circuitDashboard = functionSource(app, "renderCircuitDashboard");
+assert.match(circuitDashboard, /retryLimit - retriesUsed/);
+assert.match(circuitDashboard, /projected_rank/);
+assert.match(circuitDashboard, /score_ref/);
+assert.match(circuitDashboard, /score_week/);
+const rankingMarkup = functionSource(app, "rankingMarkup");
+assert.match(rankingMarkup, /ranking-position/);
+assert.match(rankingMarkup, /projected_rank/);
+assert.match(app, /pageSize=20/);
+assert.match(app, /pageSize=25/);
 
 const panel = functionSource(app, "renderLatestNewsPanel");
 assert.match(panel, /DERNIÈRES ACTU/);

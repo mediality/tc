@@ -21,8 +21,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.0/);
-assert.match(html, /app\.js\?v=169\.0/);
+assert.match(html, /styles\.css\?v=169\.5/);
+assert.match(html, /app\.js\?v=169\.5/);
 
 function seedPermanentBonuses(randomValue) {
   const context = {
@@ -62,7 +62,9 @@ assert.match(clubHouseTournament, /humanCircuitLevel: circuitIntelligence \? hum
 
 assert.doesNotMatch(functionSource("startLeagueTournamentMode"), /startTournamentMode/);
 assert.match(functionSource("startAiClubHouseCompetition"), /AI_CLUB_HOUSE\.format === "league"/);
-assert.match(functionSource("renderAiClubHouse"), /button\.disabled = false/);
+assert.match(functionSource("startAiClubHouseCompetition"), /isMatch[\s\S]*startMatchMode/);
+assert.match(functionSource("renderAiClubHouse"), /data-pro-format/);
+assert.match(functionSource("renderAiClubHouse"), /AI_CLUB_HOUSE\.format === "match"/);
 assert.doesNotMatch(functionSource("updateAiClubHouseSetting"), /difficulty === "circuit"/);
 
 const newGame = functionSource("newGame");
