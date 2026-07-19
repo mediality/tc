@@ -12,9 +12,9 @@ const [html, app, styles, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v158<\/span>/);
-assert.match(html, /styles\.css\?v=158\.0/);
-assert.match(html, /app\.js\?v=158\.0/);
+assert.match(html, /Tennis Courts Academy <span>v159<\/span>/);
+assert.match(html, /styles\.css\?v=159\.0/);
+assert.match(html, /app\.js\?v=159\.0/);
 
 const jpgCards = files.filter((file) => file.toLowerCase().endsWith(".jpg"));
 const pngCards = files.filter((file) => file.toLowerCase().endsWith(".png"));

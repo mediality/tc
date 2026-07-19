@@ -29,9 +29,9 @@ function jpegDimensions(buffer) {
   throw new Error("Dimensions JPEG introuvables");
 }
 
-assert.match(html, /Tennis Courts Academy <span>v158<\/span>/);
-assert.match(html, /styles\.css\?v=158\.0/);
-assert.match(html, /app\.js\?v=158\.0/);
+assert.match(html, /Tennis Courts Academy <span>v159<\/span>/);
+assert.match(html, /styles\.css\?v=159\.0/);
+assert.match(html, /app\.js\?v=159\.0/);
 
 const jpgCards = cardFiles.filter((file) => file.toLowerCase().endsWith(".jpg"));
 assert.equal(jpgCards.length, 158);
@@ -41,7 +41,7 @@ const dimensions = await Promise.all(jpgCards.map(async (file) => ({
 })));
 assert.equal(dimensions.filter(({ width, height }) => width >= 1462 && height >= 2076).length, 158);
 
-assert.match(app, /const CARD_ASSET_VERSION = "158"/);
+assert.match(app, /const CARD_ASSET_VERSION = "159"/);
 assert.match(app, /value\.startsWith\("assets\/cards\/"\) \? `\$\{value\}\?v=\$\{CARD_ASSET_VERSION\}`/);
 assert.match(app, /function fitZoomImageToScreen\(image\)/);
 assert.match(app, /window\.devicePixelRatio/);
@@ -52,4 +52,4 @@ assert.match(app, /attachResolutionAwareZoom\(backdrop\.querySelector\("\.image-
 assert.match(app, /attachResolutionAwareZoom\(image\)/);
 assert.match(styles, /\.card-image-zoom-trigger\s*\{[\s\S]*cursor: zoom-in/);
 
-console.log("v158 cartes x2, cache actualisé et loupe adaptée à la densité: OK");
+console.log("v159 cartes x2, cache actualisé et loupe adaptée à la densité: OK");
