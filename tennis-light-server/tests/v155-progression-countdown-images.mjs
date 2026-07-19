@@ -21,9 +21,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v155<\/span>/);
-assert.match(html, /styles\.css\?v=155\.0/);
-assert.match(html, /app\.js\?v=155\.0/);
+assert.match(html, /Tennis Courts Academy <span>v156<\/span>/);
+assert.match(html, /styles\.css\?v=156\.0/);
+assert.match(html, /app\.js\?v=156\.0/);
 
 const progressionContext = {
   renderCenterNextSoloExchangeButton: () => "SOLO",

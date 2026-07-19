@@ -20,9 +20,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v155<\/span>/);
-assert.match(html, /styles\.css\?v=155\.0/);
-assert.match(html, /app\.js\?v=155\.0/);
+assert.match(html, /Tennis Courts Academy <span>v156<\/span>/);
+assert.match(html, /styles\.css\?v=156\.0/);
+assert.match(html, /app\.js\?v=156\.0/);
 
 function seedPermanentBonuses(randomValue) {
   const context = {
@@ -55,19 +55,17 @@ assert.match(officialCircuit, /buildTournamentAiIntelligenceLevels\(positions, "
 assert.match(officialCircuit, /buildCircuitSeedPermanentBonuses\(seedEntries\)/);
 
 const clubHouseTournament = functionSource("startTournamentMode");
-assert.match(clubHouseTournament, /buildTournamentRound16Positions\(humanCharacterId, circuitSurface\)/);
-assert.match(clubHouseTournament, /buildWeeklyCircuitProBonuses\(positions, seedEntries, circuitSurface, humanLevel\)/);
+assert.match(clubHouseTournament, /buildAiClubHouseClassicSetup/);
 assert.match(clubHouseTournament, /buildTournamentAiIntelligenceLevels\(positions, SOLO_AI\.difficulty, \{ humanLevel \}\)/);
-assert.match(clubHouseTournament, /buildCircuitSeedPermanentBonuses\(seedEntries\)/);
-assert.match(clubHouseTournament, /distribution: circuitRules \? "ranking"/);
-assert.match(clubHouseTournament, /humanCircuitLevel: circuitRules \? humanLevel/);
+assert.match(clubHouseTournament, /buildAiClubHouseBonuses\(positions, bonusLevel\)/);
+assert.match(clubHouseTournament, /humanCircuitLevel: circuitIntelligence \? humanLevel/);
 
-assert.match(functionSource("startLeagueTournamentMode"), /difficulty\) === "circuit"[\s\S]*startTournamentMode/);
-assert.match(functionSource("startAiClubHouseCompetition"), /AI_CLUB_HOUSE\.format === "league" && AI_CLUB_HOUSE\.difficulty !== "circuit"/);
-assert.match(functionSource("renderAiClubHouse"), /if \(circuitMode\) AI_CLUB_HOUSE\.format = "tournament"/);
-assert.match(functionSource("updateAiClubHouseSetting"), /AI_CLUB_HOUSE\.difficulty === "circuit"[\s\S]*return/);
+assert.doesNotMatch(functionSource("startLeagueTournamentMode"), /startTournamentMode/);
+assert.match(functionSource("startAiClubHouseCompetition"), /AI_CLUB_HOUSE\.format === "league"/);
+assert.match(functionSource("renderAiClubHouse"), /button\.disabled = false/);
+assert.doesNotMatch(functionSource("updateAiClubHouseSetting"), /difficulty === "circuit"/);
 
 const newGame = functionSource("newGame");
-assert.match(newGame, /!state\.tournament\.aiClubHouse \|\| state\.tournament\.difficulty === "circuit"/);
+assert.match(newGame, /state\.tournament\.active && !state\.tournament\.aiClubHouse && !SERVER_SYNC\.enabled/);
 
 console.log("v153 têtes de série IA et CLUB HOUSE Circuit Pro: OK");

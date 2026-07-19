@@ -191,7 +191,7 @@ const AI_DIFFICULTY_DESCRIPTIONS = {
   champion: "Champion · projections complètes et décisions presque optimales.",
   legend: "Légende · analyse maximale, adaptation rapide et précision constante.",
   ranking: "Selon classement · niveaux déterminés par le RankIA global des 21 IA.",
-  circuit: "Circuit Pro · niveaux selon classement et bonus automatiques du circuit.",
+  circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur.",
 };
 const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
 const AI_BONUS_LABELS = {
@@ -1436,7 +1436,7 @@ function aiBonusLabel(value = "none") {
 }
 
 function tournamentBonusSummary() {
-  return state.tournament?.difficulty === "circuit"
+  return state.tournament?.difficulty === "circuit" && !state.tournament?.aiClubHouse
     ? "Bonus Circuit Pro"
     : `Bonus ${aiBonusLabel(state.tournament?.bonusLevel)}`;
 }
@@ -3568,8 +3568,6 @@ function openReturnLobbyDialog() {
 function renderAiClubHouse() {
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
-  const circuitMode = AI_CLUB_HOUSE.difficulty === "circuit";
-  if (circuitMode) AI_CLUB_HOUSE.format = "tournament";
   els.aiClubSettingButtons?.forEach((button) => {
     const setting = button.dataset.aiClubSetting;
     const expected = {
@@ -3581,25 +3579,21 @@ function renderAiClubHouse() {
       distribution: AI_CLUB_HOUSE.distribution,
     }[setting];
     button.classList.toggle("active", button.dataset.aiClubValue === expected);
-    button.disabled = circuitMode && ["format", "bonus", "players", "distribution"].includes(setting);
+    button.disabled = false;
   });
-  els.aiBonusSettingRow?.classList.toggle("setting-disabled", circuitMode);
+  els.aiBonusSettingRow?.classList.remove("setting-disabled");
   if (els.aiLevelDescription) {
     els.aiLevelDescription.textContent = AI_DIFFICULTY_DESCRIPTIONS[AI_CLUB_HOUSE.difficulty];
   }
   if (els.aiBonusDescription) {
-    els.aiBonusDescription.textContent = circuitMode
-      ? "Bonus automatiques selon les règles du Circuit Pro."
-      : AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
+    els.aiBonusDescription.textContent = AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
   }
   if (els.aiClubHouseSummary) {
     const format = AI_CLUB_HOUSE.format === "league" ? "League" : "Tournoi";
-    const bonusText = circuitMode ? "bonus Circuit Pro" : `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
+    const bonusText = `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
-    els.aiClubHouseSummary.textContent = circuitMode
-      ? `Tournoi classique à 16 · ${AI_CLUB_HOUSE.targetSets} sets gagnants · Circuit Pro · sélection, tableau, niveaux IA et bonus du Circuit Pro`
-      : `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
+    els.aiClubHouseSummary.textContent = `${format} · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
   }
   els.aiClubHouseSaveActions?.classList.toggle("hidden", !readAiClubHouseSave());
 }
@@ -3649,7 +3643,6 @@ function deleteAiClubHouseSave() {
 }
 
 function updateAiClubHouseSetting(setting, value) {
-  if (["format", "bonus", "players", "distribution"].includes(setting) && AI_CLUB_HOUSE.difficulty === "circuit") return;
   if (setting === "format") {
     AI_CLUB_HOUSE.format = value === "league" ? "league" : "tournament";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
@@ -3659,10 +3652,6 @@ function updateAiClubHouseSetting(setting, value) {
   } else if (setting === "difficulty") {
     AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(value);
     localStorage.setItem("tennisLightAiClubDifficulty", AI_CLUB_HOUSE.difficulty);
-    if (AI_CLUB_HOUSE.difficulty === "circuit") {
-      AI_CLUB_HOUSE.format = "tournament";
-      localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
-    }
   } else if (setting === "bonus") {
     AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(value);
     localStorage.setItem("tennisLightAiClubBonus", AI_CLUB_HOUSE.bonus);
@@ -3723,7 +3712,7 @@ async function startAiClubHouseCompetition() {
       distribution: AI_CLUB_HOUSE.distribution,
     };
     try {
-      if (AI_CLUB_HOUSE.format === "league" && AI_CLUB_HOUSE.difficulty !== "circuit") {
+      if (AI_CLUB_HOUSE.format === "league") {
         startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
       } else {
         startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
@@ -5391,7 +5380,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v155",
+    gameVersion: "v156",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5631,7 +5620,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v155",
+    version: "v156",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5690,7 +5679,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v155",
+    version: "v156",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5704,7 +5693,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v155");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v156");
 }
 
 function resetSetMatch() {
@@ -5780,9 +5769,7 @@ function newGame(options = {}) {
       ? tournamentWorldRankForEntry(tournamentEntry)
       : null;
   });
-  if (state.tournament.active
-    && (!state.tournament.aiClubHouse || state.tournament.difficulty === "circuit")
-    && !SERVER_SYNC.enabled) {
+  if (state.tournament.active && !state.tournament.aiClubHouse && !SERVER_SYNC.enabled) {
     const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
     if (headToHead) {
       const targetIndex = headToHead.target === "human" ? 0 : 1;
@@ -9623,19 +9610,15 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     render();
     return;
   }
-  if (options.aiClubHouse && normalizeAiDifficulty(options.difficulty) === "circuit") {
-    startTournamentMode(targetSets, { ...options, aiClubHouse: true, distribution: "ranking" });
-    return;
-  }
   resetTournament();
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
   const aiClubHouse = Boolean(options.aiClubHouse);
-  const circuitRules = aiClubHouse && SOLO_AI.difficulty === "circuit";
-  const circuitSurface = circuitRules ? shuffle(Object.keys(SURFACE_BONUSES))[0] || "hard" : null;
-  const bonusLevel = circuitRules ? "none" : normalizeAiBonusLevel(options.bonus || "none");
+  const circuitIntelligence = aiClubHouse && SOLO_AI.difficulty === "circuit";
+  const humanLevel = circuitHumanLevel();
+  const bonusLevel = normalizeAiBonusLevel(options.bonus || "none");
   const leagueDistribution = aiClubHouse ? options.distribution || "random" : "ranking";
   const setup = buildLeagueTournamentSetup({
     aiClubHouse,
@@ -9647,16 +9630,11 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   const permanentBonuses = aiClubHouse
     ? {}
     : buildTournamentPermanentBonuses(setup.seededEntries, [], dynamicBonusIds);
-  const circuitBonusSetup = circuitRules
-    ? buildWeeklyCircuitProBonuses(setup.seededEntries, setup.seededEntries.slice(0, 4), circuitSurface)
-    : null;
-  const surfaceBonuses = circuitRules
-    ? circuitBonusSetup.bonuses
-    : aiClubHouse
+  const surfaceBonuses = aiClubHouse
       ? buildAiClubHouseBonuses(setup.seededEntries, bonusLevel)
       : {};
   const aiIntelligenceLevels = aiClubHouse
-    ? buildTournamentAiIntelligenceLevels(setup.seededEntries, SOLO_AI.difficulty)
+    ? buildTournamentAiIntelligenceLevels(setup.seededEntries, SOLO_AI.difficulty, { humanLevel })
     : {};
   state.tournament = {
     active: true,
@@ -9671,8 +9649,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     weekly: false,
     competitionId: null,
     competitionName: `LEAGUE ${targetSets} sets`,
-    competitionSurface: circuitSurface,
-    competitionSurfaceLabel: circuitSurface ? SURFACE_LABELS[circuitSurface] : null,
+    competitionSurface: null,
+    competitionSurfaceLabel: null,
     competitionPoints: null,
     matchBonusPoints: 0,
     matchBonusDetails: [],
@@ -9690,7 +9668,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     leagueSeededEntries: setup.seededEntries,
     tournamentSeedNumbers: Object.fromEntries(setup.seededEntries.slice(0, 4).map((entry, index) => [entry, index + 1])),
     leagueCompletedDays: 0,
-    circuitBonusSurface: circuitBonusSetup?.surface || null,
+    humanCircuitLevel: circuitIntelligence ? humanLevel : null,
+    circuitBonusSurface: null,
     surfaceBonuses,
     permanentBonuses,
     seededCharacters: [],
@@ -9699,7 +9678,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   };
   state.tournament.matches = buildLeagueTournamentMatches(setup.groups, HUMAN_TOURNAMENT_ENTRY, targetSets, setup.seededEntries);
   prepareLeagueHumanMatch();
-  const bonusLabel = circuitRules ? "règles de bonus Circuit Pro" : `bonus ${aiBonusLabel(bonusLevel)}`;
+  const bonusLabel = `bonus ${aiBonusLabel(bonusLevel)}`;
   state.log.unshift(`CLUB HOUSE · LEAGUE ${targetSets} sets · intelligence ${tournamentDifficultyLabel(SOLO_AI.difficulty)} · ${bonusLabel}.`);
   render();
 }
@@ -10039,13 +10018,10 @@ function startTournamentMode(targetSets = 2, options = {}) {
     return;
   }
   const aiClubHouse = Boolean(options.aiClubHouse);
-  const circuitRules = aiClubHouse && SOLO_AI.difficulty === "circuit";
-  const bonusLevel = circuitRules ? "none" : requestedBonusLevel;
-  const circuitSurface = circuitRules ? shuffle(Object.keys(SURFACE_BONUSES))[0] || "hard" : null;
-  const tournamentSetup = circuitRules
-    ? buildTournamentRound16Positions(humanCharacterId, circuitSurface)
-    : aiClubHouse
-      ? buildAiClubHouseClassicSetup({
+  const circuitIntelligence = aiClubHouse && SOLO_AI.difficulty === "circuit";
+  const bonusLevel = requestedBonusLevel;
+  const tournamentSetup = aiClubHouse
+    ? buildAiClubHouseClassicSetup({
       humanCharacterId,
       playerSelection: options.players || "random",
       distribution: options.distribution || "random",
@@ -10060,17 +10036,10 @@ function startTournamentMode(targetSets = 2, options = {}) {
     humanLevel = circuitHumanLevel(),
   } = tournamentSetup;
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
-  const permanentBonuses = circuitRules
-    ? buildCircuitSeedPermanentBonuses(seedEntries)
-    : aiClubHouse
+  const permanentBonuses = aiClubHouse
     ? {}
     : buildTournamentPermanentBonuses(positions, seededHistorics, dynamicBonusIds);
-  const circuitBonusSetup = circuitRules
-    ? buildWeeklyCircuitProBonuses(positions, seedEntries, circuitSurface, humanLevel)
-    : null;
-  const surfaceBonuses = circuitRules
-    ? circuitBonusSetup.bonuses
-    : aiClubHouse
+  const surfaceBonuses = aiClubHouse
       ? buildAiClubHouseBonuses(positions, bonusLevel)
       : {};
   const aiIntelligenceLevels = aiClubHouse
@@ -10084,16 +10053,16 @@ function startTournamentMode(targetSets = 2, options = {}) {
     difficulty: SOLO_AI.difficulty,
     aiIntelligenceLevels,
     bonusLevel,
-    playerSelection: circuitRules ? "circuit" : options.players || "random",
-    distribution: circuitRules ? "ranking" : options.distribution || "random",
+    playerSelection: options.players || "random",
+    distribution: options.distribution || "random",
     weekly: Boolean(weeklyCompetition),
     competitionId: weeklyCompetition?.id || null,
     competitionName: weeklyCompetition?.name || (aiClubHouse ? "TOURNOI CLUB HOUSE" : null),
     competitionCity: weeklyCompetition?.city || null,
     competitionCountry: weeklyCompetition?.country || null,
     competitionFlag: weeklyCompetition?.flag || null,
-    competitionSurface: weeklyCompetition?.surface || circuitSurface,
-    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || (circuitSurface ? SURFACE_LABELS[circuitSurface] : null),
+    competitionSurface: weeklyCompetition?.surface || null,
+    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
     competitionPoints: weeklyCompetition?.points || null,
     matchBonusPoints: 0,
     matchBonusDetails: [],
@@ -10110,11 +10079,11 @@ function startTournamentMode(targetSets = 2, options = {}) {
     weeklyPositions: positions,
     tournamentPositions: positionByEntry,
     tournamentSeedNumbers: seedNumbers,
-    humanCircuitLevel: circuitRules ? humanLevel : null,
-    circuitBonusSurface: circuitBonusSetup?.surface || null,
+    humanCircuitLevel: circuitIntelligence ? humanLevel : null,
+    circuitBonusSurface: null,
     surfaceBonuses,
     permanentBonuses,
-    seededCharacters: circuitRules ? seedEntries : aiClubHouse ? [] : seededHistorics,
+    seededCharacters: aiClubHouse ? [] : seededHistorics,
     dynamicBonusIds,
     matches: [],
   };
@@ -12292,6 +12261,16 @@ function renderEffectNotice() {
   els.effectNotice.innerHTML = `<strong>Effet ${state.effectNotice.status} · ${state.effectNotice.cardName}</strong>${state.effectNotice.message}`;
 }
 
+function renderReadableCardEffect(card, className = "") {
+  if (!card?.effect) return "";
+  return `
+    <span class="readable-card-effect ${className}">
+      <strong>EFFET</strong>
+      <span>${escapeHtml(card.effect)}</span>
+    </span>
+  `;
+}
+
 function renderCardVisualOnly(card, className = "") {
   if (!card) return '<div class="played-card empty">Aucune carte</div>';
   const imageUrl = CARD_IMAGES[card.id];
@@ -12302,6 +12281,7 @@ function renderCardVisualOnly(card, className = "") {
     <button class="played-visual ${className} ${card.removed ? "removed" : ""}" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
       ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
+      ${renderReadableCardEffect(card, "played-readable-effect")}
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -12318,6 +12298,7 @@ function renderChoiceCardVisual(card) {
     <div class="choice-card-visual">
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
     </div>
+    ${renderReadableCardEffect(card, "choice-readable-effect")}
     <strong>${card.name}</strong>
     <span>${card.subtitle ?? card.family}</span>
   `;
@@ -12739,6 +12720,7 @@ function renderCard(playerIndex, card) {
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
           ${showForbidEffect ? `<img class="forbid-effect-overlay" src="${FORBID_IMAGE}" alt="Effet annulé" />` : ""}
         </div>
+        ${renderReadableCardEffect(card, "hand-readable-effect")}
       ` : `
         ${card.star ? '<div class="card-star" aria-label="Carte étoile">★</div>' : ""}
         <div class="card-top">
