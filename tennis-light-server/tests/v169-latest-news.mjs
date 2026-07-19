@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [html, app, styles] = await Promise.all([
+const [html, app, styles, server] = await Promise.all([
   readFile(new URL("../public/index.html", import.meta.url), "utf8"),
   readFile(new URL("../public/app.js", import.meta.url), "utf8"),
   readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
+  readFile(new URL("../server.js", import.meta.url), "utf8"),
 ]);
 
 function functionSource(source, name) {
@@ -21,9 +22,10 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy · v169/);
-assert.match(html, /styles\.css\?v=169\.5/);
-assert.match(html, /app\.js\?v=169\.5/);
+assert.match(html, /styles\.css\?v=169\.6/);
+assert.match(html, /app\.js\?v=169\.6/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
 const latestNewsIndex = html.indexOf('id="latestNewsPanel"');
 const accountPanelIndex = html.indexOf('id="lobbyAccountPanel"');
@@ -34,7 +36,7 @@ assert.match(html, /id="lobbyProfileAvatar"/);
 for (const asset of ["ENTRAINEMENT.jpg", "MODE-SOLO.jpg", "MODE-EN-LIGNE.jpg", "CIRCUIT-PRO.jpg"]) {
   assert.match(html, new RegExp(`src="\\.\\/assets\\/${asset.replace(".", "\\.")}"`));
 }
-for (const icon of ["TRAINING.svg", "SOLO.svg", "ONLINE.svg", "trophy CIRCUIT.svg", "next.svg"]) {
+for (const icon of ["TRAINING.svg", "SOLO.svg", "ONLINE.svg", "trophy-circuit.svg", "next.svg"]) {
   assert.match(html, new RegExp(`src="\\.\\/assets\\/icons\\/${icon.replace(".", "\\.")}"`));
 }
 for (const section of ["training", "solo", "online", "circuit"]) {

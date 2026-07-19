@@ -21,8 +21,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.5/);
-assert.match(html, /app\.js\?v=169\.5/);
+assert.match(html, /styles\.css\?v=169\.6/);
+assert.match(html, /app\.js\?v=169\.6/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);

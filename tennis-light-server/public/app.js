@@ -4337,7 +4337,7 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
   }
   const tournamentHtml = tournaments.map((tournament) => `
     <article class="lobby-room friendly-tournament-room online-room-card">
-      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "schedule.svg" : tournament.format === "match" ? "SOLO.svg" : "trophy CIRCUIT.svg"}" alt="" aria-hidden="true" /></span>
+      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "schedule.svg" : tournament.format === "match" ? "SOLO.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Partie en ligne</strong>
         <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>

@@ -174,6 +174,7 @@ const MIME_TYPES = {
   ".webp": "image/webp",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
 };
 
