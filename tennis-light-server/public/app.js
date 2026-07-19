@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "162";
+const CARD_ASSET_VERSION = "163";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -13,7 +13,7 @@ function versionCardAsset(value) {
   return value;
 }
 
-const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.jpg");
+const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -265,32 +265,32 @@ const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
 const PROFILE_CHARACTER_IMAGES = versionCardAsset({
-  tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
-  coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.jpg",
-  coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.jpg",
-  coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.jpg",
-  coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.jpg",
-  theoBriancourt: "assets/cards/LOBBY-Briancourt.jpg",
-  alessandraConti: "assets/cards/LOBBY-Conti.jpg",
-  saharaJackson: "assets/cards/LOBBY-Jackson.jpg",
-  kjellBlomqvist: "assets/cards/LOBBY-Blomqvist.jpg",
-  kojiIwata: "assets/cards/LOBBY-Iwata.jpg",
-  elianaMarquez: "assets/cards/LOBBY-Marquez.jpg",
-  bryanGoodwin: "assets/cards/LOBBY-Goodwin.jpg",
-  calvinBrentwood: "assets/cards/LOBBY-Brentwood.jpg",
-  javierRamirez: "assets/cards/LOBBY-Ramirez.jpg",
-  petraEckermann: "assets/cards/LOBBY-Eckermann.jpg",
-  jonasFalkenried: "assets/cards/LOBBY-Jonas-Falkenried.jpg",
-  yunaSeo: "assets/cards/LOBBY-Yuna-Seo.jpg",
-  ikerSalvat: "assets/cards/LOBBY-Iker-Salvat.jpg",
-  loganBrooks: "assets/cards/LOBBY-Logan-Brooks.jpg",
-  kavyaSaran: "assets/cards/LOBBY-Kavya-Saran.jpg",
-  zariaCampbell: "assets/cards/LOBBY-Zaria-Campbell.jpg",
-  renAoshima: "assets/cards/LOBBY-Ren-Aoshima.jpg",
-  yasmineElMansouri: "assets/cards/LOBBY-Yasmine-El-Mansouri.jpg",
-  daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.jpg",
-  lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.jpg",
-  milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.jpg",
+  tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.webp",
+  coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp",
+  coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.webp",
+  coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.webp",
+  coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.webp",
+  theoBriancourt: "assets/cards/LOBBY-Briancourt.webp",
+  alessandraConti: "assets/cards/LOBBY-Conti.webp",
+  saharaJackson: "assets/cards/LOBBY-Jackson.webp",
+  kjellBlomqvist: "assets/cards/LOBBY-Blomqvist.webp",
+  kojiIwata: "assets/cards/LOBBY-Iwata.webp",
+  elianaMarquez: "assets/cards/LOBBY-Marquez.webp",
+  bryanGoodwin: "assets/cards/LOBBY-Goodwin.webp",
+  calvinBrentwood: "assets/cards/LOBBY-Brentwood.webp",
+  javierRamirez: "assets/cards/LOBBY-Ramirez.webp",
+  petraEckermann: "assets/cards/LOBBY-Eckermann.webp",
+  jonasFalkenried: "assets/cards/LOBBY-Jonas-Falkenried.webp",
+  yunaSeo: "assets/cards/LOBBY-Yuna-Seo.webp",
+  ikerSalvat: "assets/cards/LOBBY-Iker-Salvat.webp",
+  loganBrooks: "assets/cards/LOBBY-Logan-Brooks.webp",
+  kavyaSaran: "assets/cards/LOBBY-Kavya-Saran.webp",
+  zariaCampbell: "assets/cards/LOBBY-Zaria-Campbell.webp",
+  renAoshima: "assets/cards/LOBBY-Ren-Aoshima.webp",
+  yasmineElMansouri: "assets/cards/LOBBY-Yasmine-El-Mansouri.webp",
+  daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.webp",
+  lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.webp",
+  milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.webp",
 });
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -551,237 +551,237 @@ const CHARACTERS = {
 
 const CHARACTER_IMAGES = versionCardAsset({
   coachUnknown: [
-    "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
-    "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
+    "assets/cards/Demo-TC-_0027_Coach-INCONNU.webp",
+    "assets/cards/Demo-TC-_0027_Coach-INCONNU.webp",
   ],
   tennisHope: [
     "assets/ESPOIRRECTO.png",
     "assets/ESPOIRVERSO.png",
   ],
   coachJu: [
-    "assets/cards/Demo-TC-_0004_Coach-JU-RECTO.jpg",
-    "assets/cards/Demo-TC-_0003_Coach-JU-VERSO-.jpg",
+    "assets/cards/Demo-TC-_0004_Coach-JU-RECTO.webp",
+    "assets/cards/Demo-TC-_0003_Coach-JU-VERSO-.webp",
   ],
   coachMax: [
-    "assets/cards/Demo-TC-_0002_Coach-MAX-VERSO.jpg",
-    "assets/cards/Demo-TC-_0001_Coach-MAX-VERSO.jpg",
+    "assets/cards/Demo-TC-_0002_Coach-MAX-VERSO.webp",
+    "assets/cards/Demo-TC-_0001_Coach-MAX-VERSO.webp",
   ],
   coachCarla: [
-    "assets/cards/Demo-TC-_0025_Coach-CARLA-RECTO.jpg",
-    "assets/cards/Demo-TC-_0026_Coach-CARLA-VERSO.jpg",
+    "assets/cards/Demo-TC-_0025_Coach-CARLA-RECTO.webp",
+    "assets/cards/Demo-TC-_0026_Coach-CARLA-VERSO.webp",
   ],
   coachClem: [
-    "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.jpg",
-    "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.jpg",
+    "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.webp",
+    "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.webp",
   ],
   theoBriancourt: [
-    "assets/cards/_0023_BRIANCOURT.jpg",
-    "assets/cards/_0022_BRIANCOURT-VERSO.jpg",
+    "assets/cards/_0023_BRIANCOURT.webp",
+    "assets/cards/_0022_BRIANCOURT-VERSO.webp",
   ],
   alessandraConti: [
-    "assets/cards/_0021_CONTI.jpg",
-    "assets/cards/_0020_CONTI-VERSO.jpg",
+    "assets/cards/_0021_CONTI.webp",
+    "assets/cards/_0020_CONTI-VERSO.webp",
   ],
   saharaJackson: [
-    "assets/cards/_0019_JACKSON.jpg",
-    "assets/cards/_0018_JACKSON-VERSO.jpg",
+    "assets/cards/_0019_JACKSON.webp",
+    "assets/cards/_0018_JACKSON-VERSO.webp",
   ],
   kjellBlomqvist: [
-    "assets/cards/_0017_BLOMQVIST.jpg",
-    "assets/cards/_0016_BLOMQVIST-VERSO.jpg",
+    "assets/cards/_0017_BLOMQVIST.webp",
+    "assets/cards/_0016_BLOMQVIST-VERSO.webp",
   ],
   kojiIwata: [
-    "assets/cards/_0015_IWATA.jpg",
-    "assets/cards/_0014_IWATA-VERSO.jpg",
+    "assets/cards/_0015_IWATA.webp",
+    "assets/cards/_0014_IWATA-VERSO.webp",
   ],
   elianaMarquez: [
-    "assets/cards/_0013_MARQUEZ.jpg",
-    "assets/cards/_0012_MARQUEZ-VERSO.jpg",
+    "assets/cards/_0013_MARQUEZ.webp",
+    "assets/cards/_0012_MARQUEZ-VERSO.webp",
   ],
   bryanGoodwin: [
-    "assets/cards/HISTO4-Bryan-Goodwin.jpg",
-    "assets/cards/HISTO4-Bryan-Goodwin-VERSO.jpg",
+    "assets/cards/HISTO4-Bryan-Goodwin.webp",
+    "assets/cards/HISTO4-Bryan-Goodwin-VERSO.webp",
   ],
   calvinBrentwood: [
-    "assets/cards/HISTO4-Calvin-Brentwood.jpg",
-    "assets/cards/HISTO4-Calvin-Brentwood-VERSO.jpg",
+    "assets/cards/HISTO4-Calvin-Brentwood.webp",
+    "assets/cards/HISTO4-Calvin-Brentwood-VERSO.webp",
   ],
   javierRamirez: [
-    "assets/cards/HISTO4-Javier-Ramirez.jpg",
-    "assets/cards/HISTO4-Javier-Ramirez-VERSO.jpg",
+    "assets/cards/HISTO4-Javier-Ramirez.webp",
+    "assets/cards/HISTO4-Javier-Ramirez-VERSO.webp",
   ],
   petraEckermann: [
-    "assets/cards/HISTO4-Petra-Eckermann.jpg",
-    "assets/cards/HISTO4-Petra-Eckermann-VERSO.jpg",
+    "assets/cards/HISTO4-Petra-Eckermann.webp",
+    "assets/cards/HISTO4-Petra-Eckermann-VERSO.webp",
   ],
   jonasFalkenried: [
-    "assets/cards/TC-new-Jonas-Falkenried.jpg",
-    "assets/cards/TC-new-Jonas-Falkenried-VERSO.jpg",
+    "assets/cards/TC-new-Jonas-Falkenried.webp",
+    "assets/cards/TC-new-Jonas-Falkenried-VERSO.webp",
   ],
   yunaSeo: [
-    "assets/cards/TC-new-Yuna-Seo.jpg",
-    "assets/cards/TC-new-Yuna-Seo-VERSO.jpg",
+    "assets/cards/TC-new-Yuna-Seo.webp",
+    "assets/cards/TC-new-Yuna-Seo-VERSO.webp",
   ],
   ikerSalvat: [
-    "assets/cards/TC-new-Iker-Salvat.jpg",
-    "assets/cards/TC-new-Iker-Salvat-VERSO.jpg",
+    "assets/cards/TC-new-Iker-Salvat.webp",
+    "assets/cards/TC-new-Iker-Salvat-VERSO.webp",
   ],
   loganBrooks: [
-    "assets/cards/TC-new-Logan-Brooks.jpg",
-    "assets/cards/TC-new-Logan-Brooks-VERSO.jpg",
+    "assets/cards/TC-new-Logan-Brooks.webp",
+    "assets/cards/TC-new-Logan-Brooks-VERSO.webp",
   ],
   kavyaSaran: [
-    "assets/cards/TC-new-Kavya-Saran.jpg",
-    "assets/cards/TC-new-Kavya-Saran-VERSO.jpg",
+    "assets/cards/TC-new-Kavya-Saran.webp",
+    "assets/cards/TC-new-Kavya-Saran-VERSO.webp",
   ],
   zariaCampbell: [
-    "assets/cards/TC-new-Zaria-Campbell.jpg",
-    "assets/cards/TC-new-Zaria-Campbell-VERSO.jpg",
+    "assets/cards/TC-new-Zaria-Campbell.webp",
+    "assets/cards/TC-new-Zaria-Campbell-VERSO.webp",
   ],
   renAoshima: [
-    "assets/cards/TC-new-Ren-Aoshima.jpg",
-    "assets/cards/TC-new-Ren-Aoshima-VERSO.jpg",
+    "assets/cards/TC-new-Ren-Aoshima.webp",
+    "assets/cards/TC-new-Ren-Aoshima-VERSO.webp",
   ],
   yasmineElMansouri: [
-    "assets/cards/TC-new-Yasmine-El-Mansouri.jpg",
-    "assets/cards/TC-new-Yasmine-El-Mansouri-VERSO.jpg",
+    "assets/cards/TC-new-Yasmine-El-Mansouri.webp",
+    "assets/cards/TC-new-Yasmine-El-Mansouri-VERSO.webp",
   ],
   daanVermeer: [
-    "assets/cards/TC-new-Daan-Vermeer.jpg",
-    "assets/cards/TC-new-Daan-Vermeer-VERSO.jpg",
+    "assets/cards/TC-new-Daan-Vermeer.webp",
+    "assets/cards/TC-new-Daan-Vermeer-VERSO.webp",
   ],
   lukasEberhardt: [
-    "assets/cards/TC-new-Lukas-Eberhardt.jpg",
-    "assets/cards/TC-new-Lukas-Eberhardt-VERSO.jpg",
+    "assets/cards/TC-new-Lukas-Eberhardt.webp",
+    "assets/cards/TC-new-Lukas-Eberhardt-VERSO.webp",
   ],
   milanVerhaegen: [
-    "assets/cards/TC-new-Milan-Verhaegen.jpg",
-    "assets/cards/TC-new-Milan-Verhaegen-VERSO.jpg",
+    "assets/cards/TC-new-Milan-Verhaegen.webp",
+    "assets/cards/TC-new-Milan-Verhaegen-VERSO.webp",
   ],
 });
 
 const MATCH_RESULT_IMAGES = versionCardAsset({
   coachJu: {
-    win: "assets/cards/CoachJuWin.jpg",
-    lose: "assets/cards/CoachJuLoose.jpg",
+    win: "assets/cards/CoachJuWin.webp",
+    lose: "assets/cards/CoachJuLoose.webp",
   },
   coachMax: {
-    win: "assets/cards/CoachMaxWin.jpg",
-    lose: "assets/cards/CoachMaxLoose.jpg",
+    win: "assets/cards/CoachMaxWin.webp",
+    lose: "assets/cards/CoachMaxLoose.webp",
   },
   coachCarla: {
-    win: "assets/cards/CoachClaraWin.jpg",
-    lose: "assets/cards/CoachClaraLoose.jpg",
+    win: "assets/cards/CoachClaraWin.webp",
+    lose: "assets/cards/CoachClaraLoose.webp",
   },
   coachClem: {
-    win: "assets/cards/CoachClemWin.jpg",
-    lose: "assets/cards/CoachClemLoose.jpg",
+    win: "assets/cards/CoachClemWin.webp",
+    lose: "assets/cards/CoachClemLoose.webp",
   },
   theoBriancourt: {
-    win: "assets/cards/_0002_BRIANCOURT-WIN.jpg",
-    lose: "assets/cards/_0003_BRIANCOURT-LOSE.jpg",
+    win: "assets/cards/_0002_BRIANCOURT-WIN.webp",
+    lose: "assets/cards/_0003_BRIANCOURT-LOSE.webp",
   },
   alessandraConti: {
-    win: "assets/cards/_0006_CONTI-WIN.jpg",
-    lose: "assets/cards/_0007_CONTI-LOSE.jpg",
+    win: "assets/cards/_0006_CONTI-WIN.webp",
+    lose: "assets/cards/_0007_CONTI-LOSE.webp",
   },
   saharaJackson: {
-    win: "assets/cards/_0005_JACKSON-WIN.jpg",
-    lose: "assets/cards/_0004_JACKSON-LOSE.jpg",
+    win: "assets/cards/_0005_JACKSON-WIN.webp",
+    lose: "assets/cards/_0004_JACKSON-LOSE.webp",
   },
   kjellBlomqvist: {
-    win: "assets/cards/_0001_BLOMQVIST-WIN.jpg",
-    lose: "assets/cards/_0000_BLOMQVIST-LOSE.jpg",
+    win: "assets/cards/_0001_BLOMQVIST-WIN.webp",
+    lose: "assets/cards/_0000_BLOMQVIST-LOSE.webp",
   },
   kojiIwata: {
-    win: "assets/cards/_0008_IWATA-WIN.jpg",
-    lose: "assets/cards/_0009_IWATA-LOSE.jpg",
+    win: "assets/cards/_0008_IWATA-WIN.webp",
+    lose: "assets/cards/_0009_IWATA-LOSE.webp",
   },
   elianaMarquez: {
-    win: "assets/cards/_0011_MARQUEZ-WIN.jpg",
-    lose: "assets/cards/_0010_MARQUEZ-LOSE.jpg",
+    win: "assets/cards/_0011_MARQUEZ-WIN.webp",
+    lose: "assets/cards/_0010_MARQUEZ-LOSE.webp",
   },
   bryanGoodwin: {
-    win: "assets/cards/HISTO4-Bryan-Goodwin-WIN.jpg",
-    lose: "assets/cards/HISTO4-Bryan-Goodwin-LOSE.jpg",
+    win: "assets/cards/HISTO4-Bryan-Goodwin-WIN.webp",
+    lose: "assets/cards/HISTO4-Bryan-Goodwin-LOSE.webp",
   },
   calvinBrentwood: {
-    win: "assets/cards/HISTO4-Calvin-Brentwood-WIN.jpg",
-    lose: "assets/cards/HISTO4-Calvin-Brentwood-LOSE.jpg",
+    win: "assets/cards/HISTO4-Calvin-Brentwood-WIN.webp",
+    lose: "assets/cards/HISTO4-Calvin-Brentwood-LOSE.webp",
   },
   javierRamirez: {
-    win: "assets/cards/HISTO4-Javier-Ramirez-WIN.jpg",
-    lose: "assets/cards/HISTO4-Javier-Ramirez-LOSE.jpg",
+    win: "assets/cards/HISTO4-Javier-Ramirez-WIN.webp",
+    lose: "assets/cards/HISTO4-Javier-Ramirez-LOSE.webp",
   },
   petraEckermann: {
-    win: "assets/cards/HISTO4-Petra-Eckermann-WIN.jpg",
-    lose: "assets/cards/HISTO4-Petra-Eckermann-LOSE.jpg",
+    win: "assets/cards/HISTO4-Petra-Eckermann-WIN.webp",
+    lose: "assets/cards/HISTO4-Petra-Eckermann-LOSE.webp",
   },
   jonasFalkenried: {
-    win: "assets/cards/TC-result-Jonas-Falkenried-WIN.jpg",
-    lose: "assets/cards/TC-result-Jonas-Falkenried-LOSE.jpg",
+    win: "assets/cards/TC-result-Jonas-Falkenried-WIN.webp",
+    lose: "assets/cards/TC-result-Jonas-Falkenried-LOSE.webp",
   },
   yunaSeo: {
-    win: "assets/cards/TC-result-Yuna-Seo-WIN.jpg",
-    lose: "assets/cards/TC-result-Yuna-Seo-LOSE.jpg",
+    win: "assets/cards/TC-result-Yuna-Seo-WIN.webp",
+    lose: "assets/cards/TC-result-Yuna-Seo-LOSE.webp",
   },
   ikerSalvat: {
-    win: "assets/cards/TC-result-Iker-Salvat-WIN.jpg",
-    lose: "assets/cards/TC-result-Iker-Salvat-LOSE.jpg",
+    win: "assets/cards/TC-result-Iker-Salvat-WIN.webp",
+    lose: "assets/cards/TC-result-Iker-Salvat-LOSE.webp",
   },
   loganBrooks: {
-    win: "assets/cards/TC-result-Logan-Brooks-WIN.jpg",
-    lose: "assets/cards/TC-result-Logan-Brooks-LOSE.jpg",
+    win: "assets/cards/TC-result-Logan-Brooks-WIN.webp",
+    lose: "assets/cards/TC-result-Logan-Brooks-LOSE.webp",
   },
   kavyaSaran: {
-    win: "assets/cards/TC-result-Kavya-Saran-WIN.jpg",
-    lose: "assets/cards/TC-result-Kavya-Saran-LOSE.jpg",
+    win: "assets/cards/TC-result-Kavya-Saran-WIN.webp",
+    lose: "assets/cards/TC-result-Kavya-Saran-LOSE.webp",
   },
   zariaCampbell: {
-    win: "assets/cards/TC-result-Zaria-Campbell-WIN.jpg",
-    lose: "assets/cards/TC-result-Zaria-Campbell-LOSE.jpg",
+    win: "assets/cards/TC-result-Zaria-Campbell-WIN.webp",
+    lose: "assets/cards/TC-result-Zaria-Campbell-LOSE.webp",
   },
   renAoshima: {
-    win: "assets/cards/TC-result-Ren-Aoshima-WIN.jpg",
-    lose: "assets/cards/TC-result-Ren-Aoshima-LOSE.jpg",
+    win: "assets/cards/TC-result-Ren-Aoshima-WIN.webp",
+    lose: "assets/cards/TC-result-Ren-Aoshima-LOSE.webp",
   },
   yasmineElMansouri: {
-    win: "assets/cards/TC-result-Yasmine-El-Mansouri-WIN.jpg",
-    lose: "assets/cards/TC-result-Yasmine-El-Mansouri-LOSE.jpg",
+    win: "assets/cards/TC-result-Yasmine-El-Mansouri-WIN.webp",
+    lose: "assets/cards/TC-result-Yasmine-El-Mansouri-LOSE.webp",
   },
   daanVermeer: {
-    win: "assets/cards/TC-result-Daan-Vermeer-WIN.jpg",
-    lose: "assets/cards/TC-result-Daan-Vermeer-LOSE.jpg",
+    win: "assets/cards/TC-result-Daan-Vermeer-WIN.webp",
+    lose: "assets/cards/TC-result-Daan-Vermeer-LOSE.webp",
   },
   lukasEberhardt: {
-    win: "assets/cards/TC-result-Lukas-Eberhardt-WIN.jpg",
-    lose: "assets/cards/TC-result-Lukas-Eberhardt-LOSE.jpg",
+    win: "assets/cards/TC-result-Lukas-Eberhardt-WIN.webp",
+    lose: "assets/cards/TC-result-Lukas-Eberhardt-LOSE.webp",
   },
   milanVerhaegen: {
-    win: "assets/cards/TC-result-Milan-Verhaegen-WIN.jpg",
-    lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.jpg",
+    win: "assets/cards/TC-result-Milan-Verhaegen-WIN.webp",
+    lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.webp",
   },
 });
 
 const CARD_IMAGES = versionCardAsset({
-  double: "assets/cards/Demo-TC-_0005_DOUBLE-x2.jpg",
-  joker: "assets/cards/Demo-TC-_0006_JOKER-x2.jpg",
-  "sup-adv": "assets/cards/Demo-TC-_0007_SUP-ADV.jpg",
-  "amortie-2-1-4": "assets/cards/Demo-TC-_0011_030---AMORTIE-2-1-4.jpg",
-  "retour-service": "assets/cards/Demo-TC-_0008_RETOUR-DE-SERVICE.jpg",
-  "volee-2-2-3": "assets/cards/Demo-TC-_0010_031---VOLEE-2-2-3.jpg",
-  "volee-3-4-1": "assets/cards/Demo-TC-_0013_026---VOLEE-3-4-1.jpg",
-  "coup-droit-2-2-2": "assets/cards/Demo-TC-_0022_002---CP-DROIT-2-2-2.jpg",
-  "passing-1-1-4": "assets/cards/Demo-TC-_0009_029---PASSING-1-1-4.jpg",
-  "lob-2-0-4": "assets/cards/Demo-TC-_0012_027---LOB-2-0-4.jpg",
-  "coup-droit-4-3-5": "assets/cards/Demo-TC-_0019_010---CP-DROIT-4-3-5.jpg",
-  "service-coup-droit": "assets/cards/Demo-TC-_0015_020---CP-DROIT-SERV-3.jpg",
-  "revers-3-3-3": "assets/cards/Demo-TC-_0018_012---REVERS-3-3-3.jpg",
-  "coup-droit-3-3-3": "assets/cards/Demo-TC-_0020_007---CP-DROIT-3-3-3.jpg",
-  "revers-5-4-1": "assets/cards/Demo-TC-_0016_016---REVERS-5-4-1.jpg",
-  "smash-4-2-1": "assets/cards/Demo-TC-_0014_023---SMASH-4-2-1.jpg",
-  "revers-3-3-0": "assets/cards/Demo-TC-_0021_005---REVERS-3-3-0.jpg",
-  "revers-2": "assets/cards/Demo-TC-_0017_013---REVERS-2.jpg",
+  double: "assets/cards/Demo-TC-_0005_DOUBLE-x2.webp",
+  joker: "assets/cards/Demo-TC-_0006_JOKER-x2.webp",
+  "sup-adv": "assets/cards/Demo-TC-_0007_SUP-ADV.webp",
+  "amortie-2-1-4": "assets/cards/Demo-TC-_0011_030---AMORTIE-2-1-4.webp",
+  "retour-service": "assets/cards/Demo-TC-_0008_RETOUR-DE-SERVICE.webp",
+  "volee-2-2-3": "assets/cards/Demo-TC-_0010_031---VOLEE-2-2-3.webp",
+  "volee-3-4-1": "assets/cards/Demo-TC-_0013_026---VOLEE-3-4-1.webp",
+  "coup-droit-2-2-2": "assets/cards/Demo-TC-_0022_002---CP-DROIT-2-2-2.webp",
+  "passing-1-1-4": "assets/cards/Demo-TC-_0009_029---PASSING-1-1-4.webp",
+  "lob-2-0-4": "assets/cards/Demo-TC-_0012_027---LOB-2-0-4.webp",
+  "coup-droit-4-3-5": "assets/cards/Demo-TC-_0019_010---CP-DROIT-4-3-5.webp",
+  "service-coup-droit": "assets/cards/Demo-TC-_0015_020---CP-DROIT-SERV-3.webp",
+  "revers-3-3-3": "assets/cards/Demo-TC-_0018_012---REVERS-3-3-3.webp",
+  "coup-droit-3-3-3": "assets/cards/Demo-TC-_0020_007---CP-DROIT-3-3-3.webp",
+  "revers-5-4-1": "assets/cards/Demo-TC-_0016_016---REVERS-5-4-1.webp",
+  "smash-4-2-1": "assets/cards/Demo-TC-_0014_023---SMASH-4-2-1.webp",
+  "revers-3-3-0": "assets/cards/Demo-TC-_0021_005---REVERS-3-3-0.webp",
+  "revers-2": "assets/cards/Demo-TC-_0017_013---REVERS-2.webp",
 });
 
 const CARD_LIBRARY = [
@@ -5649,7 +5649,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v162",
+    gameVersion: "v163",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5889,7 +5889,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v162",
+    version: "v163",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5948,7 +5948,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v162",
+    version: "v163",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5962,7 +5962,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v162");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v163");
 }
 
 function resetSetMatch() {

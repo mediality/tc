@@ -4,6 +4,7 @@
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
+    "test:v163": "node tests/v163-webp-cards.mjs",
     "test:v162": "node tests/v162-card-interaction.mjs",
     "test:v162-save": "node tests/v162-ai-club-save.mjs",
     "test:v161": "node tests/v162-card-interaction.mjs",

@@ -7,10 +7,10 @@ const [html, app, styles] = await Promise.all([
   readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v162<\/span>/);
-assert.match(html, /styles\.css\?v=162\.0/);
-assert.match(html, /app\.js\?v=162\.0/);
-assert.match(app, /const CARD_ASSET_VERSION = "162"/);
+assert.match(html, /Tennis Courts Academy <span>v163<\/span>/);
+assert.match(html, /styles\.css\?v=163\.0/);
+assert.match(html, /app\.js\?v=163\.0/);
+assert.match(app, /const CARD_ASSET_VERSION = "163"/);
 
 assert.match(app, /function showCardLocalPreview\(anchor, imageUrl, label = "Carte", immediate = false\)/);
 assert.doesNotMatch(app, /matchMedia\("\(hover: hover\) and \(pointer: fine\)"\)/);
@@ -65,6 +65,6 @@ assert.match(styles, /\.image-zoom-backdrop\s*\{[\s\S]*z-index: 1010/);
 assert.match(styles, /\.card-image-zoom-trigger\s*\{[\s\S]*cursor: zoom-in/);
 assert.match(styles, /border-radius: 6% \/ 4\.25%/);
 assert.doesNotMatch(styles, /border-radius: 5% \/ 3\.55%/);
-assert.match(styles, /img\[data-retina-source\]\[src\*="assets\/cards\/"\][\s\S]*image-rendering: -webkit-optimize-contrast/);
+assert.doesNotMatch(styles, /image-rendering: -webkit-optimize-contrast/);
 
-console.log("v162 arrondi, source x2 brute, appui mobile persistant et sauvegarde amicale compacte: OK");
+console.log("v163 arrondi, source x2 brute, appui mobile persistant et sauvegarde amicale compacte: OK");

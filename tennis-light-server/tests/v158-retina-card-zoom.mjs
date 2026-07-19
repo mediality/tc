@@ -12,36 +12,39 @@ const [html, app, styles, cardFiles] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-function jpegDimensions(buffer) {
-  let offset = 2;
-  while (offset < buffer.length) {
-    if (buffer[offset] !== 0xff) {
-      offset += 1;
-      continue;
-    }
-    const marker = buffer[offset + 1];
-    const length = buffer.readUInt16BE(offset + 2);
-    if (marker >= 0xc0 && marker <= 0xc3) {
-      return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
-    }
-    offset += 2 + length;
+function webpDimensions(buffer) {
+  assert.equal(buffer.toString("ascii", 0, 4), "RIFF");
+  assert.equal(buffer.toString("ascii", 8, 12), "WEBP");
+  const chunk = buffer.toString("ascii", 12, 16);
+  if (chunk === "VP8 ") {
+    return {
+      width: buffer.readUInt16LE(26) & 0x3fff,
+      height: buffer.readUInt16LE(28) & 0x3fff,
+    };
   }
-  throw new Error("Dimensions JPEG introuvables");
+  if (chunk === "VP8L") {
+    const bits = buffer.readUInt32LE(21);
+    return {
+      width: 1 + (bits & 0x3fff),
+      height: 1 + ((bits >> 14) & 0x3fff),
+    };
+  }
+  throw new Error(`Flux WebP non pris en charge: ${chunk}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v162<\/span>/);
-assert.match(html, /styles\.css\?v=162\.0/);
-assert.match(html, /app\.js\?v=162\.0/);
+assert.match(html, /Tennis Courts Academy <span>v163<\/span>/);
+assert.match(html, /styles\.css\?v=163\.0/);
+assert.match(html, /app\.js\?v=163\.0/);
 
-const jpgCards = cardFiles.filter((file) => file.toLowerCase().endsWith(".jpg"));
-assert.equal(jpgCards.length, 158);
-const dimensions = await Promise.all(jpgCards.map(async (file) => ({
+const webpCards = cardFiles.filter((file) => file.toLowerCase().endsWith(".webp"));
+assert.equal(webpCards.length, 158);
+const dimensions = await Promise.all(webpCards.map(async (file) => ({
   file,
-  ...jpegDimensions(await readFile(path.join(cardsDirectory, file))),
+  ...webpDimensions(await readFile(path.join(cardsDirectory, file))),
 })));
 assert.equal(dimensions.filter(({ width, height }) => width >= 1462 && height >= 2076).length, 158);
 
-assert.match(app, /const CARD_ASSET_VERSION = "162"/);
+assert.match(app, /const CARD_ASSET_VERSION = "163"/);
 assert.match(app, /value\.startsWith\("assets\/cards\/"\) \? `\$\{value\}\?v=\$\{CARD_ASSET_VERSION\}`/);
 assert.match(app, /function fitZoomImageToScreen\(image\)/);
 assert.match(app, /window\.devicePixelRatio/);
@@ -52,4 +55,4 @@ assert.match(app, /attachResolutionAwareZoom\(backdrop\.querySelector\("\.image-
 assert.match(app, /attachResolutionAwareZoom\(image\)/);
 assert.match(styles, /\.card-image-zoom-trigger\s*\{[\s\S]*cursor: zoom-in/);
 
-console.log("v162 cartes x2, cache actualisé et loupe adaptée à la densité: OK");
+console.log("v163 cartes WebP x2, cache actualisé et loupe adaptée à la densité: OK");

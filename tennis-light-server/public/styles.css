@@ -4571,7 +4571,7 @@ h1 {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
 }
 
-.image-zoom-figure img[src*="assets/cards/"][src*=".jpg"] {
+.image-zoom-figure img[src*="assets/cards/"][src*=".webp"] {
   width: auto;
   max-width: 100%;
   height: auto;
@@ -4839,29 +4839,22 @@ h1 {
   }
 }
 
-/* Les cartes V154 sont des JPG sans transparence. Cette bordure arrondie
+/* Les cartes V163 sont des WebP sans transparence. Cette bordure arrondie
    recouvre les quatre coins blancs et restitue la découpe des anciens PNG. */
-.card-visual > img[src*="assets/cards/"][src*=".jpg"]:not(.forbid-effect-overlay),
-.character-card > img[src*="assets/cards/"][src*=".jpg"],
-.played-visual > img[src*="assets/cards/"][src*=".jpg"]:not(.remise-forbid-overlay),
-.profile-character-visual img[src*="assets/cards/"][src*=".jpg"],
-.profile-character-choice img[src*="assets/cards/"][src*=".jpg"],
-.academy-deck-card > img[src*="assets/cards/"][src*=".jpg"],
-.image-zoom-figure img[src*="assets/cards/"][src*=".jpg"],
-.choice-card-visual img[src*="assets/cards/"][src*=".jpg"],
-.tutorial-card-showcase img[src*="assets/cards/"][src*=".jpg"],
-.confrontation-intro-player img[src*="assets/cards/"][src*=".jpg"] {
+.card-visual > img[src*="assets/cards/"][src*=".webp"]:not(.forbid-effect-overlay),
+.character-card > img[src*="assets/cards/"][src*=".webp"],
+.played-visual > img[src*="assets/cards/"][src*=".webp"]:not(.remise-forbid-overlay),
+.profile-character-visual img[src*="assets/cards/"][src*=".webp"],
+.profile-character-choice img[src*="assets/cards/"][src*=".webp"],
+.academy-deck-card > img[src*="assets/cards/"][src*=".webp"],
+.image-zoom-figure img[src*="assets/cards/"][src*=".webp"],
+.choice-card-visual img[src*="assets/cards/"][src*=".webp"],
+.tutorial-card-showcase img[src*="assets/cards/"][src*=".webp"],
+.confrontation-intro-player img[src*="assets/cards/"][src*=".webp"] {
   box-sizing: border-box;
   border: clamp(1px, 0.28vw, 3px) solid rgba(255, 255, 255, 0.94);
   border-radius: 6% / 4.25%;
   background: #f7faf8;
-}
-
-/* Les fichiers x2 restent chargés à leur résolution physique complète.
-   Ce mode améliore notamment le rééchantillonnage des textes fins dans
-   Chrome et Safari lorsque la carte normale est fortement réduite. */
-img[data-retina-source][src*="assets/cards/"] {
-  image-rendering: -webkit-optimize-contrast;
 }
 
 .card-image-zoom-trigger {

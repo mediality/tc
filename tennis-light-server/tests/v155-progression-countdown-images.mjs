@@ -21,9 +21,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v162<\/span>/);
-assert.match(html, /styles\.css\?v=162\.0/);
-assert.match(html, /app\.js\?v=162\.0/);
+assert.match(html, /Tennis Courts Academy <span>v163<\/span>/);
+assert.match(html, /styles\.css\?v=163\.0/);
+assert.match(html, /app\.js\?v=163\.0/);
 
 const progressionContext = {
   renderCenterNextSoloExchangeButton: () => "SOLO",
@@ -62,13 +62,13 @@ async function sha256(relativeUrl) {
 }
 
 assert.equal(
-  await sha256("../public/assets/cards/TC-result-Jonas-Falkenried-LOSE.jpg"),
-  "da75d14e2fc838a7b4163653f0285509d59fb80f14cca068e51177b6ad28d527",
+  await sha256("../public/assets/cards/TC-result-Jonas-Falkenried-LOSE.webp"),
+  "1d64e6ef4520f0ba7f27495b1372f1da5705fc73234f81cb2fd003bdec61d50f",
 );
 assert.equal(
-  await sha256("../public/assets/cards/TC-result-Jonas-Falkenried-WIN.jpg"),
-  "e39c2110130e54c2b6a305a43e3329aa15bdb9de4a1087d824c710ac5d4c5132",
+  await sha256("../public/assets/cards/TC-result-Jonas-Falkenried-WIN.webp"),
+  "f60489b75847cbf34bf23523e8d46fcd05c9c35e055bc23feef8509e98fe67fb",
 );
-assert.match(app, /jonasFalkenried:\s*\{[\s\S]*?win: "assets\/cards\/TC-result-Jonas-Falkenried-WIN\.jpg"[\s\S]*?lose: "assets\/cards\/TC-result-Jonas-Falkenried-LOSE\.jpg"/);
+assert.match(app, /jonasFalkenried:\s*\{[\s\S]*?win: "assets\/cards\/TC-result-Jonas-Falkenried-WIN\.webp"[\s\S]*?lose: "assets\/cards\/TC-result-Jonas-Falkenried-LOSE\.webp"/);
 
 console.log("v155 boutons doublés, attente IA et images Falkenried: OK");
