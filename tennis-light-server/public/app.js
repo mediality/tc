@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "159";
+const CARD_ASSET_VERSION = "160";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -2023,23 +2023,27 @@ function attachResolutionAwareZoom(image) {
   return () => window.removeEventListener("resize", fit);
 }
 
-let cardHoverPreview = null;
-let cardHoverTimer = null;
+let cardLocalPreview = null;
+let cardLocalPreviewAnchor = null;
+let cardLocalPreviewTimer = null;
+let lastCardPointerType = "mouse";
+let touchPreviewCanOpenMaximum = false;
 
-function closeCardHoverPreview() {
-  window.clearTimeout(cardHoverTimer);
-  cardHoverTimer = null;
-  cardHoverPreview?.remove();
-  cardHoverPreview = null;
+function closeCardLocalPreview() {
+  window.clearTimeout(cardLocalPreviewTimer);
+  cardLocalPreviewTimer = null;
+  cardLocalPreview?.remove();
+  cardLocalPreview = null;
+  cardLocalPreviewAnchor = null;
+  touchPreviewCanOpenMaximum = false;
 }
 
-function positionCardHoverPreview(preview, anchor, image) {
+function positionCardLocalPreview(preview, anchor, image) {
   if (!preview || !anchor || !image?.naturalWidth || !image?.naturalHeight) return;
   const anchorRect = anchor.getBoundingClientRect();
   const pixelRatio = Math.max(1, Number(window.devicePixelRatio) || 1);
   const imageRatio = image.naturalWidth / image.naturalHeight;
   const viewportMargin = 12;
-  const gap = 14;
   const maximumNativeWidth = image.naturalWidth / pixelRatio;
   const maximumNativeHeight = image.naturalHeight / pixelRatio;
   const maximumViewportWidth = window.innerWidth - (viewportMargin * 2);
@@ -2054,17 +2058,10 @@ function positionCardHoverPreview(preview, anchor, image) {
     maximumViewportHeight * imageRatio,
   ));
   const previewHeight = previewWidth / imageRatio;
-  let left;
-  if (anchorRect.right + gap + previewWidth <= window.innerWidth - viewportMargin) {
-    left = anchorRect.right + gap;
-  } else if (anchorRect.left - gap - previewWidth >= viewportMargin) {
-    left = anchorRect.left - gap - previewWidth;
-  } else {
-    left = Math.min(
-      window.innerWidth - viewportMargin - previewWidth,
-      Math.max(viewportMargin, anchorRect.left + ((anchorRect.width - previewWidth) / 2)),
-    );
-  }
+  const left = Math.min(
+    window.innerWidth - viewportMargin - previewWidth,
+    Math.max(viewportMargin, anchorRect.left + ((anchorRect.width - previewWidth) / 2)),
+  );
   const top = Math.min(
     window.innerHeight - viewportMargin - previewHeight,
     Math.max(viewportMargin, anchorRect.top + ((anchorRect.height - previewHeight) / 2)),
@@ -2076,43 +2073,80 @@ function positionCardHoverPreview(preview, anchor, image) {
   preview.classList.add("visible");
 }
 
-function showCardHoverPreview(anchor, imageUrl, label = "Carte") {
+function showCardLocalPreview(anchor, imageUrl, label = "Carte", immediate = false) {
   if (!imageUrl || document.querySelector(".image-zoom-backdrop")) return;
-  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-  closeCardHoverPreview();
-  cardHoverTimer = window.setTimeout(() => {
-    if (!anchor.matches(":hover")) return;
+  closeCardLocalPreview();
+  cardLocalPreviewAnchor = anchor;
+  const renderPreview = () => {
     const preview = document.createElement("div");
-    preview.className = "card-hover-preview";
+    preview.className = "card-local-preview";
     preview.setAttribute("aria-hidden", "true");
     const image = document.createElement("img");
     image.src = imageUrl;
     image.alt = label;
     preview.append(image);
     document.body.append(preview);
-    cardHoverPreview = preview;
-    const position = () => positionCardHoverPreview(preview, anchor, image);
+    cardLocalPreview = preview;
+    const position = () => positionCardLocalPreview(preview, anchor, image);
     image.addEventListener("load", position, { once: true });
-    image.addEventListener("error", closeCardHoverPreview, { once: true });
+    image.addEventListener("error", closeCardLocalPreview, { once: true });
     if (image.complete && image.naturalWidth) position();
-  }, 120);
+  };
+  if (immediate) {
+    renderPreview();
+    return;
+  }
+  cardLocalPreviewTimer = window.setTimeout(renderPreview, 90);
 }
 
-function attachCardHoverHandlers(root = document) {
+function prepareCardTouchPreview(button, imageUrl, label) {
+  lastCardPointerType = "touch";
+  touchPreviewCanOpenMaximum = cardLocalPreviewAnchor === button && Boolean(cardLocalPreview);
+  if (!touchPreviewCanOpenMaximum) showCardLocalPreview(button, imageUrl, label, true);
+}
+
+function keepLocalPreviewOnFirstTouch(button) {
+  if (lastCardPointerType !== "touch") return false;
+  if (touchPreviewCanOpenMaximum && cardLocalPreviewAnchor === button) return false;
+  return cardLocalPreviewAnchor === button && Boolean(cardLocalPreview);
+}
+
+function attachCardLocalPreviewHandlers(root = document) {
+  if (!root) return;
   root.querySelectorAll("[data-image-zoom], [data-image-hover]").forEach((button) => {
-    if (button.dataset.hoverZoomBound === "1") return;
-    button.dataset.hoverZoomBound = "1";
+    if (button.dataset.localZoomBound === "1") return;
+    button.dataset.localZoomBound = "1";
     const imageUrl = button.dataset.imageHover || button.dataset.imageZoom;
     const label = button.dataset.imageLabel || "Carte";
-    button.addEventListener("pointerenter", () => showCardHoverPreview(button, imageUrl, label));
-    button.addEventListener("pointerleave", closeCardHoverPreview);
-    button.addEventListener("pointercancel", closeCardHoverPreview);
-    button.addEventListener("click", closeCardHoverPreview);
+    button.addEventListener("pointerenter", (event) => {
+      if (event.pointerType !== "mouse") return;
+      lastCardPointerType = "mouse";
+      showCardLocalPreview(button, imageUrl, label);
+    });
+    button.addEventListener("pointerleave", (event) => {
+      if (event.pointerType === "mouse") closeCardLocalPreview();
+    });
+    button.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse") {
+        lastCardPointerType = "mouse";
+        return;
+      }
+      prepareCardTouchPreview(button, imageUrl, label);
+    });
+    if (!("PointerEvent" in window)) {
+      button.addEventListener("touchstart", () => prepareCardTouchPreview(button, imageUrl, label), { passive: true });
+    }
   });
+  if (document.documentElement.dataset.localZoomOutsideBound !== "1") {
+    document.documentElement.dataset.localZoomOutsideBound = "1";
+    document.addEventListener("pointerdown", (event) => {
+      if (!event.target.closest?.("[data-image-zoom], [data-image-hover]")) closeCardLocalPreview();
+    });
+  }
 }
 
 function openImageZoom(imageUrl, label = "Carte") {
-  closeCardHoverPreview();
+  closeCardLocalPreview();
   document.querySelector(".image-zoom-backdrop")?.remove();
   if (!imageUrl) return;
   const backdrop = document.createElement("div");
@@ -2141,12 +2175,15 @@ function openImageZoom(imageUrl, label = "Carte") {
 }
 
 function attachImageZoomHandlers(root = document) {
+  attachCardLocalPreviewHandlers(root);
   root.querySelectorAll("[data-image-zoom]").forEach((button) => {
     if (button.dataset.zoomBound === "1") return;
     button.dataset.zoomBound = "1";
-    button.addEventListener("click", () => openImageZoom(button.dataset.imageZoom, button.dataset.imageLabel));
+    button.addEventListener("click", () => {
+      if (keepLocalPreviewOnFirstTouch(button)) return;
+      openImageZoom(button.dataset.imageZoom, button.dataset.imageLabel);
+    });
   });
-  attachCardHoverHandlers(root);
 }
 
 function academyOrderedCards() {
@@ -2163,7 +2200,7 @@ function academyOrderedCards() {
 }
 
 function openAcademyDeckGallery(startIndex = 0) {
-  closeCardHoverPreview();
+  closeCardLocalPreview();
   document.querySelector(".image-zoom-backdrop")?.remove();
   const cards = academyOrderedCards();
   if (!cards.length) return;
@@ -2226,10 +2263,13 @@ function academyDeckMarkup() {
 }
 
 function attachAcademyDeckHandlers() {
+  attachCardLocalPreviewHandlers(els.academyDeckList);
   els.academyDeckList?.querySelectorAll("[data-academy-gallery-index]").forEach((button) => {
-    button.addEventListener("click", () => openAcademyDeckGallery(Number(button.dataset.academyGalleryIndex)));
+    button.addEventListener("click", () => {
+      if (keepLocalPreviewOnFirstTouch(button)) return;
+      openAcademyDeckGallery(Number(button.dataset.academyGalleryIndex));
+    });
   });
-  attachCardHoverHandlers(els.academyDeckList);
 }
 
 function renderAcademyDeck() {
@@ -5506,7 +5546,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v159",
+    gameVersion: "v160",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5746,7 +5786,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v159",
+    version: "v160",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5805,7 +5845,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v159",
+    version: "v160",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5819,7 +5859,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v159");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v160");
 }
 
 function resetSetMatch() {

@@ -20,9 +20,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v159<\/span>/);
-assert.match(html, /styles\.css\?v=159\.0/);
-assert.match(html, /app\.js\?v=159\.0/);
+assert.match(html, /Tennis Courts Academy <span>v160<\/span>/);
+assert.match(html, /styles\.css\?v=160\.0/);
+assert.match(html, /app\.js\?v=160\.0/);
 
 const humanEntry = "__human__";
 const entries = Array(17).fill(null);
