@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const [html, app, styles] = await Promise.all([
@@ -25,21 +24,16 @@ assert.match(html, /Tennis Courts Academy <span>v156<\/span>/);
 assert.match(html, /styles\.css\?v=156\.0/);
 assert.match(html, /app\.js\?v=156\.0/);
 
-const readableContext = {
-  card: { effect: "Bonus <important> & lisible" },
-  escapeHtml: (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
-};
-vm.runInNewContext(`${functionSource("renderReadableCardEffect")}; result = renderReadableCardEffect(card, "test-effect");`, readableContext);
-assert.match(readableContext.result, /readable-card-effect test-effect/);
-assert.match(readableContext.result, /<strong>EFFET<\/strong>/);
-assert.match(readableContext.result, /Bonus &lt;important&gt; &amp; lisible/);
-
-assert.match(functionSource("renderCard"), /renderReadableCardEffect\(card, "hand-readable-effect"\)/);
-assert.match(functionSource("renderCardVisualOnly"), /renderReadableCardEffect\(card, "played-readable-effect"\)/);
-assert.match(functionSource("renderChoiceCardVisual"), /renderReadableCardEffect\(card, "choice-readable-effect"\)/);
-assert.match(styles, /\.readable-card-effect\s*\{[\s\S]*font-size: clamp\(0\.82rem/);
-assert.match(styles, /\.readable-card-effect\s*\{[\s\S]*font-weight: 780/);
-assert.match(styles, /\.readable-card-effect > strong\s*\{[\s\S]*font-weight: 950/);
+assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
+assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);
+assert.match(functionSource("renderCard"), /card-image-zoom-trigger/);
+assert.match(functionSource("renderCard"), /data-image-zoom="\$\{escapeHtml\(imageUrl\)\}"/);
+assert.match(styles, /\.image-zoom-figure\s*\{[\s\S]*width: min\(731px, calc\(100vw - 42px\)\)/);
+assert.match(styles, /\.image-zoom-figure img\[src\*="assets\/cards\/"\][^{]*\{[\s\S]*?width: auto;[\s\S]*?max-width: 100%/);
+assert.match(styles, /\.card-image-zoom-trigger\s*\{[\s\S]*cursor: zoom-in/);
+for (const removedScale of ["scale(1.42)", "scale(2.45)", "scale(2.7)", "scale(1.15)", "scale(1.45)"]) {
+  assert.doesNotMatch(styles, new RegExp(removedScale.replace(/[().]/g, "\\$&")));
+}
 
 const clubUi = functionSource("renderAiClubHouse");
 assert.match(clubUi, /button\.disabled = false/);
@@ -65,4 +59,4 @@ assert.doesNotMatch(tournament, /buildWeeklyCircuitProBonuses/);
 
 assert.match(app, /circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur\."/);
 
-console.log("v156 lisibilité des effets et CLUB HOUSE Circuit Pro libre: OK");
+console.log("v156 cartes sans agrandissement pixellisé et CLUB HOUSE Circuit Pro libre: OK");

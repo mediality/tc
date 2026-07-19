@@ -12261,16 +12261,6 @@ function renderEffectNotice() {
   els.effectNotice.innerHTML = `<strong>Effet ${state.effectNotice.status} · ${state.effectNotice.cardName}</strong>${state.effectNotice.message}`;
 }
 
-function renderReadableCardEffect(card, className = "") {
-  if (!card?.effect) return "";
-  return `
-    <span class="readable-card-effect ${className}">
-      <strong>EFFET</strong>
-      <span>${escapeHtml(card.effect)}</span>
-    </span>
-  `;
-}
-
 function renderCardVisualOnly(card, className = "") {
   if (!card) return '<div class="played-card empty">Aucune carte</div>';
   const imageUrl = CARD_IMAGES[card.id];
@@ -12281,7 +12271,6 @@ function renderCardVisualOnly(card, className = "") {
     <button class="played-visual ${className} ${card.removed ? "removed" : ""}" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
       ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
-      ${renderReadableCardEffect(card, "played-readable-effect")}
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -12298,7 +12287,6 @@ function renderChoiceCardVisual(card) {
     <div class="choice-card-visual">
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
     </div>
-    ${renderReadableCardEffect(card, "choice-readable-effect")}
     <strong>${card.name}</strong>
     <span>${card.subtitle ?? card.family}</span>
   `;
@@ -12716,11 +12704,10 @@ function renderCard(playerIndex, card) {
     <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}">
       ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
       ${imageUrl ? `
-        <div class="card-visual card-effect-forbid-host">
+        <button class="card-visual card-effect-forbid-host card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
           ${showForbidEffect ? `<img class="forbid-effect-overlay" src="${FORBID_IMAGE}" alt="Effet annulé" />` : ""}
-        </div>
-        ${renderReadableCardEffect(card, "hand-readable-effect")}
+        </button>
       ` : `
         ${card.star ? '<div class="card-star" aria-label="Carte étoile">★</div>' : ""}
         <div class="card-top">

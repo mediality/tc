@@ -3157,22 +3157,20 @@ h1 {
 .card.has-visual:hover,
 .character-card:hover {
   z-index: 60;
-  transform: scale(1.42);
   box-shadow: 0 24px 70px rgba(10, 32, 44, 0.35);
 }
 
 .played-visual:hover {
   z-index: 24;
-  transform: scale(2.45);
   box-shadow: 0 28px 76px rgba(10, 32, 44, 0.4);
 }
 
 .played-visual.center-played:hover {
-  transform: scale(2.7);
+  box-shadow: 0 28px 76px rgba(10, 32, 44, 0.4);
 }
 
 .hidden-hand-card:hover {
-  transform: scale(1.15);
+  box-shadow: 0 18px 50px rgba(10, 32, 44, 0.28);
 }
 
 .visual-stats {
@@ -4350,7 +4348,7 @@ h1 {
 }
 
 .played-visual.history-card:hover {
-  transform: scale(1.45);
+  box-shadow: 0 22px 60px rgba(10, 32, 44, 0.36);
 }
 
 .remise-forbid-overlay {
@@ -4530,7 +4528,7 @@ h1 {
 }
 
 .image-zoom-figure {
-  width: min(620px, calc(100vw - 42px));
+  width: min(731px, calc(100vw - 42px));
   max-height: calc(100vh - 42px);
   margin: 0;
   display: grid;
@@ -4546,6 +4544,12 @@ h1 {
   object-fit: contain;
   image-rendering: auto;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+.image-zoom-figure img[src*="assets/cards/"][src$=".jpg"] {
+  width: auto;
+  max-width: 100%;
+  height: auto;
 }
 
 .image-zoom-close {
@@ -4828,40 +4832,11 @@ h1 {
   background: #f7faf8;
 }
 
-/* Le texte intégré aux images dépend de la résolution du fichier et de
-   l’écran. Cette transcription HTML garantit un effet net et contrasté. */
-.readable-card-effect {
-  display: grid;
+.card-image-zoom-trigger {
   width: 100%;
-  gap: 3px;
-  border: 1px solid rgba(10, 56, 78, 0.2);
-  border-radius: 7px;
-  padding: 7px 8px;
-  color: #111827;
-  background: rgba(255, 255, 255, 0.98);
-  font-size: clamp(0.82rem, calc(0.74rem + 0.3vw), 1rem);
-  font-weight: 780;
-  line-height: 1.35;
-  letter-spacing: 0;
-  text-align: left;
-  white-space: normal;
-  text-wrap: pretty;
-  -webkit-font-smoothing: antialiased;
-}
-
-.readable-card-effect > strong {
-  color: #075f58;
-  font-size: 0.78em;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-}
-
-.played-visual .played-readable-effect {
-  position: relative;
-  z-index: 3;
-  border-radius: 0 0 7px 7px;
-}
-
-.choice-readable-effect {
-  margin-top: 6px;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: zoom-in;
 }
