@@ -1,6 +1,19 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_BACK_IMAGE = "assets/cards/Demo-TC-_0000_VERSO-CARTES.jpg";
+const CARD_ASSET_VERSION = "158";
+
+function versionCardAsset(value) {
+  if (typeof value === "string") {
+    return value.startsWith("assets/cards/") ? `${value}?v=${CARD_ASSET_VERSION}` : value;
+  }
+  if (Array.isArray(value)) return value.map(versionCardAsset);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, versionCardAsset(entry)]));
+  }
+  return value;
+}
+
+const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.jpg");
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -251,7 +264,7 @@ const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
-const PROFILE_CHARACTER_IMAGES = {
+const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
   coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.jpg",
   coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.jpg",
@@ -278,7 +291,7 @@ const PROFILE_CHARACTER_IMAGES = {
   daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.jpg",
   lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.jpg",
   milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.jpg",
-};
+});
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
   "alessandraConti",
@@ -536,7 +549,7 @@ const CHARACTERS = {
   },
 };
 
-const CHARACTER_IMAGES = {
+const CHARACTER_IMAGES = versionCardAsset({
   coachUnknown: [
     "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
     "assets/cards/Demo-TC-_0027_Coach-INCONNU.jpg",
@@ -645,9 +658,9 @@ const CHARACTER_IMAGES = {
     "assets/cards/TC-new-Milan-Verhaegen.jpg",
     "assets/cards/TC-new-Milan-Verhaegen-VERSO.jpg",
   ],
-};
+});
 
-const MATCH_RESULT_IMAGES = {
+const MATCH_RESULT_IMAGES = versionCardAsset({
   coachJu: {
     win: "assets/cards/CoachJuWin.jpg",
     lose: "assets/cards/CoachJuLoose.jpg",
@@ -748,9 +761,9 @@ const MATCH_RESULT_IMAGES = {
     win: "assets/cards/TC-result-Milan-Verhaegen-WIN.jpg",
     lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.jpg",
   },
-};
+});
 
-const CARD_IMAGES = {
+const CARD_IMAGES = versionCardAsset({
   double: "assets/cards/Demo-TC-_0005_DOUBLE-x2.jpg",
   joker: "assets/cards/Demo-TC-_0006_JOKER-x2.jpg",
   "sup-adv": "assets/cards/Demo-TC-_0007_SUP-ADV.jpg",
@@ -769,7 +782,7 @@ const CARD_IMAGES = {
   "smash-4-2-1": "assets/cards/Demo-TC-_0014_023---SMASH-4-2-1.jpg",
   "revers-3-3-0": "assets/cards/Demo-TC-_0021_005---REVERS-3-3-0.jpg",
   "revers-2": "assets/cards/Demo-TC-_0017_013---REVERS-2.jpg",
-};
+});
 
 const CARD_LIBRARY = [
   {
@@ -1993,6 +2006,23 @@ function profileCharacterVisuals(characterId) {
   };
 }
 
+function fitZoomImageToScreen(image) {
+  if (!image?.naturalWidth || !image?.naturalHeight) return;
+  const pixelRatio = Math.max(1, Number(window.devicePixelRatio) || 1);
+  const nativeCssWidth = Math.floor(image.naturalWidth / pixelRatio);
+  const nativeCssHeight = Math.floor(image.naturalHeight / pixelRatio);
+  image.style.maxWidth = `min(100%, ${nativeCssWidth}px)`;
+  image.style.maxHeight = `min(calc(100vh - 42px), ${nativeCssHeight}px)`;
+}
+
+function attachResolutionAwareZoom(image) {
+  const fit = () => fitZoomImageToScreen(image);
+  image.addEventListener("load", fit);
+  if (image.complete) fit();
+  window.addEventListener("resize", fit);
+  return () => window.removeEventListener("resize", fit);
+}
+
 function openImageZoom(imageUrl, label = "Carte") {
   document.querySelector(".image-zoom-backdrop")?.remove();
   if (!imageUrl) return;
@@ -2005,7 +2035,9 @@ function openImageZoom(imageUrl, label = "Carte") {
     </figure>
   `;
   document.body.append(backdrop);
+  const detachResolutionFit = attachResolutionAwareZoom(backdrop.querySelector(".image-zoom-figure img"));
   const close = () => {
+    detachResolutionFit();
     backdrop.remove();
     document.removeEventListener("keydown", onKeyDown);
   };
@@ -2058,6 +2090,7 @@ function openAcademyDeckGallery(startIndex = 0) {
   document.body.append(backdrop);
   const image = backdrop.querySelector(".academy-gallery-figure img");
   const figure = backdrop.querySelector(".academy-gallery-figure");
+  const detachResolutionFit = attachResolutionAwareZoom(image);
   const renderCurrentCard = () => {
     const card = cards[currentIndex];
     const cardLabel = `${card.name} - ${card.subtitle ?? card.family}`;
@@ -2070,6 +2103,7 @@ function openAcademyDeckGallery(startIndex = 0) {
     renderCurrentCard();
   };
   const close = () => {
+    detachResolutionFit();
     backdrop.remove();
     document.removeEventListener("keydown", onKeyDown);
   };
@@ -5380,7 +5414,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v156",
+    gameVersion: "v158",
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -5620,7 +5654,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v156",
+    version: "v158",
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -5679,7 +5713,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v156",
+    version: "v158",
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -5693,7 +5727,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v156");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v158");
 }
 
 function resetSetMatch() {

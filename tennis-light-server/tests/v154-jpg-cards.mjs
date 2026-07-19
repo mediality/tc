@@ -12,9 +12,9 @@ const [html, app, styles, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v156<\/span>/);
-assert.match(html, /styles\.css\?v=156\.0/);
-assert.match(html, /app\.js\?v=156\.0/);
+assert.match(html, /Tennis Courts Academy <span>v158<\/span>/);
+assert.match(html, /styles\.css\?v=158\.0/);
+assert.match(html, /app\.js\?v=158\.0/);
 
 const jpgCards = files.filter((file) => file.toLowerCase().endsWith(".jpg"));
 const pngCards = files.filter((file) => file.toLowerCase().endsWith(".png"));
@@ -30,13 +30,13 @@ for (const reference of new Set(cardReferences)) {
 
 const totalBytes = (await Promise.all(jpgCards.map(async (file) => (await stat(path.join(cardsDirectory, file))).size)))
   .reduce((sum, size) => sum + size, 0);
-assert.ok(totalBytes < 25 * 1024 * 1024, `dossier JPG trop volumineux: ${totalBytes} octets`);
+assert.ok(totalBytes < 120 * 1024 * 1024, `dossier JPG x2 trop volumineux: ${totalBytes} octets`);
 
 assert.match(styles, /Les cartes V154 sont des JPG sans transparence/);
-assert.match(styles, /\.card-visual > img\[src\*="assets\/cards\/"\]\[src\$="\.jpg"\]/);
-assert.match(styles, /\.character-card > img\[src\*="assets\/cards\/"\]\[src\$="\.jpg"\]/);
-assert.match(styles, /\.played-visual > img\[src\*="assets\/cards\/"\]\[src\$="\.jpg"\]/);
-assert.match(styles, /\.image-zoom-figure img\[src\*="assets\/cards\/"\]\[src\$="\.jpg"\]/);
+assert.match(styles, /\.card-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.jpg"\]/);
+assert.match(styles, /\.character-card > img\[src\*="assets\/cards\/"\]\[src\*="\.jpg"\]/);
+assert.match(styles, /\.played-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.jpg"\]/);
+assert.match(styles, /\.image-zoom-figure img\[src\*="assets\/cards\/"\]\[src\*="\.jpg"\]/);
 assert.doesNotMatch(styles, /\.character-card > img\s*[,\{]/);
 assert.match(styles, /border-radius: 5% \/ 3\.55%/);
 assert.match(styles, /border: clamp\(1px, 0\.28vw, 3px\) solid/);

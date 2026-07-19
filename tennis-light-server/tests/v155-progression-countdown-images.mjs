@@ -21,9 +21,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v156<\/span>/);
-assert.match(html, /styles\.css\?v=156\.0/);
-assert.match(html, /app\.js\?v=156\.0/);
+assert.match(html, /Tennis Courts Academy <span>v158<\/span>/);
+assert.match(html, /styles\.css\?v=158\.0/);
+assert.match(html, /app\.js\?v=158\.0/);
 
 const progressionContext = {
   renderCenterNextSoloExchangeButton: () => "SOLO",
@@ -63,11 +63,11 @@ async function sha256(relativeUrl) {
 
 assert.equal(
   await sha256("../public/assets/cards/TC-result-Jonas-Falkenried-LOSE.jpg"),
-  "0808e1d1418a35b0a0fd26ab74813c969a9d3476cd105cb0b5a8ab55eb78c4c4",
+  "da75d14e2fc838a7b4163653f0285509d59fb80f14cca068e51177b6ad28d527",
 );
 assert.equal(
   await sha256("../public/assets/cards/TC-result-Jonas-Falkenried-WIN.jpg"),
-  "2538042566f677a269a44a2b1132ae60aabcffcca4b16eb75f38b2f2156dc752",
+  "e39c2110130e54c2b6a305a43e3329aa15bdb9de4a1087d824c710ac5d4c5132",
 );
 assert.match(app, /jonasFalkenried:\s*\{[\s\S]*?win: "assets\/cards\/TC-result-Jonas-Falkenried-WIN\.jpg"[\s\S]*?lose: "assets\/cards\/TC-result-Jonas-Falkenried-LOSE\.jpg"/);
 
