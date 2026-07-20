@@ -3457,6 +3457,21 @@ function hideLobbySectionScreen() {
   els.lobbySectionScreen?.classList.add("hidden");
 }
 
+function hideStandaloneScreens() {
+  [
+    els.gameApp,
+    els.friendlyLobbyScreen,
+    els.aiClubHouseScreen,
+    els.adminScreen,
+    els.rankingScreen,
+    els.circuitInfoScreen,
+    els.academyInfoScreen,
+    els.profileScreen,
+    els.characterScreen,
+    els.resetPasswordScreen,
+  ].forEach((screen) => screen?.classList.add("hidden"));
+}
+
 function showLobbySection(sectionName) {
   const section = ["training", "solo", "online", "circuit"].includes(sectionName) ? sectionName : "training";
   if (section === "solo") {
@@ -3470,6 +3485,7 @@ function showLobbySection(sectionName) {
   }
   setLobbyAccountPanelOpen(false);
   els.menuScreen?.classList.add("hidden");
+  hideStandaloneScreens();
   els.lobbySectionScreen?.classList.remove("hidden");
   els.lobbySectionPanels?.forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.lobbySectionPanel !== section);

@@ -22,8 +22,8 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy · v169/);
-assert.match(html, /styles\.css\?v=169\.8/);
-assert.match(html, /app\.js\?v=169\.8/);
+assert.match(html, /styles\.css\?v=169\.9/);
+assert.match(html, /app\.js\?v=169\.9/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
@@ -70,8 +70,15 @@ const authenticatedCircuitRefresh = functionSource(app, "refreshAuthenticatedCir
 assert.doesNotMatch(authenticatedCircuitRefresh, /fetch|loadRanking|loadLobbyRanking|loadCompetitions|ensureGameplayProfile|ensureGameplayRanking/);
 const lobbySection = functionSource(app, "showLobbySection");
 assert.match(lobbySection, /section === "solo"[\s\S]*showAiClubHouseScreen\(\)/);
+assert.match(lobbySection, /hideStandaloneScreens\(\)/);
 assert.match(lobbySection, /section === "online"\) refreshLobbyRooms\(\)/);
 assert.match(lobbySection, /section === "circuit"/);
+const hiddenStandaloneScreens = functionSource(app, "hideStandaloneScreens");
+for (const screen of ["profileScreen", "circuitInfoScreen", "academyInfoScreen", "friendlyLobbyScreen", "aiClubHouseScreen"]) {
+  assert.match(hiddenStandaloneScreens, new RegExp(`els\\.${screen}`));
+}
+assert.match(html, /Disputez les tournois les plus prestigieux/);
+assert.match(html, /inscrire votre nom dans la légende du Circuit/);
 const avatar = functionSource(app, "updateLobbyProfileAvatar");
 assert.match(avatar, /PROFILE_CHARACTER_IMAGES\[characterId\]/);
 const circuitDashboard = functionSource(app, "renderCircuitDashboard");
