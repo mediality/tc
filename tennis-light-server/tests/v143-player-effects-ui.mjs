@@ -66,8 +66,20 @@ assert.match(app, /function renderActionLogEntry\(line, index, compact = false\)
 assert.match(app, /function openFullActionLogDialog\(\)/);
 assert.match(app, /rally-info-grid/);
 assert.match(app, /result-banner-heading/);
+assert.match(app, /function renderCompactMatchScore\(setMatch\)/);
+assert.match(app, /result-outcome-badge/);
+assert.match(app, /outcomeClass === "boost"/);
+assert.doesNotMatch(functionSource("renderResultPanel"), /Score du set/);
+assert.match(functionSource("renderLeagueStandingsTable"), /<span>Rang<\/span><span>Nom<\/span><span>Points<\/span><span>Diff\. sets<\/span><span>Diff\. jeux<\/span>/);
+assert.match(app, /tournament-match-status/);
+assert.match(app, /character-hand-reminder/);
+assert.match(app, /opponent\?\.hand\?\.length/);
 assert.match(css, /\.action-log-dialog/);
 assert.match(css, /\.result-power-score/);
+assert.match(css, /\.outcome-boost \.result-outcome-badge/);
+assert.match(css, /\.outcome-power \.result-outcome-badge/);
+assert.match(css, /\.character-hand-reminder/);
+assert.match(css, /\.hand-cards-icon/);
 
 const simulationContext = {
   SERVER_SYNC: { enabled: false, isHost: false, seat: null },

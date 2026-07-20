@@ -12809,6 +12809,30 @@ function getStoredActionLogs() {
   return readStoredJson(ACTION_LOG_STORAGE_KEY, []);
 }
 
+function renderCompactMatchScore(setMatch) {
+  if (!setMatch) return "";
+  const scores = Array.isArray(setMatch.completedScores)
+    ? setMatch.completedScores.map((score) => [Number(score?.[0] || 0), Number(score?.[1] || 0)])
+    : [];
+  if (!setMatch.setOver && Array.isArray(setMatch.score)) {
+    scores.push([Number(setMatch.score[0] || 0), Number(setMatch.score[1] || 0)]);
+  } else if (!scores.length && Array.isArray(setMatch.score)) {
+    scores.push([Number(setMatch.score[0] || 0), Number(setMatch.score[1] || 0)]);
+  }
+  if (!scores.length) return "";
+  return `
+    <div class="result-match-score" aria-label="Score du match">
+      <div class="result-match-score-label">
+        <span>Score du match</span>
+        <small>${escapeHtml(playerName(0))} / ${escapeHtml(playerName(1))}</small>
+      </div>
+      <div class="result-match-score-values">
+        ${scores.map((score, index) => `<strong class="${!setMatch.setOver && index === scores.length - 1 ? "current" : ""}">${score[0]}–${score[1]}</strong>`).join('<i aria-hidden="true">·</i>')}
+      </div>
+    </div>
+  `;
+}
+
 function renderResultPanel() {
   if (!state.resultInfo) {
     els.resultPanel.classList.add("hidden");
@@ -12820,41 +12844,29 @@ function renderResultPanel() {
   const winnerIndex = state.resultInfo.winner;
   const loserIndex = opponentOf(winnerIndex);
   const conditionLabel = setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique");
+  const outcomeClass = state.resultInfo.winType === "boost"
+    ? "boost"
+    : state.resultInfo.winType === "power"
+      ? "power"
+      : "automatic";
+  const outcomeShortLabel = outcomeClass === "boost" ? "BOOST" : outcomeClass === "power" ? "POINTS" : "DÉCISIF";
   els.resultPanel.innerHTML = `
-    <div class="result-banner-heading">
-      <div>
+    <div class="result-banner-heading outcome-${outcomeClass}">
+      <div class="result-winner-copy">
         <p class="eyebrow">Fin de l’échange</p>
         <h2 class="winner-dialog">${escapeHtml(playerName(winnerIndex))} gagne</h2>
-        <p class="result-condition">${escapeHtml(conditionLabel)}</p>
+        <span class="result-outcome-badge"><i aria-hidden="true"></i>${outcomeShortLabel}<small>${escapeHtml(conditionLabel)}</small></span>
       </div>
-      <div class="result-power-score" aria-label="Score de puissance final">
-        <span><small>${escapeHtml(playerName(winnerIndex))}</small><strong>${state.players[winnerIndex]?.power ?? 0}</strong></span>
-        <i>—</i>
-        <span><small>${escapeHtml(playerName(loserIndex))}</small><strong>${state.players[loserIndex]?.power ?? 0}</strong></span>
+      <div class="result-score-summary">
+        ${renderCompactMatchScore(setMatch)}
+        <div class="result-power-score" aria-label="Score de puissance final">
+          <small>Puissance de l’échange</small>
+          <strong>${state.players[winnerIndex]?.power ?? 0}<i>–</i>${state.players[loserIndex]?.power ?? 0}</strong>
+        </div>
       </div>
     </div>
     <p class="result-reason">${escapeHtml(state.resultInfo.reason)}</p>
-    <div class="result-detail-grid">
-      <article><span>Condition</span><strong>${escapeHtml(conditionLabel)}</strong></article>
-      <article class="${endBonusDetails.length ? "has-bonus" : ""}"><span>Bonus de fin d’échange</span>${endBonusDetails.length
-        ? endBonusDetails.map((bonus) => `<strong>${escapeHtml(playerName(bonus.playerIndex))} · +${bonus.points} puissance</strong><small>${escapeHtml(bonus.label)}</small>`).join("")
-        : "<strong>Aucun bonus</strong>"}</article>
-    </div>
-    ${setScore ? `
-      <div class="set-score-box">
-        <strong>Score du set</strong>
-        <span>${escapeHtml(playerName(setScore.winner))} · ${setScore.winnerGames} jeu${setScore.winnerGames > 1 ? "x" : ""}</span>
-        <span>${escapeHtml(playerName(setScore.loser))} · ${setScore.loserGames} jeu${setScore.loserGames > 1 ? "x" : ""}</span>
-      </div>
-    ` : ""}
-    ${setMatch ? `
-      <div class="set-score-box set-match-box">
-        <strong>Score du set : ${setMatch.score[0]} / ${setMatch.score[1]}</strong>
-        ${setMatch.setOver ? `<span>Set gagné par ${escapeHtml(playerName(setMatch.winner))}</span>` : "<span>Le set continue.</span>"}
-        ${setMatch.targetSets ? `<span>Match : ${setMatch.setsWon[0]} / ${setMatch.setsWon[1]} set(s)</span>` : ""}
-        ${setMatch.matchOver ? `<span>Match gagné par ${escapeHtml(playerName(setMatch.matchWinner))}</span>` : ""}
-      </div>
-    ` : ""}
+    ${endBonusDetails.length ? `<div class="result-bonus-list" aria-label="Bonus de fin d’échange">${endBonusDetails.map((bonus) => `<span><strong>+${bonus.points}</strong> ${escapeHtml(playerName(bonus.playerIndex))} · ${escapeHtml(bonus.label)}</span>`).join("")}</div>` : ""}
     <div class="result-actions">
       ${renderProgressionButtons()}
       ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>` : ""}
@@ -13443,11 +13455,12 @@ function renderLeagueStandingsTable(group, throughDay = 0) {
     <section class="league-standings">
       <span class="tournament-round-label">Groupe ${group}</span>
       <div class="league-standings-head">
-        <span>Joueur</span><span>Points</span><span>Sets +/-</span><span>Jeux +/-</span>
+        <span>Rang</span><span>Nom</span><span>Points</span><span>Diff. sets</span><span>Diff. jeux</span>
       </div>
       ${rows.map((row, index) => `
         <div class="league-standings-row ${index < 2 && throughDay >= 3 ? "qualified" : ""} ${isHumanTournamentEntry(row.entry) ? "human-player" : ""}">
-          <span class="tournament-player-identity">${index + 1}. ${tournamentPlayerLabel(row.entry)} ${aiIntelligenceBadgeMarkup(row.entry)}</span>
+          <strong class="league-rank">${index + 1}</strong>
+          <span class="tournament-player-identity">${tournamentPlayerLabel(row.entry)} ${aiIntelligenceBadgeMarkup(row.entry)}</span>
           <strong>${row.points}</strong>
           <span>${formatLeagueDifference(row.setDifference)}</span>
           <span>${formatLeagueDifference(row.gameDifference)}</span>
@@ -13466,9 +13479,15 @@ function renderTournamentMatch(match, isFinal = false) {
   const revealedWinner = match.score && match.winner ? match.winner : null;
   const playerAWon = Boolean(revealedWinner && revealedWinner === match.playerA);
   const playerBWon = Boolean(revealedWinner && revealedWinner === match.playerB);
+  const isCurrent = state.tournament.currentMatch === match.id;
+  const statusLabel = isCurrent ? "En cours" : match.score ? "Terminé" : match.playerA && match.playerB ? "À jouer" : "À venir";
+  const statusClass = isCurrent ? "live" : match.score ? "complete" : "upcoming";
   return `
-    <article class="tournament-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
-      <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
+    <article class="tournament-match ${isCurrent ? "current" : ""} ${isFinal ? "final-match" : ""}">
+      <header class="tournament-match-head">
+        <span class="tournament-round-label">${isFinal ? "Finale" : match.label}</span>
+        <span class="tournament-match-status ${statusClass}">${statusLabel}</span>
+      </header>
       <div class="tournament-player-row ${playerAWon ? "winner" : ""} ${isHumanTournamentEntry(match.playerA) ? "human-player" : ""}">
         <span class="tournament-player-identity">${playerA}${tournamentSeedNumberMarkup(match.playerA)} ${aiIntelligenceBadgeMarkup(match.playerA)}</span>
         ${playerAWon ? "<strong>✓</strong>" : ""}
@@ -13679,6 +13698,8 @@ function renderCharacterCard(player, playerIndex) {
   const leader = leadingPlayerIndex();
   const leaderClass = leader === playerIndex ? " leading-power" : "";
   const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
+  const handCount = player.hand.length;
+  const handCountClass = handCount === 0 ? " empty-hand" : handCount === 1 ? " critical-hand" : handCount === 2 ? " low-hand" : "";
   const crown = state.gameOver && state.resultInfo?.winner === playerIndex
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
@@ -13712,6 +13733,11 @@ function renderCharacterCard(player, playerIndex) {
         <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
           <strong>${player.endurance}<span class="opponent-inline">(${opponent?.endurance ?? 0})</span></strong>
           <span>Endurance</span>
+        </div>
+        <div class="character-hand-reminder${handCountClass}" aria-label="${handCount} carte${handCount > 1 ? "s" : ""} restante${handCount > 1 ? "s" : ""}">
+          <span class="hand-cards-icon" aria-hidden="true"><i></i><i></i></span>
+          <strong>${handCount}<span class="opponent-inline">(${opponent?.hand?.length ?? 0})</span></strong>
+          <span>Cartes</span>
         </div>
       </div>
     </div>

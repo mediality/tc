@@ -23,8 +23,8 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.0/);
-assert.match(html, /app\.js\?v=170\.0/);
+assert.match(html, /styles\.css\?v=170\.1/);
+assert.match(html, /app\.js\?v=170\.1/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 const effectGuard = functionSource(app, "legendaryEffectSequenceIsUseful");
