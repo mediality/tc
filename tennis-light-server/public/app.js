@@ -4602,13 +4602,15 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
       <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "LEAGUE.svg" : tournament.format === "match" ? "MATCH.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Partie en ligne</strong>
-        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
+        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${Number(tournament.targetSets || 2)} sets · ${tournament.visibility === "private" ? "Privé" : "Public"} · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
         ${tournament.canResume
           ? `<button class="small-button friendly-resume-button online-action-with-icon" type="button" data-resume-friendly-tournament="${tournament.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REPRENDRE</button>`
-          : tournament.status === "playing"
+          : tournament.status === "playing" && tournament.canSpectate
           ? `<button class="small-button friendly-spectator-button online-action-with-icon" type="button" data-spectate-friendly-tournament="${tournament.id}"><img src="./assets/icons/JUST-WATCH.svg" alt="" aria-hidden="true" />SPECTATEUR</button>`
+          : tournament.status === "playing"
+          ? `<span class="online-private-event-badge">ÉVÉNEMENT PRIVÉ</span>`
           : `<button class="small-button online-action-with-icon" type="button" data-join-friendly-tournament="${tournament.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REJOINDRE</button>`}
         ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
       </div>
@@ -4747,11 +4749,11 @@ async function spectateFriendlyTournament(tournamentId) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
     });
-    if (!response.ok) throw new Error("spectate failed");
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Ce tournoi n'est plus disponible en mode spectateur.");
     window.location.href = data.spectatorUrl;
   } catch (error) {
-    MENU_STATE.lobbyNotice = "Ce tournoi n'est plus disponible en mode spectateur.";
+    MENU_STATE.lobbyNotice = error.message || "Ce tournoi n'est plus disponible en mode spectateur.";
     await refreshLobbyRooms();
   }
 }
@@ -5043,6 +5045,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     friendlyDistribution: payload.distribution || "random",
     friendlyBonus: payload.bonus || "none",
     friendlyPlayerSelection: payload.playerSelection || "random",
+    friendlyVisibility: payload.visibility === "private" ? "private" : "public",
     friendlySelectionLimit: Number(payload.selectionLimit || (payload.format === "match" ? 2 : 4)),
     friendlySettingsLocked: Boolean(payload.settingsLocked),
     bonusLevel: payload.bonus || "none",
@@ -5156,9 +5159,10 @@ function showFriendlyForfeitDialog(match) {
   backdrop.className = "modal-backdrop friendly-forfeit-dialog";
   backdrop.innerHTML = `
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="friendlyForfeitTitle">
-      <h2 id="friendlyForfeitTitle">Victoire par forfait</h2>
-      <p>${escapeHtml(opponent?.nickname || "Votre adversaire")} a quitté le match et a été déclaré forfait.</p>
-      <button class="primary-button" type="button" data-return-friendly-lobby>RETOUR CLUB-HOUSE</button>
+      <p class="event-transition-kicker">Club House en ligne</p>
+      <h2 id="friendlyForfeitTitle">QUALIFIÉ PAR FORFAIT</h2>
+      <p>${escapeHtml(opponent?.nickname || "Votre adversaire")} est forfait. Vous êtes qualifié pour le tour suivant sans jouer.</p>
+      <button class="primary-button" type="button" data-return-friendly-lobby>CONTINUER DANS LE CLUB HOUSE</button>
     </div>
   `;
   backdrop.querySelector("[data-return-friendly-lobby]")?.addEventListener("click", () => {
@@ -5381,6 +5385,7 @@ function renderFriendlyLobbyScreen() {
   const difficulty = state.tournament.difficulty || "normal";
   const bonus = state.tournament.friendlyBonus || "none";
   const playerSelection = state.tournament.friendlyPlayerSelection || "random";
+  const visibility = state.tournament.friendlyVisibility === "private" ? "private" : "public";
   const selectionLimit = Number(state.tournament.friendlySelectionLimit || (format === "match" ? 2 : 4));
   const selectedCount = participants.filter((participant) => participant.selected).length;
   const settingsLocked = state.tournament.stage !== "waiting" || state.tournament.friendlySettingsLocked;
@@ -5492,8 +5497,9 @@ function renderFriendlyLobbyScreen() {
       <h2>${format === "league" ? "League" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
       <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${targetSets} sets gagnants · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
       ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button online-action-with-icon" type="button" data-resume-friendly-match><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REPRENDRE MON MATCH</button>` : ""}
-      ${FRIENDLY_TOURNAMENT.isSpectator ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
+      ${FRIENDLY_TOURNAMENT.isSpectator || state.tournament.stage !== "waiting" ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
       <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
+      ${!FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "complete" ? `<button class="primary-button friendly-new-event-button" type="button" data-new-friendly-event>NOUVEL ÉVÉNEMENT</button>` : ""}
     </aside>
     </div>
     <section>
@@ -5501,13 +5507,27 @@ function renderFriendlyLobbyScreen() {
       <div class="friendly-player-grid">
         ${participants.map((participant) => `
           <article class="friendly-player-card ${participant.selected ? "selected" : ""} ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked ? "selectable" : ""}" ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked ? `data-select-friendly-participant="${escapeHtml(participant.id)}" data-selected="${participant.selected ? "true" : "false"}" role="button" tabindex="0"` : ""}>
-            <div>
-              <strong class="friendly-player-name">${escapeHtml(participant.nickname || "Joueur")}${participant.selected ? `<img class="friendly-selected-icon" src="./assets/icons/VALID.svg" alt="Sélectionné" />` : ""}${participant.isCreator ? " · Créateur" : ""}</strong>
-              <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.selected ? " · Prêt à jouer" : " · En attente"}${participant.eliminated ? " · Éliminé" : participant.away ? " · Absent temporairement" : ""}</span>
+            <div class="friendly-player-identity">
+              ${participant.selected ? `<img class="friendly-selected-icon" src="./assets/icons/VALID.svg" alt="Sélectionné" />` : ""}
+              <div class="friendly-player-copy">
+                <strong class="friendly-player-name">${escapeHtml(participant.nickname || "Joueur")}${participant.isCreator ? " · Créateur" : ""}</strong>
+                <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.selected ? " · Prêt à jouer" : " · En attente"}${participant.forfeited ? " · Forfait définitif" : participant.eliminated ? " · Éliminé" : participant.away ? " · Absent temporairement" : ""}</span>
+              </div>
             </div>
             ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked && participant.id !== FRIENDLY_TOURNAMENT.participantId ? `<button class="small-button danger-button friendly-kick-button" type="button" data-kick-friendly-participant="${escapeHtml(participant.id)}" data-kick-friendly-nickname="${escapeHtml(participant.nickname || "Joueur")}">EXCLURE</button>` : ""}
           </article>
         `).join("")}
+      </div>
+    </section>
+    <section class="friendly-visibility-section">
+      <div>
+        <p class="label">Confidentialité</p>
+        <h2>Événement public ou privé</h2>
+        <p>${visibility === "private" ? "Seuls les joueurs validés peuvent regarder les rencontres." : "Les autres joueurs peuvent suivre les rencontres en spectateur."}</p>
+      </div>
+      <div class="friendly-setting-switch friendly-visibility-switch" aria-label="Confidentialité de l’événement">
+        ${settingButton("visibility", "public", "PUBLIC", visibility === "public")}
+        ${settingButton("visibility", "private", "PRIVÉ", visibility === "private")}
       </div>
     </section>
     ${leagueGroupMarkup}
@@ -5536,6 +5556,7 @@ function renderFriendlyLobbyScreen() {
     card.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); toggle(); } });
   });
   els.friendlyLobbyContent.querySelector("[data-leave-friendly-tournament]")?.addEventListener("click", leaveFriendlyTournamentLobby);
+  els.friendlyLobbyContent.querySelector("[data-new-friendly-event]")?.addEventListener("click", createNewFriendlyEventFromClubHouse);
   els.friendlyLobbyContent.querySelectorAll("[data-watch-friendly-match]").forEach((button) => {
     button.addEventListener("click", () => startFriendlySpectator(button.dataset.watchFriendlyMatch));
   });
@@ -5550,6 +5571,7 @@ async function updateFriendlyTournamentSettings(setting, value) {
     difficulty: state.tournament.difficulty || "normal",
     bonus: state.tournament.friendlyBonus || "none",
     playerSelection: state.tournament.friendlyPlayerSelection || "random",
+    visibility: state.tournament.friendlyVisibility === "private" ? "private" : "public",
   };
   if (setting === "format") next.format = ["match", "classic", "league"].includes(value) ? value : "match";
   if (setting === "targetSets") next.targetSets = Number(value) === 3 ? 3 : 2;
@@ -5557,6 +5579,7 @@ async function updateFriendlyTournamentSettings(setting, value) {
   if (setting === "difficulty") next.difficulty = AI_DIFFICULTIES.includes(value) ? value : "normal";
   if (setting === "bonus") next.bonus = ["none", "ascendant", "domination", "nemesis"].includes(value) ? value : "none";
   if (setting === "playerSelection") next.playerSelection = value === "best" ? "best" : "random";
+  if (setting === "visibility") next.visibility = value === "private" ? "private" : "public";
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/settings`, {
       method: "POST",
@@ -5568,6 +5591,42 @@ async function updateFriendlyTournamentSettings(setting, value) {
     applyFriendlyTournamentState(data.tournament, null);
   } catch (error) {
     state.log.unshift("La configuration du tournoi n'a pas pu être modifiée.");
+  }
+}
+
+async function createNewFriendlyEventFromClubHouse() {
+  if (!FRIENDLY_TOURNAMENT.enabled || !FRIENDLY_TOURNAMENT.isCreator || state.tournament?.stage !== "complete") return;
+  const confirmed = await showEventConfirmDialog({
+    kicker: "Club House en ligne",
+    title: "Préparer un nouvel événement ?",
+    message: "Le tableau terminé sera remplacé par une nouvelle configuration avec les joueurs encore présents dans le Club House.",
+    highlight: "Les réglages seront de nouveau modifiables",
+    confirmLabel: "NOUVEL ÉVÉNEMENT",
+  });
+  if (!confirmed) return;
+  await showTournamentLoadingDialog("Le nouveau Club House est en train d'être préparé.", "Nouvel événement");
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/new-event`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Le nouvel événement n'a pas pu être préparé.");
+    FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+    FRIENDLY_TOURNAMENT.waitingForNextRound = false;
+    FRIENDLY_TOURNAMENT.readyRound = null;
+    FRIENDLY_TOURNAMENT.lastReportedMatchId = null;
+    FRIENDLY_TOURNAMENT.lastForfeitNoticeMatchId = null;
+    applyFriendlyTournamentState(data.tournament, null);
+    showFriendlyLobbyScreen();
+    renderFriendlyLobbyScreen();
+    pollFriendlyTournament();
+  } catch (error) {
+    MENU_STATE.lobbyNotice = error.message || "Le nouvel événement n'a pas pu être préparé.";
+    renderFriendlyLobbyScreen();
+  } finally {
+    hideTournamentLoadingDialog();
   }
 }
 
@@ -14006,36 +14065,27 @@ function leadingPlayerIndex() {
   return state.server;
 }
 
-function projectSetScoreForExchangeWinner(winner) {
+function projectSetScoreForExchangeWinner(winner, winType = "power") {
   if (!state.setMatch?.enabled || state.setMatch.setOver) return null;
-  const loser = opponentOf(winner);
-  const previous = [...state.setMatch.score];
-  const next = [...previous];
-  if (Math.max(...previous) === 6 && Math.min(...previous) === 5) {
-    next[winner] = 7;
-    next[loser] = previous[loser];
-  } else if (state.setMatch.decisiveExchange || isDecisiveSetScore(previous)) {
-    next[winner] = 7;
-    next[loser] = 6;
-  } else {
-    next[winner] = computeWinnerSetGames(previous[winner], previous[loser], 2);
-    if (next[winner] === 7 && next[loser] < 5) next[winner] = 6;
-  }
-  return next;
+  const exchangeScore = getExchangeSetScore(winner, winType === "boost" ? "boost" : "power");
+  return previewSetMatchScore(winner, exchangeScore);
 }
 
 function currentMatchStake() {
   if (!state.setMatch?.enabled || state.gameOver || state.setMatch.setOver) return null;
-  const closingPlayers = [0, 1].filter((playerIndex) => {
-    const score = projectSetScoreForExchangeWinner(playerIndex);
-    return score && isSetOver(score);
-  });
+  const closingPlayers = [0, 1].map((playerIndex) => {
+    const powerScore = projectSetScoreForExchangeWinner(playerIndex, "power");
+    const boostScore = projectSetScoreForExchangeWinner(playerIndex, "boost");
+    const closesWithPower = Boolean(powerScore && isSetOver(powerScore) && leadingSetPlayer(powerScore) === playerIndex);
+    const closesWithBoost = Boolean(boostScore && isSetOver(boostScore) && leadingSetPlayer(boostScore) === playerIndex);
+    return { playerIndex, closesWithPower, closesWithBoost, boostOnly: !closesWithPower && closesWithBoost };
+  }).filter((item) => item.closesWithPower || item.closesWithBoost);
   if (!closingPlayers.length) return null;
-  const matchPlayers = closingPlayers.filter((playerIndex) => state.setMatch.targetSets && Number(state.setMatch.setsWon?.[playerIndex] || 0) + 1 >= Number(state.setMatch.targetSets));
+  const matchPlayers = closingPlayers.filter(({ playerIndex }) => state.setMatch.targetSets && Number(state.setMatch.setsWon?.[playerIndex] || 0) + 1 >= Number(state.setMatch.targetSets));
   const players = matchPlayers.length ? matchPlayers : closingPlayers;
   return {
     label: matchPlayers.length ? "BALLE DE MATCH" : "BALLE DE SET",
-    names: players.map((playerIndex) => displayPlayerName(state.players[playerIndex])).join(" · "),
+    names: players.map(({ playerIndex, boostOnly }) => `${displayPlayerName(state.players[playerIndex])}${boostOnly ? " (BOOST)" : ""}`).join(" · "),
   };
 }
 

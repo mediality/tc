@@ -26,7 +26,7 @@ assert.match(html, /Apprenez\. Progressez\. Entrez sur le circuit\./);
 assert.match(html, /assets\/ACADEMY-HERO\.jpg/);
 assert.match(html, /le même deck de 18 cartes/);
 assert.match(html, /plus de <strong>500 cartes<\/strong>/);
-assert.match(html, /https:\/\/www\.mediality\.fr\/shop\/#tenniscourts/);
+assert.match(html, /https:\/\/mediality\.fr\/shop\/#tenniscourts/);
 assert.match(html, /target="_blank" rel="noopener noreferrer"/);
 assert.match(html, /assets\/academy-shop-banner\.jpg/);
 

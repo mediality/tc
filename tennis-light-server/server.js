@@ -2069,7 +2069,7 @@ async function profilePayload(user, viewer = user) {
     user: publicUser(user),
     publicProfile: viewer?.id !== user.id,
     viewerIsAdmin: normalizeRole(viewer?.role) === "admin",
-    activity: publicProfileActivity(user.id),
+    activity: publicProfileActivity(user.id, viewer),
     ranking: fullRanking.currentUserRank,
     circuit: { season: current.season, week: current.week },
     results,
@@ -3284,7 +3284,9 @@ async function handleAuth(req, res, url) {
     }
     const target = await findUserById(decodeURIComponent(publicProfileWatchMatch[1]));
     const activity = target ? activeProfileActivity(target.id) : null;
-    if (!target || !activity || !activity.watchable || !activity.state) {
+    const friendlyTournament = activity?.tournamentId ? friendlyTournaments.get(activity.tournamentId) : null;
+    const canWatchPrivateEvent = !friendlyTournament || friendlyUserCanSpectate(friendlyTournament, viewer);
+    if (!target || !activity || !activity.watchable || !activity.state || !canWatchPrivateEvent) {
       sendJson(res, 404, { error: "Cette partie n'est plus disponible." });
       return true;
     }
@@ -3598,14 +3600,19 @@ function activeProfileActivity(userId) {
   return { ...activity, watchable: Boolean(activity.state) };
 }
 
-function publicProfileActivity(userId) {
+function publicProfileActivity(userId, viewer = null) {
   const activity = activeProfileActivity(userId);
   if (!activity) return null;
+  const friendlyTournament = activity.tournamentId ? friendlyTournaments.get(activity.tournamentId) : null;
+  const canWatch = Boolean(
+    activity.watchable
+    && (!friendlyTournament || friendlyUserCanSpectate(friendlyTournament, viewer))
+  );
   return {
     type: activity.type,
     opponent: activity.opponent,
     score: activity.score,
-    watchable: Boolean(activity.watchable),
+    watchable: canWatch,
   };
 }
 
@@ -3669,6 +3676,24 @@ function friendlySelectionLimit(tournament) {
 
 function selectedFriendlyParticipants(tournament) {
   return activeFriendlyParticipants(tournament).filter((participant) => participant.selected);
+}
+
+function friendlyTournamentVisibility(tournament) {
+  return tournament?.visibility === "private" ? "private" : "public";
+}
+
+function friendlyUserIsValidated(tournament, user) {
+  if (!tournament || !user?.id) return false;
+  return (tournament.participants || []).some((participant) => (
+    String(participant.userId) === String(user.id)
+    && participant.selected
+    && !participant.kickedAt
+    && !participant.forfeitedAt
+  ));
+}
+
+function friendlyUserCanSpectate(tournament, user) {
+  return friendlyTournamentVisibility(tournament) === "public" || friendlyUserIsValidated(tournament, user);
 }
 
 function friendlyDisconnectedPlayersForMatch(tournament, match) {
@@ -3768,6 +3793,7 @@ function sanitizeFriendlySpectatorState(remoteState) {
 
 function publicFriendlyTournamentInfo(req, tournament, participant = null, spectator = null) {
   const activeParticipants = activeFriendlyParticipants(tournament);
+  const canWatchMatches = friendlyTournamentVisibility(tournament) === "public" || Boolean(participant?.selected);
   return {
     id: tournament.id,
     status: tournament.status,
@@ -3783,6 +3809,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     difficulty: tournament.difficulty || "normal",
     bonus: tournament.bonus || "none",
     playerSelection: tournament.playerSelection || "random",
+    visibility: friendlyTournamentVisibility(tournament),
     selectionLimit: friendlySelectionLimit(tournament),
     seedNumbers: Object.fromEntries(Object.entries(tournament.seedRanks || {}).filter(([, rank]) => Number(rank) >= 1 && Number(rank) <= 4)),
     settingsLocked: tournament.status !== "waiting",
@@ -3794,6 +3821,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       eliminated: Boolean(item.eliminated),
       away: Boolean(item.awayAt),
       selected: Boolean(item.selected),
+      forfeited: Boolean(item.forfeitedAt),
       worldRank: Number(item.worldRank || 0) || null,
     })),
     entries: (tournament.entries || []).map((entry) => friendlyEntryPublic(tournament, entry)),
@@ -3807,7 +3835,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       score: match.score,
       liveScore: match.liveScore || null,
       liveUpdatedAt: match.liveUpdatedAt || null,
-      watchable: friendlyMatchIsWatchable(match),
+      watchable: canWatchMatches && friendlyMatchIsWatchable(match),
       playerAInfo: friendlyEntryPublic(tournament, match.playerA),
       playerBInfo: friendlyEntryPublic(tournament, match.playerB),
       winnerInfo: friendlyEntryPublic(tournament, match.winner),
@@ -3858,8 +3886,10 @@ function publicFriendlyLobbyInfo(req, tournament, user = null) {
     difficulty: tournament.difficulty || "normal",
     bonus: tournament.bonus || "none",
     playerSelection: tournament.playerSelection || "random",
+    visibility: friendlyTournamentVisibility(tournament),
     selectionLimit: friendlySelectionLimit(tournament),
-    canResume: Boolean(currentParticipant && ["waiting", "playing"].includes(tournament.status)),
+    canResume: Boolean(currentParticipant && !currentParticipant.forfeitedAt && ["waiting", "playing"].includes(tournament.status)),
+    canSpectate: Boolean(tournament.status === "playing" && friendlyUserCanSpectate(tournament, user)),
     resumeInMatch: Boolean(currentParticipant && currentFriendlyMatchForParticipant(tournament, currentParticipant.id)),
     reconnectDeadline: Number(currentParticipant?.reconnectDeadline || 0) || null,
     participants: activeParticipants.map((item) => ({
@@ -4275,7 +4305,7 @@ function refreshFriendlyLeagueSlots(tournament) {
 function friendlyEntryHasLeft(tournament, entry) {
   if (!friendlyEntryIsHuman(entry)) return false;
   const participant = tournament.participants.find((item) => friendlyParticipantEntry(item.id) === entry);
-  return Boolean(participant?.leftAt);
+  return Boolean(participant?.leftAt || participant?.forfeitedAt);
 }
 
 function cloneFriendlyMatchState(remoteState) {
@@ -4288,7 +4318,7 @@ function cloneFriendlyMatchState(remoteState) {
 }
 
 function markFriendlyParticipantPresent(participant, now = Date.now()) {
-  if (!participant) return false;
+  if (!participant || participant.forfeitedAt) return false;
   const wasAway = Boolean(participant.awayAt || participant.reconnectDeadline || participant.reconnectMatchId);
   participant.awayAt = null;
   participant.awayReason = null;
@@ -4316,20 +4346,43 @@ function touchFriendlyParticipant(participant, now = Date.now()) {
 }
 
 function markFriendlyParticipantAway(tournament, participant, match, options = {}) {
-  if (!tournament || !participant || !match || match.winner) return false;
-  const entry = friendlyParticipantEntry(participant.id);
-  if (match.playerA !== entry && match.playerB !== entry) return false;
+  if (!tournament || !participant || participant.forfeitedAt || match?.winner) return false;
+  if (match) {
+    const entry = friendlyParticipantEntry(participant.id);
+    if (match.playerA !== entry && match.playerB !== entry) return false;
+  }
   const disconnectedAt = Number(options.disconnectedAt || Date.now());
   const graceSeconds = Number(options.graceSeconds || 20);
   participant.awayAt = disconnectedAt;
   participant.awayReason = options.reason || "connection";
-  participant.disconnectScore = String(options.score || participant.disconnectScore || match.liveScore || "0/0")
+  participant.disconnectScore = String(options.score || participant.disconnectScore || match?.liveScore || "0/0")
     .replace(/\s*·\s*EN DIRECT\s*$/i, "")
     .slice(0, 80);
-  participant.reconnectMatchId = match.id;
+  participant.reconnectMatchId = match?.id || null;
   participant.reconnectGraceSeconds = graceSeconds;
   participant.reconnectDeadline = Number(options.deadline || (disconnectedAt + (graceSeconds * 1000)));
   tournament.updatedAt = Date.now();
+  return true;
+}
+
+function lockFriendlyParticipantForfeit(tournament, participant, now = Date.now()) {
+  if (!participant || participant.forfeitedAt) return false;
+  participant.forfeitedAt = now;
+  participant.graceExpiredAt = now;
+  participant.awayAt = participant.awayAt || now;
+  participant.awayReason = "forfeit";
+  participant.eliminated = true;
+  participant.selected = false;
+  participant.reconnectDeadline = null;
+  participant.reconnectMatchId = null;
+  participant.reconnectGraceSeconds = null;
+  participant.disconnectScore = null;
+  if (tournament?.creatorParticipantId === participant.id) {
+    const nextCreator = activeFriendlyParticipants(tournament)
+      .filter((item) => !item.forfeitedAt && item.id !== participant.id)
+      .sort((left, right) => Number(left.joinedAt || 0) - Number(right.joinedAt || 0))[0] || null;
+    if (nextCreator) tournament.creatorParticipantId = nextCreator.id;
+  }
   return true;
 }
 
@@ -4369,12 +4422,7 @@ function forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) {
   match.liveUpdatedAt = Date.now();
   match.forfeitParticipantId = participant.id;
   match.resumeState = null;
-  participant.graceExpiredAt = Date.now();
-  participant.awayReason = "forfeit";
-  participant.reconnectDeadline = null;
-  participant.reconnectMatchId = null;
-  participant.reconnectGraceSeconds = null;
-  participant.disconnectScore = null;
+  lockFriendlyParticipantForfeit(tournament, participant);
   tournament.updatedAt = Date.now();
   return true;
 }
@@ -4387,14 +4435,11 @@ function resolveFriendlyReconnectTimeouts(tournament, now = Date.now()) {
     if (!participant.awayAt || !deadline || deadline > now) continue;
     const match = (tournament.matches || []).find((item) => item.id === participant.reconnectMatchId) || null;
     if (match?.winner) {
-      participant.reconnectDeadline = null;
-      participant.reconnectMatchId = null;
-      participant.reconnectGraceSeconds = null;
-      participant.disconnectScore = null;
-      changed = true;
+      changed = lockFriendlyParticipantForfeit(tournament, participant, now) || changed;
       continue;
     }
-    changed = forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) || changed;
+    if (match) changed = forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) || changed;
+    else changed = lockFriendlyParticipantForfeit(tournament, participant, now) || changed;
   }
   return changed;
 }
@@ -4477,7 +4522,66 @@ function refreshFriendlyTournamentSlots(tournament) {
   }
 }
 
+function resetFriendlyTournamentForNewEvent(tournament) {
+  const presentParticipants = activeFriendlyParticipants(tournament)
+    .filter((participant) => !participant.awayAt && !participant.forfeitedAt);
+  if (!presentParticipants.length) return false;
+  tournament.participants = presentParticipants;
+  if (!presentParticipants.some((participant) => participant.id === tournament.creatorParticipantId)) {
+    tournament.creatorParticipantId = presentParticipants
+      .sort((left, right) => Number(left.joinedAt || 0) - Number(right.joinedAt || 0))[0].id;
+  }
+  presentParticipants.forEach((participant) => {
+    participant.eliminated = false;
+    participant.awayAt = null;
+    participant.awayReason = null;
+    participant.forfeitedAt = null;
+    participant.graceExpiredAt = null;
+    participant.reconnectDeadline = null;
+    participant.reconnectMatchId = null;
+    participant.reconnectGraceSeconds = null;
+    participant.disconnectScore = null;
+    participant.lastSeenAt = Date.now();
+  });
+  const selected = presentParticipants.filter((participant) => participant.selected);
+  if (!selected.length) {
+    const creator = presentParticipants.find((participant) => participant.id === tournament.creatorParticipantId);
+    if (creator) creator.selected = true;
+  }
+  presentParticipants.filter((participant) => participant.selected)
+    .slice(friendlySelectionLimit(tournament))
+    .forEach((participant) => { participant.selected = false; });
+  tournament.status = "waiting";
+  tournament.round = "waiting";
+  tournament.entries = [];
+  tournament.matches = [];
+  tournament.groups = { A: [], B: [] };
+  tournament.seedRanks = {};
+  tournament.worldRanks = {};
+  tournament.ready = {};
+  tournament.nextReady = {};
+  tournament.champion = null;
+  tournament.spectators = [];
+  tournament.excludedUserIds = [];
+  tournament.updatedAt = Date.now();
+  return true;
+}
+
+function removeFriendlyParticipantAfterComplete(tournament, participant, now = Date.now()) {
+  if (!tournament || !participant) return false;
+  participant.leftAt = now;
+  participant.selected = false;
+  participant.awayAt = null;
+  participant.reconnectDeadline = null;
+  participant.reconnectMatchId = null;
+  if (participant.id === tournament.creatorParticipantId) transferFriendlyTournamentCreator(tournament);
+  tournament.updatedAt = now;
+  return true;
+}
+
 function currentFriendlyMatchForParticipant(tournament, participantId) {
+  const participant = tournament?.participants?.find((item) => item.id === participantId);
+  if (!participant || participant.forfeitedAt) return null;
   const entry = friendlyParticipantEntry(participantId);
   if (!friendlyRoundReadyForPlay(tournament)) return null;
   return (tournament.matches || []).find((match) => (
@@ -4704,6 +4808,7 @@ async function handleApi(req, res) {
       difficulty: "normal",
       bonus: "none",
       playerSelection: "random",
+      visibility: "public",
       excludedUserIds: [],
       participants: [participant],
       spectators: [],
@@ -4753,6 +4858,10 @@ async function handleApi(req, res) {
       .find((item) => String(item.userId) === String(user.id)) || null;
     if (!participant) {
       sendJson(res, 403, { error: "Vous n'êtes pas inscrit à ce tournoi." });
+      return;
+    }
+    if (participant.forfeitedAt) {
+      sendJson(res, 403, { error: "Votre forfait est définitif pour cet événement." });
       return;
     }
     markFriendlyParticipantPresent(participant);
@@ -4817,6 +4926,10 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Ce tournoi n'est pas disponible en mode spectateur." });
       return;
     }
+    if (!friendlyUserCanSpectate(tournament, user)) {
+      sendJson(res, 403, { error: "Cet événement privé est réservé aux joueurs validés." });
+      return;
+    }
     tournament.spectators = tournament.spectators || [];
     let spectator = tournament.spectators.find((item) => String(item.userId) === String(user.id));
     if (!spectator) {
@@ -4859,6 +4972,7 @@ async function handleApi(req, res) {
     tournament.difficulty = ["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"].includes(payload.difficulty) ? payload.difficulty : "normal";
     tournament.bonus = ["none", "ascendant", "domination", "nemesis"].includes(payload.bonus) ? payload.bonus : "none";
     tournament.playerSelection = payload.playerSelection === "best" ? "best" : "random";
+    tournament.visibility = payload.visibility === "private" ? "private" : "public";
     const selected = selectedFriendlyParticipants(tournament);
     const limit = friendlySelectionLimit(tournament);
     selected.slice(limit).forEach((item) => { item.selected = false; });
@@ -4943,13 +5057,40 @@ async function handleApi(req, res) {
     return;
   }
 
+  const friendlyNewEventMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/new-event$/);
+  if (req.method === "POST" && friendlyNewEventMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyNewEventMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant) {
+      sendJson(res, 404, { error: "Club House introuvable." });
+      return;
+    }
+    if (tournament.status !== "complete" || participant.id !== tournament.creatorParticipantId) {
+      sendJson(res, 403, { error: "Seul le créateur peut préparer un nouvel événement terminé." });
+      return;
+    }
+    if (!resetFriendlyTournamentForNewEvent(tournament)) {
+      sendJson(res, 409, { error: "Aucun joueur présent pour relancer le Club House." });
+      return;
+    }
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
   const friendlyPresenceMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/presence$/);
   if (req.method === "POST" && friendlyPresenceMatch) {
     const payload = await readJson(req);
     const tournament = friendlyTournaments.get(friendlyPresenceMatch[1]);
     const participant = participantForToken(tournament, payload.participantId, payload.token);
-    if (!tournament || !participant || !["waiting", "playing"].includes(tournament.status)) {
+    if (!tournament || !participant || !["waiting", "playing", "complete"].includes(tournament.status)) {
       sendJson(res, 404, { error: "Tournoi introuvable." });
+      return;
+    }
+    if (tournament.status === "complete") {
+      if (payload.status !== "online") removeFriendlyParticipantAfterComplete(tournament, participant);
+      else participant.lastSeenAt = Date.now();
+      sendJson(res, 200, { ok: true, complete: true });
       return;
     }
     resolveFriendlyPresenceLosses(tournament);
@@ -5038,6 +5179,18 @@ async function handleApi(req, res) {
       });
       return;
     }
+    if (tournament.status === "complete") {
+      removeFriendlyParticipantAfterComplete(tournament, participant);
+      const remainingParticipants = activeFriendlyParticipants(tournament);
+      if (!remainingParticipants.length) friendlyTournaments.delete(tournament.id);
+      sendJson(res, 200, {
+        ok: true,
+        closed: !remainingParticipants.length,
+        participantCount: remainingParticipants.length,
+        creatorParticipantId: tournament.creatorParticipantId,
+      });
+      return;
+    }
     resolveFriendlyReconnectTimeouts(tournament);
     refreshFriendlyTournamentSlots(tournament);
     const entry = friendlyParticipantEntry(participant.id);
@@ -5081,8 +5234,9 @@ async function handleApi(req, res) {
       }
     } else {
       participant.reconnectMatchId = null;
-      participant.reconnectGraceSeconds = null;
-      participant.reconnectDeadline = null;
+      graceSeconds = FRIENDLY_RECONNECT_GRACE_MS / 1000;
+      participant.reconnectGraceSeconds = graceSeconds;
+      participant.reconnectDeadline = now + FRIENDLY_RECONNECT_GRACE_MS;
     }
     tournament.updatedAt = Date.now();
     sendJson(res, 200, {
@@ -5260,6 +5414,10 @@ async function handleApi(req, res) {
     const match = tournament?.matches.find((item) => item.id === friendlyWatchMatch[2]);
     if (!tournament || (!participant && !spectator) || !match) {
       sendJson(res, 404, { error: "Match introuvable." });
+      return;
+    }
+    if (friendlyTournamentVisibility(tournament) === "private" && !participant?.selected) {
+      sendJson(res, 403, { error: "Cette rencontre privée est réservée aux joueurs validés." });
       return;
     }
     const active = friendlyMatchIsWatchable(match);

@@ -7310,6 +7310,112 @@ h1 {
 .online-room-summary-card { top: 94px; }
 .online-room-summary-card .friendly-lobby-exit-button { width: 100%; }
 
+/* V2.169.15 · confidentialité et continuité du Club House */
+.content-page-panel .academy-upgrade-cta-info {
+  margin: 30px 0 0;
+  border-radius: 0 0 28px 28px;
+}
+
+.friendly-player-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.friendly-player-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.friendly-player-identity .friendly-selected-icon {
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+}
+
+.friendly-player-identity .friendly-player-name {
+  justify-content: flex-start;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.friendly-visibility-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 420px);
+  align-items: center;
+  gap: 22px;
+  border: 1px solid rgba(15, 73, 88, 0.14);
+  border-radius: 18px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f1f8f5, #fff);
+  box-shadow: 0 8px 22px rgba(10, 42, 58, 0.06);
+}
+
+.friendly-visibility-section .label,
+.friendly-visibility-section h2,
+.friendly-visibility-section p {
+  margin: 0;
+}
+
+.friendly-visibility-section h2 {
+  margin-top: 4px;
+  color: #173b4e;
+  font-size: 1.2rem;
+}
+
+.friendly-visibility-section p:not(.label) {
+  margin-top: 5px;
+  color: #5c7280;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.friendly-visibility-switch {
+  width: 100%;
+}
+
+.friendly-new-event-button {
+  width: 100%;
+  margin-top: 9px;
+  color: #102c2d;
+  background: #d5e75c;
+  border-color: #e7f286;
+}
+
+.online-room-summary-card .clubhouse-summary-text {
+  display: grid;
+  gap: 4px;
+}
+
+.online-private-event-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid rgba(15, 73, 88, 0.18);
+  border-radius: 10px;
+  padding: 0 12px;
+  color: #60727d;
+  background: #edf2f1;
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.055em;
+}
+
+.friendly-forfeit-dialog .modal {
+  overflow: hidden;
+  border: 1px solid rgba(213, 231, 92, 0.42);
+  border-radius: 22px;
+  color: #f8fbf5;
+  background: linear-gradient(145deg, #062c31, #0c5350);
+  box-shadow: 0 26px 70px rgba(3, 27, 32, 0.38);
+}
+
+.friendly-forfeit-dialog .modal h2 { color: #fff; }
+.friendly-forfeit-dialog .modal > p:not(.event-transition-kicker) { color: rgba(248, 251, 245, 0.78); }
+
 @media (max-width: 700px) {
   .global-player-dock { top: 82px; right: 14px; max-width: 210px; }
   .global-player-dock.docked { flex: 0 0 52px; max-width: 52px; margin-left: auto; }
@@ -7339,6 +7445,8 @@ h1 {
   .circuit-goat-feature img { min-height: 220px; max-height: 280px; }
   .ranking-head,
   .ranking-row { grid-template-columns: 78px minmax(150px, 1fr) 84px 84px 84px; }
+  .friendly-visibility-section { grid-template-columns: 1fr; gap: 14px; }
+  .content-page-panel .academy-upgrade-cta-info { border-radius: 0 0 22px 22px; }
 }
 
 /* Game information HUD ------------------------------------------------ */
