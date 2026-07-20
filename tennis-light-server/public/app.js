@@ -89,6 +89,7 @@ const FRIENDLY_TOURNAMENT = {
   opponentDisconnectMatchId: null,
   pageExitSignaled: false,
   presenceId: null,
+  resumableMatch: null,
 };
 
 const SPECTATOR_MODE = {
@@ -101,6 +102,8 @@ const SPECTATOR_MODE = {
   lastTournamentPayload: null,
   profileUserId: null,
   returnProfileUserId: null,
+  endDialogOpen: false,
+  endCountdownTimer: null,
 };
 
 const PROFILE_ACTIVITY = {
@@ -332,7 +335,7 @@ const GAME_NEWS = [
     title: "Milan Verhaegen rejoint les joueurs PRO",
     characterId: "milanVerhaegen",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l'utiliser, choisissez le depuis votre page profil. A bientôt sur les courts ! (signé - Coach Ju)",
+    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l’utiliser, choisissez-le depuis votre page profil. À bientôt sur les courts ! — Coach Ju",
     signature: "Coach Ju",
   },
 ];
@@ -1557,6 +1560,7 @@ function onlineProfileForSeat(seat) {
     name,
     characterId,
     nickname: remotePlayer?.nickname ?? name,
+    worldRank: Number(remotePlayer?.worldRank || 0) || null,
   };
 }
 
@@ -1580,6 +1584,11 @@ function applyOnlinePlayersFromRoom(players = []) {
     }
     if (player.nickname !== nickname) {
       player.nickname = nickname;
+      changed = true;
+    }
+    const worldRank = Number(remotePlayer?.worldRank || 0) || null;
+    if (player.worldRank !== worldRank) {
+      player.worldRank = worldRank;
       changed = true;
     }
   });
@@ -1836,7 +1845,7 @@ function showGameNewsDialog(newsId) {
   const news = GAME_NEWS.find((item) => item.id === newsId) || latestGameNews();
   if (!news || document.querySelector(".pro-news-backdrop")) return;
   const characterId = news.characterId || "milanVerhaegen";
-  const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
+  const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop pro-news-backdrop";
   backdrop.innerHTML = `
@@ -4217,7 +4226,7 @@ function closeReturnLobbyDialog() {
   document.querySelector(".return-lobby-dialog")?.remove();
 }
 
-function showEventConfirmDialog({ kicker = "Tennis Courts Academy", title, message, confirmLabel = "Confirmer", cancelLabel = "Annuler" }) {
+function showEventConfirmDialog({ kicker = "Tennis Courts Academy", title, message, highlight = "", confirmLabel = "Confirmer", cancelLabel = "Annuler" }) {
   document.querySelector(".event-confirm-backdrop")?.remove();
   return new Promise((resolve) => {
     const backdrop = document.createElement("div");
@@ -4231,6 +4240,7 @@ function showEventConfirmDialog({ kicker = "Tennis Courts Academy", title, messa
         <p class="event-transition-kicker">${escapeHtml(kicker)}</p>
         <h2 id="eventConfirmTitle">${escapeHtml(title)}</h2>
         <p>${escapeHtml(message)}</p>
+        ${highlight ? `<strong class="event-confirm-highlight">${escapeHtml(highlight)}</strong>` : ""}
         <div class="event-transition-actions">
           <button class="primary-button" type="button" data-event-confirm>${escapeHtml(confirmLabel)}</button>
           <button class="small-button" type="button" data-event-cancel>${escapeHtml(cancelLabel)}</button>
@@ -4291,7 +4301,7 @@ function openReturnLobbyDialog() {
   const activeFriendlyMatch = friendlyTournamentExit && state.tournament?.currentMatch
     ? tournamentMatchById(state.tournament.currentMatch)
     : null;
-  const friendlyMatchGraceSeconds = activeFriendlyMatch?.humanVsHuman ? 20 : 10;
+  const friendlyMatchGraceSeconds = 20;
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop return-lobby-dialog";
   backdrop.innerHTML = `
@@ -4304,7 +4314,7 @@ function openReturnLobbyDialog() {
           : waitingFriendlyExit
             ? "Vous pourrez rejoindre ce CLUB HOUSE de nouveau tant que le tournoi n'est pas lancé."
             : activeFriendlyMatch
-              ? `La rencontre sera mise en pause et l’espace d’attente du tournoi sera affiché. Sans reprise dans les ${friendlyMatchGraceSeconds} secondes, vous serez déclaré forfait.`
+              ? `Quitter cette rencontre peut entraîner un forfait. Elle sera mise en pause et l’espace d’attente du tournoi sera affiché. Vous aurez ${friendlyMatchGraceSeconds} secondes pour la reprendre.`
               : "Vous retrouverez l’espace d’attente et le tableau du tournoi."
         : "La partie en cours sera quittée et l’accueil sera affiché."}</p>
       <div class="dialog-actions">
@@ -4589,17 +4599,17 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
   }
   const tournamentHtml = tournaments.map((tournament) => `
     <article class="lobby-room friendly-tournament-room online-room-card">
-      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "schedule.svg" : tournament.format === "match" ? "SOLO.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
+      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "LEAGUE.svg" : tournament.format === "match" ? "MATCH.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Partie en ligne</strong>
         <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${Number(tournament.targetSets || 2)} sets · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
         ${tournament.canResume
-          ? `<button class="small-button friendly-resume-button" type="button" data-resume-friendly-tournament="${tournament.id}">REPRENDRE</button>`
+          ? `<button class="small-button friendly-resume-button online-action-with-icon" type="button" data-resume-friendly-tournament="${tournament.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REPRENDRE</button>`
           : tournament.status === "playing"
-          ? `<button class="small-button friendly-spectator-button" type="button" data-spectate-friendly-tournament="${tournament.id}">SPECTATEUR</button>`
-          : `<button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">Rejoindre</button>`}
+          ? `<button class="small-button friendly-spectator-button online-action-with-icon" type="button" data-spectate-friendly-tournament="${tournament.id}"><img src="./assets/icons/JUST-WATCH.svg" alt="" aria-hidden="true" />SPECTATEUR</button>`
+          : `<button class="small-button online-action-with-icon" type="button" data-join-friendly-tournament="${tournament.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REJOINDRE</button>`}
         ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
       </div>
     </article>
@@ -4610,13 +4620,13 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
     const coach = characterNameFromId(normalizeCharacterId(host?.characterId, "coachJu"));
     return `
       <article class="lobby-room online-room-card">
-        <span class="online-room-format-icon"><img src="./assets/icons/SOLO.svg" alt="" aria-hidden="true" /></span>
+        <span class="online-room-format-icon"><img src="./assets/icons/MATCH.svg" alt="" aria-hidden="true" /></span>
         <div>
           <strong>${host?.nickname ?? "Joueur"} · ${format}</strong>
           <span>${coach} · Salon ${room.id}</span>
         </div>
         <div class="lobby-room-actions">
-          <button class="small-button" type="button" data-join-room="${room.id}">Rejoindre</button>
+          <button class="small-button online-action-with-icon" type="button" data-join-room="${room.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REJOINDRE</button>
           ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-room="${room.id}">SUPPRIMER</button>` : ""}
         </div>
       </article>
@@ -5107,9 +5117,14 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
   const nextCurrentMatch = currentMatch?.id
     ? { ...(matches.find((match) => match.id === currentMatch.id) || {}), ...currentMatch, session: currentMatch.session || null }
     : null;
-  if (FRIENDLY_TOURNAMENT.forfeitDialogOpen || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
+  const resumesSavedMatch = Boolean(nextCurrentMatch?.resumeState || Number(nextCurrentMatch?.session?.revision || 0) > 0);
+  FRIENDLY_TOURNAMENT.resumableMatch = nextCurrentMatch?.id && resumesSavedMatch ? nextCurrentMatch : null;
+  if (FRIENDLY_TOURNAMENT.forfeitDialogOpen) return;
+  if (FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) {
+    renderFriendlyLobbyScreen();
+    return;
+  }
   if (nextCurrentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== nextCurrentMatch.id) {
-    const resumesSavedMatch = Boolean(nextCurrentMatch.resumeState || Number(nextCurrentMatch.session?.revision || 0) > 0);
     if (resumesSavedMatch) {
       FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
       startFriendlyTournamentMatch(nextCurrentMatch);
@@ -5123,6 +5138,15 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     showFriendlyLobbyScreen();
     renderFriendlyLobbyScreen();
   }
+}
+
+function resumeFriendlyMatchFromClubHouse() {
+  const match = FRIENDLY_TOURNAMENT.resumableMatch;
+  if (!match?.id || !FRIENDLY_TOURNAMENT.enabled) return;
+  FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+  FRIENDLY_TOURNAMENT.currentMatchId = match.id;
+  FRIENDLY_TOURNAMENT.resumableMatch = null;
+  startFriendlyTournamentMatch(match);
 }
 
 function showFriendlyForfeitDialog(match) {
@@ -5165,6 +5189,8 @@ function startFriendlyTournamentMatch(match) {
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.characterId = friendlyEntryCharacterId(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA);
+  const humanInfo = match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerAInfo : match.playerBInfo;
+  const opponentInfo = match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerBInfo : match.playerAInfo;
   if (match.resumeState) {
     const latestTournament = cloneData(state.tournament);
     importSyncState(match.resumeState);
@@ -5174,6 +5200,8 @@ function startFriendlyTournamentMatch(match) {
       currentMatch: match.id,
       nextHumanMatchId: null,
     };
+    if (state.players?.[0]) state.players[0].worldRank = Number(humanInfo?.worldRank || 0) || null;
+    if (state.players?.[1]) state.players[1].worldRank = Number(opponentInfo?.worldRank || 0) || null;
     state.log.unshift(`${match.label} : reprise de la partie au score ${friendlyLiveScoreText(match).replace(/\s*·\s*EN DIRECT$/i, "")}.`);
     showGameScreen();
     render();
@@ -5185,6 +5213,8 @@ function startFriendlyTournamentMatch(match) {
     return;
   }
   startMatchMode(Number(state.tournament.targetSets || 2), { keepSoloOpponent: true });
+  if (state.players?.[0]) state.players[0].worldRank = Number(humanInfo?.worldRank || 0) || null;
+  if (state.players?.[1]) state.players[1].worldRank = Number(opponentInfo?.worldRank || 0) || null;
   state.tournament.stage = match.round;
   state.tournament.currentMatch = match.id;
   state.log.unshift(`${match.label} : ${nicknameValue()} contre ${tournamentPlayerLabel(match.playerA === FRIENDLY_TOURNAMENT.entry ? match.playerB : match.playerA)}.`);
@@ -5204,6 +5234,7 @@ function startFriendlyHumanTournamentMatch(match) {
     nickname: player?.nickname || "Joueur",
     characterId: normalizeCharacterId(player?.characterId, playerSeat === 0 ? "coachJu" : "coachMax"),
     isHost: playerSeat === 0,
+    worldRank: Number(player?.worldRank || 0) || null,
   }));
   leaveOnlineRoom();
   stopSoloTimers();
@@ -5242,6 +5273,10 @@ function startFriendlyHumanTournamentMatch(match) {
     state.log = [`${match.label} : reprise de la session partagée entre ${players[0].nickname} et ${players[1].nickname}.`];
     render();
   }
+  state.players.forEach((player, playerSeat) => {
+    player.worldRank = Number(players[playerSeat]?.worldRank || 0) || null;
+  });
+  render();
   pollServerState();
   window.clearInterval(SERVER_SYNC.pollTimer);
   SERVER_SYNC.pollTimer = window.setInterval(pollServerState, 500);
@@ -5296,7 +5331,7 @@ function renderFriendlyLobbyMatchCard(match) {
       ${playerName(match.playerB)}
       <div class="friendly-bracket-live-row">
         <span class="${match.liveScore && !match.winner ? "friendly-live-score" : ""}">${escapeHtml(status)}</span>
-        ${match.watchable ? `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>` : ""}
+        ${match.watchable ? `<button class="small-button friendly-watch-button online-action-with-icon" type="button" data-watch-friendly-match="${escapeHtml(match.id)}"><img src="./assets/icons/JUST-WATCH.svg" alt="" aria-hidden="true" />VOIR</button>` : ""}
       </div>
     </article>
   `;
@@ -5347,6 +5382,7 @@ function renderFriendlyLobbyScreen() {
   const bonus = state.tournament.friendlyBonus || "none";
   const playerSelection = state.tournament.friendlyPlayerSelection || "random";
   const selectionLimit = Number(state.tournament.friendlySelectionLimit || (format === "match" ? 2 : 4));
+  const selectedCount = participants.filter((participant) => participant.selected).length;
   const settingsLocked = state.tournament.stage !== "waiting" || state.tournament.friendlySettingsLocked;
   const settingsDisabled = settingsLocked || !FRIENDLY_TOURNAMENT.isCreator || FRIENDLY_TOURNAMENT.isSpectator;
   const canStart = !FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && FRIENDLY_TOURNAMENT.canStart;
@@ -5361,11 +5397,6 @@ function renderFriendlyLobbyScreen() {
   `;
   const standings = state.tournament.friendlyStandings || { A: [], B: [] };
   const leagueGroups = state.tournament.friendlyGroups || { A: [], B: [] };
-  const clubHouseImage = `
-    <figure class="friendly-club-house-photo">
-      <img src="./assets/club-house-tournoi.jpg" alt="Joueurs réunis dans le Club House" />
-    </figure>
-  `;
   const leagueGroupMarkup = format === "league" && (leagueGroups.A?.length || leagueGroups.B?.length) ? `
     <section>
       <p class="label">Groupes</p>
@@ -5403,7 +5434,7 @@ function renderFriendlyLobbyScreen() {
       <div>
         <p class="label">CLUB HOUSE · ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
         <h2>${FRIENDLY_TOURNAMENT.isSpectator ? "Vue spectateur" : "Configuration et joueurs"}</h2>
-        <p>${participants.length}/4 connectés · ${participants.filter((participant) => participant.selected).length}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${targetSets} sets gagnants</p>
+        <p>${participants.length}/4 connectés · ${selectedCount}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${targetSets} sets gagnants</p>
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
@@ -5411,9 +5442,9 @@ function renderFriendlyLobbyScreen() {
     <section class="clubhouse-format-section online-room-format-section" aria-labelledby="onlineRoomFormatTitle">
       <div class="clubhouse-section-heading"><div><p class="label">Format</p><h2 id="onlineRoomFormatTitle">Configurez votre Club House</h2></div><span class="clubhouse-friendly-note">Réglages réservés à l'hôte</span></div>
       <div class="clubhouse-format-grid" aria-label="Format du Club House en ligne">
-        ${formatCard("match", "Match", "Une rencontre directe entre deux joueurs.", "ONLINE.svg")}
+        ${formatCard("match", "Match", "Une rencontre directe entre deux joueurs.", "MATCH.svg")}
         ${formatCard("classic", "Tournoi Classic", "Un tableau à élimination directe.", "trophy-circuit.svg")}
-        ${formatCard("league", "League", "Une phase de groupes puis les finales.", "schedule.svg")}
+        ${formatCard("league", "League", "Une phase de groupes puis les finales.", "LEAGUE.svg")}
       </div>
     </section>
     <div class="clubhouse-configuration-layout online-room-configuration">
@@ -5460,7 +5491,8 @@ function renderFriendlyLobbyScreen() {
       <p class="label">Votre Club House</p>
       <h2>${format === "league" ? "League" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
       <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${targetSets} sets gagnants · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
-      ${FRIENDLY_TOURNAMENT.isSpectator ? "" : `<button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>Lancer le Club House</button>`}
+      ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button online-action-with-icon" type="button" data-resume-friendly-match><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REPRENDRE MON MATCH</button>` : ""}
+      ${FRIENDLY_TOURNAMENT.isSpectator ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
       <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
     </aside>
     </div>
@@ -5470,15 +5502,14 @@ function renderFriendlyLobbyScreen() {
         ${participants.map((participant) => `
           <article class="friendly-player-card ${participant.selected ? "selected" : ""} ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked ? "selectable" : ""}" ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked ? `data-select-friendly-participant="${escapeHtml(participant.id)}" data-selected="${participant.selected ? "true" : "false"}" role="button" tabindex="0"` : ""}>
             <div>
-              <strong>${escapeHtml(participant.nickname || "Joueur")}${participant.isCreator ? " · Créateur" : ""}</strong>
-              <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.selected ? " · SÉLECTIONNÉ" : " · En attente"}${participant.eliminated ? " · Éliminé" : participant.away ? " · Absent temporairement" : ""}</span>
+              <strong class="friendly-player-name">${escapeHtml(participant.nickname || "Joueur")}${participant.selected ? `<img class="friendly-selected-icon" src="./assets/icons/VALID.svg" alt="Sélectionné" />` : ""}${participant.isCreator ? " · Créateur" : ""}</strong>
+              <span>${escapeHtml(characterNameFromId(participant.characterId))}${participant.selected ? " · Prêt à jouer" : " · En attente"}${participant.eliminated ? " · Éliminé" : participant.away ? " · Absent temporairement" : ""}</span>
             </div>
             ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked && participant.id !== FRIENDLY_TOURNAMENT.participantId ? `<button class="small-button danger-button friendly-kick-button" type="button" data-kick-friendly-participant="${escapeHtml(participant.id)}" data-kick-friendly-nickname="${escapeHtml(participant.nickname || "Joueur")}">EXCLURE</button>` : ""}
           </article>
         `).join("")}
       </div>
     </section>
-    ${state.tournament.stage === "waiting" ? clubHouseImage : ""}
     ${leagueGroupMarkup}
     ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
     ${matches.length && format !== "league" ? `
@@ -5489,10 +5520,10 @@ function renderFriendlyLobbyScreen() {
         </div>
       </section>
     ` : ""}
-    ${state.tournament.stage !== "waiting" ? clubHouseImage : ""}
   `;
   const startButton = els.friendlyLobbyContent.querySelector("[data-start-friendly-tournament]");
   if (startButton && !startDisabled) startButton.addEventListener("click", startFriendlyTournamentFromLobby);
+  els.friendlyLobbyContent.querySelector("[data-resume-friendly-match]")?.addEventListener("click", resumeFriendlyMatchFromClubHouse);
   els.friendlyLobbyContent.querySelectorAll("[data-friendly-setting]").forEach((button) => {
     button.addEventListener("click", () => updateFriendlyTournamentSettings(button.dataset.friendlySetting, button.dataset.friendlySettingValue));
   });
@@ -5586,12 +5617,50 @@ function startFriendlySpectator(matchId) {
   SPECTATOR_MODE.matchLabel = match.label || "Match en cours";
   SPECTATOR_MODE.liveScore = match.liveScore || "";
   SPECTATOR_MODE.lastTournamentPayload = null;
+  SPECTATOR_MODE.endDialogOpen = false;
   SOLO_AI.enabled = false;
   document.body.classList.add("spectator-mode");
   showGameScreen();
   pollFriendlySpectatorState();
   window.clearInterval(SPECTATOR_MODE.pollTimer);
   SPECTATOR_MODE.pollTimer = window.setInterval(pollFriendlySpectatorState, 700);
+}
+
+function closeSpectatorMatchEndDialog() {
+  window.clearInterval(SPECTATOR_MODE.endCountdownTimer);
+  SPECTATOR_MODE.endCountdownTimer = null;
+  SPECTATOR_MODE.endDialogOpen = false;
+  document.querySelector(".spectator-match-end-backdrop")?.remove();
+}
+
+function showFriendlySpectatorMatchEndDialog(match = {}) {
+  if (SPECTATOR_MODE.endDialogOpen) return;
+  window.clearInterval(SPECTATOR_MODE.pollTimer);
+  SPECTATOR_MODE.endDialogOpen = true;
+  let remaining = 5;
+  const playerA = match.playerA?.nickname || "Joueur 1";
+  const playerB = match.playerB?.nickname || "Joueur 2";
+  const finalScore = String(match.score || SPECTATOR_MODE.liveScore || "Score indisponible").replace(/\s*·\s*EN DIRECT\s*$/i, "");
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop event-transition-backdrop spectator-match-end-backdrop";
+  backdrop.innerHTML = `
+    <section class="event-transition-panel spectator-match-end-panel" role="dialog" aria-modal="true" aria-labelledby="spectatorMatchEndTitle">
+      <p class="event-transition-kicker">Club House en ligne</p>
+      <h2 id="spectatorMatchEndTitle">FIN DU MATCH</h2>
+      <div class="spectator-match-end-versus"><strong>${escapeHtml(playerA)}</strong><span>contre</span><strong>${escapeHtml(playerB)}</strong></div>
+      <div class="spectator-match-end-score"><span>Score final</span><strong>${escapeHtml(finalScore)}</strong></div>
+      <p>Retour au Club House dans <strong data-spectator-end-seconds aria-live="assertive">${remaining}</strong> secondes</p>
+    </section>
+  `;
+  document.body.appendChild(backdrop);
+  SPECTATOR_MODE.endCountdownTimer = window.setInterval(() => {
+    remaining -= 1;
+    const counter = backdrop.querySelector("[data-spectator-end-seconds]");
+    if (counter) counter.textContent = String(Math.max(0, remaining));
+    if (remaining > 0) return;
+    closeSpectatorMatchEndDialog();
+    quitFriendlySpectator(true);
+  }, 1000);
 }
 
 async function pollFriendlySpectatorState() {
@@ -5601,7 +5670,8 @@ async function pollFriendlySpectatorState() {
     if (!response.ok) throw new Error("watch failed");
     const data = await response.json();
     if (!data.active || !data.state) {
-      quitFriendlySpectator(true);
+      if (data.match?.winner || data.match?.score) showFriendlySpectatorMatchEndDialog(data.match);
+      else quitFriendlySpectator(true);
       return;
     }
     SPECTATOR_MODE.matchLabel = data.match?.label || SPECTATOR_MODE.matchLabel;
@@ -5624,6 +5694,7 @@ async function pollFriendlySpectatorState() {
 
 function quitFriendlySpectator(matchEnded = false) {
   window.clearInterval(SPECTATOR_MODE.pollTimer);
+  closeSpectatorMatchEndDialog();
   SPECTATOR_MODE.enabled = false;
   const spectatorSource = SPECTATOR_MODE.source;
   const returnProfileUserId = SPECTATOR_MODE.returnProfileUserId;
@@ -5750,11 +5821,13 @@ async function startFriendlyTournamentFromLobby() {
   const friendlyFormat = state.tournament?.friendlyFormat || "match";
   const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
   const setsLabel = Number(state.tournament?.targetSets || 2);
+  const selectedCount = state.tournament?.friendlyParticipants?.filter((participant) => participant.selected).length || 0;
   const confirmed = await showEventConfirmDialog({
     kicker: "Club House en ligne",
     title: `Lancer ${formatLabel} ?`,
     message: `L’événement se jouera en ${setsLabel} sets gagnants. La configuration sera ensuite verrouillée.`,
-    confirmLabel: "Lancer l’événement",
+    highlight: `${selectedCount} joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}`,
+    confirmLabel: "LANCER L’ÉVÉNEMENT",
   });
   if (!confirmed) return;
   await showTournamentLoadingDialog("Votre événement en ligne est en train d'être créé.");
@@ -5776,20 +5849,21 @@ async function startFriendlyTournamentFromLobby() {
   }
 }
 
-async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHouse = false } = {}) {
+async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHouse = false, destination = "home" } = {}) {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
   if (FRIENDLY_TOURNAMENT.isSpectator) {
-    if (!confirmed && !window.confirm("Quitter le CLUB HOUSE du tournoi et revenir au lobby ?")) return;
+    if (!confirmed && !window.confirm("Quitter le CLUB HOUSE du tournoi ?")) return;
     resetFriendlyTournamentConnection();
     MENU_STATE.lobbyNotice = "Vous avez quitté le mode spectateur.";
     resetTournament();
-    showMenuScreen();
+    if (destination === "online") showLobbySection("online");
+    else showMenuScreen();
     return;
   }
   const waitingRoomExit = state.tournament?.stage === "waiting";
   const confirmationText = waitingRoomExit
     ? "Quitter ce CLUB HOUSE ? Vous pourrez le rejoindre de nouveau tant que le tournoi n'est pas lancé."
-    : "Retourner à l’accueil ? Vous pourrez reprendre ce tournoi avec le bouton REPRENDRE.";
+    : "Quitter ce tournoi peut entraîner un forfait. Vous aurez 20 secondes pour reprendre votre match depuis le mode en ligne ou le Club House.";
   if (!confirmed && !window.confirm(confirmationText)) return;
   const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
   const scoreAtDeparture = currentMatch && state.setMatch?.enabled ? friendlyLiveScoreText(currentMatch) : null;
@@ -5835,7 +5909,8 @@ async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHou
         ? `Match interrompu. Utilisez REPRENDRE dans les ${Number(leaveResult.graceSeconds || 20)} secondes pour éviter le forfait.`
         : "Tournoi mis en pause. Utilisez REPRENDRE pour revenir au CLUB HOUSE.";
   resetTournament();
-  showMenuScreen();
+  if (destination === "online") showLobbySection("online");
+  else showMenuScreen();
 }
 
 function signalFriendlyTournamentPageExit() {
@@ -5899,6 +5974,7 @@ async function restoreFriendlyTournamentPresence() {
 function resetFriendlyTournamentConnection() {
   cancelFriendlyMatchCountdown();
   closeFriendlyOpponentDisconnectDialog();
+  closeSpectatorMatchEndDialog();
   if (SERVER_SYNC.friendlyMatch) leaveOnlineRoom();
   window.clearInterval(FRIENDLY_TOURNAMENT.pollTimer);
   window.clearInterval(FRIENDLY_TOURNAMENT.streamTimer);
@@ -5907,6 +5983,7 @@ function resetFriendlyTournamentConnection() {
   SPECTATOR_MODE.source = null;
   SPECTATOR_MODE.matchId = null;
   SPECTATOR_MODE.lastTournamentPayload = null;
+  SPECTATOR_MODE.endDialogOpen = false;
   document.body.classList.remove("spectator-mode");
   FRIENDLY_TOURNAMENT.enabled = false;
   FRIENDLY_TOURNAMENT.isSpectator = false;
@@ -5924,6 +6001,7 @@ function resetFriendlyTournamentConnection() {
   FRIENDLY_TOURNAMENT.readyRound = null;
   FRIENDLY_TOURNAMENT.forfeitDialogOpen = false;
   FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
+  FRIENDLY_TOURNAMENT.resumableMatch = null;
   document.querySelector(".friendly-forfeit-dialog")?.remove();
   clearFriendlyTournamentUrlParams();
 }
@@ -6652,6 +6730,11 @@ function newGame(options = {}) {
       createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, state.tournament?.humanNickname || nicknameValue()),
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
+  if (SERVER_SYNC.enabled) {
+    state.players.forEach((player, playerIndex) => {
+      player.worldRank = Number(profiles[playerIndex]?.worldRank || 0) || null;
+    });
+  }
   state.players.forEach((player, playerIndex) => {
     const tournamentEntry = state.tournament.active && playerIndex === 0
       ? HUMAN_TOURNAMENT_ENTRY
@@ -15059,9 +15142,9 @@ els.gamePreviewToggle?.addEventListener("change", () => {
   localStorage.setItem("tennisLightAssistPreview", String(GAMEPLAY_ASSIST.preview));
   render();
 });
-els.friendlyLobbyHomeButton?.addEventListener("click", () => showLobbySection("online"));
-els.friendlyLobbyDirectHomeButton?.addEventListener("click", showMenuScreen);
-els.friendlyLobbyLogoButton?.addEventListener("click", showMenuScreen);
+els.friendlyLobbyHomeButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "online" }));
+els.friendlyLobbyDirectHomeButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "home" }));
+els.friendlyLobbyLogoButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "home" }));
 els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
 els.adminGameToolsButton?.addEventListener("click", () => {
   setAdminGameToolsOpen(els.adminGameToolsPanel?.classList.contains("hidden"));

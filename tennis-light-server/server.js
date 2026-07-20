@@ -47,7 +47,7 @@ const GAME_NEWS = [
     title: "Milan Verhaegen rejoint les joueurs PRO",
     characterId: "milanVerhaegen",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l'utiliser, choisissez le depuis votre page profil. A bientôt sur les courts ! (signé - Coach Ju)",
+    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l’utiliser, choisissez-le depuis votre page profil. À bientôt sur les courts ! — Coach Ju",
     signature: "Coach Ju",
   },
 ];
@@ -1927,6 +1927,12 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
   };
 }
 
+async function circuitWorldRankForUser(user) {
+  if (!user?.id) return null;
+  const ranking = await buildRanking(1, 100000, user, "points");
+  return Number(ranking.currentUserRank?.rank || 0) || null;
+}
+
 async function registerCircuitAiResults(userId, results = []) {
   for (const item of Array.isArray(results) ? results : []) {
     const aiCharacterId = String(item.aiCharacterId || "").slice(0, 48);
@@ -3469,8 +3475,8 @@ function createRoom(req, options = {}) {
     targetSets: options.targetSets ?? null,
     hostSeat,
     players: [
-      hostSeat === 0 ? { userId: options.userId || null, nickname: options.nickname ?? "Coach Ju", characterId: options.characterId ?? "coachJu", joinedAt: Date.now(), isHost: true } : null,
-      hostSeat === 1 ? { userId: options.userId || null, nickname: options.nickname ?? "Coach Max", characterId: options.characterId ?? "coachMax", joinedAt: Date.now(), isHost: true } : null,
+      hostSeat === 0 ? { userId: options.userId || null, nickname: options.nickname ?? "Coach Ju", characterId: options.characterId ?? "coachJu", worldRank: options.worldRank ?? null, joinedAt: Date.now(), isHost: true } : null,
+      hostSeat === 1 ? { userId: options.userId || null, nickname: options.nickname ?? "Coach Max", characterId: options.characterId ?? "coachMax", worldRank: options.worldRank ?? null, joinedAt: Date.now(), isHost: true } : null,
     ],
   };
   rooms.set(roomId, room);
@@ -3533,7 +3539,7 @@ function publicRoomInfo(req, room) {
     hostSeat: room.hostSeat,
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
-    players: room.players.map((player, seat) => player ? { seat, nickname: player.nickname, characterId: player.characterId, isHost: seat === room.hostSeat } : null),
+    players: room.players.map((player, seat) => player ? { seat, nickname: player.nickname, characterId: player.characterId, worldRank: Number(player.worldRank || 0) || null, isHost: seat === room.hostSeat } : null),
     openSeat: room.players.findIndex((player) => player == null),
   };
 }
@@ -3644,12 +3650,13 @@ function friendlyEntryPublic(tournament, entry) {
       participantId: participant.id,
       nickname: participant.nickname,
       characterId: participant.characterId,
+      worldRank: Number(participant.worldRank || tournament.worldRanks?.[entry] || 0) || null,
       eliminated: Boolean(participant.eliminated),
       left: Boolean(participant.leftAt),
       away: Boolean(participant.awayAt),
     } : { entry, type: "human", nickname: "Joueur", characterId: "coachJu" };
   }
-  return { entry, type: "ai", nickname: friendlyAiName(entry), characterId: entry };
+  return { entry, type: "ai", nickname: friendlyAiName(entry), characterId: entry, worldRank: Number(tournament.worldRanks?.[entry] || 0) || null };
 }
 
 function activeFriendlyParticipants(tournament) {
@@ -3787,6 +3794,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       eliminated: Boolean(item.eliminated),
       away: Boolean(item.awayAt),
       selected: Boolean(item.selected),
+      worldRank: Number(item.worldRank || 0) || null,
     })),
     entries: (tournament.entries || []).map((entry) => friendlyEntryPublic(tournament, entry)),
     matches: (tournament.matches || []).map((match) => ({
@@ -3903,6 +3911,13 @@ async function rankFriendlyEntries(tournament, entries) {
       || String(entryA).localeCompare(String(entryB), "fr");
   });
   tournament.seedRanks = Object.fromEntries(ranked.map((entry, index) => [entry, index + 1]));
+  tournament.worldRanks = Object.fromEntries(entries.map((entry) => {
+    const participant = friendlyEntryIsHuman(entry)
+      ? tournament.participants.find((item) => friendlyParticipantEntry(item.id) === entry)
+      : null;
+    const rankingId = participant ? String(participant.userId) : `ai:${entry}`;
+    return [entry, Number(rankById.get(rankingId) || 0) || null];
+  }));
   return ranked;
 }
 
@@ -4533,6 +4548,7 @@ function friendlyHumanSessionPlayers(tournament, match) {
       seat,
       nickname: info?.nickname || "Joueur",
       characterId: info?.characterId || "coachJu",
+      worldRank: Number(info?.worldRank || 0) || null,
       isHost: seat === 0,
     };
   });
@@ -4661,6 +4677,7 @@ async function handleApi(req, res) {
       return;
     }
     const payload = await readJson(req);
+    const worldRank = await circuitWorldRankForUser(user);
     let tournamentId = makeId(3);
     while (friendlyTournaments.has(tournamentId)) tournamentId = makeId(3);
     const participantId = makeId(4);
@@ -4670,6 +4687,7 @@ async function handleApi(req, res) {
       userId: user.id,
       nickname: String(user.nickname || payload.nickname || "Joueur").slice(0, 24),
       characterId: normalizeCharacterId(payload.characterId, "coachJu"),
+      worldRank,
       joinedAt: Date.now(),
       lastSeenAt: Date.now(),
       selected: true,
@@ -4770,12 +4788,14 @@ async function handleApi(req, res) {
       return;
     }
     const payload = await readJson(req);
+    const worldRank = await circuitWorldRankForUser(user);
     const participant = {
       id: makeId(4),
       token: makeToken(),
       userId: user.id,
       nickname: String(user.nickname || payload.nickname || "Joueur").slice(0, 24),
       characterId: normalizeCharacterId(payload.characterId, "coachJu"),
+      worldRank,
       joinedAt: Date.now(),
       lastSeenAt: Date.now(),
       selected: false,
@@ -5035,7 +5055,7 @@ async function handleApi(req, res) {
     let graceSeconds = null;
     if (currentMatch) {
       const humanVsHuman = friendlyMatchIsHumanVsHuman(currentMatch);
-      graceSeconds = humanVsHuman ? 20 : 10;
+      graceSeconds = FRIENDLY_RECONNECT_GRACE_MS / 1000;
       participant.reconnectMatchId = currentMatch.id;
       participant.reconnectGraceSeconds = graceSeconds;
       participant.reconnectDeadline = now + (graceSeconds * 1000);
@@ -5366,6 +5386,7 @@ async function handleApi(req, res) {
     const characterId = normalizeCharacterId(payload.characterId);
     const hostSeat = characterId === "coachMax" ? 1 : 0;
     const nickname = String(user.nickname || payload.nickname || (hostSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24);
+    const worldRank = await circuitWorldRankForUser(user);
     const { room, hostUrl } = createRoom(req, {
       status: "waiting",
       targetSets,
@@ -5373,6 +5394,7 @@ async function handleApi(req, res) {
       userId: user.id,
       nickname,
       characterId,
+      worldRank,
     });
     sendJson(res, 201, { room: publicRoomInfo(req, room), playerUrl: `${hostUrl}&targetSets=${targetSets}` });
     return;
@@ -5394,10 +5416,12 @@ async function handleApi(req, res) {
     }
     const payload = await readJson(req);
     const characterId = normalizeCharacterId(payload.characterId, "coachJu");
+    const worldRank = await circuitWorldRankForUser(user);
     room.players[openSeat] = {
       userId: user.id,
       nickname: String(user.nickname || payload.nickname || (openSeat === 0 ? "Coach Ju" : "Coach Max")).slice(0, 24),
       characterId,
+      worldRank,
       joinedAt: Date.now(),
       isHost: false,
     };

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=170.8" />
+    <link rel="stylesheet" href="./styles.css?v=170.10" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -104,12 +104,23 @@
           <div id="homeNewsList" class="home-news-list" aria-live="polite"></div>
         </section>
 
-        <a class="lobby-shop-banner" href="https://mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer" aria-label="Découvrir Tennis Courts dans la boutique">
-          <img src="./assets/academy-shop-banner.jpg" alt="Passez au jeu complet Tennis Courts" />
-        </a>
+        <section class="academy-upgrade-cta" aria-labelledby="academyUpgradeTitle">
+          <div class="academy-upgrade-copy">
+            <p class="academy-upgrade-kicker">TENNIS COURTS — LE JEU COMPLET</p>
+            <h2 id="academyUpgradeTitle">Prêt à passer au niveau supérieur ?</h2>
+            <p>Vous maîtrisez les 18 cartes de l’Academy. Découvrez l’expérience Tennis Courts complète : <strong>10 joueurs à incarner</strong> et <strong>plus de 500 cartes</strong> pour <strong>construire votre style</strong>, surprendre vos adversaires et devenir le GOAT.</p>
+            <div class="academy-upgrade-actions">
+              <a class="academy-upgrade-primary" href="https://mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer">Choisir mon Starter <span aria-hidden="true">→</span></a>
+              <a class="academy-upgrade-secondary" href="https://www.tenniscourts.cc" target="_blank" rel="noopener noreferrer">Découvrir le jeu complet <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+          <figure class="academy-upgrade-visual">
+            <img src="./assets/academy-shop-banner.jpg" alt="Joueurs et cartes du jeu complet Tennis Courts" />
+          </figure>
+        </section>
 
         <footer class="lobby-footer">
-          <span>Tennis Courts Academy · 2.169.12</span>
+          <span>Tennis Courts Academy · 2.169.14</span>
           <span>Mediality Games</span>
         </footer>
       </div>
@@ -609,7 +620,7 @@
             </div>
             <div class="clubhouse-format-grid" aria-label="Format de la partie solo">
               <button class="clubhouse-format-card active" type="button" data-ai-club-setting="format" data-ai-club-value="match">
-                <img src="./assets/icons/SOLO.svg" alt="" aria-hidden="true" />
+                <img src="./assets/icons/MATCH.svg" alt="" aria-hidden="true" />
                 <span><small>Accessible à tous</small><strong>Match</strong><em>Une rencontre directe contre l'IA.</em></span>
               </button>
               <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="classic" data-pro-format>
@@ -617,7 +628,7 @@
                 <span><small>Joueurs Pro</small><strong>Tournoi Classic</strong><em>Un tableau à élimination directe.</em></span>
               </button>
               <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="league" data-pro-format>
-                <img src="./assets/icons/schedule.svg" alt="" aria-hidden="true" />
+                <img src="./assets/icons/LEAGUE.svg" alt="" aria-hidden="true" />
                 <span><small>Joueurs Pro</small><strong>League</strong><em>Une phase de groupes puis les finales.</em></span>
               </button>
             </div>
@@ -776,6 +787,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=170.8"></script>
+    <script src="./app.js?v=170.10"></script>
   </body>
 </html>

@@ -20,8 +20,8 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /styles\.css\?v=170\.10/);
+assert.match(html, /app\.js\?v=170\.10/);
 assert.match(html, /id="gameContextStrip"/);
 assert.match(html, /id="gameAssistPanel"/);
 assert.match(html, /Prévisualiser les conséquences/);
@@ -76,4 +76,4 @@ assert.match(styles, /\.action-log-card-thumbnail/);
 assert.match(styles, /min-height: 44px/);
 assert.match(styles, /\.action-log-backdrop \{ align-items: flex-end/);
 
-console.log("v170.8 navigation, attentes et lisibilité de jeu: OK");
+console.log("v170.10 navigation, attentes et lisibilité de jeu: OK");

@@ -21,9 +21,9 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.12/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.14/);
+assert.match(html, /styles\.css\?v=170\.10/);
+assert.match(html, /app\.js\?v=170\.10/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
@@ -54,7 +54,7 @@ assert.match(html, /id="circuitRankProjection"/);
 assert.match(html, /id="circuitAttemptsValue"/);
 assert.match(html, /id="circuitPlayerProjection"/);
 assert.match(html, /<h2>Top 20<\/h2>/);
-assert.match(html, /Passez au jeu complet/);
+assert.match(html, /Prêt à passer au niveau supérieur/);
 assert.match(html, /href="https:\/\/mediality\.fr\/shop\/#tenniscourts"/);
 
 const authenticatedUser = functionSource(app, "applyAuthenticatedUser");
