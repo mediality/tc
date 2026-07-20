@@ -6385,13 +6385,14 @@ h1 {
 .rally-context-line.stake::after { position: absolute; inset: -100% auto -100% -30%; width: 34%; transform: rotate(16deg); background: rgba(255,255,255,.17); content: ""; animation: stake-shine 2.8s ease-in-out infinite; }
 @keyframes stake-shine { 0%,45% { transform: translateX(-50%) rotate(16deg); } 70%,100% { transform: translateX(430%) rotate(16deg); } }
 
-.card-assist-preview { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; max-height: 0; overflow: hidden; opacity: 0; transform: translateY(3px); transition: max-height .18s ease, opacity .18s ease, transform .18s ease; }
+.card-assist-preview { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; max-height: 0; overflow: hidden; opacity: 0; transform: translateY(3px); transition: max-height .18s ease, opacity .18s ease, transform .18s ease; text-align: center; }
+.card-assist-preview.has-boost { grid-template-columns: repeat(3,minmax(0,1fr)); }
 .card:hover .card-assist-preview, .card:focus-within .card-assist-preview { max-height: 120px; margin-top: 6px; opacity: 1; transform: none; }
-.card-assist-preview span { display: grid; gap: 1px; border-radius: 6px; padding: 4px; color: #264956; background: #eef6f4; text-align: center; }
-.card-assist-preview small { font-size: .42rem; line-height: 1.05; }
-.card-assist-preview strong { font-size: .65rem; }
-.card-assist-preview p { grid-column: 1/-1; margin: 0; color: #287362; font-size: .53rem; font-weight: 900; text-align: center; }
-.card-impossible-reason { margin: 5px 0 0; border-radius: 6px; padding: 5px 6px; color: #8b3f1f; background: #fff0dd; font-size: .52rem; font-weight: 850; line-height: 1.2; }
+.card-assist-preview span { display: grid; place-items: center; gap: 2px; border-radius: 7px; padding: 6px 4px; color: #264956; background: #eef6f4; text-align: center; }
+.card-assist-preview small { font-size: .43rem; font-weight: 900; line-height: 1.05; text-transform: uppercase; }
+.card-assist-preview strong { font-size: .82rem; font-weight: 1000; }
+.card-assist-preview .card-assist-boost { color: #a92727; background: #fff0ee; }
+.card-assist-preview .card-assist-boost strong { color: #c62121; }
 
 .action-log-entry:not(.compact) { grid-template-columns: 10px 44px minmax(0,1fr) auto; }
 .action-log-card-thumbnail { width: 44px; height: 61px; border: 1px solid rgba(12,67,82,.14); border-radius: 6px; object-fit: cover; }
@@ -6460,7 +6461,7 @@ h1 {
   .player-panel.active .turn-buttons button { flex: 1 1 auto; }
   .effect-chip { min-height: 40px; }
   .effect-chip strong { max-width: 132px; }
-  .card-assist-preview { display: none; }
+  .card-assist-preview { max-height: 100px; margin-top: 6px; opacity: 1; transform: none; }
   .action-log-backdrop { align-items: flex-end; padding: 0; }
   .action-log-dialog { width: 100%; max-height: 82vh; border-radius: 20px 20px 0 0; }
   .action-log-dialog .action-log-entry { grid-template-columns: 8px 38px minmax(0,1fr); }

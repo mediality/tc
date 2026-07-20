@@ -1222,8 +1222,7 @@ let confrontationIntroSequenceTimers = [];
 let soloTournamentCountdownTimer = null;
 
 const GAMEPLAY_ASSIST = {
-  preview: localStorage.getItem("tennisLightAssistPreview") !== "false",
-  blockedReasons: localStorage.getItem("tennisLightAssistBlockedReasons") !== "false",
+  preview: localStorage.getItem("tennisLightAssistPreview") === "true",
   panelOpen: false,
 };
 
@@ -1302,7 +1301,6 @@ const els = {
   gameAssistButton: document.querySelector("#gameAssistButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gamePreviewToggle: document.querySelector("#gamePreviewToggle"),
-  gameBlockedReasonsToggle: document.querySelector("#gameBlockedReasonsToggle"),
   gameContextStrip: document.querySelector("#gameContextStrip"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
@@ -13360,7 +13358,6 @@ function renderModeButtons() {
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
-  if (els.gameBlockedReasonsToggle) els.gameBlockedReasonsToggle.checked = GAMEPLAY_ASSIST.blockedReasons;
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
@@ -14443,32 +14440,16 @@ function renderPlayerPanel(playerIndex, root) {
   });
 }
 
-function cardActionBlockReason(playerIndex, card, mode = "normal") {
-  const player = state.players[playerIndex];
-  if (state.gameOver) return "L’échange est terminé.";
-  if (playerIndex !== state.activePlayer) return "Cette action sera disponible au tour de ce joueur.";
-  if (!canUseSeat(playerIndex)) return "Cette main appartient à l’autre joueur.";
-  if (effectiveCost(player, card) > player.endurance) return `Endurance insuffisante : ${effectiveCost(player, card)} nécessaire.`;
-  if (mode === "boost" && player.hand.length < 2) return "Le BOOST exige une seconde carte à sacrifier.";
-  if (state.mandatoryPlacement && state.lastCard && totalTurnPlacement(playerIndex, card, mode === "boost") < state.lastCard.precision) return `Placement ${state.lastCard.precision} minimum requis.`;
-  if (player.limitedFamilies && !player.limitedFamilies.includes(card.family)) return `Type autorisé : ${player.limitedFamilies.join(" ou ")}.`;
-  if (hasReturnServiceRestriction(playerIndex) && ["Volée", "Smash"].includes(card.family)) return "Volée et Smash sont interdits sur ce retour de service.";
-  return "Une contrainte active empêche cette action pour le moment.";
-}
-
-function renderCardAssistPreview(playerIndex, card, cost, placementIssue) {
+function renderCardAssistPreview(playerIndex, card, cost, boostAllowed) {
   if (!GAMEPLAY_ASSIST.preview) return "";
   const player = state.players[playerIndex];
   const normalStats = getCardStats(player, card, false);
-  const bonus = normalStats.power - Number(card.power || 0);
-  const response = placementIssue ? "BOOST adverse possible" : "Réponse standard attendue";
+  const boostStats = boostAllowed ? getCardStats(player, card, true) : null;
   return `
-    <div class="card-assist-preview" aria-label="Conséquences prévues">
+    <div class="card-assist-preview ${boostStats ? "has-boost" : ""}" aria-label="Prévisualisation de la carte">
       <span><small>Puissance après</small><strong>${player.power + normalStats.power}</strong></span>
       <span><small>Endurance après</small><strong>${Math.max(0, player.endurance - cost)}</strong></span>
-      <span><small>Bonus</small><strong>${bonus > 0 ? `+${bonus}` : "—"}</strong></span>
-      <span><small>Cartes</small><strong>1${player.hand.length > 1 ? " · 2 en BOOST" : ""}</strong></span>
-      <p>${escapeHtml(response)}</p>
+      ${boostStats ? `<span class="card-assist-boost"><small>Puissance BOOST</small><strong>${player.power + boostStats.power}</strong></span>` : ""}
     </div>
   `;
 }
@@ -14495,8 +14476,6 @@ function renderCard(playerIndex, card) {
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
   const riskyRemiseClass = remisePlacementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
-  const primaryAllowed = isRemise(card) ? (effectModeAllowed || placementModeAllowed) : normalAllowed;
-  const blockedReason = !primaryAllowed ? cardActionBlockReason(playerIndex, card, isRemise(card) ? "effect" : "normal") : "";
   const expectedTutorialAction = tutorialExpectedAction();
   const tutorialSelectMode = state.tutorial.active && expectedTutorialAction?.kind === "selectCard" && expectedTutorialAction.playerIndex === playerIndex;
   const tutorialSelectedClass = state.tutorial.selectedCardUid === card.uid ? " tutorial-selected-card" : "";
@@ -14543,7 +14522,7 @@ function renderCard(playerIndex, card) {
           ${stats.placement !== card.placement || state.turnPlacement[playerIndex] ? `<span>Placement actuel ${stats.placement}${state.turnPlacement[playerIndex] ? ` + ${state.turnPlacement[playerIndex]}` : ""}</span>` : ""}
         </div>
       ` : ""}
-      ${renderCardAssistPreview(playerIndex, card, cost, placementIssue || remisePlacementIssue)}
+      ${renderCardAssistPreview(playerIndex, card, cost, boostAllowed)}
       <div class="card-actions ${isRemise(card) ? "remise-actions" : ""}">
         ${isRemise(card) ? `
           <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span>${cost} END</span><strong>Effet</strong></button>
@@ -14553,7 +14532,6 @@ function renderCard(playerIndex, card) {
           <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
-      ${GAMEPLAY_ASSIST.blockedReasons && blockedReason ? `<p class="card-impossible-reason">${escapeHtml(blockedReason)}</p>` : ""}
       ${(placementIssue || remisePlacementIssue) && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
     </article>
   `;
@@ -15079,11 +15057,6 @@ els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GA
 els.gamePreviewToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.preview = Boolean(els.gamePreviewToggle.checked);
   localStorage.setItem("tennisLightAssistPreview", String(GAMEPLAY_ASSIST.preview));
-  render();
-});
-els.gameBlockedReasonsToggle?.addEventListener("change", () => {
-  GAMEPLAY_ASSIST.blockedReasons = Boolean(els.gameBlockedReasonsToggle.checked);
-  localStorage.setItem("tennisLightAssistBlockedReasons", String(GAMEPLAY_ASSIST.blockedReasons));
   render();
 });
 els.friendlyLobbyHomeButton?.addEventListener("click", () => showLobbySection("online"));

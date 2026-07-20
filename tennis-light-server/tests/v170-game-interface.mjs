@@ -20,17 +20,17 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /styles\.css\?v=170\.7/);
-assert.match(html, /app\.js\?v=170\.7/);
+assert.match(html, /styles\.css\?v=170\.8/);
+assert.match(html, /app\.js\?v=170\.8/);
 assert.match(html, /id="gameContextStrip"/);
 assert.match(html, /id="gameAssistPanel"/);
 assert.match(html, /Prévisualiser les conséquences/);
-assert.match(html, /Expliquer les actions indisponibles/);
+assert.doesNotMatch(html, /Expliquer les actions indisponibles/);
 assert.match(html, /Retour accueil/);
 
 assert.match(app, /const GAMEPLAY_ASSIST/);
-assert.match(app, /tennisLightAssistPreview/);
-assert.match(app, /tennisLightAssistBlockedReasons/);
+assert.match(app, /localStorage\.getItem\("tennisLightAssistPreview"\) === "true"/);
+assert.doesNotMatch(app, /tennisLightAssistBlockedReasons|cardActionBlockReason/);
 assert.match(functionSource("renderModeButtons"), /Retour Club House/);
 assert.match(functionSource("confirmReturnToLobby"), /returnToClubHouse: true/);
 assert.match(functionSource("leaveFriendlyTournamentLobby"), /if \(returnToClubHouse\)/);
@@ -55,7 +55,8 @@ assert.match(functionSource("renderRallyState"), /rally-context-line stake/);
 assert.match(functionSource("renderPlayerPanel"), /effect-chip/);
 assert.match(functionSource("openEffectHelpDialog"), /effect-help-dialog/);
 assert.match(functionSource("renderCardAssistPreview"), /Puissance après/);
-assert.match(functionSource("cardActionBlockReason"), /Endurance insuffisante/);
+assert.match(functionSource("renderCardAssistPreview"), /Endurance après/);
+assert.match(functionSource("renderCardAssistPreview"), /Puissance BOOST/);
 assert.match(functionSource("renderLog"), /Dernière action importante/);
 assert.match(functionSource("renderActionLogEntry"), /actionLogCardThumbnail/);
 assert.match(functionSource("renderResultPanel"), /result-summary-line/);
@@ -75,4 +76,4 @@ assert.match(styles, /\.action-log-card-thumbnail/);
 assert.match(styles, /min-height: 44px/);
 assert.match(styles, /\.action-log-backdrop \{ align-items: flex-end/);
 
-console.log("v170.7 navigation, attentes et lisibilité de jeu: OK");
+console.log("v170.8 navigation, attentes et lisibilité de jeu: OK");
