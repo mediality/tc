@@ -3722,6 +3722,20 @@ function transferFriendlyTournamentCreator(tournament) {
   return nextCreator;
 }
 
+function leaveWaitingFriendlyParticipant(tournament, participant, now = Date.now()) {
+  if (!tournament || !participant || tournament.status !== "waiting") return false;
+  const wasCreator = participant.id === tournament.creatorParticipantId;
+  participant.leftAt = now;
+  participant.selected = false;
+  participant.awayAt = null;
+  participant.awayReason = null;
+  participant.hostReturnDeadline = null;
+  participant.activePresenceId = null;
+  if (wasCreator) transferFriendlyTournamentCreator(tournament);
+  tournament.updatedAt = now;
+  return true;
+}
+
 function resolveWaitingFriendlyHost(tournament, now = Date.now()) {
   if (!tournament || tournament.status !== "waiting") return true;
   const creator = activeFriendlyParticipants(tournament).find((item) => item.id === tournament.creatorParticipantId);
@@ -3730,10 +3744,7 @@ function resolveWaitingFriendlyHost(tournament, now = Date.now()) {
     creator.hostReturnDeadline = Number(creator.lastSeenAt || now) + 10_000;
   }
   if (creator?.awayAt && Number(creator.hostReturnDeadline || 0) <= now) {
-    creator.leftAt = now;
-    creator.selected = false;
-    transferFriendlyTournamentCreator(tournament);
-    tournament.updatedAt = now;
+    leaveWaitingFriendlyParticipant(tournament, creator, now);
   }
   return activeFriendlyParticipants(tournament).length > 0;
 }
@@ -4884,20 +4895,41 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Tournoi indisponible." });
       return;
     }
-    if (activeFriendlyParticipants(tournament).length >= 4) {
-      sendJson(res, 409, { error: "Tournoi complet." });
-      return;
-    }
     if ((tournament.excludedUserIds || []).some((userId) => String(userId) === String(user.id))) {
       sendJson(res, 403, { error: "Vous avez été exclu de ce salon." });
       return;
     }
-    if (tournament.participants.some((item) => String(item.userId) === String(user.id))) {
-      sendJson(res, 409, { error: "Vous avez déjà participé à ce tournoi et ne pouvez pas le rejoindre à nouveau." });
+    const previousParticipant = tournament.participants.find((item) => String(item.userId) === String(user.id)) || null;
+    if (previousParticipant && !previousParticipant.leftAt && !previousParticipant.kickedAt) {
+      sendJson(res, 409, { error: "Vous êtes déjà présent dans ce tournoi." });
+      return;
+    }
+    if (activeFriendlyParticipants(tournament).length >= 4) {
+      sendJson(res, 409, { error: "Tournoi complet." });
       return;
     }
     const payload = await readJson(req);
     const worldRank = await circuitWorldRankForUser(user);
+    if (previousParticipant && !previousParticipant.kickedAt) {
+      previousParticipant.token = makeToken();
+      previousParticipant.nickname = String(user.nickname || payload.nickname || previousParticipant.nickname || "Joueur").slice(0, 24);
+      previousParticipant.characterId = normalizeCharacterId(payload.characterId, previousParticipant.characterId || "coachJu");
+      previousParticipant.worldRank = worldRank;
+      previousParticipant.leftAt = null;
+      previousParticipant.awayAt = null;
+      previousParticipant.awayReason = null;
+      previousParticipant.hostReturnDeadline = null;
+      previousParticipant.lastSeenAt = Date.now();
+      previousParticipant.activePresenceId = null;
+      previousParticipant.selected = false;
+      tournament.updatedAt = Date.now();
+      sendJson(res, 200, {
+        tournament: publicFriendlyTournamentInfo(req, tournament, previousParticipant),
+        playerUrl: friendlyTournamentUrl(req, tournament.id, previousParticipant.id, previousParticipant.token),
+        rejoined: true,
+      });
+      return;
+    }
     const participant = {
       id: makeId(4),
       token: makeToken(),
@@ -5109,15 +5141,16 @@ async function handleApi(req, res) {
     }
     if (tournament.status === "waiting") {
       const now = Date.now();
-      if (participant.id === tournament.creatorParticipantId) {
-        participant.awayAt = now;
-        participant.hostReturnDeadline = now + 10_000;
-      } else {
-        participant.leftAt = now;
-        participant.selected = false;
-      }
-      tournament.updatedAt = now;
-      sendJson(res, 200, { ok: true, paused: true, graceSeconds: participant.id === tournament.creatorParticipantId ? 10 : null });
+      leaveWaitingFriendlyParticipant(tournament, participant, now);
+      const remainingParticipants = activeFriendlyParticipants(tournament);
+      if (!remainingParticipants.length) friendlyTournaments.delete(tournament.id);
+      sendJson(res, 200, {
+        ok: true,
+        paused: false,
+        rejoinAllowed: true,
+        closed: !remainingParticipants.length,
+        creatorParticipantId: tournament.creatorParticipantId,
+      });
       return;
     }
     const closingPresenceId = String(payload.presenceId || "").slice(0, 80);
@@ -5154,14 +5187,7 @@ async function handleApi(req, res) {
       return;
     }
     if (tournament.status === "waiting") {
-      if (participant.id === tournament.creatorParticipantId) {
-        participant.awayAt = Date.now();
-        participant.hostReturnDeadline = Date.now() + 10_000;
-      } else {
-        participant.leftAt = Date.now();
-        participant.selected = false;
-      }
-      tournament.updatedAt = Date.now();
+      leaveWaitingFriendlyParticipant(tournament, participant, Date.now());
       const remainingParticipants = activeFriendlyParticipants(tournament);
       if (!remainingParticipants.length) {
         friendlyTournaments.delete(tournament.id);
@@ -5172,7 +5198,7 @@ async function handleApi(req, res) {
         ok: true,
         closed: false,
         rejoinAllowed: true,
-        graceSeconds: participant.id === tournament.creatorParticipantId ? 10 : null,
+        graceSeconds: null,
         participantCount: remainingParticipants.length,
         creatorParticipantId: tournament.creatorParticipantId,
         tournament: publicFriendlyTournamentInfo(req, tournament, null),

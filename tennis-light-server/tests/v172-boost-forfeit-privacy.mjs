@@ -22,16 +22,16 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.15/);
-assert.match(html, /styles\.css\?v=170\.11/);
-assert.match(html, /app\.js\?v=170\.11/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.16/);
+assert.match(html, /styles\.css\?v=170\.12/);
+assert.match(html, /app\.js\?v=170\.12/);
 assert.equal((html.match(/class="academy-upgrade-cta(?:\s|\")/g) || []).length, 2);
 assert.equal((html.match(/href="http:\/\/www\.tenniscourts\.cc"/g) || []).length, 2);
 assert.doesNotMatch(html, /<footer class="academy-info-footer">/);
 
 const stakeSource = functionSource(app, "currentMatchStake");
 const setProjectionSource = functionSource(app, "projectSetScoreForExchangeWinner");
-assert.match(setProjectionSource, /getExchangeSetScore/);
+assert.match(setProjectionSource, /winnerGames: 2, loserGames: 0/);
 assert.match(setProjectionSource, /previewSetMatchScore/);
 assert.match(stakeSource, /closesWithPower/);
 assert.match(stakeSource, /closesWithBoost/);
@@ -55,16 +55,16 @@ const stakeContext = {
   isSetOver: ([left, right]) => (left >= 6 || right >= 6) && Math.abs(left - right) >= 2,
   leadingSetPlayer: ([left, right]) => left > right ? 0 : right > left ? 1 : null,
   displayPlayerName: (player) => player.name,
+  opponentOf: (winner) => winner === 0 ? 1 : 0,
   result: null,
 };
 vm.createContext(stakeContext);
 vm.runInContext(`${setProjectionSource}\n${stakeSource}\nresult = currentMatchStake();`, stakeContext);
-assert.equal(stakeContext.result.label, "BALLE DE MATCH");
-assert.equal(stakeContext.result.names, "Gauche (BOOST)");
-stakeContext.getExchangeSetScore = (winner, winType) => ({ winnerGames: winType === "boost" ? 3 : 2, loserGames: 0, winner, loser: winner === 0 ? 1 : 0 });
-vm.runInContext("result = currentMatchStake();", stakeContext);
-assert.equal(stakeContext.result.names, "Gauche");
-assert.doesNotMatch(stakeContext.result.names, /BOOST/);
+assert.equal(stakeContext.result[0].label, "BALLE DE MATCH");
+assert.equal(stakeContext.result[0].names, "Gauche");
+assert.equal(stakeContext.result[1].label, "BALLE DE SET");
+assert.equal(stakeContext.result[1].names, "Droite");
+assert.doesNotMatch(stakeContext.result.map((stake) => stake.names).join(" "), /BOOST/);
 
 const clubhouse = functionSource(app, "renderFriendlyLobbyScreen");
 assert.match(clubhouse, /friendly-player-identity[\s\S]*VALID\.svg[\s\S]*friendly-player-name/);
@@ -141,4 +141,4 @@ assert.match(styles, /\.friendly-visibility-section/);
 assert.match(styles, /\.friendly-new-event-button/);
 assert.match(styles, /\.online-private-event-badge/);
 
-console.log("v2.169.15 boost, forfait définitif, confidentialité et nouvel événement: OK");
+console.log("v2.169.16 boost, forfait définitif, confidentialité et nouvel événement: OK");

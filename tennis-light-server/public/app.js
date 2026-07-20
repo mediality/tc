@@ -106,6 +106,12 @@ const SPECTATOR_MODE = {
   endCountdownTimer: null,
 };
 
+// Préférence strictement locale : une synchronisation du match ne doit jamais
+// rouvrir le tableau qu'un joueur a choisi de masquer.
+const TOURNAMENT_PANEL_UI = {
+  visible: true,
+};
+
 const PROFILE_ACTIVITY = {
   timer: null,
   lastActive: false,
@@ -4547,6 +4553,7 @@ function configureSoloOpponent() {
 
 function resetTournament() {
   state.tournament = cloneData(EMPTY_TOURNAMENT);
+  TOURNAMENT_PANEL_UI.visible = true;
 }
 
 function randomAiCharacterId() {
@@ -4606,12 +4613,12 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
       </div>
       <div class="lobby-room-actions">
         ${tournament.canResume
-          ? `<button class="small-button friendly-resume-button online-action-with-icon" type="button" data-resume-friendly-tournament="${tournament.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REPRENDRE</button>`
+          ? `<button class="small-button friendly-resume-button" type="button" data-resume-friendly-tournament="${tournament.id}">REPRENDRE</button>`
           : tournament.status === "playing" && tournament.canSpectate
-          ? `<button class="small-button friendly-spectator-button online-action-with-icon" type="button" data-spectate-friendly-tournament="${tournament.id}"><img src="./assets/icons/JUST-WATCH.svg" alt="" aria-hidden="true" />SPECTATEUR</button>`
+          ? `<button class="small-button friendly-spectator-button" type="button" data-spectate-friendly-tournament="${tournament.id}">SPECTATEUR</button>`
           : tournament.status === "playing"
           ? `<span class="online-private-event-badge">ÉVÉNEMENT PRIVÉ</span>`
-          : `<button class="small-button online-action-with-icon" type="button" data-join-friendly-tournament="${tournament.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REJOINDRE</button>`}
+          : `<button class="small-button" type="button" data-join-friendly-tournament="${tournament.id}">REJOINDRE</button>`}
         ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-friendly-tournament="${tournament.id}">SUPPRIMER</button>` : ""}
       </div>
     </article>
@@ -4628,7 +4635,7 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
           <span>${coach} · Salon ${room.id}</span>
         </div>
         <div class="lobby-room-actions">
-          <button class="small-button online-action-with-icon" type="button" data-join-room="${room.id}"><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REJOINDRE</button>
+          <button class="small-button" type="button" data-join-room="${room.id}">REJOINDRE</button>
           ${canAccessAdminFeatures() ? `<button class="small-button danger-button admin-lobby-delete-button" type="button" data-admin-delete-room="${room.id}">SUPPRIMER</button>` : ""}
         </div>
       </article>
@@ -5006,6 +5013,13 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     SPECTATOR_MODE.lastTournamentPayload = payload;
     return;
   }
+  const previousRound = state.tournament?.friendly ? state.tournament.stage : null;
+  const nextRound = payload.round || "waiting";
+  const roundJustChanged = Boolean(
+    previousRound
+    && previousRound !== nextRound
+    && !["waiting", "complete"].includes(nextRound),
+  );
   FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator || payload.creatorParticipantId === FRIENDLY_TOURNAMENT.participantId);
   FRIENDLY_TOURNAMENT.isSpectator = Boolean(payload.spectator || FRIENDLY_TOURNAMENT.spectatorId);
   FRIENDLY_TOURNAMENT.entry = payload.participant?.entry || FRIENDLY_TOURNAMENT.entry;
@@ -5128,7 +5142,7 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     return;
   }
   if (nextCurrentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== nextCurrentMatch.id) {
-    if (resumesSavedMatch) {
+    if (resumesSavedMatch && !roundJustChanged) {
       FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
       startFriendlyTournamentMatch(nextCurrentMatch);
     } else {
@@ -5335,7 +5349,7 @@ function renderFriendlyLobbyMatchCard(match) {
       ${playerName(match.playerB)}
       <div class="friendly-bracket-live-row">
         <span class="${match.liveScore && !match.winner ? "friendly-live-score" : ""}">${escapeHtml(status)}</span>
-        ${match.watchable ? `<button class="small-button friendly-watch-button online-action-with-icon" type="button" data-watch-friendly-match="${escapeHtml(match.id)}"><img src="./assets/icons/JUST-WATCH.svg" alt="" aria-hidden="true" />VOIR</button>` : ""}
+        ${match.watchable ? `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>` : ""}
       </div>
     </article>
   `;
@@ -5496,7 +5510,7 @@ function renderFriendlyLobbyScreen() {
       <p class="label">Votre Club House</p>
       <h2>${format === "league" ? "League" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
       <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${targetSets} sets gagnants · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
-      ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button online-action-with-icon" type="button" data-resume-friendly-match><img src="./assets/icons/JOIN.svg" alt="" aria-hidden="true" />REPRENDRE MON MATCH</button>` : ""}
+      ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button" type="button" data-resume-friendly-match>REPRENDRE MON MATCH</button>` : ""}
       ${FRIENDLY_TOURNAMENT.isSpectator || state.tournament.stage !== "waiting" ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
       <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
       ${!FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "complete" ? `<button class="primary-button friendly-new-event-button" type="button" data-new-friendly-event>NOUVEL ÉVÉNEMENT</button>` : ""}
@@ -10731,6 +10745,10 @@ function applyCharacterEffect(playerIndex, playedCard) {
   const character = characterOf(player);
   const effect = currentCharacterEffect(player);
   const effectSourceUid = characterEffectSourceUid(playedCard);
+  playedCard.starEffectLabel = effect?.label || "Bonus du personnage";
+  if (state.latestPlayedCard?.playedUid === playedCard.playedUid) {
+    state.latestPlayedCard.starEffectLabel = playedCard.starEffectLabel;
+  }
   flipCharacter(player);
   state.log.unshift(`${character.name} active ${characterEffectLogMarker(effect)}.`);
 
@@ -13497,6 +13515,8 @@ function ensureSoloAIForSet() {
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
   if (els.returnLobbyButton) els.returnLobbyButton.textContent = FRIENDLY_TOURNAMENT.enabled ? "Retour Club House" : "Retour accueil";
+  const completedFriendlyMatch = Boolean(FRIENDLY_TOURNAMENT.enabled && state.gameOver && state.setMatch?.matchOver);
+  els.returnLobbyButton?.classList.toggle("friendly-match-complete-return", completedFriendlyMatch);
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
@@ -13730,6 +13750,11 @@ function renderTournamentSetScores(scoreText, isLive = false, winnerSide = null)
 
 function renderTournamentPanel() {
   if (!els.tournamentPanel) return;
+  if (SPECTATOR_MODE.enabled) {
+    els.tournamentPanel.classList.add("hidden");
+    els.tournamentPanel.innerHTML = "";
+    return;
+  }
   if (!state.tournament.active) {
     els.tournamentPanel.classList.add("hidden");
     els.tournamentPanel.innerHTML = "";
@@ -13767,11 +13792,11 @@ function renderTournamentPanel() {
         </div>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
-        ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
+        ${TOURNAMENT_PANEL_UI.visible ? "Masquer le tableau" : "Afficher le tableau"}
       </button>
     </div>
     ${friendlyStatus}
-    <div class="tournament-bracket ${state.tournament.visible ? "" : "hidden"}">
+    <div class="tournament-bracket ${TOURNAMENT_PANEL_UI.visible ? "" : "hidden"}">
       ${round16Matches.length ? `
         <div class="tournament-column round16-column">
           <span class="tournament-round-label tournament-column-title">8es</span>
@@ -13872,11 +13897,11 @@ function renderLeagueTournamentPanel(title, final, champion) {
         <div class="tournament-meta-row"><span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentBonusSummary()}` : ""}</span></div>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
-        ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
+        ${TOURNAMENT_PANEL_UI.visible ? "Masquer le tableau" : "Afficher le tableau"}
       </button>
     </div>
     ${friendlyStatus}
-    <div class="league-board ${state.tournament.visible ? "" : "hidden"}">
+    <div class="league-board ${TOURNAMENT_PANEL_UI.visible ? "" : "hidden"}">
       <div class="league-standings-grid">
         ${renderLeagueStandingsTable("A", completedDays)}
         ${renderLeagueStandingsTable("B", completedDays)}
@@ -13979,8 +14004,8 @@ function tournamentPlayerLabel(entry) {
 }
 
 function toggleTournamentPanel() {
-  if (!state.tournament.active) return;
-  state.tournament.visible = !state.tournament.visible;
+  if (!state.tournament.active || SPECTATOR_MODE.enabled) return;
+  TOURNAMENT_PANEL_UI.visible = !TOURNAMENT_PANEL_UI.visible;
   render();
 }
 
@@ -14067,7 +14092,12 @@ function leadingPlayerIndex() {
 
 function projectSetScoreForExchangeWinner(winner, winType = "power") {
   if (!state.setMatch?.enabled || state.setMatch.setOver) return null;
-  const exchangeScore = getExchangeSetScore(winner, winType === "boost" ? "boost" : "power");
+  const loser = opponentOf(winner);
+  // Une victoire aux points peut produire 2–0 : l'annonce ne doit pas être
+  // limitée par l'écart de puissance encore provisoire pendant l'échange.
+  const exchangeScore = winType === "boost"
+    ? { winnerGames: 3, loserGames: 0, winner, loser }
+    : { winnerGames: 2, loserGames: 0, winner, loser };
   return previewSetMatchScore(winner, exchangeScore);
 }
 
@@ -14082,11 +14112,18 @@ function currentMatchStake() {
   }).filter((item) => item.closesWithPower || item.closesWithBoost);
   if (!closingPlayers.length) return null;
   const matchPlayers = closingPlayers.filter(({ playerIndex }) => state.setMatch.targetSets && Number(state.setMatch.setsWon?.[playerIndex] || 0) + 1 >= Number(state.setMatch.targetSets));
-  const players = matchPlayers.length ? matchPlayers : closingPlayers;
-  return {
-    label: matchPlayers.length ? "BALLE DE MATCH" : "BALLE DE SET",
-    names: players.map(({ playerIndex, boostOnly }) => `${displayPlayerName(state.players[playerIndex])}${boostOnly ? " (BOOST)" : ""}`).join(" · "),
-  };
+  const matchIndexes = new Set(matchPlayers.map(({ playerIndex }) => playerIndex));
+  const setPlayers = closingPlayers.filter(({ playerIndex }) => !matchIndexes.has(playerIndex));
+  return [
+    matchPlayers.length ? {
+      label: "BALLE DE MATCH",
+      names: matchPlayers.map(({ playerIndex, boostOnly }) => `${displayPlayerName(state.players[playerIndex])}${boostOnly ? " (BOOST)" : ""}`).join(" · "),
+    } : null,
+    setPlayers.length ? {
+      label: "BALLE DE SET",
+      names: setPlayers.map(({ playerIndex, boostOnly }) => `${displayPlayerName(state.players[playerIndex])}${boostOnly ? " (BOOST)" : ""}`).join(" · "),
+    } : null,
+  ].filter(Boolean);
 }
 
 function renderRallyState() {
@@ -14097,14 +14134,14 @@ function renderRallyState() {
   if (active.limitedFamilies) activeConstraints.push(`type: ${active.limitedFamilies.join(" / ")}`);
   if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
   const preparedPlacement = active.power != null ? turnEndPlacement(state.activePlayer) : 0;
-  const stake = currentMatchStake();
+  const stakes = currentMatchStake();
   if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
   if (els.rallyStatusBadge) {
     els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
     els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? "completed" : "live"}`;
   }
   const contextualNotices = [
-    stake ? `<div class="rally-context-line stake"><strong>${escapeHtml(stake.label)}</strong><span>${escapeHtml(stake.names)}</span></div>` : "",
+    stakes?.length ? `<div class="rally-stakes">${stakes.map((stake) => `<div class="rally-context-line stake"><strong>${escapeHtml(stake.label)}</strong><span>${escapeHtml(stake.names)}</span></div>`).join("")}</div>` : "",
     activeConstraints.length ? `<div class="rally-context-line constraint"><strong>Contrainte</strong><span>${escapeHtml(activeConstraints.join(" · "))}</span></div>` : "",
     state.boostAvailableFor == null ? "" : `<div class="rally-context-line boost"><strong>BOOST disponible</strong><span>${escapeHtml(playerName(state.boostAvailableFor))} peut répondre en BOOST.</span></div>`,
   ].filter(Boolean).join("");
@@ -14443,22 +14480,26 @@ function renderCenterPlayedCard() {
 function activeEffectBadges(playerIndex) {
   const player = state.players[playerIndex];
   const badges = [];
-  if (player.nextPrecisionBonus) badges.push({ text: `Prochain coup: +${player.nextPrecisionBonus} précision`, type: "effect" });
-  if (player.nextPlacementBonus) badges.push({ text: `Prochain coup: +${player.nextPlacementBonus} placement`, type: "effect" });
-  if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte: +${player.nextAnyPlacementBonus} placement`, type: "effect" });
-  if (player.nextDiscount) badges.push({ text: `Prochain coup: -${player.nextDiscount} endurance`, type: "effect" });
-  if (player.nextExtraCost) badges.push({ text: `Prochain coup: +${player.nextExtraCost} endurance`, type: "effect" });
-  if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain coup: puissance x${player.nextPowerMultiplier}`, type: "effect" });
-  if (player.exchangePrecisionBonus) badges.push({ text: `Échange: +${player.exchangePrecisionBonus} précision`, type: "effect" });
-  if (player.exchangePlacementBonus) badges.push({ text: `Échange: +${player.exchangePlacementBonus} placement`, type: "effect" });
-  if (player.exchangeFamilyPowerBonuses?.length) badges.push({ text: "Échange: bonus puissance par type", type: "effect" });
-  if (player.exchangeAfterFamilyPlacementBonuses?.length) badges.push({ text: "Échange: bonus placement conditionnel", type: "effect" });
-  if (player.placementPerOpponentLowPowerCardBonuses?.length) badges.push({ text: "Échange: bonus placement anti-carte faible", type: "effect" });
-  if (player.protectedFromRemoval) badges.push({ text: "Actif: cartes protégées", type: "effect" });
-  if (player.cancelNextOpponentEffect) badges.push({ text: "Actif: annule le prochain effet adverse", type: "effect" });
-  if (player.freeBoostNext) badges.push({ text: "Actif: boost libre", type: "effect" });
+  const preferredSourceUid = (sources = []) => {
+    const values = (Array.isArray(sources) ? sources : [sources]).map((source) => source?.sourceUid || source).filter(Boolean);
+    return values.find((sourceUid) => String(sourceUid).endsWith(":star")) || values[0] || null;
+  };
+  if (player.nextPrecisionBonus) badges.push({ text: `Prochain coup: +${player.nextPrecisionBonus} précision`, type: "effect", sourceUid: preferredSourceUid(player.nextPrecisionSources) });
+  if (player.nextPlacementBonus) badges.push({ text: `Prochain coup: +${player.nextPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextPlacementSources) });
+  if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte: +${player.nextAnyPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextAnyPlacementSources) });
+  if (player.nextDiscount) badges.push({ text: `Prochain coup: -${player.nextDiscount} endurance`, type: "effect", sourceUid: preferredSourceUid(player.nextDiscountSources) });
+  if (player.nextExtraCost) badges.push({ text: `Prochain coup: +${player.nextExtraCost} endurance`, type: "effect", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
+  if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain coup: puissance x${player.nextPowerMultiplier}`, type: "effect", sourceUid: player.nextPowerMultiplierSourceUid });
+  if (player.exchangePrecisionBonus) badges.push({ text: `Échange: +${player.exchangePrecisionBonus} précision`, type: "effect", sourceUid: preferredSourceUid(player.exchangePrecisionSources) });
+  if (player.exchangePlacementBonus) badges.push({ text: `Échange: +${player.exchangePlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.exchangePlacementSources) });
+  if (player.exchangeFamilyPowerBonuses?.length) badges.push({ text: "Échange: bonus puissance par type", type: "effect", sourceUid: preferredSourceUid(player.exchangeFamilyPowerBonuses) });
+  if (player.exchangeAfterFamilyPlacementBonuses?.length) badges.push({ text: "Échange: bonus placement conditionnel", type: "effect", sourceUid: preferredSourceUid(player.exchangeAfterFamilyPlacementBonuses) });
+  if (player.placementPerOpponentLowPowerCardBonuses?.length) badges.push({ text: "Échange: bonus placement anti-carte faible", type: "effect", sourceUid: preferredSourceUid(player.placementPerOpponentLowPowerCardBonuses) });
+  if (player.protectedFromRemoval) badges.push({ text: "Actif: cartes protégées", type: "effect", sourceUid: player.protectedFromRemovalSourceUid });
+  if (player.cancelNextOpponentEffect) badges.push({ text: "Actif: annule le prochain effet adverse", type: "effect", sourceUid: player.cancelNextOpponentEffectSourceUid });
+  if (player.freeBoostNext) badges.push({ text: "Actif: boost libre", type: "effect", sourceUid: player.freeBoostNextSourceUid });
   if (state.turnIgnoresPlacement[playerIndex]) badges.push({ text: "Joker: placement ignoré ce tour", type: "effect" });
-  if (player.limitedFamilies) badges.push({ text: `Contrainte tour: ${player.limitedFamilies.join(" / ")}`, type: "constraint" });
+  if (player.limitedFamilies) badges.push({ text: `Contrainte tour: ${player.limitedFamilies.join(" / ")}`, type: "constraint", sourceUid: player.limitedFamiliesSourceUid });
   if (state.activePlayer === playerIndex && state.mandatoryPlacement && state.lastCard) {
     badges.push({ text: `Contrainte: placement ${state.lastCard.precision}+`, type: "constraint" });
   }
@@ -14467,19 +14508,24 @@ function activeEffectBadges(playerIndex) {
     badges.push({ text: "Retour: pas Volée/Smash", type: "constraint" });
   }
   for (const bonus of player.endBonuses) {
-    if (bonus.type === "doubleLastShot") badges.push({ text: "Fin échange: Double", type: "effect" });
-    if (bonus.type === "boostedBonus") badges.push({ text: `Fin échange: +${bonus.value}/boost`, type: "effect" });
+    if (bonus.type === "doubleLastShot") badges.push({ text: "Fin échange: Double", type: "effect", sourceUid: bonus.sourceUid });
+    if (bonus.type === "boostedBonus") badges.push({ text: `Fin échange: +${bonus.value}/boost`, type: "effect", sourceUid: bonus.sourceUid });
   }
   return badges.map((badge) => {
     const separator = badge.text.indexOf(":");
     const duration = separator > 0 ? badge.text.slice(0, separator) : badge.type === "constraint" ? "Ce tour" : "Actif";
     const label = separator > 0 ? badge.text.slice(separator + 1).trim() : badge.text;
+    const starBonus = String(badge.sourceUid || "").endsWith(":star");
+    const starPlayedUid = starBonus ? String(badge.sourceUid).replace(/:star$/, "") : "";
+    const starLabel = starBonus
+      ? player.played.find((card) => card.playedUid === starPlayedUid)?.starEffectLabel || "Bonus du personnage"
+      : "";
     return {
       ...badge,
-      label,
-      duration,
+      label: starBonus ? `Bonus étoile · ${label}` : label,
+      duration: starBonus ? "Bonus étoile" : duration,
       icon: badge.type === "constraint" ? "!" : "✦",
-      description: `${badge.text}. Cet état est appliqué tant que son indicateur reste visible.`,
+      description: `${starLabel ? `${starLabel}. ` : ""}${badge.text}. Cet état est appliqué tant que la carte est visible.`,
     };
   });
 }
@@ -15159,6 +15205,9 @@ function initMenu() {
     if (target?.closest("#lobbyAccountPanel, #lobbySettingsButton, #lobbyUserButton, [data-open-lobby-section]")) return;
     setLobbyAccountPanelOpen(false);
   });
+  els.lobbyAccountPanel?.addEventListener("mouseleave", () => {
+    if (AUTH_STATE.user) setLobbyAccountPanelOpen(false);
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") setLobbyAccountPanelOpen(false);
   });
@@ -15184,7 +15233,13 @@ function initMenu() {
 }
 
 els.newGameButton?.addEventListener("click", newGame);
-els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
+els.returnLobbyButton?.addEventListener("click", () => {
+  if (FRIENDLY_TOURNAMENT.enabled && state.gameOver && state.setMatch?.matchOver) {
+    returnFriendlyMatchToClubHouse();
+    return;
+  }
+  openReturnLobbyDialog();
+});
 els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
 els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GAMEPLAY_ASSIST.panelOpen));
 els.gamePreviewToggle?.addEventListener("change", () => {

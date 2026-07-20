@@ -25,9 +25,9 @@ for (const icon of ["MATCH.svg", "LEAGUE.svg", "JOIN.svg", "JUST-WATCH.svg", "VA
   await access(new URL(`../public/assets/icons/${icon}`, import.meta.url));
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.15/);
-assert.match(html, /styles\.css\?v=170\.11/);
-assert.match(html, /app\.js\?v=170\.11/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.16/);
+assert.match(html, /styles\.css\?v=170\.12/);
+assert.match(html, /app\.js\?v=170\.12/);
 assert.match(html, /academy-upgrade-cta/);
 assert.match(html, /TENNIS COURTS — LE JEU COMPLET/);
 assert.match(html, /10 joueurs à incarner/);
@@ -37,9 +37,10 @@ assert.match(html, /http:\/\/www\.tenniscourts\.cc/);
 assert.doesNotMatch(html, /class="lobby-shop-banner"/);
 
 const lobbyRooms = functionSource(app, "renderLobbyRooms");
-for (const icon of ["MATCH.svg", "LEAGUE.svg", "JOIN.svg", "JUST-WATCH.svg"]) {
+for (const icon of ["MATCH.svg", "LEAGUE.svg"]) {
   assert.match(lobbyRooms, new RegExp(icon.replace(".", "\\.")));
 }
+assert.doesNotMatch(lobbyRooms, /JOIN\.svg|JUST-WATCH\.svg/);
 
 const clubhouse = functionSource(app, "renderFriendlyLobbyScreen");
 assert.match(clubhouse, /VALID\.svg/);

@@ -6601,7 +6601,12 @@ h1 {
   object-position: 50% 18%;
 }
 .pro-news-copy h2 { color: #fff; }
-.pro-news-copy > p:not(.label) { color: rgba(246, 251, 243, 0.78); line-height: 1.65; }
+.pro-news-modal .pro-news-copy > p:not(.label),
+.pro-news-modal #proNewsMessage {
+  color: rgba(255, 255, 255, 0.94);
+  line-height: 1.65;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+}
 
 @media (max-width: 768px) {
   .academy-upgrade-cta {
@@ -7670,8 +7675,8 @@ h1 {
 .confrontation-intro-round strong { overflow: hidden; color: #fff; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .confrontation-intro-versus { position: relative; grid-template-columns: minmax(0,1fr) 62px minmax(0,1fr); gap: 18px; margin-top: 16px; }
 .confrontation-intro-player { gap: 5px; }
-.confrontation-player-card-frame { position: relative; width: min(195px,100%); height: 242px; overflow: hidden; border-radius: var(--game-card-radius); box-shadow: 0 18px 38px rgba(0,0,0,.36); }
-.confrontation-player-card-frame::after { content: ""; position: absolute; inset: 4px; border: 2px solid rgba(255,255,255,.9); border-radius: 6.5% / 4.7%; pointer-events: none; }
+.confrontation-player-card-frame { position: relative; width: min(195px,100%); height: 242px; overflow: hidden; box-sizing: border-box; border: 2px solid rgba(255,255,255,.92); border-radius: var(--game-card-radius); box-shadow: 0 18px 38px rgba(0,0,0,.36); }
+.confrontation-player-card-frame::after { display: none; }
 .confrontation-intro-player img { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: var(--game-card-radius); object-fit: cover; object-position: 50% 13%; box-shadow: none; }
 .confrontation-intro-player strong { font-size: .92rem; }
 .confrontation-intro-player .confrontation-player-rank { border-radius: 999px; padding: 4px 8px; color: #173400; background: #e9ff70; font-size: .68rem; }
@@ -7684,6 +7689,23 @@ h1 {
 .confrontation-intro-countdown { display: flex; align-items: center; }
 .confrontation-intro-countdown strong { width: 38px; height: 38px; border: 2px solid #8ce0bf; color: #8ce0bf; font-size: 1.25rem; }
 .confrontation-start-button { min-height: 40px; margin: 0; padding: 0 20px; }
+
+.rally-stakes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rally-stakes .rally-context-line {
+  flex: 1 1 230px;
+}
+
+#returnLobbyButton.friendly-match-complete-return {
+  border-color: rgba(140, 224, 191, .72);
+  color: #062e2c;
+  background: #8ce0bf;
+  box-shadow: 0 8px 24px rgba(31, 145, 111, .24);
+}
 
 /* Rayon unique pour toutes les représentations des cartes du jeu. */
 :root { --game-card-radius: 7.2% / 5.2%; }
