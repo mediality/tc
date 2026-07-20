@@ -46,11 +46,28 @@ assert.match(html, /id="backToLobbyFromCharacterButton"/);
 assert.match(app, /backToLobbyFromCharacterButton\?\.addEventListener\("click", showMenuScreen\)/);
 
 assert.match(css, /\.opponent-hand-reveal-controls/);
-assert.match(html, />CLUB HOUSE<\/button>/);
+assert.match(app, /CLUB HOUSE/);
 
 assert.match(html, /id="adminSimulateScoreButton"/);
-assert.match(app, /adminSimulateScoreButton\?\.addEventListener\("click", simulateAdminMatchScore\)/);
+assert.match(html, /id="adminGameTools"[^>]*data-required-role="admin"/);
+assert.match(html, /id="adminGameToolsPanel"/);
+assert.match(html, /id="exportLogsButton"/);
+assert.match(html, /id="exportHumanMatchesButton"/);
+assert.match(html, /id="revealAiButton"/);
+assert.match(app, /adminSimulateScoreButton\?\.addEventListener\("click", \(\) => runAdminGameTool\(simulateAdminMatchScore\)\)/);
+assert.match(functionSource("exportLogsFile"), /if \(!canAccessAdminFeatures\(\)\) return/);
+assert.match(app, /async function exportHumanMatchLogsFile\(\) \{\s*if \(!canAccessAdminFeatures\(\)\) return/);
+assert.match(functionSource("toggleRevealAiCards"), /if \(!canAccessAdminFeatures\(\)\) return/);
 assert.match(css, /\.admin-simulate-score-button/);
+assert.match(css, /\.admin-game-tools-panel/);
+
+assert.match(html, /État de l’échange/);
+assert.match(app, /function renderActionLogEntry\(line, index, compact = false\)/);
+assert.match(app, /function openFullActionLogDialog\(\)/);
+assert.match(app, /rally-info-grid/);
+assert.match(app, /result-banner-heading/);
+assert.match(css, /\.action-log-dialog/);
+assert.match(css, /\.result-power-score/);
 
 const simulationContext = {
   SERVER_SYNC: { enabled: false, isHost: false, seat: null },

@@ -22,8 +22,8 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy · v169/);
-assert.match(html, /styles\.css\?v=169\.9/);
-assert.match(html, /app\.js\?v=169\.9/);
+assert.match(html, /styles\.css\?v=170\.0/);
+assert.match(html, /app\.js\?v=170\.0/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 

@@ -1285,6 +1285,9 @@ const state = {
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
+  adminGameTools: document.querySelector("#adminGameTools"),
+  adminGameToolsButton: document.querySelector("#adminGameToolsButton"),
+  adminGameToolsPanel: document.querySelector("#adminGameToolsPanel"),
   adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
@@ -1428,6 +1431,8 @@ const els = {
   tutorialOverlay: document.querySelector("#tutorialOverlay"),
   player1Summary: document.querySelector("#player1Summary"),
   player2Summary: document.querySelector("#player2Summary"),
+  rallyPhaseLabel: document.querySelector("#rallyPhaseLabel"),
+  rallyStatusBadge: document.querySelector("#rallyStatusBadge"),
   rallyState: document.querySelector("#rallyState"),
   effectNotice: document.querySelector("#effectNotice"),
   centerPlayedCard: document.querySelector("#previousTurnCards"),
@@ -1674,6 +1679,7 @@ function updateAccessControls() {
   els.proCodePanel?.classList.toggle("hidden", !AUTH_STATE.user || role !== "free");
   if (role !== "free" && els.proCodeStatus) els.proCodeStatus.textContent = "";
   if (!hasAdminAccess) {
+    setAdminGameToolsOpen(false);
     AUTH_STATE.adminUsers = [];
     AUTH_STATE.adminProCodes = [];
     if (els.adminUsersTable) els.adminUsersTable.innerHTML = "";
@@ -6310,7 +6316,7 @@ function permanentBonusLogLine(player) {
 }
 
 function exportLogsFile() {
-  if (SERVER_SYNC.enabled && !canAccessAdminFeatures()) return;
+  if (!canAccessAdminFeatures()) return;
   const detailedActions = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
   const exchangeResults = getStoredMatchLogs();
   const payload = {
@@ -6344,6 +6350,7 @@ function downloadJsonFile(payload, prefix) {
 }
 
 async function exportHumanMatchLogsFile() {
+  if (!canAccessAdminFeatures()) return;
   const localMatches = getStoredHumanMatchLogs();
   const activeMatch = HUMAN_MATCH_TELEMETRY.active
     || readStoredJson(ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY, null);
@@ -7078,7 +7085,7 @@ async function startOnlineGame() {
 }
 
 function toggleRevealAiCards() {
-  if (SERVER_SYNC.enabled && !canAccessAdminFeatures()) return;
+  if (!canAccessAdminFeatures()) return;
   if (!SOLO_AI.enabled || !state.gameOver) return;
   state.revealAiCards = !state.revealAiCards;
   render();
@@ -12810,23 +12817,34 @@ function renderResultPanel() {
   const setScore = state.resultInfo.setScore;
   const setMatch = state.resultInfo.setMatch;
   const endBonusDetails = state.resultInfo.endBonusDetails || [];
+  const winnerIndex = state.resultInfo.winner;
+  const loserIndex = opponentOf(winnerIndex);
+  const conditionLabel = setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique");
   els.resultPanel.innerHTML = `
-    <p class="eyebrow">Fin de l'échange</p>
-    <div class="winner-dialog">${escapeHtml(playerName(state.resultInfo.winner))} gagne l'échange</div>
-    <p>${state.resultInfo.reason}</p>
-    <p><strong>Condition :</strong> ${setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique")}</p>
-    ${endBonusDetails.length ? `
-      <div class="set-score-box end-bonus-box">
-        <strong>Points supplémentaires appliqués</strong>
-        ${endBonusDetails.map((bonus) => `<span>${escapeHtml(playerName(bonus.playerIndex))} : +${bonus.points} puissance · ${escapeHtml(bonus.label)}</span>`).join("")}
+    <div class="result-banner-heading">
+      <div>
+        <p class="eyebrow">Fin de l’échange</p>
+        <h2 class="winner-dialog">${escapeHtml(playerName(winnerIndex))} gagne</h2>
+        <p class="result-condition">${escapeHtml(conditionLabel)}</p>
       </div>
-    ` : '<p><strong>Points supplémentaires :</strong> aucun bonus de fin d’échange.</p>'}
-    <p>${state.resultInfo.scoreText}</p>
+      <div class="result-power-score" aria-label="Score de puissance final">
+        <span><small>${escapeHtml(playerName(winnerIndex))}</small><strong>${state.players[winnerIndex]?.power ?? 0}</strong></span>
+        <i>—</i>
+        <span><small>${escapeHtml(playerName(loserIndex))}</small><strong>${state.players[loserIndex]?.power ?? 0}</strong></span>
+      </div>
+    </div>
+    <p class="result-reason">${escapeHtml(state.resultInfo.reason)}</p>
+    <div class="result-detail-grid">
+      <article><span>Condition</span><strong>${escapeHtml(conditionLabel)}</strong></article>
+      <article class="${endBonusDetails.length ? "has-bonus" : ""}"><span>Bonus de fin d’échange</span>${endBonusDetails.length
+        ? endBonusDetails.map((bonus) => `<strong>${escapeHtml(playerName(bonus.playerIndex))} · +${bonus.points} puissance</strong><small>${escapeHtml(bonus.label)}</small>`).join("")
+        : "<strong>Aucun bonus</strong>"}</article>
+    </div>
     ${setScore ? `
       <div class="set-score-box">
-        <strong>Jeux gagnés sur cet échange · ${setScore.label}</strong>
-        <span>${escapeHtml(playerName(setScore.winner))} - ${setScore.winnerGames} jeu${setScore.winnerGames > 1 ? "x" : ""}</span>
-        <span>${escapeHtml(playerName(setScore.loser))} - ${setScore.loserGames} jeu${setScore.loserGames > 1 ? "x" : ""}</span>
+        <strong>Score du set</strong>
+        <span>${escapeHtml(playerName(setScore.winner))} · ${setScore.winnerGames} jeu${setScore.winnerGames > 1 ? "x" : ""}</span>
+        <span>${escapeHtml(playerName(setScore.loser))} · ${setScore.loserGames} jeu${setScore.loserGames > 1 ? "x" : ""}</span>
       </div>
     ` : ""}
     ${setMatch ? `
@@ -12837,8 +12855,10 @@ function renderResultPanel() {
         ${setMatch.matchOver ? `<span>Match gagné par ${escapeHtml(playerName(setMatch.matchWinner))}</span>` : ""}
       </div>
     ` : ""}
-    ${renderProgressionButtons()}
-    ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>REJOUER LE MATCH</button>` : ""}
+    <div class="result-actions">
+      ${renderProgressionButtons()}
+      ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>` : ""}
+    </div>
   `;
   bindResultTournamentButton();
   els.resultPanel.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
@@ -13076,9 +13096,11 @@ function ensureSoloAIForSet() {
 
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
+  const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
+  els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
+  if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
+  if (!isAdminPlayer) setAdminGameToolsOpen(false);
   if (els.adminSimulateScoreButton) {
-    const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
-    els.adminSimulateScoreButton.classList.toggle("hidden", !isAdminPlayer);
     els.adminSimulateScoreButton.disabled = !canAdminSimulateMatchScore();
     els.adminSimulateScoreButton.title = SERVER_SYNC.enabled && !SERVER_SYNC.isHost
       ? "Seul l'ADMIN hôte peut simuler le score"
@@ -13087,15 +13109,25 @@ function renderModeButtons() {
   els.spectatorQuitButton?.classList.toggle("hidden", !SPECTATOR_MODE.enabled);
   els.returnLobbyButton?.classList.toggle("hidden", SPECTATOR_MODE.enabled);
   if (els.revealAiButton) {
-    const canReveal = !SPECTATOR_MODE.enabled && SOLO_AI.enabled && state.gameOver && (!SERVER_SYNC.enabled || canAccessAdminFeatures());
+    const canReveal = isAdminPlayer && SOLO_AI.enabled && state.gameOver;
     els.revealAiButton.classList.toggle("hidden", !canReveal);
     els.revealAiButton.classList.toggle("active", state.revealAiCards);
-    els.revealAiButton.textContent = state.revealAiCards ? "Cartes révélées" : "Révéler les cartes";
+    els.revealAiButton.textContent = state.revealAiCards ? "Main révélée" : "Révéler la main";
   }
-  if (els.exportLogsButton) {
-    els.exportLogsButton.classList.toggle("hidden", SPECTATOR_MODE.enabled || (SERVER_SYNC.enabled && !canAccessAdminFeatures()));
-  }
-  els.exportHumanMatchesButton?.classList.toggle("hidden", SPECTATOR_MODE.enabled);
+  els.exportLogsButton?.classList.toggle("hidden", !isAdminPlayer);
+  els.exportHumanMatchesButton?.classList.toggle("hidden", !isAdminPlayer);
+}
+
+function setAdminGameToolsOpen(open) {
+  const shouldOpen = Boolean(open && canAccessAdminFeatures() && !SPECTATOR_MODE.enabled);
+  els.adminGameToolsPanel?.classList.toggle("hidden", !shouldOpen);
+  els.adminGameToolsButton?.setAttribute("aria-expanded", String(shouldOpen));
+}
+
+function runAdminGameTool(action) {
+  if (!canAccessAdminFeatures() || SPECTATOR_MODE.enabled) return;
+  setAdminGameToolsOpen(false);
+  action();
 }
 
 function currentModeLabel() {
@@ -13245,13 +13277,15 @@ function renderTournamentPanel() {
   const friendlyStatus = renderFriendlyTournamentStatus();
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
-      <div>
-        <p class="eyebrow">Compétition</p>
+      <div class="tournament-header-copy">
+        <p class="eyebrow">Compétition en cours</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">Intelligence ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentBonusSummary()}</span>` : ""}
-        ${state.tournament.competitionSurfaceLabel ? `<span class="difficulty-reminder">${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
-        ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
-        ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points circuit gagnés : ${humanTournamentPoints().points}</span>` : ""}
+        <div class="tournament-meta-row">
+          ${state.tournament.aiClubHouse ? `<span class="difficulty-reminder">IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentBonusSummary()}</span>` : ""}
+          ${state.tournament.competitionSurfaceLabel ? `<span class="difficulty-reminder">Surface · ${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
+          ${locationText ? `<span class="difficulty-reminder tournament-location-reminder">${escapeHtml(locationText)}</span>` : ""}
+          ${state.tournament.weekly ? `<span class="difficulty-reminder weekly-points-reminder">Points acquis · ${humanTournamentPoints().points}</span>` : ""}
+        </div>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
@@ -13358,10 +13392,10 @@ function renderLeagueTournamentPanel(title, final, champion) {
   const friendlyStatus = state.tournament.friendly ? renderFriendlyTournamentStatus() : "";
   els.tournamentPanel.innerHTML = `
     <div class="tournament-header">
-      <div>
-        <p class="eyebrow">Compétition</p>
+      <div class="tournament-header-copy">
+        <p class="eyebrow">Compétition en cours</p>
         <h2>${title} ${renderHumanRoundBadge()}</h2>
-        <span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · Intelligence ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentBonusSummary()}` : ""}</span>
+        <div class="tournament-meta-row"><span class="difficulty-reminder">LEAGUE · ${Number(state.tournament.targetSets || 2)} sets gagnants · 2 groupes de 4${state.tournament.aiClubHouse ? ` · IA ${tournamentDifficultyLabel(state.tournament.difficulty)} · ${tournamentBonusSummary()}` : ""}</span></div>
       </div>
       <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
         ${state.tournament.visible ? "Masquer le tableau" : "Afficher le tableau"}
@@ -13561,25 +13595,35 @@ function renderRallyState() {
   if (state.mandatoryPlacement && last) activeConstraints.push(`placement ${last.precision}+ obligatoire (${state.mandatoryPlacementReason === "smash" ? "Smash" : "Boost"})`);
   if (active.limitedFamilies) activeConstraints.push(`type: ${active.limitedFamilies.join(" / ")}`);
   if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
-  const lines = [
-    `<div><strong>Tour :</strong> ${state.gameOver ? "terminé" : escapeHtml(displayPlayerName(active))}</div>`,
-    `<div><strong>Serveur :</strong> ${playerName(state.server)}</div>`,
-    `<div><strong>Dernier coup :</strong> ${last ? `${last.name}${last.boosted ? " BOOST" : ""} · précision ${last.precision}` : "aucun"}</div>`,
-    `<div class="${activeConstraints.length ? "constraint-line" : ""}"><strong>Contrainte :</strong> ${activeConstraints.length ? activeConstraints.join(" · ") : "placement insuffisant autorisé"}</div>`,
-    `<div><strong>Boost :</strong> ${state.boostAvailableFor == null ? "fermé" : `ouvert pour ${playerName(state.boostAvailableFor)}`}</div>`,
-    `<div><strong>Placement préparé :</strong> ${active.power != null ? turnEndPlacement(state.activePlayer) : 0}</div>`,
-  ];
-  els.rallyState.innerHTML = lines.join("");
+  const preparedPlacement = active.power != null ? turnEndPlacement(state.activePlayer) : 0;
+  if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
+  if (els.rallyStatusBadge) {
+    els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
+    els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? "completed" : "live"}`;
+  }
+  const contextualNotices = [
+    activeConstraints.length ? `<div class="rally-context-line constraint"><strong>Contrainte</strong><span>${escapeHtml(activeConstraints.join(" · "))}</span></div>` : "",
+    state.boostAvailableFor == null ? "" : `<div class="rally-context-line boost"><strong>BOOST disponible</strong><span>${escapeHtml(playerName(state.boostAvailableFor))} peut répondre en BOOST.</span></div>`,
+  ].filter(Boolean).join("");
+  els.rallyState.innerHTML = `
+    <div class="rally-info-grid">
+      <div class="rally-info-chip primary"><span>Tour</span><strong>${state.gameOver ? "Terminé" : escapeHtml(displayPlayerName(active))}</strong></div>
+      <div class="rally-info-chip"><span>Serveur</span><strong>${escapeHtml(playerName(state.server))}</strong></div>
+      <div class="rally-info-chip"><span>Dernier coup</span><strong>${last ? `${escapeHtml(last.name)}${last.boosted ? " · BOOST" : ""}` : "Aucun"}</strong>${last ? `<small>Précision ${last.precision}</small>` : ""}</div>
+      <div class="rally-info-chip"><span>Placement préparé</span><strong>${preparedPlacement}</strong></div>
+    </div>
+    ${contextualNotices ? `<div class="rally-context-list">${contextualNotices}</div>` : ""}
+  `;
 }
 
 function renderEffectNotice() {
   if (!state.effectNotice) {
-    els.effectNotice.className = "effect-notice muted";
-    els.effectNotice.innerHTML = "<strong>Effet</strong>Aucun effet résolu pour le moment.";
+    els.effectNotice.className = "effect-notice muted hidden";
+    els.effectNotice.innerHTML = "";
     return;
   }
   els.effectNotice.className = "effect-notice";
-  els.effectNotice.innerHTML = `<strong>Effet ${state.effectNotice.status} · ${state.effectNotice.cardName}</strong>${state.effectNotice.message}`;
+  els.effectNotice.innerHTML = `<span class="effect-notice-kicker">Effet ${escapeHtml(state.effectNotice.status)}</span><strong>${escapeHtml(state.effectNotice.cardName)}</strong><p>${escapeHtml(state.effectNotice.message)}</p>`;
 }
 
 function renderCardVisualOnly(card, className = "") {
@@ -14088,8 +14132,84 @@ function formatLogLine(line) {
     .replace(/\[\[tc-effect-rose:([^\]]+)\]\]/g, '<strong class="log-effect-rose">$1</strong>');
 }
 
+function actionLogEntryType(line) {
+  const normalized = String(line || "").toLowerCase();
+  if (/gagne|score final|score du set|score du match|échange s'arrête|échange terminé|match terminé/.test(normalized)) return "result";
+  if (/boost/.test(normalized)) return "boost";
+  if (/ joue |joue /.test(normalized)) return "shot";
+  if (/effet|active|défausse|pioche|récupère|retourne sa carte|bonus/.test(normalized)) return "effect";
+  if (/contrainte|impossible|ne peut pas|insuffisant/.test(normalized)) return "warning";
+  return "system";
+}
+
+function actionLogEntryLabel(type) {
+  return {
+    result: "Résultat",
+    boost: "BOOST",
+    shot: "Coup joué",
+    effect: "Effet",
+    warning: "Attention",
+    system: "Information",
+  }[type] || "Information";
+}
+
+function renderActionLogEntry(line, index, compact = false) {
+  const type = actionLogEntryType(line);
+  const shot = String(line || "").match(/^(.+?) joue (.+?) : (.+)$/);
+  const content = shot
+    ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
+    : `<p>${formatLogLine(line)}</p>`;
+  return `
+    <article class="action-log-entry ${type}${compact ? " compact" : ""}">
+      <div class="action-log-marker" aria-hidden="true"></div>
+      <div class="action-log-entry-copy">
+        <span class="action-log-type">${actionLogEntryLabel(type)}</span>
+        ${content}
+      </div>
+      <span class="action-log-order" aria-label="Action ${index + 1}">${index + 1}</span>
+    </article>
+  `;
+}
+
 function renderLog() {
-  els.log.innerHTML = state.log.slice(0, 14).map((line) => `<p>${formatLogLine(line)}</p>`).join("");
+  const recentEntries = state.log.slice(0, 4);
+  els.log.innerHTML = `
+    <div class="action-log-header">
+      <div><span>Déroulé de l’échange</span><strong>Dernières actions</strong></div>
+      <small>${state.log.length} événement${state.log.length > 1 ? "s" : ""}</small>
+    </div>
+    <div class="action-log-list">
+      ${recentEntries.length ? recentEntries.map((line, index) => renderActionLogEntry(line, index, true)).join("") : '<p class="action-log-empty">L’échange va commencer.</p>'}
+    </div>
+    ${state.log.length > recentEntries.length ? '<button class="action-log-open-button" type="button" data-open-full-action-log>Voir tout le déroulé</button>' : ""}
+  `;
+  els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
+}
+
+function closeFullActionLogDialog() {
+  document.querySelector(".action-log-backdrop")?.remove();
+}
+
+function openFullActionLogDialog() {
+  closeFullActionLogDialog();
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop action-log-backdrop";
+  backdrop.innerHTML = `
+    <section class="action-log-dialog" role="dialog" aria-modal="true" aria-labelledby="actionLogDialogTitle">
+      <header>
+        <div><p class="label">Historique complet</p><h2 id="actionLogDialogTitle">Déroulé de l’échange</h2></div>
+        <button class="small-button" type="button" data-close-action-log>Fermer</button>
+      </header>
+      <div class="action-log-dialog-list">
+        ${state.log.length ? state.log.map((line, index) => renderActionLogEntry(line, index)).join("") : '<p class="action-log-empty">Aucune action enregistrée.</p>'}
+      </div>
+    </section>
+  `;
+  backdrop.querySelector("[data-close-action-log]")?.addEventListener("click", closeFullActionLogDialog);
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) closeFullActionLogDialog();
+  });
+  document.body.appendChild(backdrop);
 }
 
 function renderBoostModal() {
@@ -14505,10 +14625,24 @@ els.friendlyLobbyHomeButton?.addEventListener("click", () => showLobbySection("o
 els.friendlyLobbyDirectHomeButton?.addEventListener("click", showMenuScreen);
 els.friendlyLobbyLogoButton?.addEventListener("click", showMenuScreen);
 els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
-els.adminSimulateScoreButton?.addEventListener("click", simulateAdminMatchScore);
-els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
-els.exportLogsButton?.addEventListener("click", exportLogsFile);
-els.exportHumanMatchesButton?.addEventListener("click", exportHumanMatchLogsFile);
+els.adminGameToolsButton?.addEventListener("click", () => {
+  setAdminGameToolsOpen(els.adminGameToolsPanel?.classList.contains("hidden"));
+});
+els.adminSimulateScoreButton?.addEventListener("click", () => runAdminGameTool(simulateAdminMatchScore));
+els.revealAiButton?.addEventListener("click", () => runAdminGameTool(toggleRevealAiCards));
+els.exportLogsButton?.addEventListener("click", () => runAdminGameTool(exportLogsFile));
+els.exportHumanMatchesButton?.addEventListener("click", () => runAdminGameTool(exportHumanMatchLogsFile));
+document.addEventListener("click", (event) => {
+  if (els.adminGameToolsPanel?.classList.contains("hidden")) return;
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target?.closest("#adminGameTools")) setAdminGameToolsOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    setAdminGameToolsOpen(false);
+    closeFullActionLogDialog();
+  }
+});
 document.addEventListener("click", (event) => {
   if (SPECTATOR_MODE.enabled) return;
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;

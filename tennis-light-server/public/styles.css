@@ -6880,3 +6880,222 @@ h1 {
   .ranking-head,
   .ranking-row { grid-template-columns: 78px minmax(150px, 1fr) 84px 84px 84px; }
 }
+
+/* Game information HUD ------------------------------------------------ */
+.admin-game-tools {
+  position: relative;
+  z-index: 80;
+}
+
+.admin-game-tools-button {
+  border-color: rgba(233, 255, 112, .55);
+  color: #e9ff70;
+  background: rgba(6, 45, 62, .88);
+}
+
+.admin-game-tools-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: min(290px, calc(100vw - 32px));
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(5, 31, 48, .98);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, .36);
+  backdrop-filter: blur(16px);
+}
+
+.admin-game-tools-panel.hidden { display: none; }
+.admin-game-tools-panel > p { margin: 0 0 2px; color: #8ce0bf; font-size: .68rem; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.admin-game-tools-panel .small-button { width: 100%; justify-content: flex-start; text-align: left; }
+.admin-game-tools-panel .reveal-button { color: #581c45; background: #f8d7e5; }
+.admin-game-tools-panel .reveal-button.active { color: #fff; background: #8a2d58; }
+
+.scoreboard { grid-template-columns: minmax(280px, 960px); margin-bottom: 14px; }
+.rally-card {
+  overflow: hidden;
+  border: 1px solid rgba(140, 224, 191, .24);
+  border-radius: 16px;
+  padding: 0;
+  color: #fff;
+  background: linear-gradient(125deg, rgba(6, 43, 61, .96), rgba(8, 83, 78, .9));
+  box-shadow: 0 16px 38px rgba(2, 18, 32, .24);
+  backdrop-filter: blur(14px);
+}
+
+.rally-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  padding: 14px 16px 12px;
+}
+
+.rally-card-header .label { margin: 0 0 2px; color: #8ce0bf; font-size: .62rem; }
+.rally-card-header > div > strong { color: #fff; font-size: 1rem; }
+.rally-status-badge { display: inline-flex; align-items: center; min-height: 30px; border-radius: 999px; padding: 6px 11px; font-size: .68rem; font-weight: 950; text-transform: uppercase; }
+.rally-status-badge.live { color: #06372a; background: #8ce0bf; }
+.rally-status-badge.completed { color: #3b2a00; background: #f2c84b; }
+
+.rally-state { gap: 0; color: #fff; font-size: .84rem; }
+.rally-info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rally-info-chip { display: grid; align-content: center; min-width: 0; min-height: 68px; border-right: 1px solid rgba(255, 255, 255, .1); padding: 11px 16px; }
+.rally-info-chip:last-child { border-right: 0; }
+.rally-info-chip.primary { background: rgba(140, 224, 191, .08); }
+.rally-info-chip span { color: rgba(255, 255, 255, .58); font-size: .58rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.rally-info-chip strong { min-width: 0; overflow: hidden; color: #fff; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+.rally-info-chip small { margin-top: 1px; color: #8ce0bf; font-size: .62rem; font-weight: 850; }
+.rally-context-list { display: grid; gap: 7px; border-top: 1px solid rgba(255, 255, 255, .1); padding: 10px 12px 12px; }
+.rally-context-line { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; align-items: center; border-radius: 9px; padding: 8px 10px; }
+.rally-context-line strong { font-size: .65rem; text-transform: uppercase; }
+.rally-context-line span { min-width: 0; font-weight: 800; }
+.rally-context-line.constraint { color: #ffd9d2; background: rgba(163, 31, 31, .42); }
+.rally-context-line.boost { color: #3b2a00; background: #f2c84b; }
+
+.effect-notice {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 0 12px 12px;
+  border: 1px solid rgba(199, 163, 255, .4);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #f7efff;
+  background: rgba(89, 47, 135, .42);
+  font-size: .8rem;
+}
+.effect-notice.hidden { display: none; }
+.effect-notice-kicker { grid-row: 1 / 3; align-self: center; border-radius: 999px; padding: 5px 8px; color: #3b1769; background: #d9c2ff; font-size: .58rem; font-weight: 950; text-transform: uppercase; }
+.effect-notice strong { margin: 0; color: #fff; text-transform: none; }
+.effect-notice p { margin: 0; color: rgba(255, 255, 255, .76); }
+
+.result-panel {
+  overflow: hidden;
+  border: 1px solid rgba(140, 224, 191, .28);
+  border-radius: 16px;
+  padding: clamp(18px, 3vw, 28px);
+  color: #17384a;
+  background: rgba(248, 251, 249, .94);
+  box-shadow: 0 18px 44px rgba(2, 18, 32, .24);
+  backdrop-filter: blur(14px);
+}
+.result-banner-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 22px; align-items: center; }
+.result-banner-heading .eyebrow { margin: 0 0 4px; color: #27836b; }
+.result-panel .winner-dialog { display: block; margin: 0; border: 0; padding: 0; color: #12394d; background: transparent; font-size: clamp(1.5rem, 3vw, 2.3rem); line-height: 1.05; }
+.result-condition { margin: 6px 0 0; color: #55707f; font-size: .8rem; font-weight: 900; text-transform: uppercase; }
+.result-power-score { display: grid; grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr); gap: 12px; align-items: center; border-radius: 13px; padding: 10px 14px; color: #fff; background: linear-gradient(120deg, #083b53, #087162); }
+.result-power-score span { display: grid; justify-items: center; }
+.result-power-score small { max-width: 110px; overflow: hidden; color: rgba(255,255,255,.64); font-size: .58rem; font-weight: 900; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.result-power-score strong { font-size: 1.8rem; line-height: 1; }
+.result-power-score i { color: #8ce0bf; font-style: normal; font-weight: 950; }
+.result-reason { margin: 18px 0 14px; border-left: 4px solid #27836b; padding: 7px 0 7px 12px; color: #405c6c; line-height: 1.45; }
+.result-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.result-detail-grid article { display: grid; gap: 3px; border: 1px solid rgba(21, 72, 91, .1); border-radius: 11px; padding: 11px 12px; background: #fff; }
+.result-detail-grid article.has-bonus { border-color: rgba(223, 159, 39, .3); background: #fff8e9; }
+.result-detail-grid span { color: #718391; font-size: .6rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.result-detail-grid strong { color: #16394b; font-size: .84rem; }
+.result-detail-grid small { color: #7b6840; font-weight: 800; }
+.result-panel .set-score-box { margin-top: 10px; border-radius: 11px; padding: 11px 12px; background: rgba(229, 241, 237, .7); }
+.result-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.result-actions .next-exchange-button,
+.result-actions .replay-match-button { margin: 0; }
+
+.tournament-panel { border-radius: 16px; padding: 18px; background: linear-gradient(125deg, rgba(6, 38, 59, .96), rgba(20, 42, 76, .94)); }
+.tournament-header { align-items: flex-start; border-bottom: 1px solid rgba(255,255,255,.11); padding-bottom: 14px; }
+.tournament-header-copy { display: grid; gap: 6px; min-width: 0; }
+.tournament-header-copy .eyebrow { margin: 0; color: #8ce0bf; }
+.tournament-header h2 { font-size: clamp(1.15rem, 2.3vw, 1.55rem); text-transform: none; }
+.tournament-meta-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tournament-meta-row .difficulty-reminder { margin: 0; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; background: rgba(255,255,255,.09); }
+.tournament-meta-row .tournament-location-reminder { color: #d8eff8; }
+.tournament-meta-row .weekly-points-reminder { border-color: rgba(242,200,75,.42); color: #3b2a00; background: #f2c84b; }
+.tournament-toggle-button { color: #083349; background: #e9ff70; }
+.tournament-match,
+.tournament-champion { border-radius: 11px; background: rgba(255,255,255,.075); }
+.tournament-player-row { border-radius: 8px; }
+
+.center-lane .log {
+  display: grid;
+  align-self: end;
+  gap: 8px;
+  width: calc(100% - 18px);
+  max-height: 360px;
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 12px;
+  padding: 9px;
+  color: #fff;
+  background: rgba(4, 32, 48, .94);
+  box-shadow: 0 12px 28px rgba(2, 18, 32, .22);
+}
+.action-log-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; border-bottom: 1px solid rgba(255,255,255,.1); padding: 2px 2px 8px; }
+.action-log-header > div { display: grid; }
+.action-log-header span { color: #8ce0bf; font-size: .51rem; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; }
+.action-log-header strong { font-size: .72rem; }
+.action-log-header small { color: rgba(255,255,255,.48); font-size: .52rem; font-weight: 850; }
+.action-log-list { display: grid; gap: 6px; }
+.action-log-entry { position: relative; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: start; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; padding: 9px; color: #17384a; background: #f7faf8; }
+.action-log-entry.compact { grid-template-columns: 7px minmax(0, 1fr); gap: 6px; padding: 7px; }
+.action-log-marker { width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: #78909c; box-shadow: 0 0 0 3px rgba(120,144,156,.13); }
+.action-log-entry.shot .action-log-marker { background: #158b78; box-shadow: 0 0 0 3px rgba(21,139,120,.13); }
+.action-log-entry.effect .action-log-marker { background: #8756bd; box-shadow: 0 0 0 3px rgba(135,86,189,.13); }
+.action-log-entry.boost .action-log-marker { background: #e2af23; box-shadow: 0 0 0 3px rgba(226,175,35,.16); }
+.action-log-entry.warning .action-log-marker { background: #c63e38; box-shadow: 0 0 0 3px rgba(198,62,56,.13); }
+.action-log-entry.result .action-log-marker { background: #238855; box-shadow: 0 0 0 3px rgba(35,136,85,.13); }
+.action-log-entry-copy { display: grid; min-width: 0; gap: 2px; }
+.action-log-type { color: #70818d; font-size: .5rem; font-weight: 950; letter-spacing: .05em; text-transform: uppercase; }
+.action-log-player { overflow: hidden; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.action-log-action { color: #1d7663; font-size: .66rem; font-weight: 900; }
+.action-log-entry p { margin: 0; color: #425d6c; font-size: .63rem; line-height: 1.3; }
+.action-log-order { min-width: 20px; color: #98a6ae; font-size: .55rem; font-weight: 900; text-align: right; }
+.action-log-entry.compact .action-log-order { display: none; }
+.action-log-open-button { min-height: 32px; border: 1px solid rgba(140,224,191,.28); border-radius: 8px; color: #8ce0bf; background: rgba(140,224,191,.08); font-size: .6rem; font-weight: 950; cursor: pointer; }
+.action-log-open-button:hover { color: #062e2b; background: #8ce0bf; }
+.action-log-empty { margin: 0; padding: 10px; color: rgba(255,255,255,.58); font-size: .68rem; text-align: center; }
+
+.action-log-backdrop { z-index: 260; padding: 24px; }
+.action-log-dialog { display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(760px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: hidden; border: 1px solid rgba(140,224,191,.22); border-radius: 18px; color: #fff; background: #062d42; box-shadow: 0 28px 80px rgba(0,0,0,.46); }
+.action-log-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgba(255,255,255,.1); padding: 18px 20px; }
+.action-log-dialog .label { margin: 0; color: #8ce0bf; }
+.action-log-dialog h2 { margin: 3px 0 0; color: #fff; }
+.action-log-dialog-list { display: grid; gap: 8px; overflow: auto; padding: 14px; }
+.action-log-dialog .action-log-entry { grid-template-columns: 12px minmax(0, 1fr) 34px; padding: 11px 13px; }
+.action-log-dialog .action-log-type { font-size: .58rem; }
+.action-log-dialog .action-log-player { font-size: .84rem; }
+.action-log-dialog .action-log-action { font-size: .76rem; }
+.action-log-dialog .action-log-entry p { font-size: .76rem; }
+
+@media (max-width: 1100px) {
+  .rally-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rally-info-chip:nth-child(2) { border-right: 0; }
+  .rally-info-chip:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.1); }
+  .center-lane .log { width: 100%; max-height: 310px; }
+  .action-log-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .action-log-open-button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 700px) {
+  .admin-game-tools { position: static; }
+  .admin-game-tools-panel { position: fixed; top: 82px; right: 14px; }
+  .rally-card-header { align-items: flex-start; }
+  .rally-status-badge { max-width: 55%; text-align: center; }
+  .rally-info-grid { grid-template-columns: 1fr; }
+  .rally-info-chip,
+  .rally-info-chip:nth-child(2) { min-height: 56px; border-right: 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .rally-info-chip:last-child { border-bottom: 0; }
+  .rally-context-line { grid-template-columns: 1fr; gap: 2px; }
+  .effect-notice { grid-template-columns: 1fr; }
+  .effect-notice-kicker { grid-row: auto; justify-self: start; }
+  .result-banner-heading { grid-template-columns: 1fr; }
+  .result-power-score { width: 100%; }
+  .result-detail-grid { grid-template-columns: 1fr; }
+  .tournament-header { align-items: stretch; flex-direction: column; }
+  .tournament-toggle-button { width: 100%; }
+  .action-log-list { grid-template-columns: 1fr; }
+  .action-log-backdrop { padding: 10px; }
+  .action-log-dialog { max-height: calc(100vh - 20px); }
+  .action-log-dialog > header { padding: 14px; }
+}
