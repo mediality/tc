@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=170.1" />
+    <link rel="stylesheet" href="./styles.css?v=170.3" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -738,7 +738,10 @@
         <article class="rally-card">
           <header class="rally-card-header">
             <div><p class="label">État de l’échange</p><strong id="rallyPhaseLabel">Échange en cours</strong></div>
-            <span id="rallyStatusBadge" class="rally-status-badge">À jouer</span>
+            <div class="rally-card-actions">
+              <span id="rallyStatusBadge" class="rally-status-badge">À jouer</span>
+              <button id="rallyFullLogButton" class="rally-full-log-button" type="button">Déroulé complet</button>
+            </div>
           </header>
           <div id="rallyState" class="rally-state"></div>
           <div id="effectNotice" class="effect-notice"></div>
@@ -765,6 +768,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=170.1"></script>
+    <script src="./app.js?v=170.3"></script>
   </body>
 </html>

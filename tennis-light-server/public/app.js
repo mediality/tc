@@ -1218,6 +1218,7 @@ let tutorialAutoTimer = null;
 let opponentHandRevealTimer = null;
 let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
+let confrontationIntroSequenceTimers = [];
 
 const state = {
   players: [],
@@ -1433,6 +1434,7 @@ const els = {
   player2Summary: document.querySelector("#player2Summary"),
   rallyPhaseLabel: document.querySelector("#rallyPhaseLabel"),
   rallyStatusBadge: document.querySelector("#rallyStatusBadge"),
+  rallyFullLogButton: document.querySelector("#rallyFullLogButton"),
   rallyState: document.querySelector("#rallyState"),
   effectNotice: document.querySelector("#effectNotice"),
   centerPlayedCard: document.querySelector("#previousTurnCards"),
@@ -6694,6 +6696,8 @@ function currentOpponentConfrontationStatus() {
 function closeConfrontationIntro() {
   window.clearInterval(confrontationIntroTimer);
   confrontationIntroTimer = null;
+  confrontationIntroSequenceTimers.forEach((timer) => window.clearTimeout(timer));
+  confrontationIntroSequenceTimers = [];
   confrontationIntroActive = false;
   document.querySelector(".confrontation-intro-backdrop")?.remove();
   maybeRunSoloAI();
@@ -6710,15 +6714,24 @@ function confrontationPlayerCardMarkup(player, playerIndex) {
     ? player?.nickname || (playerIndex === 0 ? state.tournament?.humanNickname : null) || AUTH_STATE.user?.nickname || player?.name
     : player?.name;
   return `
-    <article class="confrontation-intro-player">
+    <article class="confrontation-intro-player confrontation-sequence-item" data-confrontation-stage>
       <img src="${escapeHtml(image)}" alt="${escapeHtml(player?.name || "Joueur")}" />
       <div class="confrontation-player-name">
         <strong>${escapeHtml(participantName || "Joueur")}</strong>
         ${aiIntelligenceBadgeMarkup(tournamentEntry)}
       </div>
-      <span class="confrontation-player-rank">${escapeHtml(frenchOrdinalRank(rank))}</span>
+      <span class="confrontation-player-rank confrontation-sequence-item" data-confrontation-stage>${escapeHtml(frenchOrdinalRank(rank))}</span>
     </article>
   `;
+}
+
+function confrontationEventTypeLabel() {
+  if (state.tournament.weekly) return "Circuit Pro";
+  if (state.tournament.friendly && state.tournament.league) return "League amicale";
+  if (state.tournament.friendly) return "Tournoi amical";
+  if (state.tournament.league) return "League";
+  if (state.tournament.active) return "Tournoi Classic";
+  return "Match amical";
 }
 
 function showConfrontationIntro() {
@@ -6728,41 +6741,66 @@ function showConfrontationIntro() {
   }
   document.querySelector(".confrontation-intro-backdrop")?.remove();
   window.clearInterval(confrontationIntroTimer);
+  confrontationIntroSequenceTimers.forEach((timer) => window.clearTimeout(timer));
+  confrontationIntroSequenceTimers = [];
+  confrontationIntroTimer = null;
   confrontationIntroActive = true;
-  const circuitHeader = state.tournament.weekly
-    ? `<p class="confrontation-intro-tournament">${escapeHtml(state.tournament.competitionName || "Tournoi")} · ${escapeHtml(state.tournament.competitionCity || "")} ${escapeHtml(state.tournament.competitionFlag || "")}</p>`
+  const eventType = confrontationEventTypeLabel();
+  const eventName = state.tournament.active ? state.tournament.competitionName || eventType : "Rencontre amicale";
+  const location = state.tournament.weekly
+    ? [state.tournament.competitionCity, state.tournament.competitionCountry, state.tournament.competitionFlag].filter(Boolean).join(" · ")
     : "";
-  const confrontationType = state.tournament.active ? humanTournamentRoundLabel() || "Tournoi" : "Match amical";
-  const status = currentOpponentConfrontationStatus();
+  const roundLabel = state.tournament.active ? humanTournamentRoundLabel() || tournamentStageLabel() : state.setMatch.enabled ? "Match" : "Échange";
   const backdrop = document.createElement("div");
   backdrop.className = "confrontation-intro-backdrop";
   backdrop.innerHTML = `
     <section class="confrontation-intro" role="dialog" aria-modal="true" aria-label="Présentation de la confrontation">
-      ${circuitHeader}
-      <p class="confrontation-intro-type">${escapeHtml(confrontationType)}</p>
+      <div class="confrontation-event-glow" aria-hidden="true"></div>
+      <header class="confrontation-intro-event ${location ? "has-location" : "no-location"}">
+        <p class="confrontation-intro-type confrontation-sequence-item" data-confrontation-stage><span>Événement</span><strong>${escapeHtml(eventType)}</strong><small>${escapeHtml(eventName)}</small></p>
+        ${location ? `<p class="confrontation-intro-location confrontation-sequence-item" data-confrontation-stage><span>Lieu</span><strong>${escapeHtml(location)}</strong></p>` : ""}
+        <p class="confrontation-intro-round confrontation-sequence-item" data-confrontation-stage><span>Tour</span><strong>${escapeHtml(roundLabel)}</strong></p>
+      </header>
       <div class="confrontation-intro-versus">
         ${confrontationPlayerCardMarkup(state.players[0], 0)}
-        <div class="confrontation-intro-countdown" aria-live="polite">
-          <strong data-confrontation-countdown>5</strong>
-          <span>secondes</span>
-        </div>
+        <div class="confrontation-versus-mark" aria-hidden="true"><span>VS</span></div>
         ${confrontationPlayerCardMarkup(state.players[1], 1)}
       </div>
-      ${status ? `<p class="confrontation-intro-rivalry ${escapeHtml(status.className)}">${escapeHtml(status.label)}</p>` : ""}
+      <div class="confrontation-countdown-shell" data-confrontation-countdown-shell aria-hidden="true">
+        <div class="confrontation-intro-countdown" aria-live="polite">
+          <strong data-confrontation-countdown>5</strong>
+          <span>Départ dans</span>
+        </div>
+        <button class="primary-button confrontation-start-button" type="button" data-start-confrontation>Démarrer</button>
+      </div>
     </section>
   `;
   document.body.append(backdrop);
-  const expiresAt = Date.now() + 5_000;
-  confrontationIntroTimer = window.setInterval(() => {
-    const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-    const countdown = backdrop.querySelector("[data-confrontation-countdown]");
-    if (countdown) countdown.textContent = String(remaining);
-    if (remaining <= 0) closeConfrontationIntro();
-  }, 100);
+  backdrop.querySelector("[data-start-confrontation]")?.addEventListener("click", closeConfrontationIntro);
+  const sequenceItems = [...backdrop.querySelectorAll("[data-confrontation-stage]")];
+  const sequenceDuration = 3_000;
+  sequenceItems.forEach((item, index) => {
+    const delay = sequenceItems.length <= 1 ? 0 : Math.round((index / sequenceItems.length) * 2_800);
+    confrontationIntroSequenceTimers.push(window.setTimeout(() => item.classList.add("revealed"), delay));
+  });
+  confrontationIntroSequenceTimers.push(window.setTimeout(() => {
+    const countdownShell = backdrop.querySelector("[data-confrontation-countdown-shell]");
+    countdownShell?.classList.add("revealed");
+    countdownShell?.setAttribute("aria-hidden", "false");
+    const expiresAt = Date.now() + 5_000;
+    confrontationIntroTimer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      const countdown = backdrop.querySelector("[data-confrontation-countdown]");
+      if (countdown) countdown.textContent = String(remaining);
+      if (remaining <= 0) closeConfrontationIntro();
+    }, 100);
+  }, sequenceDuration));
 }
 
 function queueConfrontationIntro() {
   window.clearInterval(confrontationIntroTimer);
+  confrontationIntroSequenceTimers.forEach((timer) => window.clearTimeout(timer));
+  confrontationIntroSequenceTimers = [];
   if (state.tutorial.active || !state.players?.[0] || !state.players?.[1]) {
     confrontationIntroActive = false;
     return;
@@ -12858,7 +12896,6 @@ function renderResultPanel() {
         <span class="result-outcome-badge"><i aria-hidden="true"></i>${outcomeShortLabel}<small>${escapeHtml(conditionLabel)}</small></span>
       </div>
       <div class="result-score-summary">
-        ${renderCompactMatchScore(setMatch)}
         <div class="result-power-score" aria-label="Score de puissance final">
           <small>Puissance de l’échange</small>
           <strong>${state.players[winnerIndex]?.power ?? 0}<i>–</i>${state.players[loserIndex]?.power ?? 0}</strong>
@@ -12867,6 +12904,7 @@ function renderResultPanel() {
     </div>
     <p class="result-reason">${escapeHtml(state.resultInfo.reason)}</p>
     ${endBonusDetails.length ? `<div class="result-bonus-list" aria-label="Bonus de fin d’échange">${endBonusDetails.map((bonus) => `<span><strong>+${bonus.points}</strong> ${escapeHtml(playerName(bonus.playerIndex))} · ${escapeHtml(bonus.label)}</span>`).join("")}</div>` : ""}
+    ${renderCompactMatchScore(setMatch)}
     <div class="result-actions">
       ${renderProgressionButtons()}
       ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>` : ""}
@@ -13261,6 +13299,30 @@ function renderHumanRoundBadge() {
   return `<span class="surface-round-badge ${tournamentSurfaceBadgeClass()}">${label}</span>`;
 }
 
+function renderTournamentChampion(champion, final) {
+  const championName = champion ? tournamentPlayerLabel(champion) : "À déterminer";
+  const characterId = champion ? tournamentEntryCharacterId(champion) : null;
+  const winImage = characterId ? MATCH_RESULT_IMAGES[characterId]?.win : null;
+  return `
+    <div class="tournament-champion ${champion ? "is-crowned" : ""}">
+      <span class="tournament-round-label">Vainqueur</span>
+      <div class="tournament-champion-visual">
+        ${winImage ? `<img class="tournament-champion-portrait" src="${escapeHtml(winImage)}" alt="Version victoire de ${escapeHtml(championName)}" />` : ""}
+        <span class="tournament-champion-crown"><img src="${CROWN_IMAGE}" alt="Couronne du vainqueur" /></span>
+      </div>
+      <strong>${escapeHtml(championName)}</strong>
+      ${final?.score ? `<div class="tournament-score">${escapeHtml(final.score)}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderTournamentSetScores(scoreText, isLive = false) {
+  const cleanScore = String(scoreText || "").replace(/\s*·\s*EN DIRECT\s*$/i, "").trim();
+  if (!cleanScore) return "";
+  const setScores = cleanScore.split(/\s+-\s+/).filter(Boolean);
+  return `<div class="tournament-score tournament-set-scores ${isLive ? "live" : ""}" aria-label="${isLive ? "Score en direct" : "Score final"}">${setScores.map((score) => `<span>${escapeHtml(score.replace("/", "–"))}</span>`).join("")}</div>`;
+}
+
 function renderTournamentPanel() {
   if (!els.tournamentPanel) return;
   if (!state.tournament.active) {
@@ -13329,12 +13391,7 @@ function renderTournamentPanel() {
         <span class="tournament-round-label tournament-column-title">Finale</span>
         ${renderTournamentMatch(final, true)}
       </div>
-      <div class="tournament-champion">
-        <span class="tournament-round-label">Vainqueur</span>
-        <div class="tournament-trophy"><img src="${CROWN_IMAGE}" alt="Couronne du vainqueur" /></div>
-        <strong>${champion ? tournamentPlayerLabel(champion) : "À déterminer"}</strong>
-        ${final?.score ? `<div class="tournament-score">${final.score}</div>` : ""}
-      </div>
+      ${renderTournamentChampion(champion, final)}
     </div>
   `;
   els.tournamentPanel.classList.remove("hidden");
@@ -13431,12 +13488,7 @@ function renderLeagueTournamentPanel(title, final, champion) {
           <span class="tournament-round-label tournament-column-title">Finale</span>
           ${renderTournamentMatch(final, true)}
         </div>
-        <div class="tournament-champion">
-          <span class="tournament-round-label">Vainqueur</span>
-          <div class="tournament-trophy"><img src="${CROWN_IMAGE}" alt="Couronne du vainqueur" /></div>
-          <strong>${champion ? tournamentPlayerLabel(champion) : "À déterminer"}</strong>
-          ${final?.score ? `<div class="tournament-score">${final.score}</div>` : ""}
-        </div>
+        ${renderTournamentChampion(champion, final)}
       </div>
     </div>
   `;
@@ -13475,13 +13527,14 @@ function renderTournamentMatch(match, isFinal = false) {
   const unknownLabel = isFinal ? "À déterminer" : match.round === "semi" ? "À déterminer" : "Qualifié à déterminer";
   const playerA = match.playerA ? tournamentPlayerLabel(match.playerA) : unknownLabel;
   const playerB = match.playerB ? tournamentPlayerLabel(match.playerB) : unknownLabel;
-  const scoreText = match.score || match.liveScore || "";
+  const scoreText = match.liveScore || match.score || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
   const playerAWon = Boolean(revealedWinner && revealedWinner === match.playerA);
   const playerBWon = Boolean(revealedWinner && revealedWinner === match.playerB);
   const isCurrent = state.tournament.currentMatch === match.id;
-  const statusLabel = isCurrent ? "En cours" : match.score ? "Terminé" : match.playerA && match.playerB ? "À jouer" : "À venir";
-  const statusClass = isCurrent ? "live" : match.score ? "complete" : "upcoming";
+  const isLive = !match.winner && Boolean(isCurrent || match.liveScore || match.score);
+  const statusLabel = isLive ? "En direct" : match.winner ? "Terminé" : match.playerA && match.playerB ? "À jouer" : "À venir";
+  const statusClass = isLive ? "live" : match.winner ? "complete" : "upcoming";
   return `
     <article class="tournament-match ${isCurrent ? "current" : ""} ${isFinal ? "final-match" : ""}">
       <header class="tournament-match-head">
@@ -13496,7 +13549,7 @@ function renderTournamentMatch(match, isFinal = false) {
         <span class="tournament-player-identity">${playerB}${tournamentSeedNumberMarkup(match.playerB)} ${aiIntelligenceBadgeMarkup(match.playerB)}</span>
         ${playerBWon ? "<strong>✓</strong>" : ""}
       </div>
-      ${scoreText ? `<div class="tournament-score">${scoreText}</div>` : ""}
+      ${renderTournamentSetScores(scoreText, isLive)}
     </article>
   `;
 }
@@ -14658,6 +14711,7 @@ els.adminSimulateScoreButton?.addEventListener("click", () => runAdminGameTool(s
 els.revealAiButton?.addEventListener("click", () => runAdminGameTool(toggleRevealAiCards));
 els.exportLogsButton?.addEventListener("click", () => runAdminGameTool(exportLogsFile));
 els.exportHumanMatchesButton?.addEventListener("click", () => runAdminGameTool(exportHumanMatchLogsFile));
+els.rallyFullLogButton?.addEventListener("click", openFullActionLogDialog);
 document.addEventListener("click", (event) => {
   if (els.adminGameToolsPanel?.classList.contains("hidden")) return;
   const target = event.target instanceof Element ? event.target : null;

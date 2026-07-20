@@ -39,6 +39,16 @@ assert.match(app, /queueConfrontationIntro\(\)/);
 assert.match(css, /\.confrontation-intro-backdrop/);
 assert.match(css, /background: rgba\(0, 0, 0, 0\.5\)/);
 
+const confrontationIntroSource = functionSource("showConfrontationIntro");
+assert.match(confrontationIntroSource, /const sequenceDuration = 3_000/);
+assert.match(confrontationIntroSource, /Date\.now\(\) \+ 5_000/);
+assert.match(confrontationIntroSource, /data-start-confrontation/);
+assert.match(confrontationIntroSource, /data-confrontation-countdown-shell/);
+assert.doesNotMatch(confrontationIntroSource, /currentOpponentConfrontationStatus/);
+assert.match(app, /function confrontationEventTypeLabel\(\)/);
+assert.match(css, /\.confrontation-sequence-item\.revealed/);
+assert.match(css, /\.confrontation-countdown-shell\.revealed/);
+
 assert.match(app, /state\.tournament\?\.humanNickname\s+\|\| AUTH_STATE\.user\?\.nickname/);
 assert.match(app, /createPlayer\(characterNameFromId\(humanCharacterId\), humanCharacterId, state\.tournament\?\.humanNickname \|\| nicknameValue\(\)\)/);
 assert.match(app, /async function saveProfileCharacter\(\)[\s\S]*?showProfileScreen\(\)/);
@@ -62,6 +72,8 @@ assert.match(css, /\.admin-simulate-score-button/);
 assert.match(css, /\.admin-game-tools-panel/);
 
 assert.match(html, /État de l’échange/);
+assert.match(html, /id="rallyFullLogButton"/);
+assert.match(app, /rallyFullLogButton\?\.addEventListener\("click", openFullActionLogDialog\)/);
 assert.match(app, /function renderActionLogEntry\(line, index, compact = false\)/);
 assert.match(app, /function openFullActionLogDialog\(\)/);
 assert.match(app, /rally-info-grid/);
@@ -74,12 +86,23 @@ assert.match(functionSource("renderLeagueStandingsTable"), /<span>Rang<\/span><s
 assert.match(app, /tournament-match-status/);
 assert.match(app, /character-hand-reminder/);
 assert.match(app, /opponent\?\.hand\?\.length/);
+assert.match(app, /function renderTournamentChampion\(champion, final\)/);
+assert.match(app, /MATCH_RESULT_IMAGES\[characterId\]\?\.win/);
+assert.match(app, /function renderTournamentSetScores\(scoreText, isLive = false\)/);
+assert.match(functionSource("renderTournamentMatch"), /const isLive = !match\.winner/);
 assert.match(css, /\.action-log-dialog/);
 assert.match(css, /\.result-power-score/);
 assert.match(css, /\.outcome-boost \.result-outcome-badge/);
 assert.match(css, /\.outcome-power \.result-outcome-badge/);
 assert.match(css, /\.character-hand-reminder/);
 assert.match(css, /\.hand-cards-icon/);
+assert.match(css, /\.tournament-match-status\.live::before/);
+assert.match(css, /tournament-live-pulse/);
+assert.match(css, /\.tournament-champion-portrait/);
+assert.match(css, /--game-card-radius: 7\.2% \/ 5\.2%/);
+
+const resultPanelSource = functionSource("renderResultPanel");
+assert.ok(resultPanelSource.indexOf("renderCompactMatchScore(setMatch)") > resultPanelSource.indexOf("result-bonus-list"));
 
 const simulationContext = {
   SERVER_SYNC: { enabled: false, isHost: false, seat: null },
