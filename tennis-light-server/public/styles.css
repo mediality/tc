@@ -6730,3 +6730,153 @@ h1 {
   .character-preview-copy h2 { font-size: 1.25rem; }
   .character-preview-copy .primary-button { padding-inline: 9px; font-size: .7rem; }
 }
+
+/* Navigation and interface refinements --------------------------------- */
+.global-player-dock {
+  position: fixed;
+  top: 94px;
+  right: max(18px, calc((100vw - 1160px) / 2));
+  z-index: 90;
+  max-width: min(250px, calc(100vw - 36px));
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 15px;
+  padding: 4px;
+  background: rgba(7, 35, 58, .9);
+  box-shadow: 0 12px 28px rgba(2, 16, 31, .26);
+  backdrop-filter: blur(14px);
+}
+.global-player-dock.docked { position: static; flex: 0 1 250px; margin-left: auto; }
+
+.global-player-profile {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  padding: 5px 10px 5px 5px;
+  color: #fff;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.global-player-profile:not(:disabled):hover { background: rgba(255,255,255,.1); }
+.global-player-profile:disabled { cursor: not-allowed; filter: grayscale(.8); opacity: .72; }
+.global-player-avatar { width: 38px; height: 38px; overflow: hidden; border: 2px solid #f2c84b; border-radius: 11px; background: #f2c84b; }
+.global-player-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 14%; transform: scale(1.35); transform-origin: 50% 18%; }
+.global-player-copy { display: grid; min-width: 0; gap: 1px; }
+.global-player-copy strong,
+.global-player-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.global-player-copy strong { font-size: .78rem; }
+.global-player-copy small { color: rgba(255,255,255,.62); font-size: .58rem; font-weight: 800; text-transform: uppercase; }
+.menu-screen .brand-logo[role="button"] { cursor: pointer; }
+.menu-screen .brand-logo[role="button"]:focus-visible { outline: 3px solid #e9ff70; outline-offset: 4px; border-radius: 8px; }
+
+.lobby-hero { aspect-ratio: 16 / 5.7; }
+.lobby-hero img { object-position: 50% 38%; }
+
+.home-news-section {
+  gap: 10px;
+  padding: 16px 18px;
+  color: #fff;
+  background: rgba(7, 35, 58, .76);
+  box-shadow: 0 10px 24px rgba(2, 16, 31, .17);
+  backdrop-filter: blur(10px);
+}
+.home-section-heading { align-items: center; }
+.home-section-heading .label { color: #8ce0bf; }
+.home-section-heading h2 { color: #fff; font-size: 1.28rem; }
+.home-news-live { color: rgba(255,255,255,.6); }
+.home-news-list { grid-template-columns: 1fr; }
+.home-news-card,
+.home-news-card:only-child,
+.home-news-featured:nth-last-child(3) {
+  grid-column: auto;
+  grid-template-columns: 120px minmax(0, 1fr);
+  min-height: 60px;
+  border-color: rgba(255,255,255,.11);
+  border-radius: 12px;
+  background: rgba(255,255,255,.08);
+  box-shadow: none;
+}
+.home-news-visual { width: 120px; height: 60px; align-self: center; border-radius: 9px; background: rgba(255,255,255,.1); }
+.home-news-visual img { width: 120px; height: 60px; min-height: 0; object-position: 50% 15%; transform: scale(1.16); transform-origin: 50% 18%; }
+.home-news-card:hover .home-news-visual img { transform: scale(1.2); }
+.home-news-copy { grid-template-columns: minmax(105px, auto) minmax(0, 1fr) auto; align-items: center; align-content: center; gap: 16px; padding: 9px 13px; }
+.home-news-copy time { color: #8ce0bf; white-space: nowrap; }
+.home-news-title { min-width: 0; overflow: hidden; border: 0; padding: 0; color: #fff; background: transparent; font: inherit; font-size: .9rem; font-weight: 900; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.home-news-title:hover { color: #e9ff70; }
+.home-news-read { color: #e9ff70; white-space: nowrap; }
+
+.lobby-shop-banner { display: block; min-height: 0; overflow: hidden; padding: 0; background: #0a354e; }
+.lobby-shop-banner > img { display: block; width: 100%; height: auto; max-height: none; object-fit: cover; }
+
+.training-page-hero > img { object-position: 67% 25%; }
+.solo-clubhouse-hero > img { object-position: 67% 24%; }
+.online-page-hero > img,
+.online-room-hero > img { object-position: 68% 27%; }
+
+.academy-foundations-card { margin-top: 34px !important; border: 1px solid rgba(15, 73, 88, .12) !important; border-radius: 17px; padding: clamp(24px, 4vw, 38px) !important; background: #fff; box-shadow: 0 8px 22px rgba(10, 42, 58, .07); }
+.academy-foundations-card h2 { margin: 4px 0 16px; color: #173b4e; font-size: clamp(1.4rem, 2.8vw, 2rem); letter-spacing: -.03em; }
+.academy-foundations-card > p:not(.label):not(.academy-info-highlight) { color: #526878; line-height: 1.65; }
+
+.circuit-goat-feature { display: grid; grid-template-columns: minmax(250px, .9fr) minmax(0, 1.1fr); align-items: stretch; margin: clamp(22px, 4vw, 44px); overflow: hidden; border-radius: 18px; color: #fff; background: linear-gradient(120deg, #092f47, #126d57); box-shadow: 0 12px 28px rgba(7, 45, 64, .15); }
+.circuit-goat-feature img { width: 100%; height: 100%; min-height: 280px; object-fit: cover; object-position: center 28%; }
+.circuit-goat-feature div { display: grid; align-content: center; gap: 8px; padding: clamp(24px, 4vw, 42px); }
+.circuit-goat-feature .label,
+.circuit-goat-feature h2,
+.circuit-goat-feature p { margin: 0; }
+.circuit-goat-feature .label { color: #8ce0bf; }
+.circuit-goat-feature h2 { color: #fff; font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: -.04em; }
+.circuit-goat-feature p { color: rgba(255,255,255,.76); line-height: 1.6; }
+
+.circuit-best-performance { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; min-width: 0; }
+.circuit-best-performance small { grid-column: 1 / -1; }
+.circuit-best-performance strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.circuit-best-performance em { color: #238655; font-size: .82rem; font-style: normal; font-weight: 950; white-space: nowrap; }
+
+.ranking-head,
+.ranking-row { grid-template-columns: minmax(78px, max-content) minmax(0, 1fr) 84px 84px 84px; }
+.ranking-position { min-width: 72px; overflow: visible; white-space: nowrap; }
+.ranking-position > strong { overflow: visible; text-overflow: clip; white-space: nowrap; }
+
+.profile-calendar-row.current-week { border-left: 5px solid #2186bb; box-shadow: inset 0 0 0 1px rgba(33, 134, 187, .2); }
+.profile-calendar-row.result-finalist { background: rgba(192, 199, 207, .26); }
+.profile-calendar-row.result-winner { background: rgba(250, 204, 21, .24); }
+.profile-calendar-row.current-week.result-finalist { background: linear-gradient(90deg, rgba(33,134,187,.08), rgba(192,199,207,.28)); }
+.profile-calendar-row.current-week.result-winner { background: linear-gradient(90deg, rgba(33,134,187,.08), rgba(250,204,21,.26)); }
+
+.online-room-format-section { padding-top: 24px; }
+.online-room-configuration { align-items: start; }
+.online-room-summary-card { top: 94px; }
+.online-room-summary-card .friendly-lobby-exit-button { width: 100%; }
+
+@media (max-width: 700px) {
+  .global-player-dock { top: 82px; right: 14px; max-width: 210px; }
+  .global-player-dock.docked { flex: 0 0 52px; max-width: 52px; margin-left: 0; }
+  .global-player-dock.docked .global-player-profile { grid-template-columns: 38px; padding-right: 5px; }
+  .global-player-dock.docked .global-player-copy { display: none; }
+  .global-player-copy small { display: none; }
+  .lobby-hero { aspect-ratio: 16 / 7.2; }
+  .lobby-hero img { object-position: 50% 35%; }
+  .home-news-copy { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+  .home-news-copy time { grid-column: 1; font-size: .58rem; }
+  .home-news-title { grid-column: 1; font-size: .76rem; }
+  .home-news-read { grid-column: 2; grid-row: 1 / 3; font-size: 0; }
+  .home-news-read span { font-size: 1.25rem; }
+  .home-news-card,
+  .home-news-card:only-child,
+  .home-news-featured:nth-last-child(3) { grid-template-columns: 100px minmax(0, 1fr); }
+  .home-news-visual,
+  .home-news-visual img { width: 100px; height: 60px; }
+  .training-page-hero > img { object-position: 70% 22%; }
+  .solo-clubhouse-hero > img { object-position: 70% 20%; }
+  .online-page-hero > img,
+  .online-room-hero > img { object-position: 70% 23%; }
+  .circuit-goat-feature { grid-template-columns: 1fr; }
+  .circuit-goat-feature img { min-height: 220px; max-height: 280px; }
+  .ranking-head,
+  .ranking-row { grid-template-columns: 78px minmax(150px, 1fr) 84px 84px 84px; }
+}

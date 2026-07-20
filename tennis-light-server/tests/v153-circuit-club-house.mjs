@@ -21,8 +21,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.7/);
-assert.match(html, /app\.js\?v=169\.7/);
+assert.match(html, /styles\.css\?v=169\.8/);
+assert.match(html, /app\.js\?v=169\.8/);
 
 function seedPermanentBonuses(randomValue) {
   const context = {
@@ -66,6 +66,8 @@ assert.match(functionSource("startAiClubHouseCompetition"), /isMatch[\s\S]*start
 assert.match(functionSource("renderAiClubHouse"), /data-pro-format/);
 assert.match(functionSource("renderAiClubHouse"), /AI_CLUB_HOUSE\.format === "match"/);
 assert.doesNotMatch(functionSource("updateAiClubHouseSetting"), /difficulty === "circuit"/);
+assert.match(functionSource("renderFriendlyLobbyScreen"), /clubhouse-format-card/);
+assert.match(functionSource("renderFriendlyLobbyScreen"), /Répartition des joueurs/);
 
 const newGame = functionSource("newGame");
 assert.match(newGame, /state\.tournament\.active && !state\.tournament\.aiClubHouse && !SERVER_SYNC\.enabled/);

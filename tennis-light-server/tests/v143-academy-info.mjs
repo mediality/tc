@@ -69,7 +69,8 @@ assert.match(functionSource("openAcademyDeckGallery"), /event\.key === "ArrowRig
 assert.match(functionSource("openAcademyDeckGallery"), /aria-label="Carte précédente"/);
 assert.match(functionSource("openAcademyDeckGallery"), /aria-label="Carte suivante"/);
 assert.match(app, /openAcademyInfoButton\?\.addEventListener\("click", showAcademyInfoScreen\)/);
-assert.match(app, /backToLobbyFromAcademyInfoButton\?\.addEventListener\("click", showMenuScreen\)/);
+assert.match(app, /backToLobbyFromAcademyInfoButton\?\.addEventListener\("click", \(\) => showLobbySection\("training"\)\)/);
+assert.match(html, /Apprenez les bases avec un deck unique/);
 
 assert.match(styles, /\.academy-deck-grid\s*\{[\s\S]*?grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
 assert.match(styles, /\.academy-deck-card > img\s*\{[\s\S]*?aspect-ratio: 731 \/ 1039/);

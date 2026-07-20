@@ -22,14 +22,15 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy · v169/);
-assert.match(html, /styles\.css\?v=169\.7/);
-assert.match(html, /app\.js\?v=169\.7/);
+assert.match(html, /styles\.css\?v=169\.8/);
+assert.match(html, /app\.js\?v=169\.8/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
 const latestNewsIndex = html.indexOf('id="latestNewsPanel"');
 const accountPanelIndex = html.indexOf('id="lobbyAccountPanel"');
-assert.ok(accountPanelIndex >= 0 && latestNewsIndex > accountPanelIndex);
+assert.ok(accountPanelIndex >= 0);
+assert.equal(latestNewsIndex, -1);
 assert.match(html, /id="homeNewsList"/);
 assert.match(html, /class="lobby-hero"/);
 assert.match(html, /src="\.\/assets\/HERO\.jpg"/);
@@ -54,7 +55,7 @@ assert.match(html, /id="circuitAttemptsValue"/);
 assert.match(html, /id="circuitPlayerProjection"/);
 assert.match(html, /<h2>Top 20<\/h2>/);
 assert.match(html, /Passez au jeu complet/);
-assert.match(html, /href="https:\/\/mediality\.fr\/shop"/);
+assert.match(html, /href="https:\/\/mediality\.fr\/shop\/#tenniscourts"/);
 
 const authenticatedUser = functionSource(app, "applyAuthenticatedUser");
 assert.doesNotMatch(authenticatedUser, /NewsDialog|pendingNews/);
@@ -84,19 +85,11 @@ assert.match(rankingMarkup, /projected_rank/);
 assert.match(app, /pageSize=20/);
 assert.match(app, /pageSize=25/);
 
-const panel = functionSource(app, "renderLatestNewsPanel");
-assert.match(panel, /DERNIÈRES ACTU/);
-assert.match(panel, /latest-news-thumbnail/);
-assert.match(panel, /latest-news-title/);
-assert.match(panel, /latest-news-read-button/);
-assert.match(panel, /data-read-game-news/g);
-assert.match(panel, /showGameNewsDialog/);
-assert.match(panel, /formatGameNewsDate/);
-
 const homeNews = functionSource(app, "renderHomeNewsSection");
 assert.match(homeNews, /home-news-card/);
 assert.match(homeNews, /data-read-game-news/);
 assert.match(homeNews, /showGameNewsDialog/);
+assert.match(homeNews, /PROFILE_CHARACTER_IMAGES\[characterId\]/);
 
 const dialog = functionSource(app, "showGameNewsDialog");
 assert.match(dialog, /DERNIÈRES ACTU/);
@@ -104,9 +97,8 @@ assert.match(dialog, /data-close-pro-news>FERMER</);
 assert.doesNotMatch(dialog, /markProNewsAsSeen/);
 
 assert.match(app, /TC-new-Milan-Verhaegen\.webp/);
-assert.match(styles, /\.latest-news-thumbnail\s*\{[\s\S]*width: 50px;[\s\S]*height: 50px;/);
-assert.match(styles, /\.latest-news-thumbnail img\s*\{[\s\S]*transform: scale\(1\.85\)/);
-assert.match(styles, /\.latest-news-read-button\s*\{[\s\S]*justify-self: end;[\s\S]*background: #facc15;/);
-assert.match(styles, /\.latest-news-title:hover/);
+assert.match(styles, /\.home-news-visual\s*\{[\s\S]*width: 120px;[\s\S]*height: 60px;/);
+assert.match(styles, /\.home-news-title:hover/);
+assert.match(html, /La vie de l’académie/);
 
 console.log("v169 actualité Milan accessible depuis le lobby, sans ouverture automatique: OK");

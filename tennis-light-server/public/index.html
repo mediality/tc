@@ -4,9 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=169.7" />
+    <link rel="stylesheet" href="./styles.css?v=169.8" />
   </head>
   <body>
+    <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
+      <button id="globalPlayerProfileButton" class="global-player-profile" type="button">
+        <span class="global-player-avatar" aria-hidden="true"><img id="globalPlayerAvatar" src="./assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp?v=169" alt="" /></span>
+        <span class="global-player-copy"><strong id="globalPlayerNickname">Joueur</strong><small id="globalPlayerRole">Profil joueur</small></span>
+      </button>
+    </aside>
     <section id="menuScreen" class="menu-screen lobby-home-screen">
       <div class="menu-shell lobby-home-shell">
         <header class="lobby-app-header">
@@ -53,7 +59,6 @@
               <p id="proCodeStatus" class="pro-code-status"></p>
             </div>
             <section id="adminPanel" class="admin-panel hidden" aria-live="polite"></section>
-            <section id="latestNewsPanel" class="latest-news-panel" aria-label="Dernières actualités"></section>
           </aside>
         </header>
 
@@ -91,7 +96,7 @@
         <section class="home-news-section" aria-labelledby="homeNewsTitle">
           <div class="home-section-heading">
             <div>
-              <p class="label">La vie de l'Academy</p>
+              <p class="label">La vie de l’académie</p>
               <h2 id="homeNewsTitle">Actualités</h2>
             </div>
             <span class="home-news-live"><i aria-hidden="true"></i>Dernières informations</span>
@@ -99,13 +104,8 @@
           <div id="homeNewsList" class="home-news-list" aria-live="polite"></div>
         </section>
 
-        <a class="lobby-shop-banner" href="https://mediality.fr/shop" target="_blank" rel="noopener noreferrer">
-          <img src="./assets/academy-shop-banner.jpg" alt="Boîte Tennis Courts" />
-          <span class="lobby-shop-copy">
-            <strong>Passez au jeu complet</strong>
-            <small>Découvrez Tennis Courts avec votre propre personnage et votre deck personnel de 48 cartes.</small>
-          </span>
-          <span class="primary-button lobby-shop-button">Découvrir la boutique</span>
+        <a class="lobby-shop-banner" href="https://mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer" aria-label="Découvrir Tennis Courts dans la boutique">
+          <img src="./assets/academy-shop-banner.jpg" alt="Passez au jeu complet Tennis Courts" />
         </a>
 
         <footer class="lobby-footer">
@@ -118,7 +118,7 @@
     <section id="lobbySectionScreen" class="menu-screen lobby-section-screen hidden">
       <div class="menu-shell lobby-section-shell">
         <header class="lobby-section-header">
-          <img class="brand-logo lobby-section-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <button class="brand-home-button direct-home-button" type="button" aria-label="Retourner à l'accueil"><img class="brand-logo lobby-section-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" /></button>
           <button id="backToHomeButton" class="small-button" type="button">Retour accueil</button>
         </header>
 
@@ -272,7 +272,7 @@
       <div class="menu-shell academy-info-shell content-page-shell">
         <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
           <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-          <button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour au lobby</button>
+          <div class="page-return-actions"><button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour entraînement</button><button id="academyInfoHomeButton" class="small-button" type="button">Accueil</button></div>
         </div>
         <section class="menu-panel academy-info-panel content-page-panel">
           <header class="content-page-hero academy-info-hero">
@@ -289,6 +289,15 @@
             <article><span>01</span><div><strong>Découvrir</strong><p>Comprenez le service, l'échange et la construction du point.</p></div></article>
             <article><span>02</span><div><strong>S'entraîner</strong><p>Apprenez à choisir le bon coup et à gérer votre endurance.</p></div></article>
             <article><span>03</span><div><strong>Maîtriser</strong><p>Préparez votre passage au jeu complet et à ses stratégies avancées.</p></div></article>
+          </section>
+
+          <section class="academy-info-section academy-foundations-card">
+            <p class="label">Les fondamentaux</p>
+            <h2>Apprenez les bases avec un deck unique</h2>
+            <p>Dans <strong>Tennis Courts Academy</strong>, les deux joueurs utilisent <strong>le même deck de 18 cartes</strong>.</p>
+            <p>Cette sélection a été spécialement conçue pour vous faire découvrir les mécaniques essentielles de <strong>Tennis Courts</strong> : servir, construire un échange, gérer son endurance, choisir le bon coup au bon moment et terminer le point.</p>
+            <p>Grâce à ce format simplifié, les parties sont rapides, équilibrées et idéales pour apprendre à jouer.</p>
+            <p class="academy-info-highlight"><strong>Une fois ces 18 cartes maîtrisées, vous serez prêt à découvrir le jeu complet, qui propose plus de 500 cartes différentes et de nombreuses stratégies supplémentaires.</strong></p>
           </section>
 
           <section class="academy-info-section academy-deck-section">
@@ -345,7 +354,7 @@
       <div class="menu-shell ranking-shell content-page-shell profile-page-shell">
         <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
           <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-          <button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour au lobby</button>
+          <div class="page-return-actions"><button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour à la page précédente</button><button id="profileHomeButton" class="small-button" type="button">Accueil</button></div>
         </div>
         <section class="menu-panel ranking-full-panel profile-page-panel">
           <header class="profile-page-heading">
@@ -401,7 +410,7 @@
       <div class="menu-shell ranking-shell circuit-ranking-shell">
         <div class="friendly-lobby-topbar mode-clubhouse-topbar">
           <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-          <button id="backToLobbyFromRankingButton" class="small-button" type="button">Retour au Circuit</button>
+          <div class="page-return-actions"><button id="backToLobbyFromRankingButton" class="small-button" type="button">Retour au Circuit</button><button id="rankingHomeButton" class="small-button" type="button">Accueil</button></div>
         </div>
         <section class="menu-panel ranking-full-panel circuit-ranking-full-panel">
           <header class="circuit-ranking-page-header">
@@ -427,7 +436,7 @@
       <div class="menu-shell ranking-shell content-page-shell">
         <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
           <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-          <button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour au Circuit</button>
+          <div class="page-return-actions"><button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour au Circuit</button><button id="circuitInfoHomeButton" class="small-button" type="button">Accueil</button></div>
         </div>
         <section class="menu-panel ranking-full-panel circuit-info-panel content-page-panel">
           <header class="content-page-hero circuit-info-hero">
@@ -443,6 +452,10 @@
             <article><strong>4</strong><span>semaines prises en compte</span></article>
             <article><strong>5</strong><span>tentatives d'amélioration</span></article>
             <article><strong>4 000</strong><span>points aux World Finals</span></article>
+          </section>
+          <section class="circuit-goat-feature">
+            <img src="./assets/circuit-pro-contigoat.jpg" alt="Alessandra Conti, championne du Tennis Courts Pro Circuit" />
+            <div><p class="label">Objectif numéro 1</p><h2>Entrez dans la légende</h2><p>Suivez la voie d’Alessandra Conti : remportez les grands tournois, atteignez la première place mondiale et devenez le GOAT du Circuit.</p></div>
           </section>
           <div class="circuit-info-grid circuit-info-card-grid">
             <article class="circuit-info-section circuit-info-card">
@@ -564,7 +577,7 @@
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
           </div>
-          <button id="friendlyLobbyHomeButton" class="small-button" type="button">Retour lobby</button>
+          <div class="page-return-actions"><button id="friendlyLobbyHomeButton" class="small-button" type="button">Retour mode en ligne</button><button id="friendlyLobbyDirectHomeButton" class="small-button" type="button">Accueil</button></div>
         </div>
         <section id="friendlyLobbyContent" class="menu-panel friendly-lobby-panel online-clubhouse-room-panel" aria-live="polite"></section>
       </div>
@@ -626,7 +639,7 @@
             <div class="friendly-setting-row">
               <div>
                 <strong>Niveau IA</strong>
-                <span id="aiLevelDescription">Normal · décisions variées parmi les meilleures options raisonnables.</span>
+                <span id="aiLevelDescription">Normal · décisions variées et adversaires abordables.</span>
               </div>
               <div class="friendly-setting-switch seven-options" aria-label="Niveau de l'intelligence artificielle">
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="amateur">AMATEUR</button>
@@ -743,6 +756,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=169.7"></script>
+    <script src="./app.js?v=169.8"></script>
   </body>
 </html>

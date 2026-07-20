@@ -1605,6 +1605,29 @@ async function currentTournamentScoreMap(userId) {
     .map(([key, value]) => [key.split(":").pop(), value.points]));
 }
 
+async function currentTournamentPerformanceMap(userId) {
+  const current = await circuitState();
+  if (db) {
+    const result = await db.query(`
+      SELECT competition_id, achievement, points
+      FROM circuit_tournament_results
+      WHERE user_id = $1 AND season_number = $2 AND week_number = $3
+    `, [userId, current.season, current.week]);
+    return Object.fromEntries(result.rows.map((row) => [row.competition_id, {
+      achievement: normalizeTournamentAchievement(row.achievement),
+      label: achievementLabel(row.achievement),
+      points: Number(row.points || 0),
+    }]));
+  }
+  return Object.fromEntries(authMemory.circuitResults
+    .filter((row) => row.userId === userId && Number(row.season) === Number(current.season) && Number(row.week) === Number(current.week))
+    .map((row) => [row.competitionId, {
+      achievement: normalizeTournamentAchievement(row.achievement),
+      label: achievementLabel(row.achievement),
+      points: Number(row.points || 0),
+    }]));
+}
+
 async function currentRetryInfo(userId) {
   const current = await circuitState();
   if (db) {
@@ -3053,6 +3076,7 @@ async function handleAuth(req, res, url) {
     if (!user) return true;
     const current = await circuitState();
     const bestScores = await currentTournamentScoreMap(user.id);
+    const bestPerformances = await currentTournamentPerformanceMap(user.id);
     const retryInfo = await currentRetryInfo(user.id);
     sendJson(res, 200, {
       ...current,
@@ -3061,6 +3085,7 @@ async function handleAuth(req, res, url) {
       competitions: await weeklyCompetitionPayload(),
       nextUpdateAt: nextCircuitUpdateAt(),
       bestScores,
+      bestPerformances,
       savedTournamentIds: await currentTournamentSaveIds(user.id),
       resetAtByCompetition: await currentTournamentResetMap(user.id),
       retriesUsed: retryInfo.retriesUsed,

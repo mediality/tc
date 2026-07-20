@@ -203,13 +203,13 @@ const AI_DIFFICULTY_LABELS = {
   circuit: "CIRCUIT PRO",
 };
 const AI_DIFFICULTY_DESCRIPTIONS = {
-  amateur: "Amateur · choix simples, peu d'anticipation et erreurs fréquentes pour débuter facilement.",
-  normal: "Normal · décisions variées parmi les meilleures options raisonnables.",
-  expert: "Expert · projections complètes et décisions presque optimales.",
-  champion: "Champion · analyse maximale, adaptation rapide et précision constante.",
-  legend: "Légende · séquences multi-actions, réserve défensive et arbitrage avancé entre passe et BOOST.",
-  ranking: "Selon classement · niveaux déterminés par le RankIA global des 21 IA.",
-  circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur.",
+  amateur: "Amateur · adversaires peu agressifs pour débuter facilement.",
+  normal: "Normal · décisions variées et adversaires abordables.",
+  expert: "Expert · adversaires concentrés qui prennent de bonnes décisions.",
+  champion: "Champion · adversaires forts qui analysent avec précision les situations.",
+  legend: "Légende · adversaires calculateurs pour des challenges très relevés.",
+  ranking: "Selon classement · adversaires de niveaux variables selon leur propre classement.",
+  circuit: "Circuit Pro · adversaires de niveau Amateur à Légende, selon le classement du Circuit Pro.",
 };
 const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
 const AI_BONUS_LABELS = {
@@ -1298,6 +1298,11 @@ const els = {
   lobbySettingsButton: document.querySelector("#lobbySettingsButton"),
   lobbyUserButton: document.querySelector("#lobbyUserButton"),
   lobbyProfileAvatar: document.querySelector("#lobbyProfileAvatar"),
+  globalPlayerDock: document.querySelector("#globalPlayerDock"),
+  globalPlayerProfileButton: document.querySelector("#globalPlayerProfileButton"),
+  globalPlayerAvatar: document.querySelector("#globalPlayerAvatar"),
+  globalPlayerNickname: document.querySelector("#globalPlayerNickname"),
+  globalPlayerRole: document.querySelector("#globalPlayerRole"),
   lobbyHeaderNickname: document.querySelector("#lobbyHeaderNickname"),
   lobbyHeaderRole: document.querySelector("#lobbyHeaderRole"),
   adminScreen: document.querySelector("#adminScreen"),
@@ -1310,6 +1315,7 @@ const els = {
   friendlyLobbyScreen: document.querySelector("#friendlyLobbyScreen"),
   friendlyLobbyContent: document.querySelector("#friendlyLobbyContent"),
   friendlyLobbyHomeButton: document.querySelector("#friendlyLobbyHomeButton"),
+  friendlyLobbyDirectHomeButton: document.querySelector("#friendlyLobbyDirectHomeButton"),
   friendlyLobbyLogoButton: document.querySelector("#friendlyLobbyLogoButton"),
   aiClubHouseScreen: document.querySelector("#aiClubHouseScreen"),
   aiClubHouseHomeButton: document.querySelector("#aiClubHouseHomeButton"),
@@ -1361,15 +1367,19 @@ const els = {
   adminPageInfo: document.querySelector("#adminPageInfo"),
   openRankingPageButton: document.querySelector("#openRankingPageButton"),
   backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
+  rankingHomeButton: document.querySelector("#rankingHomeButton"),
   openCircuitInfoButton: document.querySelector("#openCircuitInfoButton"),
   backToLobbyFromCircuitInfoButton: document.querySelector("#backToLobbyFromCircuitInfoButton"),
+  circuitInfoHomeButton: document.querySelector("#circuitInfoHomeButton"),
   openAcademyInfoButton: document.querySelector("#openAcademyInfoButton"),
   backToLobbyFromAcademyInfoButton: document.querySelector("#backToLobbyFromAcademyInfoButton"),
+  academyInfoHomeButton: document.querySelector("#academyInfoHomeButton"),
   academyDeckList: document.querySelector("#academyDeckList"),
   tournamentLoadingDialog: document.querySelector("#tournamentLoadingDialog"),
   tournamentLoadingTitle: document.querySelector("#tournamentLoadingTitle"),
   tournamentLoadingMessage: document.querySelector("#tournamentLoadingMessage"),
   backToLobbyFromProfileButton: document.querySelector("#backToLobbyFromProfileButton"),
+  profileHomeButton: document.querySelector("#profileHomeButton"),
   rankingList: document.querySelector("#rankingList"),
   rankingFullList: document.querySelector("#rankingFullList"),
   rankingPrevPageButton: document.querySelector("#rankingPrevPageButton"),
@@ -1404,7 +1414,6 @@ const els = {
   createFriendlyTournamentButton: document.querySelector("#createFriendlyTournamentButton"),
   onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
   lobbyRooms: document.querySelector("#lobbyRooms"),
-  latestNewsPanel: document.querySelector("#latestNewsPanel"),
   homeNewsList: document.querySelector("#homeNewsList"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
@@ -1567,6 +1576,65 @@ function currentUserRole() {
   return normalizeUserRole(AUTH_STATE.user?.role);
 }
 
+const PAGE_NAVIGATION_STATE = { profileReturn: "home" };
+
+function visibleScreenDestination() {
+  if (!els.gameApp?.classList.contains("hidden")) return "game";
+  if (!els.friendlyLobbyScreen?.classList.contains("hidden")) return "online-room";
+  if (!els.aiClubHouseScreen?.classList.contains("hidden")) return "solo";
+  if (!els.rankingScreen?.classList.contains("hidden")) return "ranking";
+  if (!els.circuitInfoScreen?.classList.contains("hidden")) return "circuit-info";
+  if (!els.academyInfoScreen?.classList.contains("hidden")) return "academy-info";
+  if (!els.adminScreen?.classList.contains("hidden")) return "admin";
+  if (!els.characterScreen?.classList.contains("hidden")) return "character";
+  if (!els.profileScreen?.classList.contains("hidden")) return "profile";
+  if (!els.lobbySectionScreen?.classList.contains("hidden")) {
+    const panel = Array.from(els.lobbySectionPanels || []).find((candidate) => !candidate.classList.contains("hidden"));
+    return panel?.dataset.lobbySectionPanel || "training";
+  }
+  return "home";
+}
+
+function updateGlobalPlayerDock() {
+  const user = AUTH_STATE.user;
+  const destination = visibleScreenDestination();
+  const gameActive = destination === "game";
+  const hidden = !user || destination === "home";
+  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen]
+    .find((screen) => screen && !screen.classList.contains("hidden"));
+  const dockHost = activeScreen?.querySelector(".lobby-section-header, .mode-clubhouse-topbar, .topbar") || null;
+  if (dockHost && els.globalPlayerDock?.parentElement !== dockHost) dockHost.append(els.globalPlayerDock);
+  els.globalPlayerDock?.classList.toggle("docked", Boolean(dockHost));
+  els.globalPlayerDock?.classList.toggle("hidden", hidden);
+  els.globalPlayerDock?.classList.toggle("read-only", gameActive);
+  if (els.globalPlayerNickname) els.globalPlayerNickname.textContent = user?.nickname || "Joueur";
+  if (els.globalPlayerRole) els.globalPlayerRole.textContent = gameActive ? "Profil consultable après la partie" : (ROLE_LABELS[currentUserRole()] || "Profil joueur");
+  if (els.globalPlayerAvatar) {
+    const characterId = profileSelectedCharacterId();
+    els.globalPlayerAvatar.src = PROFILE_CHARACTER_IMAGES[characterId] || PROFILE_CHARACTER_IMAGES.coachJu;
+    els.globalPlayerAvatar.alt = characterNameFromId(characterId);
+  }
+  if (els.globalPlayerProfileButton) {
+    els.globalPlayerProfileButton.disabled = !user || gameActive;
+    els.globalPlayerProfileButton.setAttribute("aria-disabled", String(!user || gameActive));
+    els.globalPlayerProfileButton.title = gameActive ? "Le profil est indisponible pendant une partie" : "Ouvrir le profil joueur";
+  }
+}
+
+function returnFromProfile() {
+  const destination = PAGE_NAVIGATION_STATE.profileReturn;
+  if (destination === "ranking") return showRankingScreen();
+  if (destination === "circuit-info") return showCircuitInfoScreen();
+  if (destination === "academy-info") return showAcademyInfoScreen();
+  if (destination === "online-room") return showFriendlyLobbyScreen();
+  if (destination === "admin") return showAdminScreen();
+  if (destination === "circuit") return showLobbySection("circuit");
+  if (destination === "online") return showLobbySection("online");
+  if (destination === "solo") return showAiClubHouseScreen();
+  if (destination === "training") return showLobbySection("training");
+  return showMenuScreen();
+}
+
 function canAccessProFeatures() {
   return ["pro", "pro_plus", "admin"].includes(currentUserRole());
 }
@@ -1627,6 +1695,7 @@ function renderAuthState(message = "") {
   if (els.lobbyHeaderNickname) els.lobbyHeaderNickname.textContent = user?.nickname || "Se connecter";
   if (els.lobbyHeaderRole) els.lobbyHeaderRole.textContent = user ? roleLabel : "Invité";
   updateLobbyProfileAvatar();
+  updateGlobalPlayerDock();
   renderCircuitDashboard();
   if (els.authNicknameInput && !els.authNicknameInput.value && MENU_STATE.nickname) {
     els.authNicknameInput.value = MENU_STATE.nickname;
@@ -1718,50 +1787,21 @@ function renderHomeNewsSection() {
   }
   els.homeNewsList.innerHTML = newsItems.map((news, index) => {
     const characterId = news.characterId || "milanVerhaegen";
-    const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
+    const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
     return `
       <article class="home-news-card ${index === 0 ? "home-news-featured" : ""}">
         <button class="home-news-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
-          <img src="${escapeHtml(image)}" alt="Carte de ${escapeHtml(characterNameFromId(characterId))}" />
+          <img src="${escapeHtml(image)}" alt="Portrait de ${escapeHtml(characterNameFromId(characterId))}" />
         </button>
         <div class="home-news-copy">
           <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
-          <h3>${escapeHtml(news.title)}</h3>
-          <p>${escapeHtml(news.message)}</p>
+          <button class="home-news-title" type="button" data-read-game-news="${escapeHtml(news.id)}">${escapeHtml(news.title)}</button>
           <button class="home-news-read" type="button" data-read-game-news="${escapeHtml(news.id)}">Lire l'actualité <span aria-hidden="true">→</span></button>
         </div>
       </article>
     `;
   }).join("");
   els.homeNewsList.querySelectorAll("[data-read-game-news]").forEach((button) => {
-    button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
-  });
-}
-
-function renderLatestNewsPanel() {
-  if (!els.latestNewsPanel) return;
-  const news = latestGameNews();
-  if (!news) {
-    els.latestNewsPanel.classList.add("hidden");
-    return;
-  }
-  els.latestNewsPanel.classList.remove("hidden");
-  const characterId = news.characterId || "milanVerhaegen";
-  const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
-  els.latestNewsPanel.innerHTML = `
-    <p class="label latest-news-heading">DERNIÈRES ACTU</p>
-    <article class="latest-news-item">
-      <div class="latest-news-thumbnail" aria-hidden="true">
-        <img src="${escapeHtml(image)}" alt="" />
-      </div>
-      <div class="latest-news-summary">
-        <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
-        <button class="latest-news-title" type="button" data-read-game-news="${escapeHtml(news.id)}">${escapeHtml(news.title)}</button>
-      </div>
-      <button class="latest-news-read-button" type="button" data-read-game-news="${escapeHtml(news.id)}">LIRE</button>
-    </article>
-  `;
-  els.latestNewsPanel.querySelectorAll("[data-read-game-news]").forEach((button) => {
     button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
   });
 }
@@ -2642,7 +2682,10 @@ function profileMarkup(profile) {
       } else if (item.reached) {
         detail = "N'a pas participé";
       }
-      return `<div class="profile-calendar-row">
+      const achievement = String(item.result?.achievement || "").toLowerCase();
+      const isCurrentWeek = Number(item.week || 0) === Number(profile?.circuit?.week || 0);
+      const resultClass = achievement === "winner" ? " result-winner" : achievement === "finalist" ? " result-finalist" : "";
+      return `<div class="profile-calendar-row${isCurrentWeek ? " current-week" : ""}${resultClass}">
         <div class="profile-calendar-heading">
           <strong>S${Number(item.week || 0)} · ${escapeHtml(title)}</strong>
           ${profile?.viewerIsAdmin && item.reached ? `<button class="small-button danger-button profile-tournament-reset" type="button" data-reset-profile-tournament="${escapeHtml(item.id)}" data-reset-profile-season="${Number(profile?.circuit?.season || 1)}" data-reset-profile-week="${Number(item.week || 0)}" data-profile-admin-user="${escapeHtml(user?.id || "")}">Réinitialiser à 0</button>` : ""}
@@ -3068,6 +3111,7 @@ function renderCompetitions() {
   if (!els.weeklyCompetitionsList) return;
   const competitions = AUTH_STATE.competitions?.competitions || [];
   const bestScores = AUTH_STATE.competitions?.bestScores || {};
+  const bestPerformances = AUTH_STATE.competitions?.bestPerformances || {};
   if (!competitions.length) {
     els.weeklyCompetitionsList.innerHTML = '<div class="lobby-empty">Aucune compétition générée.</div>';
     renderCircuitDashboard();
@@ -3087,6 +3131,7 @@ function renderCompetitions() {
       const label = alreadyPlayed ? "Rejouer" : "Jouer";
       const replayClass = alreadyPlayed ? "replay-button" : "";
       const saved = savedTournamentProgress(competition.id);
+      const performance = bestPerformances[competition.id] || null;
       const category = String(competition.type || competition.name || "Tournoi");
       const categoryKey = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
       return `
@@ -3104,7 +3149,7 @@ function renderCompetitions() {
           </div>
         </div>
         <div class="circuit-competition-footer">
-          <span><small>Meilleur résultat</small><strong>${Number(bestScores[competition.id] || 0)} pts</strong></span>
+          <span class="circuit-best-performance"><small>Meilleure performance</small><strong>${escapeHtml(performance?.label || (alreadyPlayed ? "Résultat enregistré" : "À jouer"))}</strong><em>${Number(performance?.points ?? bestScores[competition.id] ?? 0)} pts</em></span>
           <div class="weekly-competition-actions">
             ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
             ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
@@ -3406,7 +3451,6 @@ function setLobbyAccountPanelOpen(open) {
   els.lobbyAccountPanel?.classList.toggle("hidden", !shouldOpen);
   els.lobbySettingsButton?.setAttribute("aria-expanded", String(shouldOpen));
   els.lobbyUserButton?.setAttribute("aria-expanded", String(shouldOpen));
-  if (shouldOpen) renderLatestNewsPanel();
 }
 
 function hideLobbySectionScreen() {
@@ -3520,6 +3564,8 @@ function showMenuScreen() {
 
 function showProfileScreen(userId = null) {
   if (!AUTH_STATE.user) return;
+  const previousDestination = visibleScreenDestination();
+  if (!["profile", "character", "game"].includes(previousDestination)) PAGE_NAVIGATION_STATE.profileReturn = previousDestination;
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
   els.adminScreen?.classList.add("hidden");
@@ -5121,6 +5167,12 @@ function renderFriendlyLobbyScreen() {
   const startDisabled = !canStart;
   const status = friendlyLobbyStatusText();
   const settingButton = (group, value, label, active) => `<button class="friendly-setting-button ${active ? "active" : ""}" type="button" data-friendly-setting="${group}" data-friendly-setting-value="${value}" ${settingsDisabled ? "disabled" : ""}>${label}</button>`;
+  const formatCard = (value, title, description, icon) => `
+    <button class="clubhouse-format-card ${format === value ? "active" : ""}" type="button" data-friendly-setting="format" data-friendly-setting-value="${value}" ${settingsDisabled ? "disabled" : ""}>
+      <img src="./assets/icons/${icon}" alt="" aria-hidden="true" />
+      <span><small>Club House en ligne</small><strong>${title}</strong><em>${description}</em></span>
+    </button>
+  `;
   const standings = state.tournament.friendlyStandings || { A: [], B: [] };
   const leagueGroups = state.tournament.friendlyGroups || { A: [], B: [] };
   const clubHouseImage = `
@@ -5169,17 +5221,18 @@ function renderFriendlyLobbyScreen() {
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
-    <section class="friendly-settings-panel ${settingsLocked ? "locked" : ""}">
-      <div class="friendly-setting-row">
-        <div><strong>Type d'événement</strong><span>${settingsLocked ? "Configuration verrouillée" : "Choix de l'hôte"}</span></div>
-        <div class="friendly-setting-switch three-options clubhouse-inline-formats">
-          ${settingButton("format", "match", "MATCH AMICAL", format === "match")}
-          ${settingButton("format", "classic", "TOURNOI CLASSIQUE", format === "classic")}
-          ${settingButton("format", "league", "LEAGUE", format === "league")}
-        </div>
+    <section class="clubhouse-format-section online-room-format-section" aria-labelledby="onlineRoomFormatTitle">
+      <div class="clubhouse-section-heading"><div><p class="label">Format</p><h2 id="onlineRoomFormatTitle">Configurez votre Club House</h2></div><span class="clubhouse-friendly-note">Réglages réservés à l'hôte</span></div>
+      <div class="clubhouse-format-grid" aria-label="Format du Club House en ligne">
+        ${formatCard("match", "Match", "Une rencontre directe entre deux joueurs.", "ONLINE.svg")}
+        ${formatCard("classic", "Tournoi Classic", "Un tableau à élimination directe.", "trophy-circuit.svg")}
+        ${formatCard("league", "League", "Une phase de groupes puis les finales.", "schedule.svg")}
       </div>
+    </section>
+    <div class="clubhouse-configuration-layout online-room-configuration">
+    <section class="friendly-settings-panel clubhouse-settings-card ${settingsLocked ? "locked" : ""}">
       <div class="friendly-setting-row">
-        <div><strong>Niveau IA</strong><span>Intelligence des joueurs contrôlés par l'ordinateur</span></div>
+        <div><strong>Niveau IA</strong><span>${escapeHtml(AI_DIFFICULTY_DESCRIPTIONS[difficulty] || AI_DIFFICULTY_DESCRIPTIONS.normal)}</span></div>
         <div class="friendly-setting-switch seven-options">
           ${["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"].map((value) => settingButton("difficulty", value, AI_DIFFICULTY_LABELS[value], difficulty === value)).join("")}
         </div>
@@ -5216,6 +5269,14 @@ function renderFriendlyLobbyScreen() {
         </div>
       </div>
     </section>
+    <aside class="clubhouse-summary-card online-room-summary-card">
+      <p class="label">Votre Club House</p>
+      <h2>${format === "league" ? "League" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
+      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${targetSets} sets gagnants · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
+      ${FRIENDLY_TOURNAMENT.isSpectator ? "" : `<button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>Lancer le Club House</button>`}
+      <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
+    </aside>
+    </div>
     <section>
       <p class="label">Joueurs humains</p>
       <div class="friendly-player-grid">
@@ -5228,10 +5289,6 @@ function renderFriendlyLobbyScreen() {
             ${FRIENDLY_TOURNAMENT.isCreator && !settingsLocked && participant.id !== FRIENDLY_TOURNAMENT.participantId ? `<button class="small-button danger-button friendly-kick-button" type="button" data-kick-friendly-participant="${escapeHtml(participant.id)}" data-kick-friendly-nickname="${escapeHtml(participant.nickname || "Joueur")}">EXCLURE</button>` : ""}
           </article>
         `).join("")}
-      </div>
-      <div class="friendly-lobby-action-panel friendly-lobby-player-actions">
-        ${FRIENDLY_TOURNAMENT.isSpectator ? "" : `<button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER</button>`}
-        <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>SORTIR</button>
       </div>
     </section>
     ${state.tournament.stage === "waiting" ? clubHouseImage : ""}
@@ -14309,6 +14366,9 @@ function initMenu() {
   const toggleAccountPanel = () => setLobbyAccountPanelOpen(els.lobbyAccountPanel?.classList.contains("hidden"));
   els.lobbySettingsButton?.addEventListener("click", toggleAccountPanel);
   els.lobbyUserButton?.addEventListener("click", toggleAccountPanel);
+  els.globalPlayerProfileButton?.addEventListener("click", () => {
+    if (visibleScreenDestination() !== "game" && AUTH_STATE.user) showProfileScreen();
+  });
   els.lobbyModeCards?.forEach((card) => {
     card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
   });
@@ -14342,13 +14402,17 @@ function initMenu() {
   els.openRankingPageButton?.addEventListener("click", showRankingScreen);
   els.circuitProfileButton?.addEventListener("click", () => showProfileScreen());
   els.backToLobbyFromRankingButton?.addEventListener("click", () => showLobbySection("circuit"));
+  els.rankingHomeButton?.addEventListener("click", showMenuScreen);
   els.rankingPrevPageButton?.addEventListener("click", () => loadRanking(Math.max(1, AUTH_STATE.rankingPage - 1)));
   els.rankingNextPageButton?.addEventListener("click", () => loadRanking(Math.min(Number(AUTH_STATE.ranking?.totalPages || 1), AUTH_STATE.rankingPage + 1)));
   els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
-  els.backToLobbyFromCircuitInfoButton?.addEventListener("click", showMenuScreen);
+  els.backToLobbyFromCircuitInfoButton?.addEventListener("click", () => showLobbySection("circuit"));
+  els.circuitInfoHomeButton?.addEventListener("click", showMenuScreen);
   els.openAcademyInfoButton?.addEventListener("click", showAcademyInfoScreen);
-  els.backToLobbyFromAcademyInfoButton?.addEventListener("click", showMenuScreen);
-  els.backToLobbyFromProfileButton?.addEventListener("click", showMenuScreen);
+  els.backToLobbyFromAcademyInfoButton?.addEventListener("click", () => showLobbySection("training"));
+  els.academyInfoHomeButton?.addEventListener("click", showMenuScreen);
+  els.backToLobbyFromProfileButton?.addEventListener("click", returnFromProfile);
+  els.profileHomeButton?.addEventListener("click", showMenuScreen);
   els.backToProfileFromCharacterButton?.addEventListener("click", showProfileScreen);
   els.backToLobbyFromCharacterButton?.addEventListener("click", showMenuScreen);
   els.nicknameInput?.addEventListener("input", () => {
@@ -14397,14 +14461,33 @@ function initMenu() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") setLobbyAccountPanelOpen(false);
   });
+  document.querySelectorAll(".menu-screen .brand-logo").forEach((logo) => {
+    if (logo.closest("#friendlyLobbyLogoButton, #aiClubHouseLogoButton, .direct-home-button")) return;
+    logo.setAttribute("role", "button");
+    logo.setAttribute("tabindex", "0");
+    logo.addEventListener("click", showMenuScreen);
+    logo.addEventListener("keydown", (event) => {
+      if (["Enter", " "].includes(event.key)) {
+        event.preventDefault();
+        showMenuScreen();
+      }
+    });
+  });
+  document.querySelectorAll(".direct-home-button").forEach((button) => button.addEventListener("click", showMenuScreen));
+  const navigationObserver = new MutationObserver(updateGlobalPlayerDock);
+  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp]
+    .filter(Boolean)
+    .forEach((screen) => navigationObserver.observe(screen, { attributes: true, attributeFilter: ["class"] }));
+  updateGlobalPlayerDock();
   if (resetTokenFromUrl()) showResetPasswordScreen();
 }
 
 els.newGameButton?.addEventListener("click", newGame);
 els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
 els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
-els.friendlyLobbyHomeButton?.addEventListener("click", openReturnLobbyDialog);
-els.friendlyLobbyLogoButton?.addEventListener("click", openReturnLobbyDialog);
+els.friendlyLobbyHomeButton?.addEventListener("click", () => showLobbySection("online"));
+els.friendlyLobbyDirectHomeButton?.addEventListener("click", showMenuScreen);
+els.friendlyLobbyLogoButton?.addEventListener("click", showMenuScreen);
 els.spectatorQuitButton?.addEventListener("click", () => quitFriendlySpectator(false));
 els.adminSimulateScoreButton?.addEventListener("click", simulateAdminMatchScore);
 els.revealAiButton?.addEventListener("click", toggleRevealAiCards);
