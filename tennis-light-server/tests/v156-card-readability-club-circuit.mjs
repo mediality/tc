@@ -21,8 +21,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.3/);
-assert.match(html, /app\.js\?v=170\.3/);
+assert.match(html, /styles\.css\?v=170\.5/);
+assert.match(html, /app\.js\?v=170\.5/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);
@@ -58,6 +58,6 @@ assert.match(tournament, /buildAiClubHouseBonuses\(positions, bonusLevel\)/);
 assert.match(tournament, /buildTournamentAiIntelligenceLevels\(positions, SOLO_AI\.difficulty, \{ humanLevel \}\)/);
 assert.doesNotMatch(tournament, /buildWeeklyCircuitProBonuses/);
 
-assert.match(app, /circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur\."/);
+assert.match(app, /circuit: "Circuit Pro · adversaires de niveau Amateur à Légende, selon le classement du Circuit Pro\."/);
 
 console.log("v169 cartes sans agrandissement pixellisé et CLUB HOUSE Circuit Pro libre: OK");

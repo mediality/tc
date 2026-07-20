@@ -1610,7 +1610,14 @@ function updateGlobalPlayerDock() {
   const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen]
     .find((screen) => screen && !screen.classList.contains("hidden"));
   const dockHost = activeScreen?.querySelector(".lobby-section-header, .mode-clubhouse-topbar, .topbar") || null;
-  if (dockHost && els.globalPlayerDock?.parentElement !== dockHost) dockHost.append(els.globalPlayerDock);
+  if (dockHost && els.globalPlayerDock) {
+    const actions = dockHost.querySelector(".page-return-actions, .top-actions")
+      || Array.from(dockHost.children).find((child) => child.matches("button:not(.brand-home-button)"));
+    if (els.globalPlayerDock.parentElement !== dockHost || els.globalPlayerDock.nextElementSibling !== actions) {
+      if (actions) dockHost.insertBefore(els.globalPlayerDock, actions);
+      else dockHost.append(els.globalPlayerDock);
+    }
+  }
   els.globalPlayerDock?.classList.toggle("docked", Boolean(dockHost));
   els.globalPlayerDock?.classList.toggle("hidden", hidden);
   els.globalPlayerDock?.classList.toggle("read-only", gameActive);
@@ -2633,23 +2640,44 @@ function profileMarkup(profile) {
   const selectedCharacterVisuals = profileCharacterVisuals(selectedProfileCharacter);
   const selectedCharacterName = characterNameFromId(selectedProfileCharacter);
   const palmaresResults = results.filter((row) => ["winner", "finalist"].includes(String(row.achievement || "").toLowerCase()));
-  const resultRows = palmaresResults.length
-    ? palmaresResults.map((row) => {
-      const won = row.achievement === "winner";
+  const tournamentWins = palmaresResults.filter((row) => String(row.achievement || "").toLowerCase() === "winner").length;
+  const lostFinals = palmaresResults.filter((row) => String(row.achievement || "").toLowerCase() === "finalist").length;
+  const careerEntries = [
+    ...palmaresResults.map((row) => ({
+      type: "result",
+      season: Number(row.season_number || row.season || 0),
+      week: Number(row.week_number || row.week || 0),
+      row,
+    })),
+    ...honors.map((honor) => ({
+      type: "honor",
+      season: Number(honor.season_number || honor.season || 0),
+      week: Number(honor.week_number || honor.week || 0),
+      honor,
+    })),
+  ].sort((a, b) => b.season - a.season || b.week - a.week);
+  const careerRows = careerEntries.length
+    ? careerEntries.map((entry, index) => {
+      const extraClass = index >= 10 ? " profile-collapsible-item hidden" : "";
+      if (entry.type === "honor") {
+        return `<div class="profile-row profile-honor-row${extraClass}" ${index >= 10 ? 'data-profile-collapse-group="career"' : ""}>
+          <strong><span class="profile-result-medal gold"></span>${escapeHtml(entry.honor.label || "Distinction")}</strong>
+          <span>Saison ${entry.season} · Semaine ${entry.week}</span>
+        </div>`;
+      }
+      const row = entry.row;
+      const won = String(row.achievement || "").toLowerCase() === "winner";
       const city = row.city || "";
       const country = row.country || "";
       const flag = row.flag || "";
-      return `<div class="profile-row">
+      return `<div class="profile-row${extraClass}" ${index >= 10 ? 'data-profile-collapse-group="career"' : ""}>
         <strong><span class="profile-result-medal ${won ? "gold" : "silver"}"></span>${escapeHtml(row.competition_name || row.competitionName)}</strong>
-        <span>${escapeHtml(city)} · ${escapeHtml(country)} ${escapeHtml(flag)} · Saison ${Number(row.season_number || row.season)} · Semaine ${Number(row.week_number || row.week)} · ${won ? "Victoire" : "Finale"} · ${Number(row.points || 0)} pts</span>
+        <span>${escapeHtml(city)} · ${escapeHtml(country)} ${escapeHtml(flag)} · Saison ${entry.season} · Semaine ${entry.week} · ${won ? "Victoire" : "Finale"} · ${Number(row.points || 0)} pts</span>
       </div>`;
     }).join("")
     : '<div class="lobby-empty">Aucune victoire ou finale enregistrée.</div>';
-  const honorRows = honors.length
-    ? honors.map((honor) => `<div class="profile-row profile-honor-row">
-        <strong>${escapeHtml(honor.label || "Distinction")}</strong>
-        <span>Saison ${Number(honor.season_number || 0)} · Semaine ${Number(honor.week_number || 0)}</span>
-      </div>`).join("")
+  const careerToggle = careerEntries.length > 10
+    ? '<button class="profile-expand-button" type="button" data-profile-toggle="career" aria-expanded="false" aria-label="Afficher tout le palmarès">+</button>'
     : "";
   const adminScoreRows = profile?.viewerIsAdmin && profile?.adminScores?.periods?.length
     ? profile.adminScores.periods.map((period) => `
@@ -2659,20 +2687,29 @@ function profileMarkup(profile) {
         </label>
       `).join("")
     : "";
-  const aiRows = aiResults.length
-    ? aiResults.map((row) => {
+  const sortedAiResults = [...aiResults].sort((a, b) => (
+    Number(b.wins || 0) + Number(b.losses || 0) - Number(a.wins || 0) - Number(a.losses || 0)
+    || Number(b.wins || 0) - Number(a.wins || 0)
+  ));
+  const aiRows = sortedAiResults.length
+    ? sortedAiResults.map((row, index) => {
       const wins = Number(row.wins || 0);
       const losses = Number(row.losses || 0);
+      const matches = wins + losses;
       const status = confrontationStatus(wins, losses);
-      return `<div class="profile-row confrontation-row">
+      return `<div class="profile-row confrontation-row${index >= 5 ? " profile-collapsible-item hidden" : ""}" ${index >= 5 ? 'data-profile-collapse-group="rivalries"' : ""}>
         <strong>${escapeHtml(characterNameFromId(row.ai_character_id || row.aiCharacterId))}</strong>
         <span class="confrontation-summary">
           ${status ? `<span class="confrontation-status ${status.className}">${escapeHtml(status.label)}</span>` : ""}
+          <span class="confrontation-matches">${matches} match${matches > 1 ? "s" : ""}</span>
           <span class="confrontation-ratio" aria-label="${wins} victoires et ${losses} défaites">${wins} / ${losses}</span>
         </span>
       </div>`;
     }).join("")
     : '<div class="lobby-empty">Aucun résultat de confrontation enregistré.</div>';
+  const rivalriesToggle = sortedAiResults.length > 5
+    ? '<button class="profile-expand-button" type="button" data-profile-toggle="rivalries" aria-expanded="false" aria-label="Afficher toutes les rivalités">+</button>'
+    : "";
   const statRows = [
     ["Meilleur classement", user?.bestWorldRank ? `#${Number(user.bestWorldRank)}` : "-"],
     ["Semaines n°1", Number(user?.weeksWorldNumberOne || 0)],
@@ -2680,8 +2717,7 @@ function profileMarkup(profile) {
     ["Semaines Top 5", Number(user?.weeksWorldTop5 || 0)],
     ["Semaines Top 10", Number(user?.weeksWorldTop10 || 0)],
   ].map(([label, value]) => `<div class="profile-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("");
-  const calendarRows = calendar.length
-    ? calendar.map((item) => {
+  const calendarRowMarkup = (item, collapsed = false) => {
       const title = `${item.type || item.level || "Tournoi"} - ${item.name || ""}`;
       const place = `${item.city || ""} · ${item.country || ""} ${item.flag || ""}`;
       let detail = "";
@@ -2693,7 +2729,7 @@ function profileMarkup(profile) {
       const achievement = String(item.result?.achievement || "").toLowerCase();
       const isCurrentWeek = Number(item.week || 0) === Number(profile?.circuit?.week || 0);
       const resultClass = achievement === "winner" ? " result-winner" : achievement === "finalist" ? " result-finalist" : "";
-      return `<div class="profile-calendar-row${isCurrentWeek ? " current-week" : ""}${resultClass}">
+      return `<div class="profile-calendar-row${isCurrentWeek ? " current-week" : ""}${resultClass}${collapsed ? " profile-collapsible-item hidden" : ""}" ${collapsed ? 'data-profile-collapse-group="calendar"' : ""}>
         <div class="profile-calendar-heading">
           <strong>S${Number(item.week || 0)} · ${escapeHtml(title)}</strong>
           ${profile?.viewerIsAdmin && item.reached ? `<button class="small-button danger-button profile-tournament-reset" type="button" data-reset-profile-tournament="${escapeHtml(item.id)}" data-reset-profile-season="${Number(profile?.circuit?.season || 1)}" data-reset-profile-week="${Number(item.week || 0)}" data-profile-admin-user="${escapeHtml(user?.id || "")}">Réinitialiser à 0</button>` : ""}
@@ -2701,28 +2737,41 @@ function profileMarkup(profile) {
         <span>${escapeHtml(place)}</span>
         ${detail ? `<em>${escapeHtml(detail)}</em>` : ""}
       </div>`;
-    }).join("")
+  };
+  const currentCalendar = calendar.filter((item) => Number(item.week || 0) === Number(profile?.circuit?.week || 0));
+  const remainingCalendar = calendar
+    .filter((item) => Number(item.week || 0) !== Number(profile?.circuit?.week || 0))
+    .sort((a, b) => Number(a.week || 0) - Number(b.week || 0) || Number(a.slot || 0) - Number(b.slot || 0));
+  const calendarRows = calendar.length
+    ? `${currentCalendar.map((item) => calendarRowMarkup(item)).join("")}${remainingCalendar.map((item) => calendarRowMarkup(item, true)).join("")}`
     : '<div class="lobby-empty">Calendrier indisponible.</div>';
+  const calendarToggle = remainingCalendar.length
+    ? '<button class="profile-expand-button" type="button" data-profile-toggle="calendar" aria-expanded="false" aria-label="Afficher les autres semaines du calendrier">+</button>'
+    : "";
   return `
     <section class="profile-identity-hero">
       <div class="profile-identity-portrait">
         <img src="${escapeHtml(selectedCharacterVisuals.illustration)}" alt="${escapeHtml(selectedCharacterName)}" />
       </div>
-      <div class="profile-identity-copy">
-        <span class="profile-role">${escapeHtml(ROLE_LABELS[user?.role] || "FREE")}</span>
-        <p class="label">${isOwnProfile ? "Votre carrière" : "Profil joueur"}</p>
-        <h2>${escapeHtml(user?.nickname || "Joueur")}</h2>
-        <p>${escapeHtml(selectedCharacterName)} vous représente dans le lobby et sur les courts.</p>
+      <div class="profile-identity-info">
+        <div class="profile-identity-copy">
+          <span class="profile-role">${escapeHtml(ROLE_LABELS[user?.role] || "FREE")}</span>
+          <p class="label">${isOwnProfile ? "Votre carrière" : "Profil joueur"}</p>
+          <h2>${escapeHtml(user?.nickname || "Joueur")}</h2>
+          <p>${escapeHtml(selectedCharacterName)} vous représente dans le lobby et sur les courts.</p>
+        </div>
+        <dl class="profile-identity-metrics">
+          <div><dt>Rang mondial</dt><dd>${Number(ranking.rank || 0) ? `#${Number(ranking.rank)}` : "-"}</dd><small>${Number(ranking.projected_rank || 0) ? `#${Number(ranking.projected_rank)} projeté` : "Projection indisponible"}</small></div>
+          <div><dt>Points Circuit</dt><dd>${Number(ranking.score_ref || 0)}</dd><small>4 semaines terminées</small></div>
+          <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd><small>En cours</small></div>
+          <div class="profile-trophy-metric gold"><dt>Tournois gagnés</dt><dd><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />${tournamentWins}</dd></div>
+          <div class="profile-trophy-metric silver"><dt>Finales perdues</dt><dd><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />${lostFinals}</dd></div>
+        </dl>
       </div>
-      <dl class="profile-identity-metrics">
-        <div><dt>Rang mondial</dt><dd>${Number(ranking.rank || 0) ? `#${Number(ranking.rank)}` : "-"}</dd></div>
-        <div><dt>Points Circuit</dt><dd>${Number(ranking.score_total || 0)}</dd></div>
-        <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd></div>
-      </dl>
     </section>
     <div class="profile-grid">
       <section class="profile-card profile-account-card">
-        <div class="profile-card-heading"><span>01</span><div><p class="label">Compte</p><h3>Informations joueur</h3></div></div>
+        <div class="profile-card-heading"><div><p class="label">Compte</p><h3>Informations joueur</h3></div></div>
         ${isOwnProfile ? `
           <label class="menu-field">Pseudo
             <input id="profileNicknameInput" type="text" maxlength="24" value="${escapeHtml(user?.nickname || "")}" />
@@ -2737,7 +2786,7 @@ function profileMarkup(profile) {
         ` : ""}
       </section>
       <section class="profile-card profile-character-card">
-        <div class="profile-card-heading"><span>02</span><div><p class="label">Personnage</p><h3>Identité sur le court</h3></div></div>
+        <div class="profile-card-heading"><div><p class="label">Personnage</p><h3>Identité sur le court</h3></div></div>
         <div class="profile-character-summary">
           <div class="profile-character-visuals">
             ${[
@@ -2763,15 +2812,15 @@ function profileMarkup(profile) {
         ${activity.watchable ? `<button class="small-button profile-watch-button" type="button" data-watch-profile-user="${escapeHtml(user?.id || "")}" data-watch-profile-label="${escapeHtml(activity.type || "Partie en cours")}">VOIR</button>` : ""}
       </section>` : ""}
       <section class="profile-card profile-ranking-card">
-        <div class="profile-card-heading"><span>03</span><div><p class="label">Circuit Pro</p><h3>Classement mondial</h3></div></div>
-        <div class="ranking-row current-user"><span>${Number(ranking.rank || 0) || "-"}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
+        <div class="profile-card-heading"><div><p class="label">Circuit Pro</p><h3>Classement mondial</h3></div></div>
+        <div class="ranking-row current-user"><span class="ranking-position"><strong>${Number(ranking.rank || 0) || "-"}</strong>${Number(ranking.projected_rank || 0) ? `<small class="ranking-projection">(${Number(ranking.projected_rank)})</small>` : ""}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
         <div class="profile-stats-grid">${statRows}</div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
       <section class="profile-card profile-wide profile-results-card">
-        <div class="profile-card-heading"><span>04</span><div><p class="label">Carrière</p><h3>Palmarès</h3></div></div>
-        ${resultRows}
-        ${honorRows}
+        <div class="profile-card-heading"><div><p class="label">Carrière</p><h3>Palmarès</h3></div></div>
+        ${careerRows}
+        ${careerToggle}
       </section>
       ${profile?.viewerIsAdmin ? `<section class="profile-card profile-wide admin-profile-tools">
         <p class="label">Administration du joueur</p>
@@ -2786,15 +2835,29 @@ function profileMarkup(profile) {
         </div>
       </section>` : ""}
       <section class="profile-card profile-wide profile-confrontations-card">
-        <div class="profile-card-heading"><span>05</span><div><p class="label">Face-à-face</p><h3>Résultats des confrontations</h3></div></div>
+        <div class="profile-card-heading"><div><p class="label">Rivalités</p><h3>Les adversaires les plus rencontrés</h3></div></div>
         ${aiRows}
+        ${rivalriesToggle}
       </section>
       <section class="profile-card profile-wide profile-calendar-card">
-        <div class="profile-card-heading"><span>06</span><div><p class="label">Saison en cours</p><h3>Calendrier de saison</h3></div></div>
+        <div class="profile-card-heading"><div><p class="label">Saison en cours</p><h3>Calendrier de saison</h3></div></div>
         <div class="profile-calendar">${calendarRows}</div>
+        ${calendarToggle}
       </section>
     </div>
   `;
+}
+
+function toggleProfileCollection(event) {
+  const button = event.currentTarget;
+  const group = String(button?.dataset.profileToggle || "");
+  if (!group || !els.profileContent) return;
+  const expanded = button.getAttribute("aria-expanded") !== "true";
+  els.profileContent.querySelectorAll(`[data-profile-collapse-group="${group}"]`).forEach((row) => {
+    row.classList.toggle("hidden", !expanded);
+  });
+  button.setAttribute("aria-expanded", String(expanded));
+  button.textContent = expanded ? "−" : "+";
 }
 
 async function loadProfile(userId = null) {
@@ -2814,6 +2877,9 @@ async function loadProfile(userId = null) {
       document.querySelector("#profileRedeemProCodeButton")?.addEventListener("click", redeemProfileProCode);
     }
     document.querySelector("#profileRankingLinkButton")?.addEventListener("click", showRankingScreen);
+    document.querySelectorAll("[data-profile-toggle]").forEach((button) => {
+      button.addEventListener("click", toggleProfileCollection);
+    });
     document.querySelector("#saveProfileRankingScoresButton")?.addEventListener("click", saveProfileRankingScores);
     document.querySelector("#resetProfileCareerButton")?.addEventListener("click", resetProfileCareer);
     document.querySelectorAll("[data-reset-profile-tournament]").forEach((button) => {
@@ -3140,6 +3206,15 @@ function renderCompetitions() {
       const replayClass = alreadyPlayed ? "replay-button" : "";
       const saved = savedTournamentProgress(competition.id);
       const performance = bestPerformances[competition.id] || null;
+      const performanceOpponent = String(performance?.lastOpponent || "").trim();
+      const performanceScore = String(performance?.lastScore || "").trim();
+      const performanceMarkup = alreadyPlayed
+        ? `<span class="circuit-best-performance">
+            <small>Meilleure performance</small>
+            <span class="circuit-performance-line"><strong>${escapeHtml(performance?.label || "Résultat enregistré")}</strong><em>${Number(performance?.points ?? bestScores[competition.id] ?? 0)} pts</em></span>
+            ${(performanceOpponent || performanceScore) ? `<span class="circuit-performance-detail">${performanceOpponent ? `Adversaire : ${escapeHtml(performanceOpponent)}` : ""}${performanceOpponent && performanceScore ? " · " : ""}${performanceScore ? `Score : ${escapeHtml(performanceScore)}` : ""}</span>` : ""}
+          </span>`
+        : '<span class="circuit-best-performance not-played"><strong>N’A PAS ENCORE PARTICIPÉ</strong></span>';
       const category = String(competition.type || competition.name || "Tournoi");
       const categoryKey = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
       return `
@@ -3157,7 +3232,7 @@ function renderCompetitions() {
           </div>
         </div>
         <div class="circuit-competition-footer">
-          <span class="circuit-best-performance"><small>Meilleure performance</small><strong>${escapeHtml(performance?.label || (alreadyPlayed ? "Résultat enregistré" : "À jouer"))}</strong><em>${Number(performance?.points ?? bestScores[competition.id] ?? 0)} pts</em></span>
+          ${performanceMarkup}
           <div class="weekly-competition-actions">
             ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
             ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
@@ -5122,7 +5197,7 @@ async function publishFriendlyTournamentLiveState() {
 function renderFriendlyLobbyMatchCard(match) {
   const status = match.liveScore && !match.winner ? match.liveScore : match.score || (match.winner ? "Terminé" : "En attente");
   const playerName = (entry) => {
-    const label = `${escapeHtml(tournamentPlayerLabel(entry) || "À déterminer")}${tournamentSeedNumberMarkup(entry)}`;
+    const label = `${escapeHtml(tournamentPlayerLabel(entry) || "")}${tournamentSeedNumberMarkup(entry)}`;
     return match.winner && match.winner === entry
       ? `<strong class="friendly-bracket-winner">${label}</strong>`
       : `<span class="friendly-bracket-player-name">${label}</span>`;
@@ -5167,7 +5242,7 @@ function renderFriendlyLeagueSchedule(matches) {
         </div>
         <div class="friendly-league-champion">
           <h3>Vainqueur</h3>
-          <strong>${escapeHtml(tournamentPlayerLabel(state.tournament.championCharacterId) || "À déterminer")}</strong>
+          <strong>${escapeHtml(tournamentPlayerLabel(state.tournament.championCharacterId) || "")}</strong>
         </div>
       </div>
     </section>
@@ -6715,7 +6790,9 @@ function confrontationPlayerCardMarkup(player, playerIndex) {
     : player?.name;
   return `
     <article class="confrontation-intro-player confrontation-sequence-item" data-confrontation-stage>
-      <img src="${escapeHtml(image)}" alt="${escapeHtml(player?.name || "Joueur")}" />
+      <div class="confrontation-player-card-frame">
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(player?.name || "Joueur")}" />
+      </div>
       <div class="confrontation-player-name">
         <strong>${escapeHtml(participantName || "Joueur")}</strong>
         ${aiIntelligenceBadgeMarkup(tournamentEntry)}
@@ -6769,7 +6846,6 @@ function showConfrontationIntro() {
       <div class="confrontation-countdown-shell" data-confrontation-countdown-shell aria-hidden="true">
         <div class="confrontation-intro-countdown" aria-live="polite">
           <strong data-confrontation-countdown>5</strong>
-          <span>Départ dans</span>
         </div>
         <button class="primary-button confrontation-start-button" type="button" data-start-confrontation>Démarrer</button>
       </div>
@@ -11315,7 +11391,9 @@ function refreshLeagueKnockoutSlots() {
   const semi1 = tournamentMatchById("league_semi1");
   const semi2 = tournamentMatchById("league_semi2");
   const final = tournamentMatchById("final");
-  if (final && semi1?.winner && semi2?.winner) setMatchPlayers(final, semi1.winner, semi2.winner);
+  if (final && (semi1?.winner || semi2?.winner)) {
+    setMatchPlayers(final, semi1?.winner || null, semi2?.winner || null);
+  }
 }
 
 function completeLeagueWithoutHuman() {
@@ -12604,13 +12682,13 @@ function refreshWeeklyTournamentDerivedSlots() {
   const semi1 = tournamentMatchById("semi1");
   const semi2 = tournamentMatchById("semi2");
   const final = tournamentMatchById("final");
-  if (qf1 && r16_1?.winner && r16_2?.winner) setMatchPlayers(qf1, r16_1.winner, r16_2.winner);
-  if (qf2 && r16_3?.winner && r16_4?.winner) setMatchPlayers(qf2, r16_3.winner, r16_4.winner);
-  if (qf3 && r16_5?.winner && r16_6?.winner) setMatchPlayers(qf3, r16_5.winner, r16_6.winner);
-  if (qf4 && r16_7?.winner && r16_8?.winner) setMatchPlayers(qf4, r16_7.winner, r16_8.winner);
-  if (semi1 && qf1?.winner && qf2?.winner) setMatchPlayers(semi1, qf1.winner, qf2.winner);
-  if (semi2 && qf3?.winner && qf4?.winner) setMatchPlayers(semi2, qf3.winner, qf4.winner);
-  if (final && semi1?.winner && semi2?.winner) setMatchPlayers(final, semi1.winner, semi2.winner);
+  if (qf1 && (r16_1?.winner || r16_2?.winner)) setMatchPlayers(qf1, r16_1?.winner || null, r16_2?.winner || null);
+  if (qf2 && (r16_3?.winner || r16_4?.winner)) setMatchPlayers(qf2, r16_3?.winner || null, r16_4?.winner || null);
+  if (qf3 && (r16_5?.winner || r16_6?.winner)) setMatchPlayers(qf3, r16_5?.winner || null, r16_6?.winner || null);
+  if (qf4 && (r16_7?.winner || r16_8?.winner)) setMatchPlayers(qf4, r16_7?.winner || null, r16_8?.winner || null);
+  if (semi1 && (qf1?.winner || qf2?.winner)) setMatchPlayers(semi1, qf1?.winner || null, qf2?.winner || null);
+  if (semi2 && (qf3?.winner || qf4?.winner)) setMatchPlayers(semi2, qf3?.winner || null, qf4?.winner || null);
+  if (final && (semi1?.winner || semi2?.winner)) setMatchPlayers(final, semi1?.winner || null, semi2?.winner || null);
 }
 
 function refreshTournamentDerivedSlots() {
@@ -12628,14 +12706,12 @@ function refreshTournamentDerivedSlots() {
   const final = tournamentMatchById("final");
 
   if (semiHuman) {
-    semiHuman.playerA = qfHuman?.winner ?? null;
-    semiHuman.playerB = qfAi1?.winner ?? null;
+    setMatchPlayers(semiHuman, qfHuman?.winner || null, qfAi1?.winner || null);
   }
   if (semiAi) {
-    const ready = Boolean(qfAi2?.winner && qfAi3?.winner);
-    semiAi.playerA = ready ? qfAi2.winner : null;
-    semiAi.playerB = ready ? qfAi3.winner : null;
-    if (!ready) {
+    const hasQualifier = Boolean(qfAi2?.winner || qfAi3?.winner);
+    setMatchPlayers(semiAi, qfAi2?.winner || null, qfAi3?.winner || null);
+    if (!hasQualifier) {
       semiAi.hiddenWinner = null;
       semiAi.hiddenSetScores = null;
       semiAi.revealedSetScores = [];
@@ -12644,8 +12720,7 @@ function refreshTournamentDerivedSlots() {
     }
   }
   if (final) {
-    final.playerA = semiHuman?.winner ?? (final.playerA && semiHuman?.winner ? final.playerA : null);
-    final.playerB = semiAi?.winner ?? (final.playerB && semiAi?.winner ? final.playerB : null);
+    setMatchPlayers(final, semiHuman?.winner || null, semiAi?.winner || null);
   }
 }
 
@@ -12860,12 +12935,17 @@ function renderCompactMatchScore(setMatch) {
   if (!scores.length) return "";
   return `
     <div class="result-match-score" aria-label="Score du match">
-      <div class="result-match-score-label">
-        <span>Score du match</span>
-        <small>${escapeHtml(playerName(0))} / ${escapeHtml(playerName(1))}</small>
+      <div class="result-match-confrontation">
+        <strong>${escapeHtml(playerName(0))}</strong>
+        <span>contre</span>
+        <strong>${escapeHtml(playerName(1))}</strong>
       </div>
       <div class="result-match-score-values">
-        ${scores.map((score, index) => `<strong class="${!setMatch.setOver && index === scores.length - 1 ? "current" : ""}">${score[0]}–${score[1]}</strong>`).join('<i aria-hidden="true">·</i>')}
+        ${scores.map((score, index) => {
+          const isCurrent = !setMatch.setOver && index === scores.length - 1;
+          const winnerClass = isCurrent ? "current" : score[0] > score[1] ? "won-left" : "won-right";
+          return `<strong class="${winnerClass}">${score[0]}–${score[1]}</strong>`;
+        }).join('<i aria-hidden="true">·</i>')}
       </div>
     </div>
   `;
@@ -13300,7 +13380,7 @@ function renderHumanRoundBadge() {
 }
 
 function renderTournamentChampion(champion, final) {
-  const championName = champion ? tournamentPlayerLabel(champion) : "À déterminer";
+  const championName = champion ? tournamentPlayerLabel(champion) : "";
   const characterId = champion ? tournamentEntryCharacterId(champion) : null;
   const winImage = characterId ? MATCH_RESULT_IMAGES[characterId]?.win : null;
   return `
@@ -13316,11 +13396,16 @@ function renderTournamentChampion(champion, final) {
   `;
 }
 
-function renderTournamentSetScores(scoreText, isLive = false) {
+function renderTournamentSetScores(scoreText, isLive = false, winnerSide = null) {
   const cleanScore = String(scoreText || "").replace(/\s*·\s*EN DIRECT\s*$/i, "").trim();
   if (!cleanScore) return "";
   const setScores = cleanScore.split(/\s+-\s+/).filter(Boolean);
-  return `<div class="tournament-score tournament-set-scores ${isLive ? "live" : ""}" aria-label="${isLive ? "Score en direct" : "Score final"}">${setScores.map((score) => `<span>${escapeHtml(score.replace("/", "–"))}</span>`).join("")}</div>`;
+  return `<div class="tournament-score tournament-set-scores ${isLive ? "live" : ""}" aria-label="${isLive ? "Score en direct" : "Score final"}">${setScores.map((score) => {
+    const [left, right] = score.split("/").map((value) => Number(value.trim()));
+    const setWinnerSide = left > right ? "left" : right > left ? "right" : null;
+    const winnerClass = winnerSide && setWinnerSide === winnerSide ? "winner-set" : "";
+    return `<span class="${winnerClass}">${escapeHtml(score.replace("/", "–"))}</span>`;
+  }).join("")}</div>`;
 }
 
 function renderTournamentPanel() {
@@ -13524,13 +13609,13 @@ function renderLeagueStandingsTable(group, throughDay = 0) {
 
 function renderTournamentMatch(match, isFinal = false) {
   if (!match) return "";
-  const unknownLabel = isFinal ? "À déterminer" : match.round === "semi" ? "À déterminer" : "Qualifié à déterminer";
-  const playerA = match.playerA ? tournamentPlayerLabel(match.playerA) : unknownLabel;
-  const playerB = match.playerB ? tournamentPlayerLabel(match.playerB) : unknownLabel;
+  const playerA = match.playerA ? tournamentPlayerLabel(match.playerA) : "";
+  const playerB = match.playerB ? tournamentPlayerLabel(match.playerB) : "";
   const scoreText = match.liveScore || match.score || "";
   const revealedWinner = match.score && match.winner ? match.winner : null;
   const playerAWon = Boolean(revealedWinner && revealedWinner === match.playerA);
   const playerBWon = Boolean(revealedWinner && revealedWinner === match.playerB);
+  const winnerSide = playerAWon ? "left" : playerBWon ? "right" : null;
   const isCurrent = state.tournament.currentMatch === match.id;
   const isLive = !match.winner && Boolean(isCurrent || match.liveScore || match.score);
   const statusLabel = isLive ? "En direct" : match.winner ? "Terminé" : match.playerA && match.playerB ? "À jouer" : "À venir";
@@ -13549,7 +13634,7 @@ function renderTournamentMatch(match, isFinal = false) {
         <span class="tournament-player-identity">${playerB}${tournamentSeedNumberMarkup(match.playerB)} ${aiIntelligenceBadgeMarkup(match.playerB)}</span>
         ${playerBWon ? "<strong>✓</strong>" : ""}
       </div>
-      ${renderTournamentSetScores(scoreText, isLive)}
+      ${renderTournamentSetScores(scoreText, isLive, winnerSide)}
     </article>
   `;
 }
@@ -13746,6 +13831,8 @@ function matchResultImageForPlayer(player, playerIndex) {
 function renderCharacterCard(player, playerIndex) {
   const character = characterOf(player);
   const opponent = state.players[opponentOf(playerIndex)];
+  const opponentEndurance = Number(opponent?.endurance ?? 0);
+  const opponentHandCount = Number(opponent?.hand?.length ?? 0);
   const resultImage = matchResultImageForPlayer(player, playerIndex);
   const imageUrl = resultImage ?? CHARACTER_IMAGES[player.characterId]?.[player.characterSide] ?? CHARACTER_IMAGES[player.characterId]?.[0];
   const leader = leadingPlayerIndex();
@@ -13784,13 +13871,12 @@ function renderCharacterCard(player, playerIndex) {
           <span>Puissance</span>
         </div>
         <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
-          <strong>${player.endurance}<span class="opponent-inline">(${opponent?.endurance ?? 0})</span></strong>
+          <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
           <span>Endurance</span>
         </div>
         <div class="character-hand-reminder${handCountClass}" aria-label="${handCount} carte${handCount > 1 ? "s" : ""} restante${handCount > 1 ? "s" : ""}">
           <span class="hand-cards-icon" aria-hidden="true"><i></i><i></i></span>
-          <strong>${handCount}<span class="opponent-inline">(${opponent?.hand?.length ?? 0})</span></strong>
-          <span>Cartes</span>
+          <strong>${handCount}<span class="opponent-inline ${opponentHandCount <= 2 ? "critical-opponent" : ""}">(${opponentHandCount})</span></strong>
         </div>
       </div>
     </div>

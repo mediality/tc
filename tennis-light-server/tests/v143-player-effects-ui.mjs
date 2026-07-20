@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
+const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
 
 function functionSource(name) {
   const start = app.indexOf(`function ${name}(`);
@@ -85,11 +86,16 @@ assert.doesNotMatch(functionSource("renderResultPanel"), /Score du set/);
 assert.match(functionSource("renderLeagueStandingsTable"), /<span>Rang<\/span><span>Nom<\/span><span>Points<\/span><span>Diff\. sets<\/span><span>Diff\. jeux<\/span>/);
 assert.match(app, /tournament-match-status/);
 assert.match(app, /character-hand-reminder/);
-assert.match(app, /opponent\?\.hand\?\.length/);
+assert.match(app, /opponentHandCount <= 2 \? "critical-opponent"/);
 assert.match(app, /function renderTournamentChampion\(champion, final\)/);
 assert.match(app, /MATCH_RESULT_IMAGES\[characterId\]\?\.win/);
-assert.match(app, /function renderTournamentSetScores\(scoreText, isLive = false\)/);
+assert.match(app, /function renderTournamentSetScores\(scoreText, isLive = false, winnerSide = null\)/);
 assert.match(functionSource("renderTournamentMatch"), /const isLive = !match\.winner/);
+assert.doesNotMatch(functionSource("renderTournamentMatch"), /À déterminer|Qualifié à déterminer/);
+assert.match(functionSource("refreshWeeklyTournamentDerivedSlots"), /r16_1\?\.winner \|\| r16_2\?\.winner/);
+assert.match(functionSource("refreshWeeklyTournamentDerivedSlots"), /semi1\?\.winner \|\| semi2\?\.winner/);
+assert.match(server, /if \(final && semi1\?\.winner\) final\.playerA = semi1\.winner/);
+assert.match(server, /if \(semi1 && qf1\?\.winner\) semi1\.playerA = qf1\.winner/);
 assert.match(css, /\.action-log-dialog/);
 assert.match(css, /\.result-power-score/);
 assert.match(css, /\.outcome-boost \.result-outcome-badge/);
@@ -99,10 +105,50 @@ assert.match(css, /\.hand-cards-icon/);
 assert.match(css, /\.tournament-match-status\.live::before/);
 assert.match(css, /tournament-live-pulse/);
 assert.match(css, /\.tournament-champion-portrait/);
+assert.match(css, /\.tournament-set-scores span\.winner-set/);
+assert.match(css, /\.opponent-inline\.critical-opponent/);
+assert.match(css, /\.confrontation-player-card-frame::after/);
 assert.match(css, /--game-card-radius: 7\.2% \/ 5\.2%/);
+
+assert.match(html, /Tennis Courts Academy · 2\.169\.12/);
+assert.match(html, /styles\.css\?v=170\.5/);
+assert.match(html, /app\.js\?v=170\.5/);
+
+const profileSource = functionSource("profileMarkup");
+assert.match(profileSource, /<dd>\$\{Number\(ranking\.score_ref \|\| 0\)\}<\/dd><small>4 semaines terminées<\/small>/);
+assert.match(profileSource, /ranking\.projected_rank/);
+assert.match(profileSource, /const tournamentWins = palmaresResults\.filter/);
+assert.match(profileSource, /const lostFinals = palmaresResults\.filter/);
+assert.match(profileSource, /index >= 10 \? " profile-collapsible-item hidden"/);
+assert.match(profileSource, /data-profile-toggle="career"/);
+assert.match(profileSource, /const sortedAiResults = \[\.\.\.aiResults\]\.sort/);
+assert.match(profileSource, /index >= 5 \? " profile-collapsible-item hidden"/);
+assert.match(profileSource, /data-profile-toggle="rivalries"/);
+assert.match(profileSource, /const currentCalendar = calendar\.filter/);
+assert.match(profileSource, /const remainingCalendar = calendar[\s\S]*?\.sort\(\(a, b\) => Number\(a\.week \|\| 0\) - Number\(b\.week \|\| 0\)/);
+assert.match(profileSource, /data-profile-toggle="calendar"/);
+assert.doesNotMatch(profileSource, /<span>0[1-6]<\/span>/);
+assert.match(app, /function toggleProfileCollection\(event\)/);
+assert.match(app, /querySelectorAll\("\[data-profile-toggle\]"\)/);
+assert.match(css, /\.profile-identity-hero \{[\s\S]*?gap: 16px;[\s\S]*?background: transparent;/);
+assert.match(css, /\.profile-identity-portrait \{[\s\S]*?border-radius: 18px/);
+assert.match(css, /\.profile-identity-info \{[\s\S]*?border-radius: 18px/);
+assert.match(css, /\.academy-copy-grid > \.academy-copy-card \+ \.academy-copy-card \{ padding-left: 26px; \}/);
+
+const competitionsSource = functionSource("renderCompetitions");
+assert.match(competitionsSource, /performance\?\.lastOpponent/);
+assert.match(competitionsSource, /performance\?\.lastScore/);
+assert.match(competitionsSource, /N’A PAS ENCORE PARTICIPÉ/);
+assert.match(competitionsSource, /circuit-performance-line/);
+assert.match(server, /SELECT competition_id, achievement, points, last_opponent, last_score/);
+assert.match(server, /lastOpponent: row\.last_opponent \|\| ""/);
+assert.match(server, /lastScore: row\.last_score \|\| ""/);
 
 const resultPanelSource = functionSource("renderResultPanel");
 assert.ok(resultPanelSource.indexOf("renderCompactMatchScore(setMatch)") > resultPanelSource.indexOf("result-bonus-list"));
+assert.doesNotMatch(functionSource("renderCompactMatchScore"), />Score du match</);
+assert.match(functionSource("renderCompactMatchScore"), /won-left/);
+assert.match(functionSource("renderCompactMatchScore"), /won-right/);
 
 const simulationContext = {
   SERVER_SYNC: { enabled: false, isHost: false, seat: null },

@@ -1609,7 +1609,7 @@ async function currentTournamentPerformanceMap(userId) {
   const current = await circuitState();
   if (db) {
     const result = await db.query(`
-      SELECT competition_id, achievement, points
+      SELECT competition_id, achievement, points, last_opponent, last_score
       FROM circuit_tournament_results
       WHERE user_id = $1 AND season_number = $2 AND week_number = $3
     `, [userId, current.season, current.week]);
@@ -1617,6 +1617,8 @@ async function currentTournamentPerformanceMap(userId) {
       achievement: normalizeTournamentAchievement(row.achievement),
       label: achievementLabel(row.achievement),
       points: Number(row.points || 0),
+      lastOpponent: row.last_opponent || "",
+      lastScore: row.last_score || "",
     }]));
   }
   return Object.fromEntries(authMemory.circuitResults
@@ -1625,6 +1627,8 @@ async function currentTournamentPerformanceMap(userId) {
       achievement: normalizeTournamentAchievement(row.achievement),
       label: achievementLabel(row.achievement),
       points: Number(row.points || 0),
+      lastOpponent: row.lastOpponent || "",
+      lastScore: row.lastScore || "",
     }]));
 }
 
@@ -4236,11 +4240,9 @@ function refreshFriendlyLeagueSlots(tournament) {
     }
     if (tournament.round === "semi") {
       const semiMatches = [semi1, semi2].filter(Boolean);
+      if (final && semi1?.winner) final.playerA = semi1.winner;
+      if (final && semi2?.winner) final.playerB = semi2.winner;
       if (!semiMatches.every((match) => match.winner)) return;
-      if (final && !final.playerA && !final.playerB) {
-        final.playerA = semi1.winner;
-        final.playerB = semi2.winner;
-      }
       tournament.round = "final";
       continue;
     }
@@ -4433,24 +4435,15 @@ function refreshFriendlyTournamentSlots(tournament) {
   resolveFriendlyDepartedForfeits(tournament);
   simulateFriendlyAiOnlyMatches(tournament);
   revealFriendlyAiRoundWhenHumansAreDone(tournament);
-  if (semi1 && qf1?.winner && qf2?.winner && !semi1.playerA && !semi1.playerB) {
-    semi1.playerA = qf1.winner;
-    semi1.playerB = qf2.winner;
-  }
-  if (semi2 && qf3?.winner && qf4?.winner && !semi2.playerA && !semi2.playerB) {
-    semi2.playerA = qf3.winner;
-    semi2.playerB = qf4.winner;
-  }
+  if (semi1 && qf1?.winner) semi1.playerA = qf1.winner;
+  if (semi1 && qf2?.winner) semi1.playerB = qf2.winner;
+  if (semi2 && qf3?.winner) semi2.playerA = qf3.winner;
+  if (semi2 && qf4?.winner) semi2.playerB = qf4.winner;
   resolveFriendlyDepartedForfeits(tournament);
   simulateFriendlyAiOnlyMatches(tournament);
   revealFriendlyAiRoundWhenHumansAreDone(tournament);
-  if (semi1 && semi1.winner && semi2 && semi2.winner && !final?.playerA && !final?.playerB) {
-    // handled just below
-  }
-  if (final && semi1?.winner && semi2?.winner && !final.playerA && !final.playerB) {
-    final.playerA = semi1.winner;
-    final.playerB = semi2.winner;
-  }
+  if (final && semi1?.winner) final.playerA = semi1.winner;
+  if (final && semi2?.winner) final.playerB = semi2.winner;
   resolveFriendlyDepartedForfeits(tournament);
   simulateFriendlyAiOnlyMatches(tournament);
   revealFriendlyAiRoundWhenHumansAreDone(tournament);
