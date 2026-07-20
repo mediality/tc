@@ -7675,7 +7675,7 @@ h1 {
 .confrontation-intro-round strong { overflow: hidden; color: #fff; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .confrontation-intro-versus { position: relative; grid-template-columns: minmax(0,1fr) 62px minmax(0,1fr); gap: 18px; margin-top: 16px; }
 .confrontation-intro-player { gap: 5px; }
-.confrontation-player-card-frame { position: relative; width: min(195px,100%); height: 242px; overflow: hidden; box-sizing: border-box; border: 2px solid rgba(255,255,255,.92); border-radius: var(--game-card-radius); box-shadow: 0 18px 38px rgba(0,0,0,.36); }
+.confrontation-player-card-frame { position: relative; width: min(195px,100%); height: 242px; overflow: hidden; border: 0; border-radius: var(--game-card-radius); box-shadow: 0 0 0 4px rgba(255,255,255,.96), 0 18px 38px rgba(0,0,0,.36); }
 .confrontation-player-card-frame::after { display: none; }
 .confrontation-intro-player img { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: var(--game-card-radius); object-fit: cover; object-position: 50% 13%; box-shadow: none; }
 .confrontation-intro-player strong { font-size: .92rem; }
@@ -7843,4 +7843,164 @@ h1 {
   .action-log-dialog .action-log-entry:not(.compact) { grid-template-columns: 8px minmax(0,1fr); }
   .action-log-dialog .action-log-entry:not(.compact).has-card { grid-template-columns: 8px 38px minmax(0,1fr); }
   .action-log-dialog .action-log-order { display: none; }
+}
+
+/* Mobile vertical : pages Circuit, profil et classement ---------------- */
+@media (max-width: 700px) and (orientation: portrait) {
+  #profileScreen,
+  #rankingScreen,
+  #circuitInfoScreen,
+  .content-page-screen {
+    width: calc(100vw - 16px);
+    padding: 8px 0 18px;
+  }
+
+  .content-page-shell,
+  .profile-page-shell,
+  .circuit-ranking-shell { gap: 9px; }
+
+  .content-page-topbar,
+  #profileScreen .mode-clubhouse-topbar,
+  #rankingScreen .mode-clubhouse-topbar {
+    gap: 8px;
+    border-radius: 14px;
+    padding: 9px 10px;
+  }
+
+  .content-page-topbar .menu-logo,
+  #profileScreen .menu-logo,
+  #rankingScreen .menu-logo { width: 106px; }
+
+  .content-page-topbar .page-return-actions,
+  #profileScreen .page-return-actions,
+  #rankingScreen .page-return-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .content-page-topbar .page-return-actions > *,
+  #profileScreen .page-return-actions > *,
+  #rankingScreen .page-return-actions > * { flex: 1 1 120px; }
+
+  .profile-page-panel,
+  .circuit-ranking-full-panel,
+  .circuit-info-panel { border-radius: 18px; }
+
+  .profile-page-heading,
+  .circuit-ranking-page-header {
+    align-items: flex-start;
+    gap: 12px;
+    border-radius: 0;
+    padding: 20px 17px;
+  }
+
+  .profile-page-heading h1,
+  .circuit-ranking-page-header h1 { font-size: clamp(1.65rem, 9vw, 2.2rem); }
+
+  .profile-page-heading > img,
+  .circuit-ranking-page-header > img { width: 46px; height: 46px; padding: 9px; }
+
+  .profile-content { gap: 12px; padding: 13px; }
+  .profile-identity-hero { grid-template-columns: 1fr; gap: 11px; min-height: 0; }
+  .profile-identity-portrait { width: 132px; height: 174px; min-height: 0; justify-self: center; }
+  .profile-identity-info { width: 100%; }
+  .profile-identity-copy { padding: 17px 16px 14px; }
+  .profile-identity-copy h2 { font-size: 1.65rem; }
+  .profile-identity-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-identity-metrics div { padding: 12px 10px; }
+  .profile-identity-metrics div:nth-child(odd) { border-left: 0; }
+  .profile-identity-metrics div:nth-child(even) { border-left: 1px solid rgba(255,255,255,.12); }
+  .profile-identity-metrics div:nth-child(n + 3) { border-top: 1px solid rgba(255,255,255,.12); }
+  .profile-identity-metrics div:last-child { grid-column: 1 / -1; border-left: 0; }
+  .profile-card { min-width: 0; padding: 16px; }
+  .profile-stats-grid { grid-template-columns: 1fr 1fr; }
+  .profile-character-visuals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .ranking-sort-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin: 0;
+  }
+
+  .ranking-sort-controls .small-button { min-width: 0; padding-inline: 8px; }
+  .circuit-ranking-full-panel { gap: 13px; padding: 13px; }
+  .circuit-ranking-full-panel .ranking-full-list,
+  .circuit-ranking-list { overflow: visible; }
+
+  .ranking-list[data-mobile-score] .ranking-score { display: none; }
+  .ranking-list[data-mobile-score="points"] .ranking-score-points,
+  .ranking-list[data-mobile-score="week"] .ranking-score-week,
+  .ranking-list[data-mobile-score="season"] .ranking-score-season { display: block; }
+
+  .ranking-list .ranking-head,
+  .ranking-list .ranking-row,
+  .circuit-ranking-list .ranking-head,
+  .circuit-ranking-list .ranking-row,
+  .circuit-ranking-full-panel .ranking-head,
+  .circuit-ranking-full-panel .ranking-row {
+    grid-template-columns: 64px minmax(0, 1fr) minmax(70px, max-content) !important;
+    min-width: 0 !important;
+    gap: 7px;
+    padding: 9px 8px;
+  }
+
+  .ranking-position { min-width: 0; }
+  .ranking-projection { display: block; margin: 1px 0 0; font-size: .58em; }
+  .ranking-score { justify-self: end; text-align: right; }
+  .ranking-name-button { line-height: 1.18; }
+  .ranking-meta { padding-right: 2px; }
+  .ranking-pagination { gap: 7px; }
+  .ranking-pagination .small-button { min-width: 0; padding-inline: 11px; }
+
+  .circuit-info-hero,
+  .circuit-info-hero .content-page-hero-copy { min-height: 285px; }
+  .circuit-info-hero::after { background: linear-gradient(90deg, rgba(3,42,30,.97), rgba(4,66,45,.79)); }
+  .circuit-info-hero > img { object-position: 72% 50%; }
+  .circuit-info-hero .content-page-hero-copy { width: 100%; padding: 23px 18px; }
+  .circuit-info-hero .content-page-hero-copy h1 { max-width: 13ch; font-size: clamp(1.75rem, 9vw, 2.35rem); }
+  .circuit-info-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .circuit-info-facts article { min-width: 0; padding: 17px 9px; }
+  .circuit-info-facts strong { font-size: 1.45rem; }
+  .circuit-info-facts span { font-size: .62rem; line-height: 1.25; }
+  .circuit-goat-feature { margin: 13px; border-radius: 14px; }
+  .circuit-goat-feature img { min-height: 185px; max-height: 210px; }
+  .circuit-goat-feature div { padding: 20px 17px; }
+  .circuit-goat-feature p { font-size: .82rem; line-height: 1.55; }
+  .circuit-info-card-grid { gap: 11px; padding: 13px; }
+  .circuit-info-card { padding: 19px 17px !important; }
+  .circuit-info-card-icon { top: 16px; right: 16px; width: 34px; height: 34px; }
+  .circuit-info-card h2 { padding-right: 38px; font-size: 1.1rem; }
+  .circuit-info-panel .circuit-points-section { margin: 0 13px 18px; padding: 17px; }
+  .circuit-points-table-wrap { overflow: visible; }
+  .circuit-points-table { display: block; min-width: 0; background: transparent; }
+  .circuit-points-table thead { display: none; }
+  .circuit-points-table tbody { display: grid; gap: 9px; }
+  .circuit-points-table tr {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: hidden;
+    border: 1px solid rgba(23,75,88,.14);
+    border-radius: 11px;
+    background: #fff;
+  }
+  .circuit-points-table th,
+  .circuit-points-table td { display: grid; justify-items: center; gap: 2px; border: 0; padding: 8px 3px; text-align: center; white-space: normal; }
+  .circuit-points-table th:first-child { grid-column: 1 / -1; padding: 9px; color: #fff; background: #174b58; text-align: center; }
+  .circuit-points-table td { font-size: .78rem; font-weight: 900; }
+  .circuit-points-table td::before { color: #71818b; font-size: .52rem; font-weight: 850; text-transform: uppercase; }
+  .circuit-points-table td:nth-child(2)::before { content: "8e"; }
+  .circuit-points-table td:nth-child(3)::before { content: "Quart"; }
+  .circuit-points-table td:nth-child(4)::before { content: "Demi"; }
+  .circuit-points-table td:nth-child(5)::before { content: "Finale"; }
+  .circuit-points-table td:nth-child(6)::before { content: "Victoire"; }
+  .circuit-info-cta { gap: 15px; padding: 21px 17px; }
+  .circuit-info-cta .primary-button { width: 100%; }
+}
+
+@media (max-width: 520px) and (orientation: portrait) {
+  .profile-row { grid-template-columns: 1fr; align-items: start; }
+  .profile-row > span:last-child { text-align: left; }
+  .confrontation-summary { justify-content: flex-start; flex-wrap: wrap; }
+  .profile-stats-grid { grid-template-columns: 1fr; }
 }

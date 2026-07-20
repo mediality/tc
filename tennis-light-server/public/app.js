@@ -2167,16 +2167,16 @@ function rankingMarkup(ranking = AUTH_STATE.ranking) {
     <div class="ranking-row">
       ${rankCell({ ...row, rank: Number(row.rank || index + 1) })}
       <strong>${profileName(row)}</strong>
-      <span>${Number(row.score_ref || 0)}</span>
-      <span><strong>${Number(row.score_week || 0)}</strong></span>
-      <span>${Number(row.score_total || 0)}</span>
+      <span class="ranking-score ranking-score-points">${Number(row.score_ref || 0)}</span>
+      <span class="ranking-score ranking-score-week"><strong>${Number(row.score_week || 0)}</strong></span>
+      <span class="ranking-score ranking-score-season">${Number(row.score_total || 0)}</span>
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user">${rankCell(current)}<strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span><span><strong>${Number(current.score_week || 0)}</strong></span><span>${Number(current.score_total || 0)}</span></div>`
+    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user">${rankCell(current)}<strong>${profileName(current)}</strong><span class="ranking-score ranking-score-points">${Number(current.score_ref || 0)}</span><span class="ranking-score ranking-score-week"><strong>${Number(current.score_week || 0)}</strong></span><span class="ranking-score ranking-score-season">${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
-    <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-points-heading">Points <small>(S-4)</small></span><span>Semaine</span><span>Saison</span></div>
+    <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-score ranking-score-points ranking-points-heading">Points <small>(S-4)</small></span><span class="ranking-score ranking-score-week">Semaine</span><span class="ranking-score ranking-score-season">Saison</span></div>
     ${rows}
     ${currentRow}
     <div class="ranking-meta">Saison ${Number(ranking?.season || 1)} · Semaine ${Number(ranking?.week || 1)}</div>
@@ -2195,14 +2195,17 @@ function attachProfileLinks(container) {
 
 function renderRanking() {
   if (els.rankingList) {
+    els.rankingList.dataset.mobileScore = AUTH_STATE.rankingSort;
     els.rankingList.innerHTML = rankingMarkup(AUTH_STATE.lobbyRanking);
     attachProfileLinks(els.rankingList);
   }
   if (els.rankingFullList) {
+    els.rankingFullList.dataset.mobileScore = AUTH_STATE.rankingSort;
     els.rankingFullList.innerHTML = rankingMarkup(AUTH_STATE.ranking);
     attachProfileLinks(els.rankingFullList);
   }
   if (els.adminRankingList) {
+    els.adminRankingList.dataset.mobileScore = AUTH_STATE.rankingSort;
     els.adminRankingList.innerHTML = rankingMarkup(AUTH_STATE.ranking);
     attachProfileLinks(els.adminRankingList);
   }
@@ -3168,6 +3171,7 @@ async function adminRestartSeasonOne() {
 
 function changeRankingSort(sortBy) {
   AUTH_STATE.rankingSort = ["points", "week", "season"].includes(sortBy) ? sortBy : "points";
+  renderRanking();
   loadLobbyRanking();
   if (!els.rankingScreen?.classList.contains("hidden")) loadRanking(1);
 }
@@ -5157,9 +5161,17 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
   }
 }
 
-function resumeFriendlyMatchFromClubHouse() {
+async function resumeFriendlyMatchFromClubHouse() {
   const match = FRIENDLY_TOURNAMENT.resumableMatch;
   if (!match?.id || !FRIENDLY_TOURNAMENT.enabled) return;
+  FRIENDLY_TOURNAMENT.presenceId = crypto.randomUUID();
+  const presenceRestored = await restoreFriendlyTournamentPresence();
+  if (!FRIENDLY_TOURNAMENT.enabled || !presenceRestored) {
+    state.log.unshift("La reprise n'a pas été confirmée par le Club House.");
+    pollFriendlyTournament();
+    renderFriendlyLobbyScreen();
+    return;
+  }
   FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
   FRIENDLY_TOURNAMENT.currentMatchId = match.id;
   FRIENDLY_TOURNAMENT.resumableMatch = null;
@@ -5949,6 +5961,7 @@ async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHou
       body: JSON.stringify({
         participantId: FRIENDLY_TOURNAMENT.participantId,
         token: FRIENDLY_TOURNAMENT.token,
+        presenceId: FRIENDLY_TOURNAMENT.presenceId,
         matchId: currentMatch?.id || null,
         score: scoreAtDeparture,
         state: savedState,
@@ -6026,9 +6039,9 @@ async function restoreFriendlyTournamentPresence() {
     || !FRIENDLY_TOURNAMENT.id
     || !FRIENDLY_TOURNAMENT.participantId
     || !FRIENDLY_TOURNAMENT.token
-  ) return;
+  ) return false;
   try {
-    await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/presence`, {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/presence`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -6038,7 +6051,9 @@ async function restoreFriendlyTournamentPresence() {
         status: "online",
       }),
     });
+    return response.ok;
   } catch (error) {
+    return false;
   } finally {
     FRIENDLY_TOURNAMENT.pageExitSignaled = false;
   }
