@@ -1405,6 +1405,7 @@ const els = {
   onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
   lobbyRooms: document.querySelector("#lobbyRooms"),
   latestNewsPanel: document.querySelector("#latestNewsPanel"),
+  homeNewsList: document.querySelector("#homeNewsList"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
   exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
@@ -1704,6 +1705,37 @@ function formatGameNewsDate(value) {
 
 function latestGameNews() {
   return [...GAME_NEWS].sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))[0] || null;
+}
+
+function renderHomeNewsSection() {
+  if (!els.homeNewsList) return;
+  const newsItems = [...GAME_NEWS]
+    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))
+    .slice(0, 3);
+  if (!newsItems.length) {
+    els.homeNewsList.innerHTML = '<div class="home-news-empty">Les prochaines actualités de l’Academy arrivent bientôt.</div>';
+    return;
+  }
+  els.homeNewsList.innerHTML = newsItems.map((news, index) => {
+    const characterId = news.characterId || "milanVerhaegen";
+    const image = CHARACTER_IMAGES[characterId]?.[0] || PROFILE_CHARACTER_IMAGES[characterId];
+    return `
+      <article class="home-news-card ${index === 0 ? "home-news-featured" : ""}">
+        <button class="home-news-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
+          <img src="${escapeHtml(image)}" alt="Carte de ${escapeHtml(characterNameFromId(characterId))}" />
+        </button>
+        <div class="home-news-copy">
+          <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
+          <h3>${escapeHtml(news.title)}</h3>
+          <p>${escapeHtml(news.message)}</p>
+          <button class="home-news-read" type="button" data-read-game-news="${escapeHtml(news.id)}">Lire l'actualité <span aria-hidden="true">→</span></button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  els.homeNewsList.querySelectorAll("[data-read-game-news]").forEach((button) => {
+    button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
+  });
 }
 
 function renderLatestNewsPanel() {
@@ -2621,10 +2653,25 @@ function profileMarkup(profile) {
     }).join("")
     : '<div class="lobby-empty">Calendrier indisponible.</div>';
   return `
+    <section class="profile-identity-hero">
+      <div class="profile-identity-portrait">
+        <img src="${escapeHtml(selectedCharacterVisuals.illustration)}" alt="${escapeHtml(selectedCharacterName)}" />
+      </div>
+      <div class="profile-identity-copy">
+        <span class="profile-role">${escapeHtml(ROLE_LABELS[user?.role] || "FREE")}</span>
+        <p class="label">${isOwnProfile ? "Votre carrière" : "Profil joueur"}</p>
+        <h2>${escapeHtml(user?.nickname || "Joueur")}</h2>
+        <p>${escapeHtml(selectedCharacterName)} vous représente dans le lobby et sur les courts.</p>
+      </div>
+      <dl class="profile-identity-metrics">
+        <div><dt>Rang mondial</dt><dd>${Number(ranking.rank || 0) ? `#${Number(ranking.rank)}` : "-"}</dd></div>
+        <div><dt>Points Circuit</dt><dd>${Number(ranking.score_total || 0)}</dd></div>
+        <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd></div>
+      </dl>
+    </section>
     <div class="profile-grid">
-      <section class="profile-card">
-        <p class="label">Compte</p>
-        <div class="profile-role">${escapeHtml(ROLE_LABELS[user?.role] || "FREE")}</div>
+      <section class="profile-card profile-account-card">
+        <div class="profile-card-heading"><span>01</span><div><p class="label">Compte</p><h3>Informations joueur</h3></div></div>
         ${isOwnProfile ? `
           <label class="menu-field">Pseudo
             <input id="profileNicknameInput" type="text" maxlength="24" value="${escapeHtml(user?.nickname || "")}" />
@@ -2638,8 +2685,8 @@ function profileMarkup(profile) {
           <button id="profileRedeemProCodeButton" class="small-button" type="button">Passer Pro</button>
         ` : ""}
       </section>
-      <section class="profile-card">
-        <p class="label">Personnage</p>
+      <section class="profile-card profile-character-card">
+        <div class="profile-card-heading"><span>02</span><div><p class="label">Personnage</p><h3>Identité sur le court</h3></div></div>
         <div class="profile-character-summary">
           <div class="profile-character-visuals">
             ${[
@@ -2664,14 +2711,14 @@ function profileMarkup(profile) {
         </div>
         ${activity.watchable ? `<button class="small-button profile-watch-button" type="button" data-watch-profile-user="${escapeHtml(user?.id || "")}" data-watch-profile-label="${escapeHtml(activity.type || "Partie en cours")}">VOIR</button>` : ""}
       </section>` : ""}
-      <section class="profile-card">
-        <p class="label">Classement mondial</p>
+      <section class="profile-card profile-ranking-card">
+        <div class="profile-card-heading"><span>03</span><div><p class="label">Circuit Pro</p><h3>Classement mondial</h3></div></div>
         <div class="ranking-row current-user"><span>${Number(ranking.rank || 0) || "-"}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
         <div class="profile-stats-grid">${statRows}</div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
-      <section class="profile-card profile-wide">
-        <p class="label">Palmarès</p>
+      <section class="profile-card profile-wide profile-results-card">
+        <div class="profile-card-heading"><span>04</span><div><p class="label">Carrière</p><h3>Palmarès</h3></div></div>
         ${resultRows}
         ${honorRows}
       </section>
@@ -2687,12 +2734,12 @@ function profileMarkup(profile) {
           <button id="resetProfileCareerButton" class="small-button danger-button" type="button" data-profile-admin-user="${escapeHtml(user?.id || "")}">Réinitialiser palmarès et classement</button>
         </div>
       </section>` : ""}
-      <section class="profile-card profile-wide">
-        <p class="label">Résultats des confrontations</p>
+      <section class="profile-card profile-wide profile-confrontations-card">
+        <div class="profile-card-heading"><span>05</span><div><p class="label">Face-à-face</p><h3>Résultats des confrontations</h3></div></div>
         ${aiRows}
       </section>
-      <section class="profile-card profile-wide">
-        <p class="label">Calendrier de saison</p>
+      <section class="profile-card profile-wide profile-calendar-card">
+        <div class="profile-card-heading"><span>06</span><div><p class="label">Saison en cours</p><h3>Calendrier de saison</h3></div></div>
         <div class="profile-calendar">${calendarRows}</div>
       </section>
     </div>
@@ -2833,10 +2880,12 @@ function characterPageMarkup(profile) {
   const selectedProfileCharacter = options.includes(user?.selectedCharacterId) ? user.selectedCharacterId : options[0] || "coachJu";
   const characterRows = options.map((characterId) => {
     const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0] || CHARACTER_IMAGES.coachUnknown[0];
+    const name = characterNameFromId(characterId);
     return `
-      <button class="profile-character-choice ${selectedProfileCharacter === characterId ? "active" : ""}" type="button" data-profile-character="${escapeHtml(characterId)}">
-        <img src="${image}" alt="${escapeHtml(characterNameFromId(characterId))}" />
-        <span>${escapeHtml(characterNameFromId(characterId))}</span>
+      <button class="profile-character-choice ${selectedProfileCharacter === characterId ? "active" : ""}" type="button" data-profile-character="${escapeHtml(characterId)}" data-profile-character-image="${escapeHtml(image)}" data-profile-character-name="${escapeHtml(name)}">
+        <span class="character-choice-check" aria-hidden="true">✓</span>
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" />
+        <span><strong>${escapeHtml(name)}</strong><small>${selectedProfileCharacter === characterId ? "Personnage actuel" : "Disponible"}</small></span>
       </button>
     `;
   }).join("");
@@ -2845,11 +2894,23 @@ function characterPageMarkup(profile) {
     : currentUserRole() === "pro"
       ? "Votre compte PRO peut choisir parmi les 4 coachs et Milan Verhaegen."
       : "Les comptes Free peuvent choisir parmi les 4 coachs.";
+  const selectedImage = PROFILE_CHARACTER_IMAGES[selectedProfileCharacter] || CHARACTER_IMAGES[selectedProfileCharacter]?.[0] || CHARACTER_IMAGES.coachUnknown[0];
   return `
-    <div class="profile-card profile-wide">
-      <p class="label">${escapeHtml(roleHint)}</p>
-      <div class="profile-character-grid character-screen-grid">${characterRows}</div>
-      <button id="saveProfileCharacterButton" class="primary-button" type="button">Enregistrer le personnage</button>
+    <div class="character-selection-layout">
+      <aside class="character-selection-preview">
+        <div class="character-preview-image"><img id="characterPreviewImage" src="${escapeHtml(selectedImage)}" alt="${escapeHtml(characterNameFromId(selectedProfileCharacter))}" /></div>
+        <div class="character-preview-copy">
+          <p class="label">Personnage sélectionné</p>
+          <h2 id="characterPreviewName">${escapeHtml(characterNameFromId(selectedProfileCharacter))}</h2>
+          <p>Ce personnage apparaîtra comme votre avatar dans le lobby et représentera votre profil sur le Circuit.</p>
+          <button id="saveProfileCharacterButton" class="primary-button" type="button">Choisir ce personnage</button>
+        </div>
+      </aside>
+      <section class="character-selection-gallery">
+        <div class="character-gallery-heading"><div><p class="label">Vestiaire</p><h2>Personnages disponibles</h2></div><span>${options.length} choix</span></div>
+        <p class="character-role-hint">${escapeHtml(roleHint)}</p>
+        <div class="profile-character-grid character-screen-grid">${characterRows}</div>
+      </section>
     </div>
   `;
 }
@@ -2865,6 +2926,13 @@ async function loadCharacterPage() {
       button.addEventListener("click", () => {
         document.querySelectorAll("[data-profile-character]").forEach((candidate) => candidate.classList.remove("active"));
         button.classList.add("active");
+        const previewImage = document.querySelector("#characterPreviewImage");
+        const previewName = document.querySelector("#characterPreviewName");
+        if (previewImage) {
+          previewImage.src = button.dataset.profileCharacterImage || "";
+          previewImage.alt = button.dataset.profileCharacterName || "Personnage sélectionné";
+        }
+        if (previewName) previewName.textContent = button.dataset.profileCharacterName || "Personnage sélectionné";
       });
     });
   } catch (error) {
@@ -14235,6 +14303,7 @@ function initMenu() {
   updateMenuSelection();
   renderAiClubHouse();
   renderAuthState();
+  renderHomeNewsSection();
   updateAccessControls();
   loadAuthState();
   const toggleAccountPanel = () => setLobbyAccountPanelOpen(els.lobbyAccountPanel?.classList.contains("hidden"));

@@ -22,14 +22,15 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy · v169/);
-assert.match(html, /styles\.css\?v=169\.6/);
-assert.match(html, /app\.js\?v=169\.6/);
+assert.match(html, /styles\.css\?v=169\.7/);
+assert.match(html, /app\.js\?v=169\.7/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
 const latestNewsIndex = html.indexOf('id="latestNewsPanel"');
 const accountPanelIndex = html.indexOf('id="lobbyAccountPanel"');
 assert.ok(accountPanelIndex >= 0 && latestNewsIndex > accountPanelIndex);
+assert.match(html, /id="homeNewsList"/);
 assert.match(html, /class="lobby-hero"/);
 assert.match(html, /src="\.\/assets\/HERO\.jpg"/);
 assert.match(html, /id="lobbyProfileAvatar"/);
@@ -91,6 +92,11 @@ assert.match(panel, /latest-news-read-button/);
 assert.match(panel, /data-read-game-news/g);
 assert.match(panel, /showGameNewsDialog/);
 assert.match(panel, /formatGameNewsDate/);
+
+const homeNews = functionSource(app, "renderHomeNewsSection");
+assert.match(homeNews, /home-news-card/);
+assert.match(homeNews, /data-read-game-news/);
+assert.match(homeNews, /showGameNewsDialog/);
 
 const dialog = functionSource(app, "showGameNewsDialog");
 assert.match(dialog, /DERNIÈRES ACTU/);

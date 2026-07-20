@@ -22,7 +22,8 @@ function functionSource(name) {
 assert.equal((html.match(/id="academyInfoScreen"/g) || []).length, 1);
 assert.equal((html.match(/id="openAcademyInfoButton"/g) || []).length, 1);
 assert.equal((html.match(/id="academyDeckList"/g) || []).length, 1);
-assert.match(html, /Apprenez les bases avec un deck unique/);
+assert.match(html, /Apprenez\. Progressez\. Entrez sur le circuit\./);
+assert.match(html, /assets\/ACADEMY-HERO\.jpg/);
 assert.match(html, /le même deck de 18 cartes/);
 assert.match(html, /plus de <strong>500 cartes<\/strong>/);
 assert.match(html, /https:\/\/www\.mediality\.fr\/shop\/#tenniscourts/);

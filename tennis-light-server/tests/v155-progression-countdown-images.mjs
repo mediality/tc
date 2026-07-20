@@ -22,8 +22,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.6/);
-assert.match(html, /app\.js\?v=169\.6/);
+assert.match(html, /styles\.css\?v=169\.7/);
+assert.match(html, /app\.js\?v=169\.7/);
 
 const progressionContext = {
   renderCenterNextSoloExchangeButton: () => "SOLO",

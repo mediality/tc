@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=169.6" />
+    <link rel="stylesheet" href="./styles.css?v=169.7" />
   </head>
   <body>
     <section id="menuScreen" class="menu-screen lobby-home-screen">
@@ -87,6 +87,17 @@
             <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
           </button>
         </nav>
+
+        <section class="home-news-section" aria-labelledby="homeNewsTitle">
+          <div class="home-section-heading">
+            <div>
+              <p class="label">La vie de l'Academy</p>
+              <h2 id="homeNewsTitle">Actualités</h2>
+            </div>
+            <span class="home-news-live"><i aria-hidden="true"></i>Dernières informations</span>
+          </div>
+          <div id="homeNewsList" class="home-news-list" aria-live="polite"></div>
+        </section>
 
         <a class="lobby-shop-banner" href="https://mediality.fr/shop" target="_blank" rel="noopener noreferrer">
           <img src="./assets/academy-shop-banner.jpg" alt="Boîte Tennis Courts" />
@@ -257,24 +268,28 @@
       </div>
     </section>
 
-    <section id="academyInfoScreen" class="menu-screen hidden">
-      <div class="menu-shell academy-info-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v169</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel academy-info-panel">
-          <div class="lobby-header academy-info-header">
-            <p class="label">Découvrir l'Academy</p>
-            <button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour lobby</button>
-          </div>
-
-          <header class="academy-info-intro">
-            <p class="label">Tennis Courts Academy</p>
-            <h1>Apprenez les bases avec un deck unique</h1>
-            <p>Dans <strong>Tennis Courts Academy</strong>, les deux joueurs utilisent <strong>le même deck de 18 cartes</strong>.</p>
-            <p>Cette sélection a été spécialement conçue pour vous faire découvrir les mécaniques essentielles de <strong>Tennis Courts</strong> : servir, construire un échange, gérer son endurance, choisir le bon coup au bon moment et terminer le point.</p>
-            <p>Grâce à ce format simplifié, les parties sont rapides, équilibrées et idéales pour apprendre à jouer.</p>
-            <p class="academy-info-highlight"><strong>Une fois ces 18 cartes maîtrisées, vous serez prêt à découvrir le jeu complet, qui propose plus de 500 cartes différentes et de nombreuses stratégies supplémentaires.</strong></p>
+    <section id="academyInfoScreen" class="menu-screen content-page-screen hidden">
+      <div class="menu-shell academy-info-shell content-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour au lobby</button>
+        </div>
+        <section class="menu-panel academy-info-panel content-page-panel">
+          <header class="content-page-hero academy-info-hero">
+            <img src="./assets/ACADEMY-HERO.jpg" alt="Academy Tennis Courts entourée de courts de tennis" />
+            <div class="content-page-hero-copy">
+              <p class="label">Tennis Courts Academy</p>
+              <h1>Apprenez. Progressez. Entrez sur le circuit.</h1>
+              <p>Les deux joueurs utilisent le même deck de 18 cartes, pensé pour apprendre vite, maîtriser les fondamentaux et jouer immédiatement.</p>
+              <button class="primary-button" type="button" data-start-solo="exchange">Commencer l'entraînement</button>
+            </div>
           </header>
+
+          <section class="academy-journey" aria-label="Votre parcours Academy">
+            <article><span>01</span><div><strong>Découvrir</strong><p>Comprenez le service, l'échange et la construction du point.</p></div></article>
+            <article><span>02</span><div><strong>S'entraîner</strong><p>Apprenez à choisir le bon coup et à gérer votre endurance.</p></div></article>
+            <article><span>03</span><div><strong>Maîtriser</strong><p>Préparez votre passage au jeu complet et à ses stratégies avancées.</p></div></article>
+          </section>
 
           <section class="academy-info-section academy-deck-section">
             <div class="academy-section-heading">
@@ -285,7 +300,7 @@
           </section>
 
           <section class="academy-info-section academy-copy-grid">
-            <div>
+            <div class="academy-copy-card">
               <p class="label">Un apprentissage progressif</p>
               <h2>Pourquoi seulement 18 cartes ?</h2>
               <p>Le mode Academy a été conçu pour :</p>
@@ -298,7 +313,7 @@
               </ul>
             </div>
 
-            <div>
+            <div class="academy-copy-card academy-next-card">
               <p class="label">La suite de votre parcours</p>
               <h2>Et ensuite ?</h2>
               <p>Lorsque vous serez à l'aise avec ces 18 cartes, vous pourrez passer au <strong>Starter Tennis Courts</strong>.</p>
@@ -326,30 +341,39 @@
       </div>
     </section>
 
-    <section id="profileScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v169</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel">
-          <div class="lobby-header">
-            <p class="label">Mon profil</p>
-            <button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour lobby</button>
-          </div>
+    <section id="profileScreen" class="menu-screen mode-clubhouse-screen content-page-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell profile-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour au lobby</button>
+        </div>
+        <section class="menu-panel ranking-full-panel profile-page-panel">
+          <header class="profile-page-heading">
+            <div><p class="label">Espace joueur</p><h1>Mon profil</h1><p>Votre identité, votre carrière et vos résultats Tennis Courts.</p></div>
+            <img src="./assets/icons/profil.svg" alt="" aria-hidden="true" />
+          </header>
           <div id="profileContent" class="profile-content" aria-live="polite"></div>
         </section>
       </div>
     </section>
 
-    <section id="characterScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v169</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel">
-          <div class="lobby-header">
-            <p class="label">Choisir mon personnage</p>
+    <section id="characterScreen" class="menu-screen mode-clubhouse-screen content-page-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell character-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions">
+            <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour au profil</button>
+            <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour au lobby</button>
+          </div>
+        </div>
+        <section class="menu-panel ranking-full-panel character-page-panel">
+          <header class="profile-page-heading character-page-heading">
+            <div><p class="label">Votre identité sur le court</p><h1>Choisir mon personnage</h1><p>Sélectionnez le personnage qui vous représentera dans le lobby et sur le Circuit.</p></div>
+            <img src="./assets/icons/SOLO.svg" alt="" aria-hidden="true" />
+          </header>
+          <div class="lobby-header character-mobile-actions">
             <div class="page-return-actions">
-              <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour profil</button>
-              <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour lobby</button>
+              <span>Les personnages disponibles dépendent de votre accès.</span>
             </div>
           </div>
           <div id="characterContent" class="profile-content" aria-live="polite"></div>
@@ -399,46 +423,54 @@
       </div>
     </section>
 
-    <section id="circuitInfoScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v169</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel circuit-info-panel">
-          <div class="lobby-header">
-            <p class="label">Tennis Courts Pro Circuit</p>
-            <button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour lobby</button>
-          </div>
-          <h1 class="circuit-info-main-title">DEVENEZ LE GOAT !</h1>
-          <div class="circuit-info-feature">
-            <figure class="circuit-info-visual">
-              <img src="./assets/circuit-pro-contigoat.jpg" alt="Championne Tennis Courts dans la galerie des trophées" />
-            </figure>
-            <div class="circuit-info-feature-copy">
-              <article class="circuit-info-section">
-                <h2>Les tournois</h2>
-                <p>Chaque semaine de Tennis Courts propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour du circuit le mercredi à 14 h et le dimanche à 2 h (heure de Paris). Les catégories sont Challenge 400, Major 600, Premier 1000, Crown 1500, Slam 2000 et Finals 4000. Le nombre indique l'importance du tournoi et les points attribués au vainqueur.</p>
-              </article>
-              <article class="circuit-info-section">
-                <h2>Classement</h2>
-                <p>Votre classement mondial est calculé à partir du cumul des points obtenus sur les 4 dernières semaines de compétition. Chaque nouveau tournoi est donc l'occasion d'améliorer votre position.</p>
-              </article>
+    <section id="circuitInfoScreen" class="menu-screen content-page-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour au Circuit</button>
+        </div>
+        <section class="menu-panel ranking-full-panel circuit-info-panel content-page-panel">
+          <header class="content-page-hero circuit-info-hero">
+            <img src="./assets/CIRCUIT-PRO.jpg" alt="Trophée du Tennis Courts Pro Circuit" />
+            <div class="content-page-hero-copy">
+              <p class="label">Tennis Courts Pro Circuit</p>
+              <h1>Entrez dans la course au titre mondial</h1>
+              <p>Jouez les tournois de la semaine, améliorez vos résultats et construisez votre carrière saison après saison.</p>
             </div>
-          </div>
-          <div class="circuit-info-grid">
-            <article class="circuit-info-section">
-              <h2>Retenter sa chance</h2>
+          </header>
+          <section class="circuit-info-facts" aria-label="Le Circuit en chiffres">
+            <article><strong>5</strong><span>tournois chaque semaine</span></article>
+            <article><strong>4</strong><span>semaines prises en compte</span></article>
+            <article><strong>5</strong><span>tentatives d'amélioration</span></article>
+            <article><strong>4 000</strong><span>points aux World Finals</span></article>
+          </section>
+          <div class="circuit-info-grid circuit-info-card-grid">
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/schedule.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Chaque semaine</p><h2>Les tournois</h2>
+              <p>Le Circuit propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour le mercredi à 14 h et le dimanche à 2 h, heure de Paris.</p>
+            </article>
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/classement.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Votre progression</p><h2>Classement et projection</h2>
+              <p>Le classement mondial cumule les points des 4 dernières semaines. La projection affichée en petit indique la position estimée du joueur pour la semaine suivante.</p>
+            </article>
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/next.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Améliorer son résultat</p><h2>Retenter sa chance</h2>
               <p>Vous pouvez rejouer un tournoi jusqu'à 5 fois afin de tenter de réaliser une meilleure performance. Seul votre meilleur résultat est conservé. Au total, vous disposez de 5 tentatives d'amélioration par semaine, à répartir librement entre les différents tournois disponibles.</p>
             </article>
-            <article class="circuit-info-section">
-              <h2>Organisation de la saison</h2>
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Devenir champion</p><h2>Organisation de la saison</h2>
               <p>Toutes les 4 semaines a lieu un Slam, offrant jusqu'à 2 000 points au vainqueur. Une saison s'étend sur 20 semaines (soit 10 semaines dans la réalité) et se conclut par les prestigieux Tennis Courts World Finals, où les points sont doublés par rapport à un Slam, avec 4 000 points à la clé pour le champion.</p>
             </article>
-            <article class="circuit-info-section">
-              <h2>Rapport de force</h2>
+            <article class="circuit-info-section circuit-info-card">
+              <p class="label">Le niveau monte</p><h2>Rapport de force</h2>
               <p>Le classement mondial ne se limite pas aux joueurs humains. Il rassemble également les joueurs de l'univers de Tennis Courts, chacun possédant son propre niveau, ses défis et sa progression. Les meilleurs bénéficient de statuts de têtes de série et de différents bonus, rendant leur parcours encore plus redoutable. Mais quelle satisfaction de réussir à éliminer le numéro 1 mondial dans un grand tournoi !</p>
             </article>
-            <article class="circuit-info-section">
-              <h2>Rivalité</h2>
+            <article class="circuit-info-section circuit-info-card">
+              <p class="label">Chaque match compte</p><h2>Rivalités</h2>
               <p>Enfin, une véritable rivalité peut naître au fil des saisons. Après plusieurs confrontations contre un même adversaire, un rapport de force psychologique s'installe. Selon votre historique de victoires, vous pourrez obtenir l'un des trois statuts suivants : Ascendant, Domination ou Bête noire, accordant un avantage psychologique lors de vos prochaines rencontres. Chaque match compte, et chaque rivalité peut faire basculer votre saison.</p>
             </article>
           </div>
@@ -461,6 +493,10 @@
               </table>
             </div>
           </section>
+          <div class="circuit-info-cta">
+            <div><p class="label">Prêt à entrer sur le court ?</p><strong>Votre prochaine semaine de compétition vous attend.</strong></div>
+            <button class="primary-button" type="button" data-open-lobby-section="circuit">Accéder au Circuit Pro</button>
+          </div>
         </section>
       </div>
     </section>
@@ -707,6 +743,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=169.6"></script>
+    <script src="./app.js?v=169.7"></script>
   </body>
 </html>
