@@ -1219,6 +1219,13 @@ let opponentHandRevealTimer = null;
 let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
 let confrontationIntroSequenceTimers = [];
+let soloTournamentCountdownTimer = null;
+
+const GAMEPLAY_ASSIST = {
+  preview: localStorage.getItem("tennisLightAssistPreview") !== "false",
+  blockedReasons: localStorage.getItem("tennisLightAssistBlockedReasons") !== "false",
+  panelOpen: false,
+};
 
 const state = {
   players: [],
@@ -1291,6 +1298,12 @@ const els = {
   adminGameToolsPanel: document.querySelector("#adminGameToolsPanel"),
   adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
+  gameAssistTools: document.querySelector("#gameAssistTools"),
+  gameAssistButton: document.querySelector("#gameAssistButton"),
+  gameAssistPanel: document.querySelector("#gameAssistPanel"),
+  gamePreviewToggle: document.querySelector("#gamePreviewToggle"),
+  gameBlockedReasonsToggle: document.querySelector("#gameBlockedReasonsToggle"),
+  gameContextStrip: document.querySelector("#gameContextStrip"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
   menuScreen: document.querySelector("#menuScreen"),
@@ -3212,7 +3225,7 @@ function renderCompetitions() {
         ? `<span class="circuit-best-performance">
             <small>Meilleure performance</small>
             <span class="circuit-performance-line"><strong>${escapeHtml(performance?.label || "Résultat enregistré")}</strong><em>${Number(performance?.points ?? bestScores[competition.id] ?? 0)} pts</em></span>
-            ${(performanceOpponent || performanceScore) ? `<span class="circuit-performance-detail">${performanceOpponent ? `Adversaire : ${escapeHtml(performanceOpponent)}` : ""}${performanceOpponent && performanceScore ? " · " : ""}${performanceScore ? `Score : ${escapeHtml(performanceScore)}` : ""}</span>` : ""}
+            ${(performanceOpponent || performanceScore) ? `<span class="circuit-performance-detail">${performanceOpponent ? escapeHtml(performanceOpponent) : ""}${performanceOpponent && performanceScore ? " · " : ""}${performanceScore ? escapeHtml(performanceScore) : ""}</span>` : ""}
           </span>`
         : '<span class="circuit-best-performance not-played"><strong>N’A PAS ENCORE PARTICIPÉ</strong></span>';
       const category = String(competition.type || competition.name || "Tournoi");
@@ -4173,7 +4186,7 @@ async function notifyServerLeaveRoom() {
       body: JSON.stringify({ token: SERVER_SYNC.token }),
     });
   } catch (error) {
-    // Le retour au lobby ne doit pas être bloqué par une réponse réseau absente.
+    // Le retour à l’accueil ne doit pas être bloqué par une réponse réseau absente.
   }
 }
 
@@ -4206,10 +4219,37 @@ function closeReturnLobbyDialog() {
   document.querySelector(".return-lobby-dialog")?.remove();
 }
 
+function showEventConfirmDialog({ kicker = "Tennis Courts Academy", title, message, confirmLabel = "Confirmer", cancelLabel = "Annuler" }) {
+  document.querySelector(".event-confirm-backdrop")?.remove();
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop event-confirm-backdrop";
+    const finish = (confirmed) => {
+      backdrop.remove();
+      resolve(Boolean(confirmed));
+    };
+    backdrop.innerHTML = `
+      <section class="event-transition-panel event-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="eventConfirmTitle">
+        <p class="event-transition-kicker">${escapeHtml(kicker)}</p>
+        <h2 id="eventConfirmTitle">${escapeHtml(title)}</h2>
+        <p>${escapeHtml(message)}</p>
+        <div class="event-transition-actions">
+          <button class="primary-button" type="button" data-event-confirm>${escapeHtml(confirmLabel)}</button>
+          <button class="small-button" type="button" data-event-cancel>${escapeHtml(cancelLabel)}</button>
+        </div>
+      </section>
+    `;
+    backdrop.querySelector("[data-event-confirm]")?.addEventListener("click", () => finish(true));
+    backdrop.querySelector("[data-event-cancel]")?.addEventListener("click", () => finish(false));
+    backdrop.addEventListener("click", (event) => { if (event.target === backdrop) finish(false); });
+    document.body.appendChild(backdrop);
+  });
+}
+
 async function confirmReturnToLobby() {
   closeReturnLobbyDialog();
   if (FRIENDLY_TOURNAMENT.enabled) {
-    await leaveFriendlyTournamentLobby({ confirmed: true });
+    await leaveFriendlyTournamentLobby({ confirmed: true, returnToClubHouse: true });
     return;
   }
   try {
@@ -4229,7 +4269,7 @@ async function confirmReturnToLobby() {
       localStorage.removeItem(aiClubHouseSaveKey());
     }
   } catch (error) {
-    state.log.unshift(`Retour lobby : ${error.message}`);
+    state.log.unshift(`Retour accueil : ${error.message}`);
   }
   try {
     await notifyServerLeaveRoom();
@@ -4258,16 +4298,17 @@ function openReturnLobbyDialog() {
   backdrop.className = "modal-backdrop return-lobby-dialog";
   backdrop.innerHTML = `
     <div class="modal return-lobby-modal" role="dialog" aria-modal="true" aria-labelledby="returnLobbyTitle">
-      <h2 id="returnLobbyTitle">${spectatorExit ? "Quitter le mode spectateur ?" : waitingFriendlyExit ? "Quitter ce CLUB HOUSE ?" : activeFriendlyMatch ? "Interrompre ce match ?" : friendlyTournamentExit ? "Retourner au lobby ?" : "Voulez-vous retourner au lobby ?"}</h2>
+      <p class="event-transition-kicker">Tennis Courts Academy</p>
+      <h2 id="returnLobbyTitle">${spectatorExit ? "Quitter le mode spectateur ?" : waitingFriendlyExit ? "Quitter ce CLUB HOUSE ?" : activeFriendlyMatch ? "Retourner au Club House ?" : friendlyTournamentExit ? "Retourner au Club House ?" : "Retourner à l’accueil ?"}</h2>
       <p>${friendlyTournamentExit
         ? spectatorExit
-          ? "Vous reviendrez au lobby en quittant le CLUB HOUSE du tournoi."
+          ? "Vous reviendrez au Club House du tournoi."
           : waitingFriendlyExit
             ? "Vous pourrez rejoindre ce CLUB HOUSE de nouveau tant que le tournoi n'est pas lancé."
             : activeFriendlyMatch
-              ? `Vous pourrez reprendre ce match depuis le lobby. Sans retour dans les ${friendlyMatchGraceSeconds} secondes, vous serez déclaré forfait.`
-              : "Vous pourrez reprendre ce tournoi depuis le lobby et retrouver le CLUB HOUSE."
-        : "La partie en cours restera affichée seulement si vous choisissez Non."}</p>
+              ? `La rencontre sera mise en pause et l’espace d’attente du tournoi sera affiché. Sans reprise dans les ${friendlyMatchGraceSeconds} secondes, vous serez déclaré forfait.`
+              : "Vous retrouverez l’espace d’attente et le tableau du tournoi."
+        : "La partie en cours sera quittée et l’accueil sera affiché."}</p>
       <div class="dialog-actions">
         <button class="primary-button" type="button" data-confirm-return-lobby>OUI</button>
         <button class="small-button" type="button" data-cancel-return-lobby>NON</button>
@@ -4826,6 +4867,49 @@ function cancelFriendlyMatchCountdown() {
   document.querySelector(".friendly-round-countdown")?.remove();
 }
 
+function cancelSoloTournamentCountdown() {
+  window.clearInterval(soloTournamentCountdownTimer);
+  soloTournamentCountdownTimer = null;
+  document.querySelector(".solo-tournament-countdown")?.remove();
+}
+
+function scheduleSoloTournamentMatch(startAction) {
+  if (typeof startAction !== "function" || document.querySelector(".solo-tournament-countdown")) return;
+  const nextMatch = state.tournament.nextHumanMatchId ? tournamentMatchById(state.tournament.nextHumanMatchId) : null;
+  const fallbackId = state.tournament.stage === "readyFinal" ? "final" : state.tournament.stage === "readySemi" ? "semiHuman" : null;
+  const match = nextMatch || tournamentMatchById(fallbackId);
+  const roundLabel = match?.label || humanTournamentRoundLabel() || "Match suivant";
+  const opponentEntry = match ? (match.playerA === humanTournamentEntry() ? match.playerB : match.playerA) : null;
+  const opponentName = opponentEntry ? tournamentPlayerLabel(opponentEntry) : "Adversaire à venir";
+  let remaining = 3;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop event-transition-backdrop solo-tournament-countdown";
+  const begin = () => {
+    cancelSoloTournamentCountdown();
+    startAction();
+  };
+  backdrop.innerHTML = `
+    <section class="event-transition-panel event-countdown-panel" role="dialog" aria-modal="true" aria-labelledby="soloTournamentCountdownTitle">
+      <p class="event-transition-kicker">${escapeHtml(state.tournament.competitionName || "Compétition Solo")}</p>
+      <h2 id="soloTournamentCountdownTitle">${escapeHtml(roundLabel)}</h2>
+      <div class="event-transition-versus"><strong>${escapeHtml(selectedPlayerName())}</strong><span>contre</span><strong>${escapeHtml(opponentName)}</strong></div>
+      <strong class="event-transition-countdown" aria-live="assertive">${remaining}</strong>
+      <button class="primary-button" type="button" data-start-event-now>Démarrer</button>
+    </section>
+  `;
+  backdrop.querySelector("[data-start-event-now]")?.addEventListener("click", begin);
+  document.body.appendChild(backdrop);
+  const number = backdrop.querySelector(".event-transition-countdown");
+  soloTournamentCountdownTimer = window.setInterval(() => {
+    remaining -= 1;
+    if (remaining > 0) {
+      if (number) number.textContent = String(remaining);
+      return;
+    }
+    begin();
+  }, 1000);
+}
+
 function scheduleFriendlyTournamentMatch(match) {
   if (!match?.id || FRIENDLY_TOURNAMENT.inMatch || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
   if (FRIENDLY_TOURNAMENT.countdownMatchId === match.id) {
@@ -4837,28 +4921,33 @@ function scheduleFriendlyTournamentMatch(match) {
   FRIENDLY_TOURNAMENT.countdownMatch = match;
   let remaining = 3;
   const backdrop = document.createElement("div");
-  backdrop.className = "modal-backdrop friendly-round-countdown";
+  backdrop.className = "modal-backdrop event-transition-backdrop friendly-round-countdown";
   backdrop.innerHTML = `
-    <div class="modal friendly-round-countdown-modal" role="dialog" aria-modal="true" aria-labelledby="friendlyRoundCountdownTitle">
-      <p class="label">Tournoi en ligne</p>
+    <div class="event-transition-panel event-countdown-panel friendly-round-countdown-modal" role="dialog" aria-modal="true" aria-labelledby="friendlyRoundCountdownTitle">
+      <p class="event-transition-kicker">Tournoi en ligne</p>
       <h2 id="friendlyRoundCountdownTitle">${escapeHtml(friendlyRoundName(match))}</h2>
-      <p>Votre match commence dans</p>
-      <strong class="friendly-round-countdown-number" aria-live="assertive">${remaining}</strong>
+      <div class="event-transition-versus"><strong>${escapeHtml(tournamentPlayerLabel(match.playerA))}</strong><span>contre</span><strong>${escapeHtml(tournamentPlayerLabel(match.playerB))}</strong></div>
+      <strong class="event-transition-countdown friendly-round-countdown-number" aria-live="assertive">${remaining}</strong>
+      <button class="primary-button" type="button" data-start-friendly-now>Démarrer</button>
     </div>
   `;
   document.body.appendChild(backdrop);
   const number = backdrop.querySelector(".friendly-round-countdown-number");
+  const startFriendlyNow = () => {
+    const pendingMatch = FRIENDLY_TOURNAMENT.countdownMatch;
+    cancelFriendlyMatchCountdown();
+    if (!pendingMatch || !FRIENDLY_TOURNAMENT.enabled || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
+    FRIENDLY_TOURNAMENT.currentMatchId = pendingMatch.id;
+    startFriendlyTournamentMatch(pendingMatch);
+  };
+  backdrop.querySelector("[data-start-friendly-now]")?.addEventListener("click", startFriendlyNow);
   FRIENDLY_TOURNAMENT.countdownTimer = window.setInterval(() => {
     remaining -= 1;
     if (remaining > 0) {
       if (number) number.textContent = String(remaining);
       return;
     }
-    const pendingMatch = FRIENDLY_TOURNAMENT.countdownMatch;
-    cancelFriendlyMatchCountdown();
-    if (!pendingMatch || !FRIENDLY_TOURNAMENT.enabled || FRIENDLY_TOURNAMENT.awaitingClubHouseReturn) return;
-    FRIENDLY_TOURNAMENT.currentMatchId = pendingMatch.id;
-    startFriendlyTournamentMatch(pendingMatch);
+    startFriendlyNow();
   }, 1000);
 }
 
@@ -5320,6 +5409,7 @@ function renderFriendlyLobbyScreen() {
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
+    ${renderFriendlyWaitingExperience()}
     <section class="clubhouse-format-section online-room-format-section" aria-labelledby="onlineRoomFormatTitle">
       <div class="clubhouse-section-heading"><div><p class="label">Format</p><h2 id="onlineRoomFormatTitle">Configurez votre Club House</h2></div><span class="clubhouse-friendly-note">Réglages réservés à l'hôte</span></div>
       <div class="clubhouse-format-grid" aria-label="Format du Club House en ligne">
@@ -5602,6 +5692,25 @@ function friendlyLobbyStatusText() {
   return "Ton parcours est terminé. Tu peux suivre la suite du tournoi depuis le CLUB HOUSE.";
 }
 
+function renderFriendlyWaitingExperience() {
+  if (!state.tournament?.friendly || ["waiting", "complete"].includes(state.tournament.stage) || FRIENDLY_TOURNAMENT.inMatch) return "";
+  const qualified = friendlyPlayerStillQualified();
+  const matches = state.tournament.matches || [];
+  const completed = matches.filter((match) => match.winner).length;
+  const total = matches.length;
+  return `
+    <section class="event-waiting-panel" aria-live="polite">
+      <div class="event-waiting-pulse" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div>
+        <p class="event-transition-kicker">Tournoi en cours</p>
+        <h2>${qualified ? "Préparation du prochain tour" : "La compétition continue"}</h2>
+        <p>${qualified ? "Les autres rencontres se terminent. Votre prochain match apparaîtra automatiquement." : "Votre parcours est terminé, mais vous pouvez suivre les scores depuis le Club House."}</p>
+      </div>
+      <strong>${completed}/${total || "–"}<span>matchs terminés</span></strong>
+    </section>
+  `;
+}
+
 async function pollFriendlyTournament() {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
   try {
@@ -5643,7 +5752,13 @@ async function startFriendlyTournamentFromLobby() {
   const friendlyFormat = state.tournament?.friendlyFormat || "match";
   const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
   const setsLabel = Number(state.tournament?.targetSets || 2);
-  if (!window.confirm(`Lancer l'événement ${formatLabel} en ${setsLabel} sets gagnants ? La configuration sera verrouillée.`)) return;
+  const confirmed = await showEventConfirmDialog({
+    kicker: "Club House en ligne",
+    title: `Lancer ${formatLabel} ?`,
+    message: `L’événement se jouera en ${setsLabel} sets gagnants. La configuration sera ensuite verrouillée.`,
+    confirmLabel: "Lancer l’événement",
+  });
+  if (!confirmed) return;
   await showTournamentLoadingDialog("Votre événement en ligne est en train d'être créé.");
   try {
     const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/start`, {
@@ -5663,7 +5778,7 @@ async function startFriendlyTournamentFromLobby() {
   }
 }
 
-async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
+async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHouse = false } = {}) {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
   if (FRIENDLY_TOURNAMENT.isSpectator) {
     if (!confirmed && !window.confirm("Quitter le CLUB HOUSE du tournoi et revenir au lobby ?")) return;
@@ -5676,7 +5791,7 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   const waitingRoomExit = state.tournament?.stage === "waiting";
   const confirmationText = waitingRoomExit
     ? "Quitter ce CLUB HOUSE ? Vous pourrez le rejoindre de nouveau tant que le tournoi n'est pas lancé."
-    : "Retourner au lobby ? Vous pourrez reprendre ce tournoi avec le bouton REPRENDRE.";
+    : "Retourner à l’accueil ? Vous pourrez reprendre ce tournoi avec le bouton REPRENDRE.";
   if (!confirmed && !window.confirm(confirmationText)) return;
   const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
   const scoreAtDeparture = currentMatch && state.setMatch?.enabled ? friendlyLiveScoreText(currentMatch) : null;
@@ -5700,6 +5815,19 @@ async function leaveFriendlyTournamentLobby({ confirmed = false } = {}) {
   } catch (error) {
     state.log.unshift("Impossible d'interrompre le tournoi pour le moment.");
     render();
+    return;
+  }
+  if (returnToClubHouse) {
+    cancelFriendlyMatchCountdown();
+    FRIENDLY_TOURNAMENT.inMatch = false;
+    FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = true;
+    FRIENDLY_TOURNAMENT.currentMatchId = null;
+    leaveOnlineRoom();
+    clearOnlineUrlParams();
+    if (leaveResult?.tournament) applyFriendlyTournamentState(leaveResult.tournament, null);
+    showFriendlyLobbyScreen();
+    renderFriendlyLobbyScreen();
+    pollFriendlyTournament();
     return;
   }
   resetFriendlyTournamentConnection();
@@ -12968,6 +13096,7 @@ function renderResultPanel() {
       ? "power"
       : "automatic";
   const outcomeShortLabel = outcomeClass === "boost" ? "BOOST" : outcomeClass === "power" ? "POINTS" : "DÉCISIF";
+  const compactMatchScore = renderCompactMatchScore(setMatch).replace('class="result-match-score"', `class="result-match-score winner-${winnerIndex === 0 ? "left" : "right"}"`);
   els.resultPanel.innerHTML = `
     <div class="result-banner-heading outcome-${outcomeClass}">
       <div class="result-winner-copy">
@@ -12975,16 +13104,16 @@ function renderResultPanel() {
         <h2 class="winner-dialog">${escapeHtml(playerName(winnerIndex))} gagne</h2>
         <span class="result-outcome-badge"><i aria-hidden="true"></i>${outcomeShortLabel}<small>${escapeHtml(conditionLabel)}</small></span>
       </div>
-      <div class="result-score-summary">
+      <div class="result-score-summary result-power-secondary">
         <div class="result-power-score" aria-label="Score de puissance final">
           <small>Puissance de l’échange</small>
           <strong>${state.players[winnerIndex]?.power ?? 0}<i>–</i>${state.players[loserIndex]?.power ?? 0}</strong>
         </div>
       </div>
     </div>
-    <p class="result-reason">${escapeHtml(state.resultInfo.reason)}</p>
+    ${compactMatchScore}
+    <p class="result-reason result-summary-line"><strong>${escapeHtml(playerName(winnerIndex))}</strong> remporte l’échange. ${escapeHtml(state.resultInfo.reason)}</p>
     ${endBonusDetails.length ? `<div class="result-bonus-list" aria-label="Bonus de fin d’échange">${endBonusDetails.map((bonus) => `<span><strong>+${bonus.points}</strong> ${escapeHtml(playerName(bonus.playerIndex))} · ${escapeHtml(bonus.label)}</span>`).join("")}</div>` : ""}
-    ${renderCompactMatchScore(setMatch)}
     <div class="result-actions">
       ${renderProgressionButtons()}
       ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>` : ""}
@@ -13046,6 +13175,7 @@ function closeBoostModal() {
 function render() {
   ensureSoloAIForSet();
   renderModeButtons();
+  renderGameContextStrip();
   renderSpectatorBanner();
   renderResultPanel();
   renderTournamentPanel();
@@ -13226,6 +13356,11 @@ function ensureSoloAIForSet() {
 
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
+  if (els.returnLobbyButton) els.returnLobbyButton.textContent = FRIENDLY_TOURNAMENT.enabled ? "Retour Club House" : "Retour accueil";
+  if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
+  els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
+  if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
+  if (els.gameBlockedReasonsToggle) els.gameBlockedReasonsToggle.checked = GAMEPLAY_ASSIST.blockedReasons;
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
@@ -13246,6 +13381,52 @@ function renderModeButtons() {
   }
   els.exportLogsButton?.classList.toggle("hidden", !isAdminPlayer);
   els.exportHumanMatchesButton?.classList.toggle("hidden", !isAdminPlayer);
+}
+
+function setGameAssistPanelOpen(open) {
+  GAMEPLAY_ASSIST.panelOpen = Boolean(open);
+  els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
+  els.gameAssistButton?.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
+}
+
+function currentMatchScoreText() {
+  if (!state.setMatch?.enabled) return "Échange libre";
+  const completed = Array.isArray(state.setMatch.completedScores) ? state.setMatch.completedScores : [];
+  const scores = completed.map((score) => `${Number(score?.[0] || 0)}–${Number(score?.[1] || 0)}`);
+  if (!state.setMatch.setOver && Array.isArray(state.setMatch.score)) scores.push(`${Number(state.setMatch.score[0] || 0)}–${Number(state.setMatch.score[1] || 0)}`);
+  return scores.length ? scores.join(" · ") : "0–0";
+}
+
+function leagueHumanStandingReminder() {
+  if (!state.tournament?.league) return "";
+  const human = humanTournamentEntry();
+  for (const group of ["A", "B"]) {
+    const rows = leagueStandings(group, leagueCompletedGroupDays());
+    const index = rows.findIndex((row) => row.entry === human);
+    if (index >= 0) return `Groupe ${group} · ${index + 1}e · ${rows[index].points} pts · sets ${formatLeagueDifference(rows[index].setDifference)}`;
+  }
+  return "";
+}
+
+function renderGameContextStrip() {
+  if (!els.gameContextStrip || !state.players?.length) return;
+  const format = state.tournament?.active
+    ? `${state.tournament.competitionName || "Compétition"}${humanTournamentRoundLabel() ? ` · ${humanTournamentRoundLabel()}` : ""}`
+    : state.setMatch?.enabled
+      ? `${Number(state.setMatch.targetSets || 1)} set${Number(state.setMatch.targetSets || 1) > 1 ? "s" : ""} gagnant${Number(state.setMatch.targetSets || 1) > 1 ? "s" : ""}`
+      : "Échange libre";
+  const difficulty = SOLO_AI.enabled
+    ? state.tournament?.active
+      ? `IA ${tournamentDifficultyLabel(state.tournament.difficulty || "normal")}`
+      : `IA ${aiStyleLabel()}`
+    : SERVER_SYNC.enabled ? "En ligne" : "Local";
+  const standing = leagueHumanStandingReminder();
+  els.gameContextStrip.innerHTML = `
+    <div><span>Format</span><strong>${escapeHtml(format)}</strong></div>
+    ${standing ? `<div><span>Classement</span><strong>${escapeHtml(standing)}</strong></div>` : ""}
+    <div><span>Réglage</span><strong>${escapeHtml(difficulty)}</strong></div>
+    <div class="game-context-score"><span>Score</span><strong>${escapeHtml(currentMatchScoreText())}</strong></div>
+  `;
 }
 
 function setAdminGameToolsOpen(open) {
@@ -13481,8 +13662,8 @@ function renderTournamentPanel() {
   `;
   els.tournamentPanel.classList.remove("hidden");
   els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
-  els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", startTournamentSemi);
-  els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", startTournamentFinal);
+  els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", () => scheduleSoloTournamentMatch(startTournamentSemi));
+  els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", () => scheduleSoloTournamentMatch(startTournamentFinal));
 }
 
 function renderFriendlyTournamentStatus() {
@@ -13495,12 +13676,12 @@ function renderFriendlyTournamentStatus() {
     return `<div class="friendly-status-banner">Match en cours · ${escapeHtml(match?.label || "Tour")}</div>`;
   }
   if (FRIENDLY_TOURNAMENT.waitingForNextRound) {
-    return '<div class="friendly-status-banner">En attente des autres joueurs qualifiés avant le prochain match.</div>';
+    return renderFriendlyWaitingExperience();
   }
   if (state.gameOver && state.setMatch.matchOver && state.tournament.stage === "readyNext") {
     return '<div class="friendly-status-banner">Match terminé. Retour au CLUB HOUSE en attente du tour suivant.</div>';
   }
-  return '<div class="friendly-status-banner">En attente de la fin des matchs du tour.</div>';
+  return renderFriendlyWaitingExperience() || '<div class="friendly-status-banner">En attente de la fin des matchs du tour.</div>';
 }
 
 function renderFriendlyTournamentWaitingPanel(title) {
@@ -13724,7 +13905,7 @@ function renderWaitingRoomModal() {
 function renderSummary(playerIndex, root) {
   const player = state.players[playerIndex];
   const leader = leadingPlayerIndex();
-  const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
+  const enduranceClass = player.endurance <= 2 ? " low-endurance" : player.endurance <= 4 ? " warning-endurance" : "";
   const powerClass = leader === playerIndex ? " leading-power" : "";
   root.innerHTML = `
     <p class="label">${escapeHtml(displayPlayerName(player))}${state.server === playerIndex ? " · serveur" : ""}</p>
@@ -13745,6 +13926,39 @@ function leadingPlayerIndex() {
   return state.server;
 }
 
+function projectSetScoreForExchangeWinner(winner) {
+  if (!state.setMatch?.enabled || state.setMatch.setOver) return null;
+  const loser = opponentOf(winner);
+  const previous = [...state.setMatch.score];
+  const next = [...previous];
+  if (Math.max(...previous) === 6 && Math.min(...previous) === 5) {
+    next[winner] = 7;
+    next[loser] = previous[loser];
+  } else if (state.setMatch.decisiveExchange || isDecisiveSetScore(previous)) {
+    next[winner] = 7;
+    next[loser] = 6;
+  } else {
+    next[winner] = computeWinnerSetGames(previous[winner], previous[loser], 2);
+    if (next[winner] === 7 && next[loser] < 5) next[winner] = 6;
+  }
+  return next;
+}
+
+function currentMatchStake() {
+  if (!state.setMatch?.enabled || state.gameOver || state.setMatch.setOver) return null;
+  const closingPlayers = [0, 1].filter((playerIndex) => {
+    const score = projectSetScoreForExchangeWinner(playerIndex);
+    return score && isSetOver(score);
+  });
+  if (!closingPlayers.length) return null;
+  const matchPlayers = closingPlayers.filter((playerIndex) => state.setMatch.targetSets && Number(state.setMatch.setsWon?.[playerIndex] || 0) + 1 >= Number(state.setMatch.targetSets));
+  const players = matchPlayers.length ? matchPlayers : closingPlayers;
+  return {
+    label: matchPlayers.length ? "BALLE DE MATCH" : "BALLE DE SET",
+    names: players.map((playerIndex) => displayPlayerName(state.players[playerIndex])).join(" · "),
+  };
+}
+
 function renderRallyState() {
   const active = activePlayer();
   const last = state.lastCard;
@@ -13753,12 +13967,14 @@ function renderRallyState() {
   if (active.limitedFamilies) activeConstraints.push(`type: ${active.limitedFamilies.join(" / ")}`);
   if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
   const preparedPlacement = active.power != null ? turnEndPlacement(state.activePlayer) : 0;
+  const stake = currentMatchStake();
   if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
   if (els.rallyStatusBadge) {
     els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
     els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? "completed" : "live"}`;
   }
   const contextualNotices = [
+    stake ? `<div class="rally-context-line stake"><strong>${escapeHtml(stake.label)}</strong><span>${escapeHtml(stake.names)}</span></div>` : "",
     activeConstraints.length ? `<div class="rally-context-line constraint"><strong>Contrainte</strong><span>${escapeHtml(activeConstraints.join(" · "))}</span></div>` : "",
     state.boostAvailableFor == null ? "" : `<div class="rally-context-line boost"><strong>BOOST disponible</strong><span>${escapeHtml(playerName(state.boostAvailableFor))} peut répondre en BOOST.</span></div>`,
   ].filter(Boolean).join("");
@@ -13837,7 +14053,7 @@ function renderCharacterCard(player, playerIndex) {
   const imageUrl = resultImage ?? CHARACTER_IMAGES[player.characterId]?.[player.characterSide] ?? CHARACTER_IMAGES[player.characterId]?.[0];
   const leader = leadingPlayerIndex();
   const leaderClass = leader === playerIndex ? " leading-power" : "";
-  const enduranceClass = player.endurance <= 2 ? " low-endurance" : "";
+  const enduranceClass = player.endurance <= 2 ? " low-endurance" : player.endurance <= 4 ? " warning-endurance" : "";
   const handCount = player.hand.length;
   const handCountClass = handCount === 0 ? " empty-hand" : handCount === 1 ? " critical-hand" : handCount === 2 ? " low-hand" : "";
   const crown = state.gameOver && state.resultInfo?.winner === playerIndex
@@ -14039,16 +14255,22 @@ function startTournamentNextMatchFromCenter() {
     return;
   }
   if (state.tournament.stage === "readyNext" || state.tournament.stage === "readySemi") {
-    startTournamentSemi();
+    scheduleSoloTournamentMatch(startTournamentSemi);
     return;
   }
   if (state.tournament.stage === "readyFinal") {
-    startTournamentFinal();
+    scheduleSoloTournamentMatch(startTournamentFinal);
   }
 }
 
 async function exitTournamentToLobby() {
-  if (!window.confirm("Confirmez vous sortir du tournoi ?")) return;
+  const confirmed = await showEventConfirmDialog({
+    kicker: state.tournament?.competitionName || "Compétition",
+    title: "Quitter le tournoi ?",
+    message: "Votre progression sera conservée lorsque ce format le permet, puis vous reviendrez à l’accueil.",
+    confirmLabel: "Retour accueil",
+  });
+  if (!confirmed) return;
   if (state.tournament.weekly && state.tournament.stage !== "complete") {
     await saveTournamentProgress();
   } else if (state.tournament.weekly) {
@@ -14118,7 +14340,38 @@ function activeEffectBadges(playerIndex) {
     if (bonus.type === "doubleLastShot") badges.push({ text: "Fin échange: Double", type: "effect" });
     if (bonus.type === "boostedBonus") badges.push({ text: `Fin échange: +${bonus.value}/boost`, type: "effect" });
   }
-  return badges;
+  return badges.map((badge) => {
+    const separator = badge.text.indexOf(":");
+    const duration = separator > 0 ? badge.text.slice(0, separator) : badge.type === "constraint" ? "Ce tour" : "Actif";
+    const label = separator > 0 ? badge.text.slice(separator + 1).trim() : badge.text;
+    return {
+      ...badge,
+      label,
+      duration,
+      icon: badge.type === "constraint" ? "!" : "✦",
+      description: `${badge.text}. Cet état est appliqué tant que son indicateur reste visible.`,
+    };
+  });
+}
+
+function closeEffectHelpDialog() {
+  document.querySelector(".effect-help-backdrop")?.remove();
+}
+
+function openEffectHelpDialog(button) {
+  closeEffectHelpDialog();
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop effect-help-backdrop";
+  backdrop.innerHTML = `
+    <section class="effect-help-dialog" role="dialog" aria-modal="true" aria-labelledby="effectHelpTitle">
+      <span class="effect-help-icon" aria-hidden="true">${escapeHtml(button.dataset.effectIcon || "✦")}</span>
+      <div><p class="label">${escapeHtml(button.dataset.effectDuration || "Effet actif")}</p><h2 id="effectHelpTitle">${escapeHtml(button.dataset.effectLabel || "Effet")}</h2><p>${escapeHtml(button.dataset.effectDescription || "")}</p></div>
+      <button class="small-button" type="button" data-close-effect-help>Fermer</button>
+    </section>
+  `;
+  backdrop.querySelector("[data-close-effect-help]")?.addEventListener("click", closeEffectHelpDialog);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeEffectHelpDialog(); });
+  document.body.appendChild(backdrop);
 }
 
 function renderPlayerPanel(playerIndex, root) {
@@ -14139,18 +14392,8 @@ function renderPlayerPanel(playerIndex, root) {
       <div class="badges">
         ${state.server === playerIndex ? '<span class="badge server">Serveur</span>' : ""}
         ${state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : ""}
-        ${player.nextPrecisionBonus ? `<span class="badge">+${player.nextPrecisionBonus} précision</span>` : ""}
-        ${player.nextPlacementBonus ? `<span class="badge">+${player.nextPlacementBonus} placement</span>` : ""}
-        ${player.nextAnyPlacementBonus ? `<span class="badge">+${player.nextAnyPlacementBonus} placement prochaine carte</span>` : ""}
-        ${player.nextDiscount ? `<span class="badge">-${player.nextDiscount} coût</span>` : ""}
-        ${player.nextExtraCost ? `<span class="badge">+${player.nextExtraCost} coût</span>` : ""}
-        ${(player.nextPowerMultiplier ?? 1) > 1 ? `<span class="badge">x${player.nextPowerMultiplier} puissance</span>` : ""}
-        ${player.exchangePrecisionBonus ? `<span class="badge">+${player.exchangePrecisionBonus} précision échange</span>` : ""}
-        ${player.exchangePlacementBonus ? `<span class="badge">+${player.exchangePlacementBonus} placement échange</span>` : ""}
-        ${player.protectedFromRemoval ? `<span class="badge">cartes protégées</span>` : ""}
         ${state.activePlayer === playerIndex && turnEndPlacement(playerIndex) ? `<span class="badge">${turnEndPlacement(playerIndex)} placement préparé</span>` : ""}
-        ${player.limitedFamilies ? `<span class="badge">${player.limitedFamilies.join(" / ")}</span>` : ""}
-        ${activeEffectBadges(playerIndex).map((badge) => `<span class="badge ${badge.type}-badge">${badge.text}</span>`).join("")}
+        ${activeEffectBadges(playerIndex).map((badge) => `<button class="effect-chip ${badge.type}" type="button" title="${escapeHtml(badge.description)}" data-effect-help data-effect-icon="${escapeHtml(badge.icon)}" data-effect-label="${escapeHtml(badge.label)}" data-effect-duration="${escapeHtml(badge.duration)}" data-effect-description="${escapeHtml(badge.description)}"><i aria-hidden="true">${escapeHtml(badge.icon)}</i><span><strong>${escapeHtml(badge.label)}</strong><small>${escapeHtml(badge.duration)}</small></span></button>`).join("")}
       </div>
     </header>
     ${renderCharacterCard(player, playerIndex)}
@@ -14180,6 +14423,9 @@ function renderPlayerPanel(playerIndex, root) {
   root.querySelectorAll("[data-undo-turn]").forEach((button) => {
     button.addEventListener("click", () => restoreTurnSnapshot());
   });
+  root.querySelectorAll("[data-effect-help]").forEach((button) => {
+    button.addEventListener("click", () => openEffectHelpDialog(button));
+  });
   root.querySelectorAll("[data-tutorial-select]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -14195,6 +14441,36 @@ function renderPlayerPanel(playerIndex, root) {
       select();
     });
   });
+}
+
+function cardActionBlockReason(playerIndex, card, mode = "normal") {
+  const player = state.players[playerIndex];
+  if (state.gameOver) return "L’échange est terminé.";
+  if (playerIndex !== state.activePlayer) return "Cette action sera disponible au tour de ce joueur.";
+  if (!canUseSeat(playerIndex)) return "Cette main appartient à l’autre joueur.";
+  if (effectiveCost(player, card) > player.endurance) return `Endurance insuffisante : ${effectiveCost(player, card)} nécessaire.`;
+  if (mode === "boost" && player.hand.length < 2) return "Le BOOST exige une seconde carte à sacrifier.";
+  if (state.mandatoryPlacement && state.lastCard && totalTurnPlacement(playerIndex, card, mode === "boost") < state.lastCard.precision) return `Placement ${state.lastCard.precision} minimum requis.`;
+  if (player.limitedFamilies && !player.limitedFamilies.includes(card.family)) return `Type autorisé : ${player.limitedFamilies.join(" ou ")}.`;
+  if (hasReturnServiceRestriction(playerIndex) && ["Volée", "Smash"].includes(card.family)) return "Volée et Smash sont interdits sur ce retour de service.";
+  return "Une contrainte active empêche cette action pour le moment.";
+}
+
+function renderCardAssistPreview(playerIndex, card, cost, placementIssue) {
+  if (!GAMEPLAY_ASSIST.preview) return "";
+  const player = state.players[playerIndex];
+  const normalStats = getCardStats(player, card, false);
+  const bonus = normalStats.power - Number(card.power || 0);
+  const response = placementIssue ? "BOOST adverse possible" : "Réponse standard attendue";
+  return `
+    <div class="card-assist-preview" aria-label="Conséquences prévues">
+      <span><small>Puissance après</small><strong>${player.power + normalStats.power}</strong></span>
+      <span><small>Endurance après</small><strong>${Math.max(0, player.endurance - cost)}</strong></span>
+      <span><small>Bonus</small><strong>${bonus > 0 ? `+${bonus}` : "—"}</strong></span>
+      <span><small>Cartes</small><strong>1${player.hand.length > 1 ? " · 2 en BOOST" : ""}</strong></span>
+      <p>${escapeHtml(response)}</p>
+    </div>
+  `;
 }
 
 function renderCard(playerIndex, card) {
@@ -14219,6 +14495,8 @@ function renderCard(playerIndex, card) {
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
   const riskyRemiseClass = remisePlacementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
+  const primaryAllowed = isRemise(card) ? (effectModeAllowed || placementModeAllowed) : normalAllowed;
+  const blockedReason = !primaryAllowed ? cardActionBlockReason(playerIndex, card, isRemise(card) ? "effect" : "normal") : "";
   const expectedTutorialAction = tutorialExpectedAction();
   const tutorialSelectMode = state.tutorial.active && expectedTutorialAction?.kind === "selectCard" && expectedTutorialAction.playerIndex === playerIndex;
   const tutorialSelectedClass = state.tutorial.selectedCardUid === card.uid ? " tutorial-selected-card" : "";
@@ -14265,6 +14543,7 @@ function renderCard(playerIndex, card) {
           ${stats.placement !== card.placement || state.turnPlacement[playerIndex] ? `<span>Placement actuel ${stats.placement}${state.turnPlacement[playerIndex] ? ` + ${state.turnPlacement[playerIndex]}` : ""}</span>` : ""}
         </div>
       ` : ""}
+      ${renderCardAssistPreview(playerIndex, card, cost, placementIssue || remisePlacementIssue)}
       <div class="card-actions ${isRemise(card) ? "remise-actions" : ""}">
         ${isRemise(card) ? `
           <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span>${cost} END</span><strong>Effet</strong></button>
@@ -14274,6 +14553,7 @@ function renderCard(playerIndex, card) {
           <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
+      ${GAMEPLAY_ASSIST.blockedReasons && blockedReason ? `<p class="card-impossible-reason">${escapeHtml(blockedReason)}</p>` : ""}
       ${(placementIssue || remisePlacementIssue) && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
     </article>
   `;
@@ -14318,15 +14598,24 @@ function actionLogEntryLabel(type) {
   }[type] || "Information";
 }
 
+function actionLogCardThumbnail(line) {
+  const normalized = String(line || "").toLocaleLowerCase("fr");
+  const card = CARD_LIBRARY.find((item) => normalized.includes(String(item.name || "").toLocaleLowerCase("fr")));
+  const imageUrl = card ? CARD_IMAGES[card.id] : null;
+  return imageUrl ? `<img class="action-log-card-thumbnail" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />` : "";
+}
+
 function renderActionLogEntry(line, index, compact = false) {
   const type = actionLogEntryType(line);
+  const thumbnail = compact ? "" : actionLogCardThumbnail(line);
   const shot = String(line || "").match(/^(.+?) joue (.+?) : (.+)$/);
   const content = shot
     ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
     : `<p>${formatLogLine(line)}</p>`;
   return `
-    <article class="action-log-entry ${type}${compact ? " compact" : ""}">
+    <article class="action-log-entry ${type}${compact ? " compact" : ""}${thumbnail ? " has-card" : ""}">
       <div class="action-log-marker" aria-hidden="true"></div>
+      ${thumbnail}
       <div class="action-log-entry-copy">
         <span class="action-log-type">${actionLogEntryLabel(type)}</span>
         ${content}
@@ -14337,16 +14626,16 @@ function renderActionLogEntry(line, index, compact = false) {
 }
 
 function renderLog() {
-  const recentEntries = state.log.slice(0, 4);
+  const latestEntry = state.log.find((line) => actionLogEntryType(line) !== "system") || state.log[0];
   els.log.innerHTML = `
     <div class="action-log-header">
-      <div><span>Déroulé de l’échange</span><strong>Dernières actions</strong></div>
+      <div><span>Déroulé de l’échange</span><strong>Dernière action importante</strong></div>
       <small>${state.log.length} événement${state.log.length > 1 ? "s" : ""}</small>
     </div>
     <div class="action-log-list">
-      ${recentEntries.length ? recentEntries.map((line, index) => renderActionLogEntry(line, index, true)).join("") : '<p class="action-log-empty">L’échange va commencer.</p>'}
+      ${latestEntry ? renderActionLogEntry(latestEntry, 0, true) : '<p class="action-log-empty">L’échange va commencer.</p>'}
     </div>
-    ${state.log.length > recentEntries.length ? '<button class="action-log-open-button" type="button" data-open-full-action-log>Voir tout le déroulé</button>' : ""}
+    ${state.log.length ? '<button class="action-log-open-button" type="button" data-open-full-action-log>Voir tout le déroulé</button>' : ""}
   `;
   els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
 }
@@ -14786,6 +15075,17 @@ function initMenu() {
 els.newGameButton?.addEventListener("click", newGame);
 els.returnLobbyButton?.addEventListener("click", openReturnLobbyDialog);
 els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
+els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GAMEPLAY_ASSIST.panelOpen));
+els.gamePreviewToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.preview = Boolean(els.gamePreviewToggle.checked);
+  localStorage.setItem("tennisLightAssistPreview", String(GAMEPLAY_ASSIST.preview));
+  render();
+});
+els.gameBlockedReasonsToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.blockedReasons = Boolean(els.gameBlockedReasonsToggle.checked);
+  localStorage.setItem("tennisLightAssistBlockedReasons", String(GAMEPLAY_ASSIST.blockedReasons));
+  render();
+});
 els.friendlyLobbyHomeButton?.addEventListener("click", () => showLobbySection("online"));
 els.friendlyLobbyDirectHomeButton?.addEventListener("click", showMenuScreen);
 els.friendlyLobbyLogoButton?.addEventListener("click", showMenuScreen);
@@ -14799,13 +15099,14 @@ els.exportLogsButton?.addEventListener("click", () => runAdminGameTool(exportLog
 els.exportHumanMatchesButton?.addEventListener("click", () => runAdminGameTool(exportHumanMatchLogsFile));
 els.rallyFullLogButton?.addEventListener("click", openFullActionLogDialog);
 document.addEventListener("click", (event) => {
-  if (els.adminGameToolsPanel?.classList.contains("hidden")) return;
   const target = event.target instanceof Element ? event.target : null;
-  if (!target?.closest("#adminGameTools")) setAdminGameToolsOpen(false);
+  if (!els.adminGameToolsPanel?.classList.contains("hidden") && !target?.closest("#adminGameTools")) setAdminGameToolsOpen(false);
+  if (!els.gameAssistPanel?.classList.contains("hidden") && !target?.closest("#gameAssistTools")) setGameAssistPanelOpen(false);
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     setAdminGameToolsOpen(false);
+    setGameAssistPanelOpen(false);
     closeFullActionLogDialog();
   }
 });

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=170.5" />
+    <link rel="stylesheet" href="./styles.css?v=170.7" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -372,7 +372,7 @@
           <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           <div class="page-return-actions">
             <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour au profil</button>
-            <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour au lobby</button>
+            <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour accueil</button>
           </div>
         </div>
         <section class="menu-panel ranking-full-panel character-page-panel">
@@ -526,7 +526,7 @@
             </div>
             <div class="admin-inline-actions">
               <button id="adminExportHumanMatchesButton" class="small-button" type="button">Exporter parties humaines</button>
-              <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour lobby</button>
+              <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour accueil</button>
             </div>
           </div>
           <div id="adminUsersTable" class="admin-users-table" aria-live="polite"></div>
@@ -573,7 +573,7 @@
         <div class="friendly-lobby-topbar mode-clubhouse-topbar">
           <div>
             <p class="eyebrow">CLUB HOUSE EN LIGNE <span>v169</span></p>
-            <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+            <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
           </div>
@@ -586,7 +586,7 @@
     <section id="aiClubHouseScreen" class="menu-screen friendly-lobby-screen ai-club-house-screen mode-clubhouse-screen hidden">
       <div class="menu-shell friendly-lobby-shell">
         <div class="friendly-lobby-topbar mode-clubhouse-topbar">
-          <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+          <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
             <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
           <button id="aiClubHouseHomeButton" class="small-button" type="button">Retour accueil</button>
@@ -709,14 +709,22 @@
       <section class="topbar">
         <div>
           <p class="eyebrow">Tennis Courts Academy <span>v169</span></p>
-          <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+          <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
             <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
         </div>
         <div class="top-actions">
           <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
           <button id="spectatorQuitButton" class="small-button danger-button spectator-quit-button hidden" type="button">QUITTER</button>
-          <button id="returnLobbyButton" class="small-button" type="button">Retour lobby</button>
+          <button id="returnLobbyButton" class="small-button" type="button">Retour accueil</button>
+          <div id="gameAssistTools" class="game-assist-tools">
+            <button id="gameAssistButton" class="small-button" type="button" aria-expanded="false" aria-controls="gameAssistPanel">Assistance</button>
+            <div id="gameAssistPanel" class="game-assist-panel hidden" aria-label="Options d’assistance">
+              <p>Assistance de jeu</p>
+              <label><input id="gamePreviewToggle" type="checkbox" /> Prévisualiser les conséquences</label>
+              <label><input id="gameBlockedReasonsToggle" type="checkbox" /> Expliquer les actions indisponibles</label>
+            </div>
+          </div>
           <div id="adminGameTools" class="admin-game-tools hidden" data-required-role="admin">
             <button id="adminGameToolsButton" class="small-button admin-game-tools-button" type="button" aria-expanded="false" aria-controls="adminGameToolsPanel">Outils ADMIN</button>
             <div id="adminGameToolsPanel" class="admin-game-tools-panel hidden" aria-label="Boîte à outils administrateur">
@@ -730,6 +738,7 @@
         </div>
       </section>
 
+      <section id="gameContextStrip" class="game-context-strip" aria-live="polite"></section>
       <section id="tournamentPanel" class="tournament-panel hidden" aria-live="polite"></section>
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
       <section id="tutorialOverlay" class="tutorial-overlay hidden" aria-live="polite"></section>
@@ -768,6 +777,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=170.5"></script>
+    <script src="./app.js?v=170.7"></script>
   </body>
 </html>
