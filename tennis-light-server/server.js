@@ -4863,8 +4863,6 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Cette partie ne peut plus être reprise." });
       return;
     }
-    resolveFriendlyReconnectTimeouts(tournament);
-    refreshFriendlyTournamentSlots(tournament);
     const participant = activeFriendlyParticipants(tournament)
       .find((item) => String(item.userId) === String(user.id)) || null;
     if (!participant) {
@@ -4878,6 +4876,8 @@ async function handleApi(req, res) {
     markFriendlyParticipantPresent(participant);
     participant.token = makeToken();
     participant.resumedAt = Date.now();
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     tournament.updatedAt = Date.now();
     sendJson(res, 200, {
       tournament: publicFriendlyTournamentInfo(req, tournament, participant),
@@ -5126,11 +5126,15 @@ async function handleApi(req, res) {
       return;
     }
     resolveFriendlyPresenceLosses(tournament);
-    resolveFriendlyReconnectTimeouts(tournament);
-    refreshFriendlyTournamentSlots(tournament);
     if (payload.status === "online") {
+      if (participant.forfeitedAt) {
+        sendJson(res, 409, { error: "Votre forfait est définitif pour cet événement." });
+        return;
+      }
       participant.activePresenceId = String(payload.presenceId || participant.activePresenceId || "").slice(0, 80) || null;
       markFriendlyParticipantPresent(participant);
+      resolveFriendlyReconnectTimeouts(tournament);
+      refreshFriendlyTournamentSlots(tournament);
       tournament.updatedAt = Date.now();
       sendJson(res, 200, {
         ok: true,
@@ -5139,6 +5143,8 @@ async function handleApi(req, res) {
       });
       return;
     }
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     if (tournament.status === "waiting") {
       const now = Date.now();
       leaveWaitingFriendlyParticipant(tournament, participant, now);
@@ -5184,6 +5190,11 @@ async function handleApi(req, res) {
     }
     if (!participant) {
       sendJson(res, 200, { ok: true, closed: false, alreadyLeft: true });
+      return;
+    }
+    const leavingPresenceId = String(payload.presenceId || "").slice(0, 80);
+    if (leavingPresenceId && participant.activePresenceId && leavingPresenceId !== participant.activePresenceId) {
+      sendJson(res, 200, { ok: true, closed: false, paused: false, ignored: true });
       return;
     }
     if (tournament.status === "waiting") {

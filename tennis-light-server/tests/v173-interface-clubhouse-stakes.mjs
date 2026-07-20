@@ -23,8 +23,8 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy · 2\.169\.16/);
-assert.match(html, /styles\.css\?v=170\.12/);
-assert.match(html, /app\.js\?v=170\.12/);
+assert.match(html, /styles\.css\?v=170\.13/);
+assert.match(html, /app\.js\?v=170\.13/);
 
 const renderTournament = functionSource(app, "renderTournamentPanel");
 const toggleTournament = functionSource(app, "toggleTournamentPanel");
@@ -43,7 +43,7 @@ assert.doesNotMatch(functionSource(app, "renderFriendlyLobbyMatchCard"), /JUST-W
 assert.doesNotMatch(functionSource(app, "renderFriendlyLobbyScreen"), /JOIN\.svg/);
 
 assert.match(styles, /#proNewsMessage[\s\S]*rgba\(255, 255, 255, 0\.94\)/);
-assert.match(styles, /\.confrontation-player-card-frame \{[^}]*border: 2px solid/);
+assert.match(styles, /\.confrontation-player-card-frame \{[^}]*border: 0;[^}]*0 0 0 4px/);
 assert.match(styles, /\.confrontation-player-card-frame::after \{ display: none; \}/);
 assert.match(styles, /#returnLobbyButton\.friendly-match-complete-return/);
 
