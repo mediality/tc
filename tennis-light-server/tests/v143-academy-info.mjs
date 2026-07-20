@@ -22,10 +22,11 @@ function functionSource(name) {
 assert.equal((html.match(/id="academyInfoScreen"/g) || []).length, 1);
 assert.equal((html.match(/id="openAcademyInfoButton"/g) || []).length, 1);
 assert.equal((html.match(/id="academyDeckList"/g) || []).length, 1);
-assert.match(html, /Apprenez les bases avec un deck unique/);
+assert.match(html, /Apprenez\. Progressez\. Entrez sur le circuit\./);
+assert.match(html, /assets\/ACADEMY-HERO\.jpg/);
 assert.match(html, /le même deck de 18 cartes/);
 assert.match(html, /plus de <strong>500 cartes<\/strong>/);
-assert.match(html, /https:\/\/www\.mediality\.fr\/shop\/#tenniscourts/);
+assert.match(html, /https:\/\/mediality\.fr\/shop\/#tenniscourts/);
 assert.match(html, /target="_blank" rel="noopener noreferrer"/);
 assert.match(html, /assets\/academy-shop-banner\.jpg/);
 
@@ -68,7 +69,8 @@ assert.match(functionSource("openAcademyDeckGallery"), /event\.key === "ArrowRig
 assert.match(functionSource("openAcademyDeckGallery"), /aria-label="Carte précédente"/);
 assert.match(functionSource("openAcademyDeckGallery"), /aria-label="Carte suivante"/);
 assert.match(app, /openAcademyInfoButton\?\.addEventListener\("click", showAcademyInfoScreen\)/);
-assert.match(app, /backToLobbyFromAcademyInfoButton\?\.addEventListener\("click", showMenuScreen\)/);
+assert.match(app, /backToLobbyFromAcademyInfoButton\?\.addEventListener\("click", \(\) => showLobbySection\("training"\)\)/);
+assert.match(html, /Apprenez les bases avec un deck unique/);
 
 assert.match(styles, /\.academy-deck-grid\s*\{[\s\S]*?grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
 assert.match(styles, /\.academy-deck-card > img\s*\{[\s\S]*?aspect-ratio: 731 \/ 1039/);

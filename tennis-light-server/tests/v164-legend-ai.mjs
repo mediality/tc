@@ -22,8 +22,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.0/);
-assert.match(html, /app\.js\?v=169\.0/);
+assert.match(html, /styles\.css\?v=170\.8/);
+assert.match(html, /app\.js\?v=170\.8/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 const intelligenceContext = vm.createContext({ SOLO_AI: { style: "legend" }, Math });

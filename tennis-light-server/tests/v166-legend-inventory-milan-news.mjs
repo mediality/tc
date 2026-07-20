@@ -23,8 +23,8 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=169\.0/);
-assert.match(html, /app\.js\?v=169\.0/);
+assert.match(html, /styles\.css\?v=170\.8/);
+assert.match(html, /app\.js\?v=170\.8/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 
 const effectGuard = functionSource(app, "legendaryEffectSequenceIsUseful");
@@ -116,7 +116,7 @@ assert.ok(server.includes(announcement));
 assert.match(server, /ALTER TABLE users ADD COLUMN IF NOT EXISTS seen_news/);
 assert.match(server, /\/api\\\/news\\\/\(\[\^\/\]\+\)\\\/seen/);
 assert.doesNotMatch(app, /showNextProNewsDialog/);
-assert.match(app, /function renderLatestNewsPanel\(\)/);
+assert.doesNotMatch(app, /function renderLatestNewsPanel\(\)/);
 assert.match(app, /function showGameNewsDialog\(newsId\)/);
 assert.match(app, /TC-new-Milan-Verhaegen\.webp/);
 assert.match(css, /\.pro-news-modal/);
