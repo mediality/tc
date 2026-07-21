@@ -19,7 +19,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v148<\/span>/);
 assert.equal((html.match(/id="openAiClubHouseButton"/g) || []).length, 1);
 assert.match(html, /id="aiClubHouseScreen"/);
 assert.match(html, /data-ai-club-value="tournament"/);

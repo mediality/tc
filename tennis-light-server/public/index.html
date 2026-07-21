@@ -4,136 +4,312 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=2.169.17" />
+    <link rel="stylesheet" href="./styles.css?v=170.13" />
   </head>
   <body>
-    <section id="menuScreen" class="menu-screen">
-      <div class="menu-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v2.169.17</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+    <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
+      <button id="globalPlayerProfileButton" class="global-player-profile" type="button">
+        <span class="global-player-avatar" aria-hidden="true"><img id="globalPlayerAvatar" src="./assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp?v=169" alt="" /></span>
+        <span class="global-player-copy"><strong id="globalPlayerNickname">Joueur</strong><small id="globalPlayerRole">Profil joueur</small></span>
+      </button>
+    </aside>
+    <section id="menuScreen" class="menu-screen lobby-home-screen">
+      <div class="menu-shell lobby-home-shell">
+        <header class="lobby-app-header">
+          <img class="brand-logo lobby-header-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="lobby-header-actions">
+            <button id="lobbyUserButton" class="lobby-user-chip" type="button" aria-label="Ouvrir les paramètres du compte" aria-expanded="false">
+              <span class="lobby-user-avatar" aria-hidden="true"><img id="lobbyProfileAvatar" src="./assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp?v=169" alt="" /></span>
+              <span class="lobby-user-copy">
+                <strong id="lobbyHeaderNickname">Se connecter</strong>
+                <small id="lobbyHeaderRole">Invité</small>
+              </span>
+            </button>
+            <button id="lobbySettingsButton" class="lobby-icon-button" type="button" aria-label="Paramètres" aria-expanded="false">
+              <img src="./assets/icons/profil.svg" alt="" aria-hidden="true" />
+            </button>
+            <button id="manageUsersButton" class="lobby-admin-button hidden" type="button" data-required-role="admin"><img src="./assets/icons/admin.svg" alt="" aria-hidden="true" />Administration</button>
+          </div>
 
-        <div class="menu-grid">
-          <section class="menu-panel player-select-panel">
-            <div class="auth-panel">
-              <p class="label">Compte</p>
-              <div id="authStatus" class="auth-status">Non connecté</div>
-              <div id="authForm" class="auth-form">
-                <label class="menu-field">Email
-                  <input id="authEmailInput" type="email" autocomplete="email" placeholder="email@exemple.com" />
-                </label>
-                <label class="menu-field">Mot de passe
-                  <input id="authPasswordInput" type="password" autocomplete="current-password" placeholder="8 caractères minimum" />
-                </label>
-                <div class="auth-actions">
-                  <button id="loginButton" class="primary-button" type="button">Connexion</button>
-                  <button id="registerButton" class="small-button" type="button">Créer un compte</button>
-                </div>
-                <button id="forgotPasswordButton" class="link-button" type="button">Mot de passe oublié</button>
+          <aside id="lobbyAccountPanel" class="lobby-account-popover hidden" aria-label="Compte et paramètres">
+            <div id="authStatus" class="auth-status">Non connecté</div>
+            <div id="authForm" class="auth-form">
+              <label class="menu-field">Email
+                <input id="authEmailInput" type="email" autocomplete="email" placeholder="email@exemple.com" />
+              </label>
+              <label class="menu-field">Mot de passe
+                <input id="authPasswordInput" type="password" autocomplete="current-password" placeholder="8 caractères minimum" />
+              </label>
+              <div class="auth-actions">
+                <button id="loginButton" class="primary-button" type="button">Connexion</button>
+                <button id="registerButton" class="small-button" type="button">Créer un compte</button>
               </div>
-              <button id="logoutButton" class="small-button hidden" type="button">Déconnexion</button>
+              <button id="forgotPasswordButton" class="link-button" type="button">Mot de passe oublié</button>
+            </div>
+            <div class="lobby-account-actions">
               <button id="profileButton" class="small-button hidden" type="button">Profil joueur</button>
-              <div id="proCodePanel" class="pro-code-panel hidden">
-                <p class="label">Passer Pro</p>
-                <div class="pro-code-row">
-                  <input id="proCodeInput" type="text" maxlength="6" autocomplete="off" placeholder="CODE PRO" />
-                  <button id="redeemProCodeButton" class="small-button" type="button">Valider</button>
-                </div>
-                <p id="proCodeStatus" class="pro-code-status"></p>
-              </div>
-              <section id="adminPanel" class="admin-panel hidden" aria-live="polite">
-                <div class="admin-panel-header">
-                  <p class="label">Administration</p>
-                  <button id="manageUsersButton" class="primary-button" type="button">Gérer</button>
-                </div>
-              </section>
+              <button id="logoutButton" class="small-button hidden" type="button">Déconnexion</button>
             </div>
-            <p class="label">Profil</p>
-            <p class="lobby-empty">Le pseudo et le personnage se modifient dans la page Profil joueur.</p>
-          </section>
-
-          <section class="menu-panel">
-            <div class="menu-actions">
-              <div class="menu-mode-group">
-                <p class="label">Entrainement</p>
-                <button class="tutorial-menu-button hidden" type="button" data-start-tutorial data-required-role="admin">Tutoriel</button>
-                <button class="primary-button menu-exchange-button" type="button" data-start-solo="exchange">Échange</button>
-                <button class="small-button" type="button" data-start-solo="set">Set</button>
-                <button id="openAcademyInfoButton" class="small-button info-highlight-button academy-info-menu-button" type="button">DÉCOUVRIR L'ACADEMIE</button>
+            <div id="proCodePanel" class="pro-code-panel hidden">
+              <p class="label">Passer Pro</p>
+              <div class="pro-code-row">
+                <input id="proCodeInput" type="text" maxlength="6" autocomplete="off" placeholder="CODE PRO" />
+                <button id="redeemProCodeButton" class="small-button" type="button">Valider</button>
               </div>
-              <div class="menu-mode-group">
-                <p class="label">Exhibition</p>
-                <button class="small-button" type="button" data-start-solo="match2">Match 2 sets</button>
-                <button class="small-button" type="button" data-start-solo="match3">Match 3 sets</button>
-              </div>
-              <div class="menu-mode-group restricted-pro" data-required-role="pro">
-                <p class="label">Compétition</p>
-                <button id="openAiClubHouseButton" class="primary-button tournament-menu-button" type="button">CLUB HOUSE</button>
-                <p class="access-note">Réservé aux joueurs Pro.</p>
-              </div>
+              <p id="proCodeStatus" class="pro-code-status"></p>
             </div>
-          </section>
+            <section id="adminPanel" class="admin-panel hidden" aria-live="polite"></section>
+          </aside>
+        </header>
 
-          <section class="menu-panel online-lobby-panel restricted-pro" data-required-role="pro">
-            <div class="lobby-header">
-              <p class="label">Club House en ligne</p>
-              <button id="refreshLobbyButton" class="small-button" type="button">Actualiser</button>
+        <figure class="lobby-hero">
+          <img src="./assets/HERO.jpg" alt="Tennis Courts Academy" />
+        </figure>
+
+        <nav class="lobby-mode-grid" aria-label="Modes de jeu">
+          <button class="lobby-mode-card lobby-mode-training" type="button" data-open-lobby-section="training">
+            <img class="lobby-mode-art" src="./assets/ENTRAINEMENT.jpg" alt="" />
+            <img class="lobby-mode-icon" src="./assets/icons/TRAINING.svg" alt="" aria-hidden="true" />
+            <span class="lobby-mode-card-copy"><strong>Entraînement</strong><small>Apprendre les bases du jeu</small></span>
+            <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+          </button>
+          <button class="lobby-mode-card lobby-mode-solo" type="button" data-open-lobby-section="solo">
+            <img class="lobby-mode-art" src="./assets/MODE-SOLO.jpg" alt="" />
+            <img class="lobby-mode-icon" src="./assets/icons/SOLO.svg" alt="" aria-hidden="true" />
+            <span class="lobby-mode-card-copy"><strong>Mode Solo</strong><small>Affronter l'IA</small></span>
+            <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+          </button>
+          <button class="lobby-mode-card lobby-mode-online restricted-pro" type="button" data-open-lobby-section="online" data-required-role="pro">
+            <img class="lobby-mode-art" src="./assets/MODE-EN-LIGNE.jpg" alt="" />
+            <img class="lobby-mode-icon" src="./assets/icons/ONLINE.svg" alt="" aria-hidden="true" />
+            <span class="lobby-mode-card-copy"><strong>Mode en ligne</strong><small>Défier d'autres joueurs</small></span>
+            <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+          </button>
+          <button class="lobby-mode-card lobby-mode-circuit restricted-pro" type="button" data-open-lobby-section="circuit" data-required-role="pro">
+            <img class="lobby-mode-art" src="./assets/CIRCUIT-PRO.jpg" alt="" />
+            <img class="lobby-mode-icon" src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
+            <span class="lobby-mode-card-copy"><strong>Circuit Pro</strong><small>Construire votre carrière</small></span>
+            <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+          </button>
+        </nav>
+
+        <section class="home-news-section" aria-labelledby="homeNewsTitle">
+          <div class="home-section-heading">
+            <div>
+              <p class="label">La vie de l’académie</p>
+              <h2 id="homeNewsTitle">Actualités</h2>
             </div>
-            <div class="create-online-row">
-              <button id="createLobbyRoomButton" class="primary-button" type="button">Créer une partie en ligne</button>
+            <span class="home-news-live"><i aria-hidden="true"></i>Dernières informations</span>
+          </div>
+          <div id="homeNewsList" class="home-news-list" aria-live="polite"></div>
+        </section>
+
+        <section class="academy-upgrade-cta" aria-labelledby="academyUpgradeTitle">
+          <div class="academy-upgrade-copy">
+            <p class="academy-upgrade-kicker">TENNIS COURTS — LE JEU COMPLET</p>
+            <h2 id="academyUpgradeTitle">Prêt à passer au niveau supérieur ?</h2>
+            <p>Vous maîtrisez les 18 cartes de l’Academy. Découvrez l’expérience Tennis Courts complète : <strong>10 joueurs à incarner</strong> et <strong>plus de 500 cartes</strong> pour <strong>construire votre style</strong>, surprendre vos adversaires et devenir le GOAT.</p>
+            <div class="academy-upgrade-actions">
+              <a class="academy-upgrade-primary" href="https://mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer">Choisir mon Starter <span aria-hidden="true">→</span></a>
+              <a class="academy-upgrade-secondary" href="http://www.tenniscourts.cc" target="_blank" rel="noopener noreferrer">Découvrir le jeu complet <span aria-hidden="true">→</span></a>
             </div>
-            <div id="lobbyRooms" class="lobby-rooms" aria-live="polite"></div>
-            <p class="access-note">Réservé aux joueurs Pro.</p>
-          </section>
-
-          <section id="latestNewsPanel" class="menu-panel latest-news-panel" aria-label="Dernières actualités"></section>
-
-          <figure class="lobby-poster-panel">
-            <img src="./assets/TCposter.jpg" alt="Tennis Courts Academy" />
+          </div>
+          <figure class="academy-upgrade-visual">
+            <img src="./assets/academy-shop-banner.jpg" alt="Joueurs et cartes du jeu complet Tennis Courts" />
           </figure>
+        </section>
 
-          <section class="menu-panel weekly-circuit-panel restricted-pro" data-required-role="pro">
-            <div class="lobby-header">
-              <p class="label">Tennis Courts Pro Circuit</p>
-              <button id="openCircuitInfoButton" class="small-button info-highlight-button circuit-info-button" type="button">EN SAVOIR PLUS</button>
+        <footer class="lobby-footer">
+          <span>Tennis Courts Academy · 2.169.17</span>
+          <span>Mediality Games</span>
+        </footer>
+      </div>
+    </section>
+
+    <section id="lobbySectionScreen" class="menu-screen lobby-section-screen hidden">
+      <div class="menu-shell lobby-section-shell">
+        <header class="lobby-section-header">
+          <button class="brand-home-button direct-home-button" type="button" aria-label="Retourner à l'accueil"><img class="brand-logo lobby-section-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" /></button>
+          <button id="backToHomeButton" class="small-button" type="button">Retour accueil</button>
+        </header>
+
+        <section class="menu-panel lobby-destination-panel mode-page mode-page-training" data-lobby-section-panel="training">
+          <header class="mode-page-hero training-page-hero">
+            <img src="./assets/ENTRAINEMENT.jpg" alt="Coach sur un court d'entraînement" />
+            <div class="mode-page-hero-copy">
+              <p class="label">Centre d'entraînement</p>
+              <h1>Progressez à votre rythme</h1>
+              <p>Travaillez un échange, jouez un set ou révisez les fondamentaux de Tennis Courts.</p>
             </div>
-            <div id="weeklyCompetitionsList" class="weekly-competitions-list" aria-live="polite"></div>
-            <p class="access-note">Réservé aux joueurs Pro.</p>
+          </header>
+
+          <div class="training-page-layout">
+            <div class="training-action-grid">
+              <button class="training-action-card training-action-exchange" type="button" data-start-solo="exchange">
+                <span class="training-action-icon"><img src="./assets/icons/TRAINING.svg" alt="" aria-hidden="true" /></span>
+                <span><small>Exercice rapide</small><strong>Échange libre</strong><em>Travaillez vos coups et la gestion de l'endurance.</em></span>
+                <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+              </button>
+              <button class="training-action-card training-action-set" type="button" data-start-solo="set">
+                <span class="training-action-icon training-action-icon-set">1</span>
+                <span><small>Mise en situation</small><strong>Jouer un set</strong><em>Entraînez-vous dans les conditions d'une rencontre.</em></span>
+                <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+              </button>
+              <button id="openAcademyInfoButton" class="training-action-card training-action-academy" type="button">
+                <span class="training-action-icon training-action-icon-academy">A</span>
+                <span><small>Guide du joueur</small><strong>Découvrir l'Academy</strong><em>Comprenez le deck partagé et les mécaniques essentielles.</em></span>
+                <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+              </button>
+              <button class="training-action-card tutorial-menu-button hidden" type="button" data-start-tutorial data-required-role="admin">
+                <span class="training-action-icon">T</span>
+                <span><small>Administration</small><strong>Lancer le tutoriel</strong><em>Parcours guidé de découverte.</em></span>
+                <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+              </button>
+            </div>
+
+            <aside class="training-coach-card">
+              <span class="training-coach-kicker">Conseil du coach</span>
+              <h2>Commencez par l'échange libre</h2>
+              <p>Apprenez à construire le point avant de passer au set complet. Chaque décision compte.</p>
+              <div class="training-coach-path" aria-label="Parcours recommandé">
+                <span class="active">Échange</span><i></i><span>Set</span><i></i><span>Match</span>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="menu-panel lobby-destination-panel hidden" data-lobby-section-panel="solo">
+          <div class="lobby-destination-heading"><p class="label">Mode Solo</p><h1>Affronter l'IA</h1></div>
+          <div class="lobby-destination-actions">
+            <button class="primary-button" type="button" data-start-solo="match2">Match 2 sets</button>
+            <button class="small-button" type="button" data-start-solo="match3">Match 3 sets</button>
+            <div class="restricted-pro lobby-pro-action" data-required-role="pro">
+              <button id="openAiClubHouseButton" class="primary-button tournament-menu-button" type="button">Club House</button>
+              <p class="access-note">Réservé aux joueurs Pro.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="menu-panel lobby-destination-panel online-lobby-panel mode-page mode-page-online restricted-pro hidden" data-lobby-section-panel="online" data-required-role="pro">
+          <header class="mode-page-hero online-page-hero">
+            <img src="./assets/MODE-EN-LIGNE.jpg" alt="Joueurs réunis pour une partie en ligne" />
+            <div class="mode-page-hero-copy">
+              <p class="label">Club House en ligne</p>
+              <h1>Retrouvez les autres joueurs</h1>
+              <p>Créez un événement ou rejoignez un Club House déjà ouvert.</p>
+            </div>
+            <button id="refreshLobbyButton" class="mode-page-hero-action" type="button">Actualiser</button>
+          </header>
+          <div class="online-clubhouse-toolbar">
+            <div><span class="online-status-dot" aria-hidden="true"></span><strong>Club Houses ouverts</strong><small>Match, Classic et League</small></div>
+            <button id="createLobbyRoomButton" class="primary-button" type="button">Créer un Club House</button>
+          </div>
+          <div id="lobbyRooms" class="lobby-rooms online-clubhouse-list" aria-live="polite"></div>
+          <p class="access-note online-access-note">Mode réservé aux joueurs Pro.</p>
+        </section>
+
+        <section class="lobby-circuit-layout circuit-pro-page mode-page restricted-pro hidden" data-lobby-section-panel="circuit" data-required-role="pro">
+          <header class="mode-page-hero circuit-page-hero">
+            <img src="./assets/CIRCUIT-PRO.jpg" alt="Trophée du Tennis Courts Pro Circuit" />
+            <div class="mode-page-hero-copy">
+              <p class="label">Tennis Courts Pro Circuit</p>
+              <h1>Construisez votre carrière</h1>
+              <p id="circuitHeroPeriod">Saison en cours · Tournois de la semaine</p>
+            </div>
+            <button id="openCircuitInfoButton" class="mode-page-hero-action circuit-info-button" type="button">Fonctionnement du Circuit</button>
+            <span id="circuitHeroCountdown" class="circuit-hero-countdown">Prochaine semaine : --</span>
+          </header>
+
+          <section class="circuit-stat-grid" aria-label="Résumé du joueur">
+            <article class="circuit-stat-card circuit-stat-rank">
+              <img src="./assets/icons/classement.svg" alt="" aria-hidden="true" />
+              <span><small>Classement mondial</small><strong id="circuitRankValue">--</strong><em id="circuitRankProjection">Projection indisponible</em></span>
+            </article>
+            <article class="circuit-stat-card">
+              <img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
+              <span><small>Points Circuit</small><strong id="circuitPointsValue">--</strong><em>Quatre dernières semaines</em></span>
+            </article>
+            <article class="circuit-stat-card">
+              <img src="./assets/icons/schedule.svg" alt="" aria-hidden="true" />
+              <span><small>Points cette semaine</small><strong id="circuitWeekPointsValue">--</strong><em>Semaine en cours</em></span>
+            </article>
+            <article class="circuit-stat-card circuit-stat-attempts">
+              <img src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+              <span><small>Tentatives restantes</small><strong id="circuitAttemptsValue">--</strong><em id="circuitAttemptsCaption">Améliorations disponibles</em></span>
+            </article>
           </section>
 
-          <section class="menu-panel ranking-panel restricted-pro" data-required-role="pro">
-            <div class="lobby-header">
-              <p class="label">Classement Tennis Courts Pro Circuit</p>
+          <div class="circuit-main-layout">
+            <section class="circuit-content-card weekly-circuit-panel">
+              <div class="circuit-section-heading">
+                <div><p class="label">Calendrier</p><h2>Tournois de la semaine</h2></div>
+                <span class="circuit-section-icon"><img src="./assets/icons/schedule.svg" alt="" aria-hidden="true" /></span>
+              </div>
+              <div id="weeklyCompetitionsList" class="weekly-competitions-list circuit-competition-list" aria-live="polite"></div>
+            </section>
+
+            <aside class="circuit-player-card">
+              <div class="circuit-player-identity">
+                <span class="circuit-player-avatar"><img id="circuitPlayerAvatar" src="./assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp?v=169" alt="" /></span>
+                <div><small>Votre saison</small><strong id="circuitPlayerNickname">Joueur</strong><em id="circuitPlayerRole">Tennis Courts Pro</em></div>
+              </div>
+              <dl class="circuit-player-metrics">
+                <div><dt>Rang mondial</dt><dd><span id="circuitPlayerRank">--</span> <small id="circuitPlayerProjection"></small></dd></div>
+                <div><dt>Points Circuit</dt><dd id="circuitPlayerPoints">--</dd></div>
+                <div><dt>Cette semaine</dt><dd id="circuitPlayerWeekPoints">--</dd></div>
+                <div><dt>Tentatives</dt><dd id="circuitPlayerAttempts">--</dd></div>
+              </dl>
+              <button id="circuitProfileButton" class="small-button" type="button">Voir mon profil</button>
+            </aside>
+          </div>
+
+          <section class="circuit-content-card circuit-top-ranking ranking-panel">
+            <div class="circuit-section-heading circuit-ranking-heading">
+              <div><p class="label">Classement mondial</p><h2>Top 20</h2></div>
               <div id="rankingSortControls" class="ranking-sort-controls" aria-label="Trier le classement">
                 <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
                 <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
                 <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
               </div>
             </div>
-            <div id="rankingList" class="ranking-list" aria-live="polite"></div>
-            <button id="openRankingPageButton" class="small-button full-ranking-button" type="button">Voir le classement général</button>
+            <div id="rankingList" class="ranking-list circuit-ranking-list" aria-live="polite"></div>
+            <button id="openRankingPageButton" class="primary-button full-ranking-button" type="button">Voir le classement général</button>
           </section>
-        </div>
+        </section>
       </div>
     </section>
 
-    <section id="academyInfoScreen" class="menu-screen hidden">
-      <div class="menu-shell academy-info-shell">
-        <p class="eyebrow">Tennis Courts Academy <span>v2.169.17</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel academy-info-panel">
-          <div class="lobby-header academy-info-header">
-            <p class="label">Découvrir l'Academy</p>
-            <button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour lobby</button>
-          </div>
+    <section id="academyInfoScreen" class="menu-screen content-page-screen hidden">
+      <div class="menu-shell academy-info-shell content-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions"><button id="backToLobbyFromAcademyInfoButton" class="small-button" type="button">Retour entraînement</button><button id="academyInfoHomeButton" class="small-button" type="button">Accueil</button></div>
+        </div>
+        <section class="menu-panel academy-info-panel content-page-panel">
+          <header class="content-page-hero academy-info-hero">
+            <img src="./assets/ACADEMY-HERO.jpg" alt="Academy Tennis Courts entourée de courts de tennis" />
+            <div class="content-page-hero-copy">
+              <p class="label">Tennis Courts Academy</p>
+              <h1>Apprenez. Progressez. Entrez sur le circuit.</h1>
+              <p>Les deux joueurs utilisent le même deck de 18 cartes, pensé pour apprendre vite, maîtriser les fondamentaux et jouer immédiatement.</p>
+              <button class="primary-button" type="button" data-start-solo="exchange">Commencer l'entraînement</button>
+            </div>
+          </header>
 
-          <header class="academy-info-intro">
-            <p class="label">Tennis Courts Academy</p>
-            <h1>Apprenez les bases avec un deck unique</h1>
+          <section class="academy-journey" aria-label="Votre parcours Academy">
+            <article><span>01</span><div><strong>Découvrir</strong><p>Comprenez le service, l'échange et la construction du point.</p></div></article>
+            <article><span>02</span><div><strong>S'entraîner</strong><p>Apprenez à choisir le bon coup et à gérer votre endurance.</p></div></article>
+            <article><span>03</span><div><strong>Maîtriser</strong><p>Préparez votre passage au jeu complet et à ses stratégies avancées.</p></div></article>
+          </section>
+
+          <section class="academy-info-section academy-foundations-card">
+            <p class="label">Les fondamentaux</p>
+            <h2>Apprenez les bases avec un deck unique</h2>
             <p>Dans <strong>Tennis Courts Academy</strong>, les deux joueurs utilisent <strong>le même deck de 18 cartes</strong>.</p>
             <p>Cette sélection a été spécialement conçue pour vous faire découvrir les mécaniques essentielles de <strong>Tennis Courts</strong> : servir, construire un échange, gérer son endurance, choisir le bon coup au bon moment et terminer le point.</p>
             <p>Grâce à ce format simplifié, les parties sont rapides, équilibrées et idéales pour apprendre à jouer.</p>
             <p class="academy-info-highlight"><strong>Une fois ces 18 cartes maîtrisées, vous serez prêt à découvrir le jeu complet, qui propose plus de 500 cartes différentes et de nombreuses stratégies supplémentaires.</strong></p>
-          </header>
+          </section>
 
           <section class="academy-info-section academy-deck-section">
             <div class="academy-section-heading">
@@ -144,7 +320,7 @@
           </section>
 
           <section class="academy-info-section academy-copy-grid">
-            <div>
+            <div class="academy-copy-card">
               <p class="label">Un apprentissage progressif</p>
               <h2>Pourquoi seulement 18 cartes ?</h2>
               <p>Le mode Academy a été conçu pour :</p>
@@ -157,7 +333,7 @@
               </ul>
             </div>
 
-            <div>
+            <div class="academy-copy-card academy-next-card">
               <p class="label">La suite de votre parcours</p>
               <h2>Et ensuite ?</h2>
               <p>Lorsque vous serez à l'aise avec ces 18 cartes, vous pourrez passer au <strong>Starter Tennis Courts</strong>.</p>
@@ -174,41 +350,57 @@
             </div>
           </section>
 
-          <footer class="academy-info-footer">
-            <img class="academy-shop-banner" src="./assets/academy-shop-banner.jpg" alt="L'univers Tennis Courts" />
-            <div class="academy-shop-callout">
-              <p><strong>Le mode Academy n'est que le début de l'aventure. Bienvenue dans l'univers de Tennis Courts !</strong></p>
-              <a class="primary-button academy-shop-button" href="https://www.mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer">Découvrir la boutique Tennis Courts</a>
+          <section class="academy-upgrade-cta academy-upgrade-cta-info" aria-labelledby="academyInfoUpgradeTitle">
+            <div class="academy-upgrade-copy">
+              <p class="academy-upgrade-kicker">TENNIS COURTS — LE JEU COMPLET</p>
+              <h2 id="academyInfoUpgradeTitle">Prêt à passer au niveau supérieur ?</h2>
+              <p>Vous maîtrisez les 18 cartes de l’Academy. Découvrez l’expérience Tennis Courts complète : <strong>10 joueurs à incarner</strong> et <strong>plus de 500 cartes</strong> pour <strong>construire votre style</strong>, surprendre vos adversaires et devenir le GOAT.</p>
+              <div class="academy-upgrade-actions">
+                <a class="academy-upgrade-primary" href="https://mediality.fr/shop/#tenniscourts" target="_blank" rel="noopener noreferrer">Choisir mon Starter <span aria-hidden="true">→</span></a>
+                <a class="academy-upgrade-secondary" href="http://www.tenniscourts.cc" target="_blank" rel="noopener noreferrer">Découvrir le jeu complet <span aria-hidden="true">→</span></a>
+              </div>
             </div>
-          </footer>
+            <figure class="academy-upgrade-visual">
+              <img src="./assets/academy-shop-banner.jpg" alt="Joueurs et cartes du jeu complet Tennis Courts" />
+            </figure>
+          </section>
         </section>
       </div>
     </section>
 
-    <section id="profileScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Profil joueur <span>v2.169.17</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel">
-          <div class="lobby-header">
-            <p class="label">Mon profil</p>
-            <button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour lobby</button>
-          </div>
+    <section id="profileScreen" class="menu-screen mode-clubhouse-screen content-page-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell profile-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions"><button id="backToLobbyFromProfileButton" class="small-button" type="button">Retour à la page précédente</button><button id="profileHomeButton" class="small-button" type="button">Accueil</button></div>
+        </div>
+        <section class="menu-panel ranking-full-panel profile-page-panel">
+          <header class="profile-page-heading">
+            <div><p class="label">Espace joueur</p><h1>Mon profil</h1><p>Votre identité, votre carrière et vos résultats Tennis Courts.</p></div>
+            <img src="./assets/icons/profil.svg" alt="" aria-hidden="true" />
+          </header>
           <div id="profileContent" class="profile-content" aria-live="polite"></div>
         </section>
       </div>
     </section>
 
-    <section id="characterScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Personnage <span>v2.169.17</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel">
-          <div class="lobby-header">
-            <p class="label">Choisir mon personnage</p>
+    <section id="characterScreen" class="menu-screen mode-clubhouse-screen content-page-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell character-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions">
+            <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour au profil</button>
+            <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour accueil</button>
+          </div>
+        </div>
+        <section class="menu-panel ranking-full-panel character-page-panel">
+          <header class="profile-page-heading character-page-heading">
+            <div><p class="label">Votre identité sur le court</p><h1>Choisir mon personnage</h1><p>Sélectionnez le personnage qui vous représentera dans le lobby et sur le Circuit.</p></div>
+            <img src="./assets/icons/SOLO.svg" alt="" aria-hidden="true" />
+          </header>
+          <div class="lobby-header character-mobile-actions">
             <div class="page-return-actions">
-              <button id="backToProfileFromCharacterButton" class="small-button" type="button">Retour profil</button>
-              <button id="backToLobbyFromCharacterButton" class="small-button" type="button">Retour lobby</button>
+              <span>Les personnages disponibles dépendent de votre accès.</span>
             </div>
           </div>
           <div id="characterContent" class="profile-content" aria-live="polite"></div>
@@ -218,7 +410,7 @@
 
     <section id="resetPasswordScreen" class="menu-screen hidden">
       <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Réinitialisation <span>v2.169.17</span></p>
+        <p class="eyebrow">Réinitialisation <span>v169</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel ranking-full-panel">
           <p class="label">Nouveau mot de passe</p>
@@ -232,15 +424,17 @@
       </div>
     </section>
 
-    <section id="rankingScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Classement général <span>v2.169.17</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel">
-          <div class="lobby-header">
-            <p class="label">Classement Tennis Courts Pro Circuit</p>
-            <button id="backToLobbyFromRankingButton" class="small-button" type="button">Retour lobby</button>
-          </div>
+    <section id="rankingScreen" class="menu-screen mode-clubhouse-screen hidden">
+      <div class="menu-shell ranking-shell circuit-ranking-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions"><button id="backToLobbyFromRankingButton" class="small-button" type="button">Retour au Circuit</button><button id="rankingHomeButton" class="small-button" type="button">Accueil</button></div>
+        </div>
+        <section class="menu-panel ranking-full-panel circuit-ranking-full-panel">
+          <header class="circuit-ranking-page-header">
+            <div><p class="label">Tennis Courts Pro Circuit</p><h1>Classement général</h1><p>25 joueurs par page · Votre position reste toujours visible.</p></div>
+            <img src="./assets/icons/classement.svg" alt="" aria-hidden="true" />
+          </header>
           <div class="ranking-sort-controls" aria-label="Trier le classement général">
             <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
             <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
@@ -256,46 +450,58 @@
       </div>
     </section>
 
-    <section id="circuitInfoScreen" class="menu-screen hidden">
-      <div class="menu-shell ranking-shell">
-        <p class="eyebrow">Tennis Courts Pro Circuit <span>v2.169.17</span></p>
-        <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-        <section class="menu-panel ranking-full-panel circuit-info-panel">
-          <div class="lobby-header">
-            <p class="label">Tennis Courts Pro Circuit</p>
-            <button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour lobby</button>
-          </div>
-          <h1 class="circuit-info-main-title">DEVENEZ LE GOAT !</h1>
-          <div class="circuit-info-feature">
-            <figure class="circuit-info-visual">
-              <img src="./assets/circuit-pro-contigoat.jpg" alt="Championne Tennis Courts dans la galerie des trophées" />
-            </figure>
-            <div class="circuit-info-feature-copy">
-              <article class="circuit-info-section">
-                <h2>Les tournois</h2>
-                <p>Chaque semaine de Tennis Courts propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour du circuit le mercredi à 14 h et le dimanche à 2 h (heure de Paris). Les catégories sont Challenge 400, Major 600, Premier 1000, Crown 1500, Slam 2000 et Finals 4000. Le nombre indique l'importance du tournoi et les points attribués au vainqueur.</p>
-              </article>
-              <article class="circuit-info-section">
-                <h2>Classement</h2>
-                <p>Votre classement mondial est calculé à partir du cumul des points obtenus sur les 4 dernières semaines de compétition. Chaque nouveau tournoi est donc l'occasion d'améliorer votre position.</p>
-              </article>
+    <section id="circuitInfoScreen" class="menu-screen content-page-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions"><button id="backToLobbyFromCircuitInfoButton" class="small-button" type="button">Retour au Circuit</button><button id="circuitInfoHomeButton" class="small-button" type="button">Accueil</button></div>
+        </div>
+        <section class="menu-panel ranking-full-panel circuit-info-panel content-page-panel">
+          <header class="content-page-hero circuit-info-hero">
+            <img src="./assets/CIRCUIT-PRO.jpg" alt="Trophée du Tennis Courts Pro Circuit" />
+            <div class="content-page-hero-copy">
+              <p class="label">Tennis Courts Pro Circuit</p>
+              <h1>Entrez dans la course au titre mondial</h1>
+              <p>Jouez les tournois de la semaine, améliorez vos résultats et construisez votre carrière saison après saison.</p>
             </div>
-          </div>
-          <div class="circuit-info-grid">
-            <article class="circuit-info-section">
-              <h2>Retenter sa chance</h2>
+          </header>
+          <section class="circuit-info-facts" aria-label="Le Circuit en chiffres">
+            <article><strong>5</strong><span>tournois chaque semaine</span></article>
+            <article><strong>4</strong><span>semaines prises en compte</span></article>
+            <article><strong>5</strong><span>tentatives d'amélioration</span></article>
+            <article><strong>4 000</strong><span>points aux World Finals</span></article>
+          </section>
+          <section class="circuit-goat-feature">
+            <img src="./assets/circuit-pro-contigoat.jpg" alt="Alessandra Conti, championne du Tennis Courts Pro Circuit" />
+            <div><p class="label">Objectif numéro 1</p><h2>Entrez dans la légende</h2><p>Disputez les tournois les plus prestigieux, améliorez vos performances et gravissez les échelons du classement mondial. Au fil des saisons, imposez votre jeu, dominez vos rivalités et construisez un palmarès à la hauteur de vos ambitions. Des premiers tours jusqu’aux World Finals, chaque victoire vous rapproche un peu plus de l’objectif ultime : devenir numéro 1 mondial et inscrire votre nom dans la légende du Circuit.</p></div>
+          </section>
+          <div class="circuit-info-grid circuit-info-card-grid">
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/schedule.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Chaque semaine</p><h2>Les tournois</h2>
+              <p>Le Circuit propose 5 tournois à disputer. Une semaine de jeu dure 3 jours et demi, avec une mise à jour le mercredi à 14 h et le dimanche à 2 h, heure de Paris.</p>
+            </article>
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/classement.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Votre progression</p><h2>Classement et projection</h2>
+              <p>Le classement mondial cumule les points des 4 dernières semaines. La projection affichée en petit indique la position estimée du joueur pour la semaine suivante.</p>
+            </article>
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/next.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Améliorer son résultat</p><h2>Retenter sa chance</h2>
               <p>Vous pouvez rejouer un tournoi jusqu'à 5 fois afin de tenter de réaliser une meilleure performance. Seul votre meilleur résultat est conservé. Au total, vous disposez de 5 tentatives d'amélioration par semaine, à répartir librement entre les différents tournois disponibles.</p>
             </article>
-            <article class="circuit-info-section">
-              <h2>Organisation de la saison</h2>
+            <article class="circuit-info-section circuit-info-card">
+              <span class="circuit-info-card-icon"><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" /></span>
+              <p class="label">Devenir champion</p><h2>Organisation de la saison</h2>
               <p>Toutes les 4 semaines a lieu un Slam, offrant jusqu'à 2 000 points au vainqueur. Une saison s'étend sur 20 semaines (soit 10 semaines dans la réalité) et se conclut par les prestigieux Tennis Courts World Finals, où les points sont doublés par rapport à un Slam, avec 4 000 points à la clé pour le champion.</p>
             </article>
-            <article class="circuit-info-section">
-              <h2>Rapport de force</h2>
+            <article class="circuit-info-section circuit-info-card">
+              <p class="label">Le niveau monte</p><h2>Rapport de force</h2>
               <p>Le classement mondial ne se limite pas aux joueurs humains. Il rassemble également les joueurs de l'univers de Tennis Courts, chacun possédant son propre niveau, ses défis et sa progression. Les meilleurs bénéficient de statuts de têtes de série et de différents bonus, rendant leur parcours encore plus redoutable. Mais quelle satisfaction de réussir à éliminer le numéro 1 mondial dans un grand tournoi !</p>
             </article>
-            <article class="circuit-info-section">
-              <h2>Rivalité</h2>
+            <article class="circuit-info-section circuit-info-card">
+              <p class="label">Chaque match compte</p><h2>Rivalités</h2>
               <p>Enfin, une véritable rivalité peut naître au fil des saisons. Après plusieurs confrontations contre un même adversaire, un rapport de force psychologique s'installe. Selon votre historique de victoires, vous pourrez obtenir l'un des trois statuts suivants : Ascendant, Domination ou Bête noire, accordant un avantage psychologique lors de vos prochaines rencontres. Chaque match compte, et chaque rivalité peut faire basculer votre saison.</p>
             </article>
           </div>
@@ -318,13 +524,17 @@
               </table>
             </div>
           </section>
+          <div class="circuit-info-cta">
+            <div><p class="label">Prêt à entrer sur le court ?</p><strong>Votre prochaine semaine de compétition vous attend.</strong></div>
+            <button class="primary-button" type="button" data-open-lobby-section="circuit">Accéder au Circuit Pro</button>
+          </div>
         </section>
       </div>
     </section>
 
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
-        <p class="eyebrow">Administration <span>v2.169.17</span></p>
+        <p class="eyebrow">Administration <span>v169</span></p>
         <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
         <section class="menu-panel admin-management-panel">
           <div class="admin-management-header">
@@ -334,7 +544,7 @@
             </div>
             <div class="admin-inline-actions">
               <button id="adminExportHumanMatchesButton" class="small-button" type="button">Exporter parties humaines</button>
-              <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour lobby</button>
+              <button id="backToLobbyFromAdminButton" class="primary-button" type="button">Retour accueil</button>
             </div>
           </div>
           <div id="adminUsersTable" class="admin-users-table" aria-live="polite"></div>
@@ -376,58 +586,63 @@
       </div>
     </section>
 
-    <section id="friendlyLobbyScreen" class="menu-screen friendly-lobby-screen hidden">
+    <section id="friendlyLobbyScreen" class="menu-screen friendly-lobby-screen mode-clubhouse-screen hidden">
       <div class="menu-shell friendly-lobby-shell">
-        <div class="friendly-lobby-topbar">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar">
           <div>
-            <p class="eyebrow">CLUB HOUSE EN LIGNE <span>v2.169.17</span></p>
-            <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+            <p class="eyebrow">CLUB HOUSE EN LIGNE <span>v169</span></p>
+            <button id="friendlyLobbyLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
               <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
             </button>
           </div>
-          <button id="friendlyLobbyHomeButton" class="small-button" type="button">Retour lobby</button>
+          <div class="page-return-actions"><button id="friendlyLobbyHomeButton" class="small-button" type="button">Retour mode en ligne</button><button id="friendlyLobbyDirectHomeButton" class="small-button" type="button">Accueil</button></div>
         </div>
-        <section id="friendlyLobbyContent" class="menu-panel friendly-lobby-panel" aria-live="polite"></section>
+        <section id="friendlyLobbyContent" class="menu-panel friendly-lobby-panel online-clubhouse-room-panel" aria-live="polite"></section>
       </div>
     </section>
 
-    <section id="aiClubHouseScreen" class="menu-screen friendly-lobby-screen ai-club-house-screen hidden">
+    <section id="aiClubHouseScreen" class="menu-screen friendly-lobby-screen ai-club-house-screen mode-clubhouse-screen hidden">
       <div class="menu-shell friendly-lobby-shell">
-        <div class="friendly-lobby-topbar">
-          <div>
-            <p class="eyebrow">CLUB HOUSE · Compétition contre l'IA <span>v2.169.17</span></p>
-            <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
-              <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-            </button>
-          </div>
-          <button id="aiClubHouseHomeButton" class="small-button" type="button">Retour lobby</button>
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar">
+          <button id="aiClubHouseLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
+            <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          </button>
+          <button id="aiClubHouseHomeButton" class="small-button" type="button">Retour accueil</button>
         </div>
 
-        <section class="menu-panel friendly-lobby-panel ai-club-house-panel">
-          <div class="friendly-lobby-title">
-            <div>
-              <p class="label">Configuration</p>
-              <h1>Votre compétition contre l'IA</h1>
-              <p>Une partie amicale, sans incidence sur le Tennis Courts Pro Circuit.</p>
+        <section class="menu-panel friendly-lobby-panel ai-club-house-panel mode-clubhouse-panel">
+          <header class="mode-page-hero solo-clubhouse-hero">
+            <img src="./assets/MODE-SOLO.jpg" alt="Joueur prêt à affronter l'intelligence artificielle" />
+            <div class="mode-page-hero-copy">
+              <p class="label">Club House Solo</p>
+              <h1>Configurez votre prochaine partie</h1>
+              <p>Choisissez votre format et ajustez le niveau de vos adversaires.</p>
             </div>
-          </div>
+          </header>
 
-          <figure class="friendly-club-house-photo ai-club-house-photo">
-            <img src="./assets/club-house-tournoi.jpg" alt="Club House Tennis Courts" />
-          </figure>
-
-          <div class="friendly-settings-panel ai-club-house-settings">
-            <div class="friendly-setting-row">
-              <div>
-                <strong>Format</strong>
-                <span>Tableau à élimination directe ou championnat.</span>
-              </div>
-              <div class="friendly-setting-switch" aria-label="Format de la compétition">
-                <button class="friendly-setting-button active" type="button" data-ai-club-setting="format" data-ai-club-value="tournament">TOURNOI</button>
-                <button class="friendly-setting-button" type="button" data-ai-club-setting="format" data-ai-club-value="league">LEAGUE</button>
-              </div>
+          <section class="clubhouse-format-section" aria-labelledby="soloFormatTitle">
+            <div class="clubhouse-section-heading">
+              <div><p class="label">Format</p><h2 id="soloFormatTitle">Quel événement souhaitez-vous jouer ?</h2></div>
+              <span class="clubhouse-friendly-note">Sans incidence sur le Pro Circuit</span>
             </div>
+            <div class="clubhouse-format-grid" aria-label="Format de la partie solo">
+              <button class="clubhouse-format-card active" type="button" data-ai-club-setting="format" data-ai-club-value="match">
+                <img src="./assets/icons/MATCH.svg" alt="" aria-hidden="true" />
+                <span><small>Accessible à tous</small><strong>Match</strong><em>Une rencontre directe contre l'IA.</em></span>
+              </button>
+              <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="classic" data-pro-format>
+                <img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
+                <span><small>Joueurs Pro</small><strong>Tournoi Classic</strong><em>Un tableau à élimination directe.</em></span>
+              </button>
+              <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="league" data-pro-format>
+                <img src="./assets/icons/LEAGUE.svg" alt="" aria-hidden="true" />
+                <span><small>Joueurs Pro</small><strong>League</strong><em>Une phase de groupes puis les finales.</em></span>
+              </button>
+            </div>
+          </section>
 
+          <div class="clubhouse-configuration-layout">
+            <div class="friendly-settings-panel ai-club-house-settings clubhouse-settings-card">
             <div class="friendly-setting-row">
               <div>
                 <strong>Sets gagnants</strong>
@@ -442,7 +657,7 @@
             <div class="friendly-setting-row">
               <div>
                 <strong>Niveau IA</strong>
-                <span id="aiLevelDescription">Normal · décisions variées parmi les meilleures options raisonnables.</span>
+                <span id="aiLevelDescription">Normal · décisions variées et adversaires abordables.</span>
               </div>
               <div class="friendly-setting-switch seven-options" aria-label="Niveau de l'intelligence artificielle">
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="difficulty" data-ai-club-value="amateur">AMATEUR</button>
@@ -455,7 +670,7 @@
               </div>
             </div>
 
-            <div class="friendly-setting-row" id="aiBonusSettingRow">
+            <div class="friendly-setting-row" id="aiBonusSettingRow" data-competition-setting>
               <div>
                 <strong>Bonus</strong>
                 <span id="aiBonusDescription">Sans · aucun bonus pour les joueurs IA.</span>
@@ -468,7 +683,7 @@
               </div>
             </div>
 
-            <div class="friendly-setting-row">
+            <div class="friendly-setting-row" id="aiPlayersSettingRow" data-competition-setting>
               <div>
                 <strong>Joueurs</strong>
                 <span>Choisir les adversaires IA au hasard ou retenir les mieux classés.</span>
@@ -479,7 +694,7 @@
               </div>
             </div>
 
-            <div class="friendly-setting-row">
+            <div class="friendly-setting-row" id="aiDistributionSettingRow" data-competition-setting>
               <div>
                 <strong>Répartition</strong>
                 <span>Placement totalement aléatoire ou tableau construit selon le classement du circuit.</span>
@@ -489,16 +704,20 @@
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="distribution" data-ai-club-value="ranking">SELON CLASSEMENT</button>
               </div>
             </div>
-
-          </div>
-
-          <div class="ai-club-house-footer">
-            <div id="aiClubHouseSummary" class="friendly-lobby-status" aria-live="polite"></div>
-            <div id="aiClubHouseSaveActions" class="ai-club-house-save-actions hidden">
-              <button id="resumeAiClubHouseSaveButton" class="primary-button" type="button">CONTINUER LA PARTIE SAUVEGARDÉE</button>
-              <button id="deleteAiClubHouseSaveButton" class="small-button danger-button" type="button">SUPPRIMER LA SAUVEGARDE</button>
             </div>
-            <button id="startAiClubHouseButton" class="primary-button ai-club-house-start-button" type="button">LANCER LA COMPÉTITION</button>
+
+            <aside class="clubhouse-summary-card">
+              <p class="label">Votre sélection</p>
+              <h2 id="aiClubHouseSummaryTitle">Match Solo</h2>
+              <div id="aiClubHouseSummary" class="clubhouse-summary-text" aria-live="polite"></div>
+              <div id="aiClubHouseAccessNote" class="clubhouse-access-message hidden">Classic et League sont réservés aux joueurs Pro.</div>
+              <div id="aiClubHouseSaveActions" class="ai-club-house-save-actions hidden">
+                <button id="resumeAiClubHouseSaveButton" class="small-button" type="button">Continuer la partie sauvegardée</button>
+                <button id="deleteAiClubHouseSaveButton" class="small-button danger-button" type="button">Supprimer</button>
+              </div>
+              <button id="startAiClubHouseButton" class="primary-button ai-club-house-start-button" type="button">Lancer le match</button>
+              <small class="clubhouse-summary-footnote">La configuration est mémorisée sur cet appareil.</small>
+            </aside>
           </div>
         </section>
       </div>
@@ -507,29 +726,49 @@
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
-          <p class="eyebrow">Tennis Courts Academy <span>v2.169.17</span></p>
-          <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner au lobby">
+          <p class="eyebrow">Tennis Courts Academy <span>v169</span></p>
+          <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
             <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
           </button>
         </div>
         <div class="top-actions">
           <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
-          <button id="adminSimulateScoreButton" class="small-button admin-simulate-score-button hidden" type="button" title="Terminer ce match avec un score simulé">SIMULER LE SCORE</button>
           <button id="spectatorQuitButton" class="small-button danger-button spectator-quit-button hidden" type="button">QUITTER</button>
-          <button id="returnLobbyButton" class="small-button" type="button">Retour lobby</button>
-          <button id="exportLogsButton" class="small-button" type="button">Exporter logs</button>
-          <button id="exportHumanMatchesButton" class="small-button" type="button">Exporter parties humaines</button>
-          <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler les cartes</button>
+          <button id="returnLobbyButton" class="small-button" type="button">Retour accueil</button>
+          <div id="gameAssistTools" class="game-assist-tools">
+            <button id="gameAssistButton" class="small-button" type="button" aria-expanded="false" aria-controls="gameAssistPanel">Assistance</button>
+            <div id="gameAssistPanel" class="game-assist-panel hidden" aria-label="Options d’assistance">
+              <p>Assistance de jeu</p>
+              <label><input id="gamePreviewToggle" type="checkbox" /> Prévisualiser les conséquences</label>
+            </div>
+          </div>
+          <div id="adminGameTools" class="admin-game-tools hidden" data-required-role="admin">
+            <button id="adminGameToolsButton" class="small-button admin-game-tools-button" type="button" aria-expanded="false" aria-controls="adminGameToolsPanel">Outils ADMIN</button>
+            <div id="adminGameToolsPanel" class="admin-game-tools-panel hidden" aria-label="Boîte à outils administrateur">
+              <p>Boîte à outils</p>
+              <button id="adminSimulateScoreButton" class="small-button admin-simulate-score-button" type="button" title="Terminer ce match avec un score simulé">Simuler le score</button>
+              <button id="exportLogsButton" class="small-button" type="button">Exporter les logs</button>
+              <button id="exportHumanMatchesButton" class="small-button" type="button">Exporter les parties humaines</button>
+              <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler la main</button>
+            </div>
+          </div>
         </div>
       </section>
 
+      <section id="gameContextStrip" class="game-context-strip" aria-live="polite"></section>
       <section id="tournamentPanel" class="tournament-panel hidden" aria-live="polite"></section>
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
       <section id="tutorialOverlay" class="tutorial-overlay hidden" aria-live="polite"></section>
 
       <section class="scoreboard" aria-label="État de l'échange">
         <article class="rally-card">
-          <p class="label">État du rallye</p>
+          <header class="rally-card-header">
+            <div><p class="label">État de l’échange</p><strong id="rallyPhaseLabel">Échange en cours</strong></div>
+            <div class="rally-card-actions">
+              <span id="rallyStatusBadge" class="rally-status-badge">À jouer</span>
+              <button id="rallyFullLogButton" class="rally-full-log-button" type="button">Déroulé complet</button>
+            </div>
+          </header>
           <div id="rallyState" class="rally-state"></div>
           <div id="effectNotice" class="effect-notice"></div>
         </article>
@@ -555,6 +794,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=2.169.17"></script>
+    <script src="./app.js?v=170.13"></script>
   </body>
 </html>

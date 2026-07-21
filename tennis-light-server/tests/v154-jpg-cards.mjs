@@ -12,9 +12,9 @@ const [html, app, styles, files] = await Promise.all([
   readdir(cardsDirectory),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
-assert.match(html, /styles\.css\?v=2\.169\.17/);
-assert.match(html, /app\.js\?v=2\.169\.17/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=170\.8/);
+assert.match(html, /app\.js\?v=170\.8/);
 
 const webpCards = files.filter((file) => file.toLowerCase().endsWith(".webp"));
 const jpgCards = files.filter((file) => file.toLowerCase().endsWith(".jpg"));
@@ -39,7 +39,7 @@ assert.match(styles, /\.card-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.w
 assert.match(styles, /\.character-card > img\[src\*="assets\/cards\/"\]\[src\*="\.webp"\]/);
 assert.match(styles, /\.played-visual > img\[src\*="assets\/cards\/"\]\[src\*="\.webp"\]/);
 assert.match(styles, /\.image-zoom-figure img\[src\*="assets\/cards\/"\]\[src\*="\.webp"\]/);
-assert.doesNotMatch(styles, /\.character-card > img\s*[,\{]/);
+assert.match(styles, /\.character-card > img\s*[,\{][\s\S]*?border-radius: var\(--game-card-radius\)/);
 assert.match(styles, /border-radius: 6% \/ 4\.25%/);
 assert.match(styles, /border: clamp\(1px, 0\.28vw, 3px\) solid/);
 

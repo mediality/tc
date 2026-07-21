@@ -20,9 +20,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
-assert.match(html, /styles\.css\?v=2\.169\.17/);
-assert.match(html, /app\.js\?v=2\.169\.17/);
+assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /styles\.css\?v=170\.8/);
+assert.match(html, /app\.js\?v=170\.8/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);
@@ -36,10 +36,11 @@ for (const removedScale of ["scale(1.42)", "scale(2.45)", "scale(2.7)", "scale(1
 }
 
 const clubUi = functionSource("renderAiClubHouse");
-assert.match(clubUi, /button\.disabled = false/);
+assert.match(clubUi, /button\.disabled = button\.hasAttribute\("data-pro-format"\) && !proAccess/);
+assert.match(clubUi, /AI_CLUB_HOUSE\.format === "match"/);
 assert.doesNotMatch(clubUi, /AI_CLUB_HOUSE\.format = "tournament"/);
 assert.doesNotMatch(functionSource("updateAiClubHouseSetting"), /difficulty === "circuit"/);
-assert.match(functionSource("startAiClubHouseCompetition"), /if \(AI_CLUB_HOUSE\.format === "league"\)/);
+assert.match(functionSource("startAiClubHouseCompetition"), /AI_CLUB_HOUSE\.format === "league"/);
 
 const league = functionSource("startLeagueTournamentMode");
 assert.doesNotMatch(league, /startTournamentMode/);
@@ -57,6 +58,6 @@ assert.match(tournament, /buildAiClubHouseBonuses\(positions, bonusLevel\)/);
 assert.match(tournament, /buildTournamentAiIntelligenceLevels\(positions, SOLO_AI\.difficulty, \{ humanLevel \}\)/);
 assert.doesNotMatch(tournament, /buildWeeklyCircuitProBonuses/);
 
-assert.match(app, /circuit: "Circuit Pro · niveaux IA d'Amateur à Légende selon le RankIA et le niveau du joueur créateur\."/);
+assert.match(app, /circuit: "Circuit Pro · adversaires de niveau Amateur à Légende, selon le classement du Circuit Pro\."/);
 
 console.log("v169 cartes sans agrandissement pixellisé et CLUB HOUSE Circuit Pro libre: OK");

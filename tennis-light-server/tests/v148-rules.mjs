@@ -20,7 +20,7 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v148<\/span>/);
 assert.match(html, /styles\.css\?v=148\.0/);
 assert.match(html, /app\.js\?v=148\.0/);
 

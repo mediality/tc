@@ -22,25 +22,14 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /v2\.169\.17/);
-assert.match(html, /styles\.css\?v=2\.169\.17/);
-assert.match(html, /app\.js\?v=2\.169\.17/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.17/);
+assert.match(html, /styles\.css\?v=170\.13/);
+assert.match(html, /app\.js\?v=170\.13/);
 assert.equal(JSON.parse(pkg).version, "2.169.17");
 assert.match(app, /const GAME_VERSION = "v2\.169\.17"/);
 
-const levelsContext = vm.createContext({
-  HUMAN_CIRCUIT_LEVELS: [
-    { level: 1, min: 0, max: 499, label: "Lucky Loser" },
-    { level: 2, min: 500, max: 999, label: "Qualifier" },
-    { level: 3, min: 1000, max: 2499, label: "Wild Card" },
-    { level: 4, min: 2500, max: 4999, label: "Challenger" },
-    { level: 5, min: 5000, max: 7999, label: "Contender" },
-    { level: 6, min: 8000, max: Infinity, label: "Top player" },
-  ],
-  currentRankingTotalPoints: () => 0,
-  Math,
-});
-vm.runInContext(`${functionSource("humanCircuitLevelInfo")}\n${functionSource("circuitHumanLevel")}`, levelsContext);
+const levelsContext = vm.createContext({ currentRankingTotalPoints: () => 0, Math });
+vm.runInContext(functionSource("circuitHumanLevel"), levelsContext);
 for (const [points, level] of [[0, 1], [499, 1], [500, 2], [999, 2], [1000, 3], [2499, 3], [2500, 4], [4999, 4], [5000, 5], [7999, 5], [8000, 6]]) {
   assert.equal(vm.runInContext(`circuitHumanLevel(${points})`, levelsContext), level);
 }
@@ -53,13 +42,12 @@ assert.deepEqual(Array.from({ length: 16 }, (_, index) => positionLevel(index + 
 assert.deepEqual(Array.from({ length: 16 }, (_, index) => positionLevel(index + 1, 3)), [...Array(3).fill("expert"), ...Array(3).fill("normal"), ...Array(10).fill("amateur")]);
 assert.deepEqual(Array.from({ length: 16 }, (_, index) => positionLevel(index + 1, 4)), ["champion", ...Array(3).fill("expert"), ...Array(4).fill("normal"), ...Array(8).fill("amateur")]);
 
-const styleSource = functionSource("chooseSoloAIStyle");
 const styleContext = vm.createContext({
   state: { tournament: { aiIntelligenceLevels: {}, aiClubHouse: false }, setMatch: { enabled: false } },
   SOLO_AI: { characterId: "coach", difficulty: "normal" },
   aiIntelligenceForEntry: () => "normal",
 });
-vm.runInContext(styleSource, styleContext);
+vm.runInContext(functionSource("chooseSoloAIStyle"), styleContext);
 assert.equal(vm.runInContext("chooseSoloAIStyle()", styleContext), "amateur");
 styleContext.state.setMatch.enabled = true;
 assert.equal(vm.runInContext("chooseSoloAIStyle()", styleContext), "normal");

@@ -5,7 +5,7 @@ const html = await readFile(new URL("../public/index.html", import.meta.url), "u
 const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v148<\/span>/);
 assert.match(html, /id="openAcademyInfoButton"[^>]*info-highlight-button[^>]*>DÉCOUVRIR L'ACADEMIE<\/button>/);
 assert.match(html, /id="openCircuitInfoButton"[^>]*info-highlight-button[^>]*>EN SAVOIR PLUS<\/button>/);
 assert.match(css, /\.info-highlight-button[\s\S]*?background:\s*#e57d9d;/);
