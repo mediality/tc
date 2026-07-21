@@ -22,11 +22,11 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(JSON.parse(pkg).version, "2.169.19");
-assert.match(app, /const GAME_VERSION = "v2\.169\.19"/);
-assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
-assert.match(html, /styles\.css\?v=170\.16/);
-assert.match(html, /app\.js\?v=170\.16/);
+assert.equal(JSON.parse(pkg).version, "2.169.20");
+assert.match(app, /const GAME_VERSION = "v2\.169\.20"/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.20/);
+assert.match(html, /styles\.css\?v=170\.17/);
+assert.match(html, /app\.js\?v=170\.17/);
 
 const accessControls = functionSource("updateAccessControls");
 assert.match(accessControls, /hasInlineAdminContent/);
@@ -62,10 +62,10 @@ assert.match(functionSource("rallyEndReasonLabel"), /Victoire aux Points/);
 assert.match(functionSource("rallyEndReasonLabel"), /Victoire sur Boost/);
 assert.match(functionSource("rallyEndReasonLabel"), /Victoire sur Effet/);
 assert.doesNotMatch(rallyState, /<span>Condition<\/span>|<span>Échange suivant<\/span>|"Terminé"/);
-assert.match(css, /\.rally-card\.completed\.rally-end-boost\s*\{[^}]*background: #fff4c9/);
-assert.match(css, /\.rally-card\.completed\.rally-end-effect\s*\{[^}]*background: #f2e7fa/);
-assert.match(css, /\.rally-card\.completed\.rally-end-points\s*\{[^}]*background: #e1f3e8/);
-assert.doesNotMatch(css, /\.rally-card\.completed\.rally-end-(?:boost|effect|points)\s*\{[^}]*linear-gradient/);
+assert.doesNotMatch(css, /\.rally-card\.completed\.rally-end-(?:boost|effect|points)\s*\{[^}]*background/);
+assert.match(css, /\.rally-status-badge\.completed\.rally-end-boost\s*\{[^}]*background: #e2b52f/);
+assert.match(css, /\.rally-status-badge\.completed\.rally-end-effect\s*\{[^}]*background: #75409e/);
+assert.match(css, /\.rally-status-badge\.completed\.rally-end-points\s*\{[^}]*background: #087162/);
 assert.match(css, /\.rally-card\.completed \.rally-full-log-button\s*\{[^}]*background: #e2e6e8/);
 assert.match(css, /\.rally-card\.completed \.rally-end-score-values strong\.current\s*\{[^}]*color: #fff;[^}]*background: #087162/);
 assert.match(html, /id="topProgressionActions"[^>]*>[\s\S]*id="returnLobbyButton"/);

@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.19";
+const GAME_VERSION = "v2.169.20";
 const CARD_ASSET_VERSION = "169";
 
 function versionCardAsset(value) {
@@ -1464,6 +1464,7 @@ const els = {
   player2Summary: document.querySelector("#player2Summary"),
   rallyPhaseLabel: document.querySelector("#rallyPhaseLabel"),
   rallyStatusBadge: document.querySelector("#rallyStatusBadge"),
+  rallyScoreDeltaBadge: document.querySelector("#rallyScoreDeltaBadge"),
   rallyFullLogButton: document.querySelector("#rallyFullLogButton"),
   rallyState: document.querySelector("#rallyState"),
   effectNotice: document.querySelector("#effectNotice"),
@@ -6769,7 +6770,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.19");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.20");
 }
 
 function resetSetMatch() {
@@ -11214,6 +11215,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
+  state.log.unshift(exchangeResultLogLine(winner, winType, setScore));
   recordAction("exchange_end", {
     winner,
     winnerName: playerName(winner),
@@ -11252,6 +11254,23 @@ function getExchangeSetScore(winner, winType) {
     loser,
     label: "Victoire aux points de puissance",
   };
+}
+
+function exchangeResultLogLine(winner, winType, exchangeScore) {
+  const added = [0, 0];
+  added[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
+  added[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
+  const outcome = winType === "boost" ? "Victoire sur Boost" : winType === "power" ? "Victoire aux Points" : "Victoire sur Effet";
+  const scoreImpact = `Jeux ajoutés au score du set : ${playerName(0)} +${added[0]} · ${playerName(1)} +${added[1]}`;
+  if (winType !== "power") {
+    return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Les points de puissance ne sont pas pris en compte pour cette victoire.|${scoreImpact}`;
+  }
+  const powers = state.players.map((player) => Number(player.power || 0));
+  const gap = Math.abs(powers[0] - powers[1]);
+  const loserRule = gap < 5
+    ? `Écart de ${gap}, inférieur à 5 : le perdant reçoit +1.`
+    : `Écart de ${gap}, au moins égal à 5 : le perdant reçoit +0.`;
+  return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Puissance finale : ${playerName(0)} ${powers[0]} · ${playerName(1)} ${powers[1]}|Le vainqueur reçoit +2. ${loserRule}|${scoreImpact}`;
 }
 
 function isDecisiveSetScore(score = state.setMatch.score) {
@@ -14164,6 +14183,20 @@ function rallyEndReasonLabel() {
   return "Victoire aux Points";
 }
 
+function rallyEndGamesAdded() {
+  const exchangeScore = state.resultInfo?.setScore;
+  const added = [0, 0];
+  if (!exchangeScore) return added;
+  added[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
+  added[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
+  return added;
+}
+
+function rallyEndGamesAddedLabel() {
+  const added = rallyEndGamesAdded();
+  return `+ ${added[0]}/${added[1]}`;
+}
+
 function rallyEndScoreMarkup() {
   if (!state.resultInfo) return "";
   const setMatch = state.resultInfo.setMatch;
@@ -14228,6 +14261,10 @@ function renderRallyState() {
   if (els.rallyStatusBadge) {
     els.rallyStatusBadge.textContent = state.gameOver ? rallyEndReasonLabel() : `${displayPlayerName(active)} à jouer`;
     els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? `completed ${rallyEndConditionClass()}` : "live"}`;
+  }
+  if (els.rallyScoreDeltaBadge) {
+    els.rallyScoreDeltaBadge.textContent = state.gameOver ? rallyEndGamesAddedLabel() : "";
+    els.rallyScoreDeltaBadge.classList.toggle("hidden", !state.gameOver);
   }
   const contextualNotices = [
     stakes?.length ? `<div class="rally-stakes">${stakes.map((stake) => `<div class="rally-context-line stake"><strong>${escapeHtml(stake.label)}</strong><span>${escapeHtml(stake.names)}</span></div>`).join("")}</div>` : "",
@@ -14828,7 +14865,7 @@ function formatLogLine(line) {
 
 function actionLogEntryType(line) {
   const normalized = String(line || "").toLowerCase();
-  if (/gagne|score final|score du set|score du match|échange s'arrête|échange terminé|match terminé/.test(normalized)) return "result";
+  if (/gagne|victoire|bilan de l'échange|bilan de l’échange|score final|score du set|score du match|échange s'arrête|échange terminé|match terminé/.test(normalized)) return "result";
   if (/boost/.test(normalized)) return "boost";
   if (/ joue |joue /.test(normalized)) return "shot";
   if (/effet|active|défausse|pioche|récupère|retourne sa carte|bonus/.test(normalized)) return "effect";
@@ -14858,9 +14895,12 @@ function renderActionLogEntry(line, index, compact = false) {
   const type = actionLogEntryType(line);
   const thumbnail = compact ? "" : actionLogCardThumbnail(line);
   const shot = String(line || "").match(/^(.+?) joue (.+?) : (.+)$/);
-  const content = shot
-    ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
-    : `<p>${formatLogLine(line)}</p>`;
+  const exchangeResult = String(line || "").startsWith("Bilan de l’échange|") ? String(line).split("|").slice(1) : null;
+  const content = exchangeResult
+    ? `<strong class="action-log-result-title">${escapeHtml(exchangeResult[0] || "Résultat de l’échange")}</strong><div class="action-log-result-details">${exchangeResult.slice(1).map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}</div>`
+    : shot
+      ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
+      : `<p>${formatLogLine(line)}</p>`;
   return `
     <article class="action-log-entry ${type}${compact ? " compact" : ""}${thumbnail ? " has-card" : ""}">
       <div class="action-log-marker" aria-hidden="true"></div>

@@ -21,9 +21,9 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
-assert.match(html, /styles\.css\?v=170\.16/);
-assert.match(html, /app\.js\?v=170\.16/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.20/);
+assert.match(html, /styles\.css\?v=170\.17/);
+assert.match(html, /app\.js\?v=170\.17/);
 assert.match(app, /const CARD_ASSET_VERSION = "169"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
