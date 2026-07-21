@@ -22,8 +22,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
-assert.match(html, /styles\.css\?v=170\.15/);
-assert.match(html, /app\.js\?v=170\.15/);
+assert.match(html, /styles\.css\?v=170\.16/);
+assert.match(html, /app\.js\?v=170\.16/);
 
 const progressionContext = {
   renderCenterNextSoloExchangeButton: () => "SOLO",
@@ -35,6 +35,7 @@ assert.equal(progressionContext.result, "SOLOECHANGESET_OU_MATCH");
 
 assert.match(functionSource("renderRallyEndActions"), /renderProgressionButtons\(\)/);
 assert.equal((functionSource("renderCenterPlayedCard").match(/renderProgressionButtons\(\)/g) || []).length, 0);
+assert.equal((functionSource("renderCenterPlayedCard").match(/renderRallyEndActions\(\)/g) || []).length, 2);
 const bindingSource = functionSource("bindProgressionButtons");
 for (const action of [
   "data-next-set-exchange",

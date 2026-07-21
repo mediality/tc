@@ -23,8 +23,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
-assert.match(html, /styles\.css\?v=170\.15/);
-assert.match(html, /app\.js\?v=170\.15/);
+assert.match(html, /styles\.css\?v=170\.16/);
+assert.match(html, /app\.js\?v=170\.16/);
 assert.equal(JSON.parse(pkg).version, "2.169.19");
 assert.match(app, /const GAME_VERSION = "v2\.169\.19"/);
 

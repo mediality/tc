@@ -25,8 +25,8 @@ function functionSource(name) {
 assert.equal(JSON.parse(pkg).version, "2.169.19");
 assert.match(app, /const GAME_VERSION = "v2\.169\.19"/);
 assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
-assert.match(html, /styles\.css\?v=170\.15/);
-assert.match(html, /app\.js\?v=170\.15/);
+assert.match(html, /styles\.css\?v=170\.16/);
+assert.match(html, /app\.js\?v=170\.16/);
 
 const accessControls = functionSource("updateAccessControls");
 assert.match(accessControls, /hasInlineAdminContent/);
@@ -58,11 +58,18 @@ assert.match(scoreMarkup, /current[^>]*>2–1/);
 const rallyState = functionSource("renderRallyState");
 assert.match(rallyState, /rally-end-boost/);
 assert.match(rallyState, /rallyEndScoreMarkup\(\)/);
-assert.match(css, /\.rally-card\.completed\.rally-end-boost[\s\S]*linear-gradient/);
-assert.match(css, /\.rally-card\.completed\.rally-end-effect[\s\S]*linear-gradient/);
-assert.match(css, /\.rally-card\.completed\.rally-end-points[\s\S]*linear-gradient/);
-assert.match(css, /\.rally-status-badge\.completed\s*\{[^}]*color: #fff;[^}]*background: #c83535/);
+assert.match(functionSource("rallyEndReasonLabel"), /Victoire aux Points/);
+assert.match(functionSource("rallyEndReasonLabel"), /Victoire sur Boost/);
+assert.match(functionSource("rallyEndReasonLabel"), /Victoire sur Effet/);
+assert.doesNotMatch(rallyState, /<span>Condition<\/span>|<span>Échange suivant<\/span>|"Terminé"/);
+assert.match(css, /\.rally-card\.completed\.rally-end-boost\s*\{[^}]*background: #fff4c9/);
+assert.match(css, /\.rally-card\.completed\.rally-end-effect\s*\{[^}]*background: #f2e7fa/);
+assert.match(css, /\.rally-card\.completed\.rally-end-points\s*\{[^}]*background: #e1f3e8/);
+assert.doesNotMatch(css, /\.rally-card\.completed\.rally-end-(?:boost|effect|points)\s*\{[^}]*linear-gradient/);
 assert.match(css, /\.rally-card\.completed \.rally-full-log-button\s*\{[^}]*background: #e2e6e8/);
 assert.match(css, /\.rally-card\.completed \.rally-end-score-values strong\.current\s*\{[^}]*color: #fff;[^}]*background: #087162/);
+assert.match(html, /id="topProgressionActions"[^>]*>[\s\S]*id="returnLobbyButton"/);
+assert.match(functionSource("renderModeButtons"), /topProgressionActions[\s\S]*renderRallyEndActions\(\)/);
+assert.match(functionSource("renderCenterPlayedCard"), /center-progression-actions[\s\S]*renderRallyEndActions\(\)/);
 
 console.log("v2.169.19 profil admin et fin d’échange enrichie: OK");

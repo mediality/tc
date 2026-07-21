@@ -25,8 +25,8 @@ function functionSource(name) {
 assert.equal(JSON.parse(pkg).version, "2.169.19");
 assert.match(app, /const GAME_VERSION = "v2\.169\.19"/);
 assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
-assert.match(html, /styles\.css\?v=170\.15/);
-assert.match(html, /app\.js\?v=170\.15/);
+assert.match(html, /styles\.css\?v=170\.16/);
+assert.match(html, /app\.js\?v=170\.16/);
 
 const resultPanel = functionSource("renderResultPanel");
 assert.match(resultPanel, /classList\.add\("hidden"\)/);
@@ -35,11 +35,10 @@ assert.doesNotMatch(resultPanel, /Fin de l’échange|winner-dialog|renderProgre
 const rallyState = functionSource("renderRallyState");
 assert.match(rallyState, /rallyCard\?\.classList\.toggle\("completed", state\.gameOver\)/);
 assert.match(rallyState, /Vainqueur/);
-assert.match(rallyState, /Condition/);
 assert.match(rallyState, /Score/);
-assert.match(rallyState, /Échange suivant/);
+assert.doesNotMatch(rallyState, /<span>Condition<\/span>|<span>Échange suivant<\/span>/);
 assert.match(rallyState, /renderRallyEndActions\(\)/);
-assert.doesNotMatch(functionSource("renderCenterPlayedCard"), /renderProgressionButtons/);
+assert.match(functionSource("renderCenterPlayedCard"), /renderRallyEndActions\(\)/);
 assert.match(functionSource("renderEffectNotice"), /state\.gameOver \|\| !state\.effectNotice/);
 
 const context = vm.createContext({ state: { resultInfo: null } });

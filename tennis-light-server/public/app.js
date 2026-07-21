@@ -1315,6 +1315,7 @@ const els = {
   adminGameToolsPanel: document.querySelector("#adminGameToolsPanel"),
   adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
+  topProgressionActions: document.querySelector("#topProgressionActions"),
   gameAssistTools: document.querySelector("#gameAssistTools"),
   gameAssistButton: document.querySelector("#gameAssistButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
@@ -13526,6 +13527,11 @@ function ensureSoloAIForSet() {
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
   if (els.returnLobbyButton) els.returnLobbyButton.textContent = FRIENDLY_TOURNAMENT.enabled ? "Retour Club House" : "Retour accueil";
+  if (els.topProgressionActions) {
+    els.topProgressionActions.innerHTML = renderRallyEndActions();
+    els.topProgressionActions.classList.toggle("hidden", !els.topProgressionActions.innerHTML.trim());
+    bindRallyEndActions(els.topProgressionActions);
+  }
   const completedFriendlyMatch = Boolean(FRIENDLY_TOURNAMENT.enabled && state.gameOver && state.setMatch?.matchOver);
   els.returnLobbyButton?.classList.toggle("friendly-match-complete-return", completedFriendlyMatch);
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
@@ -14151,6 +14157,13 @@ function rallyEndConditionClass() {
   return "rally-end-points";
 }
 
+function rallyEndReasonLabel() {
+  const condition = rallyEndConditionLabel();
+  if (condition === "BOOST") return "Victoire sur Boost";
+  if (condition === "EFFET") return "Victoire sur Effet";
+  return "Victoire aux Points";
+}
+
 function rallyEndScoreMarkup() {
   if (!state.resultInfo) return "";
   const setMatch = state.resultInfo.setMatch;
@@ -14190,9 +14203,9 @@ function renderRallyEndActions() {
   return `${progression}${replay}`;
 }
 
-function bindRallyEndActions() {
-  bindProgressionButtons(els.rallyState);
-  els.rallyState?.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
+function bindRallyEndActions(root = els.rallyState) {
+  bindProgressionButtons(root);
+  root?.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
     startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
   });
 }
@@ -14213,8 +14226,8 @@ function renderRallyState() {
   });
   if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
   if (els.rallyStatusBadge) {
-    els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
-    els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? "completed" : "live"}`;
+    els.rallyStatusBadge.textContent = state.gameOver ? rallyEndReasonLabel() : `${displayPlayerName(active)} à jouer`;
+    els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? `completed ${rallyEndConditionClass()}` : "live"}`;
   }
   const contextualNotices = [
     stakes?.length ? `<div class="rally-stakes">${stakes.map((stake) => `<div class="rally-context-line stake"><strong>${escapeHtml(stake.label)}</strong><span>${escapeHtml(stake.names)}</span></div>`).join("")}</div>` : "",
@@ -14224,9 +14237,8 @@ function renderRallyState() {
   els.rallyState.innerHTML = state.gameOver && state.resultInfo ? `
     <div class="rally-info-grid rally-result-grid">
       <div class="rally-info-chip primary"><span>Vainqueur</span><strong>${escapeHtml(playerName(state.resultInfo.winner))}</strong></div>
-      <div class="rally-info-chip"><span>Condition</span><strong>${escapeHtml(rallyEndConditionLabel())}</strong></div>
       <div class="rally-info-chip rally-score-chip"><span>Score</span>${rallyEndScoreMarkup()}</div>
-      <div class="rally-info-chip rally-next-chip"><span>Échange suivant</span><div class="rally-next-actions">${renderRallyEndActions()}</div></div>
+      <div class="rally-info-chip rally-next-chip"><div class="rally-next-actions">${renderRallyEndActions()}</div></div>
     </div>
   ` : `
     <div class="rally-info-grid">
@@ -14541,7 +14553,9 @@ function renderCenterPlayedCard() {
       ${renderCenterSetScore()}
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
+      <div class="center-progression-actions">${renderRallyEndActions()}</div>
     `;
+    bindRallyEndActions(els.centerPlayedCard);
     return;
   }
   els.centerPlayedCard.innerHTML = `
@@ -14550,7 +14564,9 @@ function renderCenterPlayedCard() {
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
+    <div class="center-progression-actions">${renderRallyEndActions()}</div>
   `;
+  bindRallyEndActions(els.centerPlayedCard);
 }
 
 function activeEffectBadges(playerIndex) {
