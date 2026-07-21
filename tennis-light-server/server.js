@@ -21,7 +21,7 @@ const LIVE_ACTIVITY_TTL_MS = 15000;
 const ROOM_ACTIVITY_TTL_MS = 60000;
 const FRIENDLY_PRESENCE_STALE_MS = 4000;
 const FRIENDLY_RECONNECT_GRACE_MS = 20000;
-const COACH_IDS = new Set(["coachJu", "coachMax", "coachCarla", "coachClem"]);
+const COACH_IDS = new Set(["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"]);
 const SESSION_COOKIE = "tc_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 const PASSWORD_ITERATIONS = 210000;
@@ -29,18 +29,30 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const ADMIN_EMAIL = "julien.castagnoli@mediality.fr";
 const USER_ROLES = new Set(["free", "pro", "pro_plus", "admin"]);
 const PRO_ROLES = new Set(["pro", "pro_plus", "admin"]);
-const COACH_CHARACTER_IDS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+const COACH_CHARACTER_IDS = ["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"];
 const HISTORIC_CHARACTER_IDS = [
   "theoBriancourt", "alessandraConti", "saharaJackson", "kjellBlomqvist", "kojiIwata", "elianaMarquez",
   "bryanGoodwin", "calvinBrentwood", "javierRamirez", "petraEckermann",
 ];
 const NEW_CHARACTER_IDS = [
   "jonasFalkenried", "yunaSeo", "ikerSalvat", "loganBrooks", "kavyaSaran", "zariaCampbell",
-  "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen",
+  "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen", "rosaBenavente",
 ];
 const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
-const PRO_REWARD_CHARACTER_IDS = ["milanVerhaegen"];
+const PRO_REWARD_CHARACTER_IDS = ["milanVerhaegen", "rosaBenavente"];
+const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
+const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
 const GAME_NEWS = [
+  {
+    id: "v16921-rosa-benavente-espana", publishedAt: "2026-07-21", availableAt: "2026-07-21T18:00:00+02:00",
+    title: "Que Viva Espana !", characterId: "rosaBenavente", audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
+  },
+  {
+    id: "v16921-coach-hans-staff", publishedAt: "2026-07-22", availableAt: "2026-07-22T08:00:00+02:00",
+    title: "Le staff s’etoffe", characterId: "coachHans", audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "S’il y a bien un coach qui a la côte quand on débute, c’est Hans … allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de coeur, pour vous entrainer ou passer en victime expiatoire, à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le circuit pro avec lui. Il fait désormais partie des personnages jouables !",
+  },
   {
     id: "v166-milan-verhaegen-pro-unlock",
     publishedAt: "2026-07-19",
@@ -74,6 +86,7 @@ const AI_CHARACTER_NAMES = {
   daanVermeer: "Daan Vermeer",
   lukasEberhardt: "Lukas Eberhardt",
   milanVerhaegen: "Milan Verhaegen",
+  rosaBenavente: "Rosa Benavente",
 };
 const AI_SURFACE_PREFERENCES = {
   theoBriancourt: "clay",
@@ -86,17 +99,18 @@ const AI_SURFACE_PREFERENCES = {
   calvinBrentwood: "grass",
   javierRamirez: "clay",
   petraEckermann: "hard",
-  jonasFalkenried: "hard",
-  yunaSeo: "hard",
+  jonasFalkenried: "grass",
+  yunaSeo: "grass",
   ikerSalvat: "clay",
-  loganBrooks: "grass",
-  kavyaSaran: "hard",
-  zariaCampbell: "grass",
-  renAoshima: "hard",
+  loganBrooks: "hard",
+  kavyaSaran: "grass",
+  zariaCampbell: "hard",
+  renAoshima: "grass",
   yasmineElMansouri: "clay",
-  daanVermeer: "grass",
-  lukasEberhardt: "clay",
-  milanVerhaegen: "grass",
+  daanVermeer: "hard",
+  lukasEberhardt: "hard",
+  milanVerhaegen: "clay",
+  rosaBenavente: "clay",
 };
 const TOURNAMENT_SEED_CANDIDATES = {
   grass: ["kojiIwata", "elianaMarquez", "calvinBrentwood"],
@@ -244,7 +258,11 @@ function pendingNewsForUser(user) {
   const role = normalizeRole(user.role);
   if (!PRO_ROLES.has(role)) return [];
   const seen = seenNewsIds(user);
-  return GAME_NEWS.filter((news) => news.audienceRoles.includes(role) && !seen.has(news.id));
+  return GAME_NEWS.filter((news) => (
+    news.audienceRoles.includes(role)
+    && (!news.availableAt || Date.now() >= Date.parse(news.availableAt))
+    && !seen.has(news.id)
+  ));
 }
 
 function publicUser(user) {
@@ -2215,14 +2233,21 @@ async function assignProCodeToUser(user, code) {
 
 function userUnlockedCharacters(user) {
   const role = normalizeRole(user?.role);
-  if (role === "admin" || role === "pro_plus") return ALL_PROFILE_CHARACTER_IDS;
-  if (role === "pro") return [...COACH_CHARACTER_IDS, ...PRO_REWARD_CHARACTER_IDS];
-  return COACH_CHARACTER_IDS;
+  const coaches = COACH_CHARACTER_IDS.filter((id) => id !== "coachHans" || Date.now() >= COACH_HANS_AVAILABLE_AT);
+  const rewards = PRO_REWARD_CHARACTER_IDS.filter((id) => id !== "rosaBenavente" || Date.now() >= ROSA_BENAVENTE_AVAILABLE_AT);
+  if (role === "admin" || role === "pro_plus") return ALL_PROFILE_CHARACTER_IDS.filter((id) => (
+    (id !== "rosaBenavente" || Date.now() >= ROSA_BENAVENTE_AVAILABLE_AT)
+    && (id !== "coachHans" || Date.now() >= COACH_HANS_AVAILABLE_AT)
+  ));
+  if (role === "pro") return [...coaches, ...rewards];
+  return coaches.filter((id) => id !== "coachHans");
 }
 
 function canSelectCharacter(user, characterId) {
   const role = normalizeRole(user?.role);
   if (characterId === "tennisHope") return true;
+  if (characterId === "rosaBenavente" && (Date.now() < ROSA_BENAVENTE_AVAILABLE_AT || !PRO_ROLES.has(role))) return false;
+  if (characterId === "coachHans" && (Date.now() < COACH_HANS_AVAILABLE_AT || !PRO_ROLES.has(role))) return false;
   if ((role === "admin" || role === "pro_plus") && ALL_PROFILE_CHARACTER_IDS.includes(characterId)) return true;
   if (role === "pro" && PRO_REWARD_CHARACTER_IDS.includes(characterId)) return true;
   return COACH_CHARACTER_IDS.includes(characterId);
@@ -4863,6 +4888,8 @@ async function handleApi(req, res) {
       sendJson(res, 404, { error: "Cette partie ne peut plus être reprise." });
       return;
     }
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     const participant = activeFriendlyParticipants(tournament)
       .find((item) => String(item.userId) === String(user.id)) || null;
     if (!participant) {
@@ -4876,8 +4903,6 @@ async function handleApi(req, res) {
     markFriendlyParticipantPresent(participant);
     participant.token = makeToken();
     participant.resumedAt = Date.now();
-    resolveFriendlyReconnectTimeouts(tournament);
-    refreshFriendlyTournamentSlots(tournament);
     tournament.updatedAt = Date.now();
     sendJson(res, 200, {
       tournament: publicFriendlyTournamentInfo(req, tournament, participant),
@@ -5126,15 +5151,11 @@ async function handleApi(req, res) {
       return;
     }
     resolveFriendlyPresenceLosses(tournament);
+    resolveFriendlyReconnectTimeouts(tournament);
+    refreshFriendlyTournamentSlots(tournament);
     if (payload.status === "online") {
-      if (participant.forfeitedAt) {
-        sendJson(res, 409, { error: "Votre forfait est définitif pour cet événement." });
-        return;
-      }
       participant.activePresenceId = String(payload.presenceId || participant.activePresenceId || "").slice(0, 80) || null;
       markFriendlyParticipantPresent(participant);
-      resolveFriendlyReconnectTimeouts(tournament);
-      refreshFriendlyTournamentSlots(tournament);
       tournament.updatedAt = Date.now();
       sendJson(res, 200, {
         ok: true,
@@ -5143,8 +5164,6 @@ async function handleApi(req, res) {
       });
       return;
     }
-    resolveFriendlyReconnectTimeouts(tournament);
-    refreshFriendlyTournamentSlots(tournament);
     if (tournament.status === "waiting") {
       const now = Date.now();
       leaveWaitingFriendlyParticipant(tournament, participant, now);
@@ -5190,11 +5209,6 @@ async function handleApi(req, res) {
     }
     if (!participant) {
       sendJson(res, 200, { ok: true, closed: false, alreadyLeft: true });
-      return;
-    }
-    const leavingPresenceId = String(payload.presenceId || "").slice(0, 80);
-    if (leavingPresenceId && participant.activePresenceId && leavingPresenceId !== participant.activePresenceId) {
-      sendJson(res, 200, { ok: true, closed: false, paused: false, ignored: true });
       return;
     }
     if (tournament.status === "waiting") {

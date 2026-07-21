@@ -10,7 +10,7 @@ const [html, app, styles] = await Promise.all([
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
 assert.match(html, /styles\.css\?v=170\.8/);
 assert.match(html, /app\.js\?v=170\.8/);
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 
 assert.match(app, /function showCardLocalPreview\(anchor, imageUrl, label = "Carte", immediate = false\)/);
 assert.doesNotMatch(app, /matchMedia\("\(hover: hover\) and \(pointer: fine\)"\)/);

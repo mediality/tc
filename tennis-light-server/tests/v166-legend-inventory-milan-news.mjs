@@ -23,9 +23,9 @@ function functionSource(source, name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(html, /styles\.css\?v=170\.15/);
+assert.match(html, /app\.js\?v=170\.15/);
+assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 
 const effectGuard = functionSource(app, "legendaryEffectSequenceIsUseful");
 assert.match(effectGuard, /effect\.effectType !== "freeBoostNext"/);
@@ -40,7 +40,8 @@ assert.equal(vm.runInContext("legendaryEffectSequenceIsUseful(1, { uid: 'effect'
 effectContext.isFreeBoostNextWindow = () => true;
 assert.equal(vm.runInContext("legendaryEffectSequenceIsUseful(1, { uid: 'effect', effectType: 'freeBoostNext', cost: 1 }, { uid: 'shot', cost: 1 })", effectContext), true);
 const effectPlayLock = functionSource(app, "canPlayEffectMode");
-assert.match(effectPlayLock, /card\.effectType === "freeBoostNext" && !isFreeBoostNextWindow\(playerIndex\)/);
+assert.doesNotMatch(effectPlayLock, /isFreeBoostNextWindow/);
+assert.match(effectPlayLock, /canPlayNormal\(playerIndex, card\) && isRemise\(card\)/);
 assert.match(functionSource(app, "playCard"), /remiseMode === "effect" && !canPlayEffectMode\(playerIndex, card\)/);
 assert.match(functionSource(app, "renderCard"), /const effectModeAllowed = canPlayEffectMode\(playerIndex, card\)/);
 

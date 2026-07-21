@@ -1,9 +1,14 @@
 {
   "name": "tennis-courts-light-server",
-  "version": "0.1.0",
+  "version": "2.169.21",
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
+    "test:v2.169.20": "node tests/v2.169.20-exchange-result-details.mjs",
+    "test:v2.169.21": "node tests/v2.169.21-hans-rosa-circuit.mjs",
+    "test:v2.169.19": "node tests/v2.169.19-rally-end-visuals.mjs",
+    "test:v2.169.18": "node tests/v2.169.18-rally-end-state.mjs",
+    "test:v2.169.17": "node tests/v2.169.17-ai-levels.mjs",
     "test:v169": "node tests/v169-latest-news.mjs",
     "test:v168": "node tests/v168-ai-information-discipline.mjs",
     "test:v167": "node tests/v167-spectator-played-cards.mjs",

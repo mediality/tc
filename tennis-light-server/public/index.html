@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=170.13" />
+    <link rel="stylesheet" href="./styles.css?v=170.18" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -120,7 +120,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <span>Tennis Courts Academy · 2.169.16</span>
+          <span>Tennis Courts Academy · 2.169.21</span>
           <span>Mediality Games</span>
         </footer>
       </div>
@@ -267,7 +267,7 @@
             <div class="circuit-section-heading circuit-ranking-heading">
               <div><p class="label">Classement mondial</p><h2>Top 20</h2></div>
               <div id="rankingSortControls" class="ranking-sort-controls" aria-label="Trier le classement">
-                <button class="small-button active" type="button" data-ranking-sort="points">S-4</button>
+                <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
                 <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
                 <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
               </div>
@@ -436,7 +436,7 @@
             <img src="./assets/icons/classement.svg" alt="" aria-hidden="true" />
           </header>
           <div class="ranking-sort-controls" aria-label="Trier le classement général">
-            <button class="small-button active" type="button" data-ranking-sort="points">S-4</button>
+            <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
             <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
             <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
           </div>
@@ -576,7 +576,7 @@
               </div>
             </div>
             <div class="ranking-sort-controls" aria-label="Trier le classement administrateur">
-              <button class="small-button active" type="button" data-ranking-sort="points">S-4</button>
+              <button class="small-button active" type="button" data-ranking-sort="points">Points</button>
               <button class="small-button" type="button" data-ranking-sort="week">Semaine</button>
               <button class="small-button" type="button" data-ranking-sort="season">Saison</button>
             </div>
@@ -734,6 +734,7 @@
         <div class="top-actions">
           <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
           <button id="spectatorQuitButton" class="small-button danger-button spectator-quit-button hidden" type="button">QUITTER</button>
+          <div id="topProgressionActions" class="top-progression-actions hidden" aria-live="polite"></div>
           <button id="returnLobbyButton" class="small-button" type="button">Retour accueil</button>
           <div id="gameAssistTools" class="game-assist-tools">
             <button id="gameAssistButton" class="small-button" type="button" aria-expanded="false" aria-controls="gameAssistPanel">Assistance</button>
@@ -766,6 +767,7 @@
             <div><p class="label">État de l’échange</p><strong id="rallyPhaseLabel">Échange en cours</strong></div>
             <div class="rally-card-actions">
               <span id="rallyStatusBadge" class="rally-status-badge">À jouer</span>
+              <span id="rallyScoreDeltaBadge" class="rally-score-delta-badge hidden"></span>
               <button id="rallyFullLogButton" class="rally-full-log-button" type="button">Déroulé complet</button>
             </div>
           </header>
@@ -794,6 +796,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=170.13"></script>
+    <script src="./app.js?v=170.18"></script>
   </body>
 </html>

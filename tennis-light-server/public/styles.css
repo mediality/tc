@@ -1467,6 +1467,8 @@ body.spectator-mode .player-panel {
   background: rgba(219, 244, 255, 0.84);
 }
 
+.admin-panel:empty { display: none; }
+
 .admin-panel-header {
   display: flex;
   align-items: center;
@@ -3023,6 +3025,10 @@ h1 {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   border-radius: 999px;
   padding: 5px 9px;
   color: #102026;
@@ -3076,7 +3082,7 @@ h1 {
   position: relative;
   width: min(150px, 38vw);
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.86);
+  border: 0;
   border-radius: 8px;
   background: rgba(255, 253, 248, 0.95);
   box-shadow: 0 10px 22px rgba(9, 71, 74, 0.16);
@@ -3166,22 +3172,6 @@ h1 {
 .character-endurance-reminder span {
   color: #91443e;
   font-size: 0.66rem;
-}
-
-.ai-nudge-button {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  z-index: 4;
-  min-height: 34px;
-  border: 2px solid rgba(255, 255, 255, 0.86);
-  border-radius: 8px;
-  color: #fff;
-  background: #0f8d68;
-  font-size: 0.76rem;
-  font-weight: 950;
-  box-shadow: 0 10px 18px rgba(10, 32, 44, 0.24);
 }
 
 .character-card img,
@@ -7065,6 +7055,10 @@ h1 {
 .profile-card-heading h3 { margin: 0; }
 .profile-card-heading h3 { margin-top: 2px; color: #183b4d; font-size: 1.08rem; }
 .profile-ranking-card { grid-column: 1 / -1; }
+.profile-player-level { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 12px; border: 1px solid rgba(212, 145, 0, .2); border-radius: 12px; padding: 11px 14px; color: #183b4d; background: rgba(250, 204, 21, .14); }
+.profile-player-level > span:first-child { font-size: .72rem; font-weight: 950; text-transform: uppercase; }
+.profile-player-level > strong { font-size: 1rem; }
+.profile-level-stars { margin-left: auto; color: #d49100; font-size: 1.08rem; letter-spacing: 2px; white-space: nowrap; }
 .profile-character-summary { border-radius: 13px; background: #eef4f3; }
 .profile-character-visual { border-radius: 11px; }
 .profile-stat { border-radius: 11px; background: #eef8f2; }
@@ -7499,6 +7493,18 @@ h1 {
   backdrop-filter: blur(14px);
 }
 
+.rally-card.completed {
+  border-color: rgba(15, 141, 104, .28);
+  color: #17384a;
+  background: rgba(248, 251, 249, .96);
+  box-shadow: 0 14px 34px rgba(2, 18, 32, .2);
+}
+
+.rally-card.completed .rally-card-header { border-bottom-color: rgba(18, 57, 77, .12); }
+.rally-card.completed .rally-card-header .label { color: #27836b; }
+.rally-card.completed .rally-card-header > div > strong { color: #12394d; }
+.rally-card.completed .rally-full-log-button { border-color: #c5cdd1; color: #344955; background: #e2e6e8; }
+
 .rally-card-header {
   display: flex;
   align-items: center;
@@ -7510,9 +7516,14 @@ h1 {
 
 .rally-card-header .label { margin: 0 0 2px; color: #8ce0bf; font-size: .62rem; }
 .rally-card-header > div > strong { color: #fff; font-size: 1rem; }
-.rally-status-badge { display: inline-flex; align-items: center; min-height: 30px; border-radius: 999px; padding: 6px 11px; font-size: .68rem; font-weight: 950; text-transform: uppercase; }
+.rally-status-badge { display: inline-flex; align-items: center; justify-content: center; text-align: center; min-height: 30px; border-radius: 999px; padding: 6px 11px; font-size: .68rem; font-weight: 950; text-transform: uppercase; }
 .rally-status-badge.live { color: #06372a; background: #8ce0bf; }
-.rally-status-badge.completed { color: #3b2a00; background: #f2c84b; }
+.rally-status-badge.completed { color: #fff; box-shadow: 0 4px 10px rgba(18, 57, 77, .16); }
+.rally-status-badge.completed.rally-end-points { background: #087162; }
+.rally-status-badge.completed.rally-end-boost { color: #3f3000; background: #e2b52f; }
+.rally-status-badge.completed.rally-end-effect { background: #75409e; }
+.rally-score-delta-badge { display: inline-flex; align-items: center; min-height: 30px; border: 1px solid rgba(18, 57, 77, .14); border-radius: 999px; padding: 6px 11px; color: #12394d; background: #edf5f3; font-size: .72rem; font-weight: 950; white-space: nowrap; }
+.rally-score-delta-badge.hidden { display: none; }
 
 .rally-state { gap: 0; color: #fff; font-size: .84rem; }
 .rally-info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -7522,6 +7533,44 @@ h1 {
 .rally-info-chip span { color: rgba(255, 255, 255, .58); font-size: .58rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
 .rally-info-chip strong { min-width: 0; overflow: hidden; color: #fff; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
 .rally-info-chip small { margin-top: 1px; color: #8ce0bf; font-size: .62rem; font-weight: 850; }
+.rally-card.completed .rally-state { color: #17384a; }
+.rally-card.completed .rally-info-chip { border-right-color: rgba(18, 57, 77, .12); }
+.rally-card.completed .rally-info-chip.primary { background: #edf5f3; }
+.rally-card.completed .rally-info-chip span { color: #6c808b; }
+.rally-card.completed .rally-info-chip strong { color: #12394d; }
+.rally-result-grid { grid-template-columns: max-content minmax(0, 1fr) auto; }
+.rally-result-grid .rally-info-chip { min-height: 76px; }
+.rally-result-grid .rally-info-chip.primary { min-width: 170px; }
+.rally-score-chip { gap: 6px; }
+.rally-end-score-values { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; overflow-x: auto; }
+.rally-end-score-values strong {
+  overflow: visible;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  line-height: 1;
+  text-overflow: clip;
+}
+.rally-card.completed .rally-end-score-values strong.won-left { border-color: rgba(8, 113, 98, .25); color: #075d51; background: #d8f1e9; }
+.rally-card.completed .rally-end-score-values strong.won-right { border-color: rgba(108, 60, 160, .22); color: #5e348d; background: #eee3f8; }
+.rally-card.completed .rally-end-score-values strong.current { border-color: #087162; color: #fff; background: #087162; box-shadow: 0 5px 12px rgba(8, 113, 98, .2); }
+.rally-end-score-values i { color: #9bacb4; font-style: normal; font-weight: 900; }
+.rally-end-score-empty { color: #9bacb4; font-size: 1.35rem; font-weight: 950; }
+.rally-next-chip { align-content: center; justify-items: end; min-width: max-content; }
+.rally-next-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+.rally-next-actions:empty::after { content: "—"; color: #9bacb4; font-weight: 900; }
+.rally-next-actions .next-exchange-button,
+.rally-next-actions .replay-match-button { width: auto; min-height: 34px; margin: 0; padding: 7px 10px; font-size: .66rem; }
+.top-progression-actions { display: flex; align-items: center; justify-content: flex-end; }
+.top-progression-actions.hidden { display: none; }
+.top-progression-actions .next-exchange-button,
+.top-progression-actions .replay-match-button { width: auto; min-height: 34px; margin: 0; padding: 7px 11px; font-size: .68rem; }
+.center-progression-actions { position: relative; z-index: 20; display: flex; justify-content: center; margin-top: 10px; }
+.center-card-wrap.boosted-center-wrap + .center-progression-actions { margin-top: 140px; }
+.center-progression-actions:empty { display: none; }
+.center-progression-actions .next-exchange-button,
+.center-progression-actions .replay-match-button { width: auto; margin: 0; }
 .rally-context-list { display: grid; gap: 7px; border-top: 1px solid rgba(255, 255, 255, .1); padding: 10px 12px 12px; }
 .rally-context-line { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; align-items: center; border-radius: 9px; padding: 8px 10px; }
 .rally-context-line strong { font-size: .65rem; text-transform: uppercase; }
@@ -7675,7 +7724,7 @@ h1 {
 .confrontation-intro-round strong { overflow: hidden; color: #fff; font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .confrontation-intro-versus { position: relative; grid-template-columns: minmax(0,1fr) 62px minmax(0,1fr); gap: 18px; margin-top: 16px; }
 .confrontation-intro-player { gap: 5px; }
-.confrontation-player-card-frame { position: relative; width: min(195px,100%); height: 242px; overflow: hidden; border: 0; border-radius: var(--game-card-radius); box-shadow: 0 0 0 4px rgba(255,255,255,.96), 0 18px 38px rgba(0,0,0,.36); }
+.confrontation-player-card-frame { position: relative; width: min(195px,100%); height: 242px; overflow: hidden; box-sizing: border-box; border: 0; border-radius: var(--game-card-radius); box-shadow: 0 18px 38px rgba(0,0,0,.36); }
 .confrontation-player-card-frame::after { display: none; }
 .confrontation-intro-player img { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: var(--game-card-radius); object-fit: cover; object-position: 50% 13%; box-shadow: none; }
 .confrontation-intro-player strong { font-size: .92rem; }
@@ -7757,6 +7806,10 @@ h1 {
 .action-log-player { overflow: hidden; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 .action-log-action { color: #1d7663; font-size: .66rem; font-weight: 900; }
 .action-log-entry p { margin: 0; color: #425d6c; font-size: .63rem; line-height: 1.3; }
+.action-log-result-title { color: #12394d; font-size: .78rem; }
+.action-log-result-details { display: grid; gap: 4px; margin-top: 4px; }
+.action-log-result-details p { border-left: 3px solid #27836b; padding: 3px 0 3px 8px; background: rgba(39, 131, 107, .055); }
+.action-log-entry.compact .action-log-result-details p:not(:last-child) { display: none; }
 .action-log-order { min-width: 20px; color: #98a6ae; font-size: .55rem; font-weight: 900; text-align: right; }
 .action-log-entry.compact .action-log-order { display: none; }
 .action-log-open-button { min-height: 32px; border: 1px solid rgba(140,224,191,.28); border-radius: 8px; color: #8ce0bf; background: rgba(140,224,191,.08); font-size: .6rem; font-weight: 950; cursor: pointer; }
@@ -7777,6 +7830,7 @@ h1 {
 
 @media (max-width: 1100px) {
   .rally-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rally-result-grid { grid-template-columns: max-content minmax(0, 1fr) auto; }
   .rally-info-chip:nth-child(2) { border-right: 0; }
   .rally-info-chip:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.1); }
   .center-lane .log { width: 100%; max-height: 310px; }
@@ -7843,164 +7897,4 @@ h1 {
   .action-log-dialog .action-log-entry:not(.compact) { grid-template-columns: 8px minmax(0,1fr); }
   .action-log-dialog .action-log-entry:not(.compact).has-card { grid-template-columns: 8px 38px minmax(0,1fr); }
   .action-log-dialog .action-log-order { display: none; }
-}
-
-/* Mobile vertical : pages Circuit, profil et classement ---------------- */
-@media (max-width: 700px) and (orientation: portrait) {
-  #profileScreen,
-  #rankingScreen,
-  #circuitInfoScreen,
-  .content-page-screen {
-    width: calc(100vw - 16px);
-    padding: 8px 0 18px;
-  }
-
-  .content-page-shell,
-  .profile-page-shell,
-  .circuit-ranking-shell { gap: 9px; }
-
-  .content-page-topbar,
-  #profileScreen .mode-clubhouse-topbar,
-  #rankingScreen .mode-clubhouse-topbar {
-    gap: 8px;
-    border-radius: 14px;
-    padding: 9px 10px;
-  }
-
-  .content-page-topbar .menu-logo,
-  #profileScreen .menu-logo,
-  #rankingScreen .menu-logo { width: 106px; }
-
-  .content-page-topbar .page-return-actions,
-  #profileScreen .page-return-actions,
-  #rankingScreen .page-return-actions {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .content-page-topbar .page-return-actions > *,
-  #profileScreen .page-return-actions > *,
-  #rankingScreen .page-return-actions > * { flex: 1 1 120px; }
-
-  .profile-page-panel,
-  .circuit-ranking-full-panel,
-  .circuit-info-panel { border-radius: 18px; }
-
-  .profile-page-heading,
-  .circuit-ranking-page-header {
-    align-items: flex-start;
-    gap: 12px;
-    border-radius: 0;
-    padding: 20px 17px;
-  }
-
-  .profile-page-heading h1,
-  .circuit-ranking-page-header h1 { font-size: clamp(1.65rem, 9vw, 2.2rem); }
-
-  .profile-page-heading > img,
-  .circuit-ranking-page-header > img { width: 46px; height: 46px; padding: 9px; }
-
-  .profile-content { gap: 12px; padding: 13px; }
-  .profile-identity-hero { grid-template-columns: 1fr; gap: 11px; min-height: 0; }
-  .profile-identity-portrait { width: 132px; height: 174px; min-height: 0; justify-self: center; }
-  .profile-identity-info { width: 100%; }
-  .profile-identity-copy { padding: 17px 16px 14px; }
-  .profile-identity-copy h2 { font-size: 1.65rem; }
-  .profile-identity-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .profile-identity-metrics div { padding: 12px 10px; }
-  .profile-identity-metrics div:nth-child(odd) { border-left: 0; }
-  .profile-identity-metrics div:nth-child(even) { border-left: 1px solid rgba(255,255,255,.12); }
-  .profile-identity-metrics div:nth-child(n + 3) { border-top: 1px solid rgba(255,255,255,.12); }
-  .profile-identity-metrics div:last-child { grid-column: 1 / -1; border-left: 0; }
-  .profile-card { min-width: 0; padding: 16px; }
-  .profile-stats-grid { grid-template-columns: 1fr 1fr; }
-  .profile-character-visuals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-  .ranking-sort-controls {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px;
-    margin: 0;
-  }
-
-  .ranking-sort-controls .small-button { min-width: 0; padding-inline: 8px; }
-  .circuit-ranking-full-panel { gap: 13px; padding: 13px; }
-  .circuit-ranking-full-panel .ranking-full-list,
-  .circuit-ranking-list { overflow: visible; }
-
-  .ranking-list[data-mobile-score] .ranking-score { display: none; }
-  .ranking-list[data-mobile-score="points"] .ranking-score-points,
-  .ranking-list[data-mobile-score="week"] .ranking-score-week,
-  .ranking-list[data-mobile-score="season"] .ranking-score-season { display: block; }
-
-  .ranking-list .ranking-head,
-  .ranking-list .ranking-row,
-  .circuit-ranking-list .ranking-head,
-  .circuit-ranking-list .ranking-row,
-  .circuit-ranking-full-panel .ranking-head,
-  .circuit-ranking-full-panel .ranking-row {
-    grid-template-columns: 64px minmax(0, 1fr) minmax(70px, max-content) !important;
-    min-width: 0 !important;
-    gap: 7px;
-    padding: 9px 8px;
-  }
-
-  .ranking-position { min-width: 0; }
-  .ranking-projection { display: block; margin: 1px 0 0; font-size: .58em; }
-  .ranking-score { justify-self: end; text-align: right; }
-  .ranking-name-button { line-height: 1.18; }
-  .ranking-meta { padding-right: 2px; }
-  .ranking-pagination { gap: 7px; }
-  .ranking-pagination .small-button { min-width: 0; padding-inline: 11px; }
-
-  .circuit-info-hero,
-  .circuit-info-hero .content-page-hero-copy { min-height: 285px; }
-  .circuit-info-hero::after { background: linear-gradient(90deg, rgba(3,42,30,.97), rgba(4,66,45,.79)); }
-  .circuit-info-hero > img { object-position: 72% 50%; }
-  .circuit-info-hero .content-page-hero-copy { width: 100%; padding: 23px 18px; }
-  .circuit-info-hero .content-page-hero-copy h1 { max-width: 13ch; font-size: clamp(1.75rem, 9vw, 2.35rem); }
-  .circuit-info-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .circuit-info-facts article { min-width: 0; padding: 17px 9px; }
-  .circuit-info-facts strong { font-size: 1.45rem; }
-  .circuit-info-facts span { font-size: .62rem; line-height: 1.25; }
-  .circuit-goat-feature { margin: 13px; border-radius: 14px; }
-  .circuit-goat-feature img { min-height: 185px; max-height: 210px; }
-  .circuit-goat-feature div { padding: 20px 17px; }
-  .circuit-goat-feature p { font-size: .82rem; line-height: 1.55; }
-  .circuit-info-card-grid { gap: 11px; padding: 13px; }
-  .circuit-info-card { padding: 19px 17px !important; }
-  .circuit-info-card-icon { top: 16px; right: 16px; width: 34px; height: 34px; }
-  .circuit-info-card h2 { padding-right: 38px; font-size: 1.1rem; }
-  .circuit-info-panel .circuit-points-section { margin: 0 13px 18px; padding: 17px; }
-  .circuit-points-table-wrap { overflow: visible; }
-  .circuit-points-table { display: block; min-width: 0; background: transparent; }
-  .circuit-points-table thead { display: none; }
-  .circuit-points-table tbody { display: grid; gap: 9px; }
-  .circuit-points-table tr {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    overflow: hidden;
-    border: 1px solid rgba(23,75,88,.14);
-    border-radius: 11px;
-    background: #fff;
-  }
-  .circuit-points-table th,
-  .circuit-points-table td { display: grid; justify-items: center; gap: 2px; border: 0; padding: 8px 3px; text-align: center; white-space: normal; }
-  .circuit-points-table th:first-child { grid-column: 1 / -1; padding: 9px; color: #fff; background: #174b58; text-align: center; }
-  .circuit-points-table td { font-size: .78rem; font-weight: 900; }
-  .circuit-points-table td::before { color: #71818b; font-size: .52rem; font-weight: 850; text-transform: uppercase; }
-  .circuit-points-table td:nth-child(2)::before { content: "8e"; }
-  .circuit-points-table td:nth-child(3)::before { content: "Quart"; }
-  .circuit-points-table td:nth-child(4)::before { content: "Demi"; }
-  .circuit-points-table td:nth-child(5)::before { content: "Finale"; }
-  .circuit-points-table td:nth-child(6)::before { content: "Victoire"; }
-  .circuit-info-cta { gap: 15px; padding: 21px 17px; }
-  .circuit-info-cta .primary-button { width: 100%; }
-}
-
-@media (max-width: 520px) and (orientation: portrait) {
-  .profile-row { grid-template-columns: 1fr; align-items: start; }
-  .profile-row > span:last-child { text-align: left; }
-  .confrontation-summary { justify-content: flex-start; flex-wrap: wrap; }
-  .profile-stats-grid { grid-template-columns: 1fr; }
 }

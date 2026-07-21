@@ -21,10 +21,10 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.16/);
-assert.match(html, /styles\.css\?v=170\.13/);
-assert.match(html, /app\.js\?v=170\.13/);
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.21/);
+assert.match(html, /styles\.css\?v=170\.18/);
+assert.match(html, /app\.js\?v=170\.18/);
+assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 assert.match(server, /"\.svg": "image\/svg\+xml; charset=utf-8"/);
 
 const latestNewsIndex = html.indexOf('id="latestNewsPanel"');
@@ -67,7 +67,9 @@ assert.doesNotMatch(initMenu, /loadRanking\(1\)/);
 assert.doesNotMatch(initMenu, /loadCompetitions\(\)/);
 assert.match(initMenu, /lobbySectionScreen[\s\S]*onlineSection[\s\S]*refreshLobbyRooms\(\)/);
 const authenticatedCircuitRefresh = functionSource(app, "refreshAuthenticatedCircuitData");
-assert.doesNotMatch(authenticatedCircuitRefresh, /fetch|loadRanking|loadLobbyRanking|loadCompetitions|ensureGameplayProfile|ensureGameplayRanking/);
+assert.match(authenticatedCircuitRefresh, /canAccessProFeatures\(\)/);
+assert.match(authenticatedCircuitRefresh, /loadRanking\(1\)/);
+assert.doesNotMatch(authenticatedCircuitRefresh, /loadLobbyRanking|loadCompetitions|ensureGameplayProfile|ensureGameplayRanking/);
 const lobbySection = functionSource(app, "showLobbySection");
 assert.match(lobbySection, /section === "solo"[\s\S]*showAiClubHouseScreen\(\)/);
 assert.match(lobbySection, /hideStandaloneScreens\(\)/);

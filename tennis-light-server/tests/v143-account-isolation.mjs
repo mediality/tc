@@ -55,7 +55,7 @@ assert.equal(context.api.circuitHumanLevel(), 1, "a fresh account must use Circu
 context.AUTH_STATE.gameplayRanking = { currentUserRank: { id: "games-user", score_ref: 3100 } };
 context.AUTH_STATE.gameplayRankingUserId = "games-user";
 assert.equal(context.api.currentRankingTotalPoints(), 3100);
-assert.equal(context.api.circuitHumanLevel(), 3);
+assert.equal(context.api.circuitHumanLevel(), 4);
 
 context.AUTH_STATE.user = { id: "games-user" };
 const gamesSaveKey = context.api.currentCircuitSaveKey("challenge");

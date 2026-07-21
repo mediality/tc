@@ -48,12 +48,15 @@ vm.runInNewContext(`
   ${sourceOf(app, "sortTournamentEntriesByWorldRank")}
   ${sourceOf(app, "tournamentPositionMap")}
   ${sourceOf(app, "buildTournamentRound16Positions")}
-  level1 = buildTournamentRound16Positions("coach", "hard", 999);
-  level2 = buildTournamentRound16Positions("coach", "hard", 1000);
-  level3 = buildTournamentRound16Positions("coach", "hard", 3001);
+  level1 = buildTournamentRound16Positions("coach", "hard", 499);
+  level2 = buildTournamentRound16Positions("coach", "hard", 500);
+  level3 = buildTournamentRound16Positions("coach", "hard", 1000);
+  level4 = buildTournamentRound16Positions("coach", "hard", 2500);
+  level5 = buildTournamentRound16Positions("coach", "hard", 5000);
+  level6 = buildTournamentRound16Positions("coach", "hard", 8000);
 `, drawContext);
 
-for (const [level, expected] of [[drawContext.level1, 1], [drawContext.level2, 2], [drawContext.level3, 3]]) {
+for (const [level, expected] of [[drawContext.level1, 1], [drawContext.level2, 2], [drawContext.level3, 3], [drawContext.level4, 4], [drawContext.level5, 5], [drawContext.level6, 6]]) {
   assert.equal(level.humanLevel, expected);
   assert.equal(level.positions.slice(1).length, 16);
   assert.equal(new Set(level.positions.slice(1)).size, 16);

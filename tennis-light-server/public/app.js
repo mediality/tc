@@ -1,6 +1,7 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const CARD_ASSET_VERSION = "169";
+const GAME_VERSION = "v2.169.21";
+const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -220,6 +221,14 @@ const AI_DIFFICULTY_DESCRIPTIONS = {
   ranking: "Selon classement · adversaires de niveaux variables selon leur propre classement.",
   circuit: "Circuit Pro · adversaires de niveau Amateur à Légende, selon le classement du Circuit Pro.",
 };
+const HUMAN_CIRCUIT_LEVELS = [
+  { level: 1, min: 0, max: 499, label: "Lucky Loser" },
+  { level: 2, min: 500, max: 999, label: "Qualifier" },
+  { level: 3, min: 1000, max: 2499, label: "Wild Card" },
+  { level: 4, min: 2500, max: 4999, label: "Challenger" },
+  { level: 5, min: 5000, max: 7999, label: "Contender" },
+  { level: 6, min: 8000, max: Infinity, label: "Top player" },
+];
 const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
 const AI_BONUS_LABELS = {
   none: "SANS",
@@ -276,15 +285,16 @@ const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV1";
 const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV1";
 const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 
-const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
-const PRO_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, "milanVerhaegen"];
+const PRO_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, "milanVerhaegen", "rosaBenavente"];
 const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.webp",
   coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp",
   coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.webp",
   coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.webp",
   coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.webp",
+  coachHans: "assets/cards/TC-Coach-Hans-LOBBY.webp",
   theoBriancourt: "assets/cards/LOBBY-Briancourt.webp",
   alessandraConti: "assets/cards/LOBBY-Conti.webp",
   saharaJackson: "assets/cards/LOBBY-Jackson.webp",
@@ -306,6 +316,7 @@ const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.webp",
   lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.webp",
   milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.webp",
+  rosaBenavente: "assets/cards/TC-Rosa-Benavente-LOBBY.webp",
 });
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -331,10 +342,29 @@ const NEW_TOURNAMENT_PLAYERS = [
   "daanVermeer",
   "lukasEberhardt",
   "milanVerhaegen",
+  "rosaBenavente",
 ];
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
+  {
+    id: "v16921-rosa-benavente-espana",
+    publishedAt: "2026-07-21",
+    availableAt: "2026-07-21T18:00:00+02:00",
+    title: "Que Viva Espana !",
+    characterId: "rosaBenavente",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
+  },
+  {
+    id: "v16921-coach-hans-staff",
+    publishedAt: "2026-07-22",
+    availableAt: "2026-07-22T08:00:00+02:00",
+    title: "Le staff s’etoffe",
+    characterId: "coachHans",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "S’il y a bien un coach qui a la côte quand on débute, c’est Hans … allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de coeur, pour vous entrainer ou passer en victime expiatoire, à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le circuit pro avec lui. Il fait désormais partie des personnages jouables !",
+  },
   {
     id: "v166-milan-verhaegen-pro-unlock",
     publishedAt: "2026-07-19",
@@ -350,10 +380,11 @@ const AI_SURFACE_PREFERENCES = {
   theoBriancourt: "clay", alessandraConti: "hard", saharaJackson: "clay",
   kjellBlomqvist: "hard", kojiIwata: "grass", elianaMarquez: "grass",
   bryanGoodwin: "hard", calvinBrentwood: "grass", javierRamirez: "clay",
-  petraEckermann: "hard", jonasFalkenried: "hard", yunaSeo: "hard",
-  ikerSalvat: "clay", loganBrooks: "grass", kavyaSaran: "hard",
-  zariaCampbell: "grass", renAoshima: "hard", yasmineElMansouri: "clay",
-  daanVermeer: "grass", lukasEberhardt: "clay", milanVerhaegen: "grass",
+  petraEckermann: "hard", jonasFalkenried: "grass", yunaSeo: "grass",
+  ikerSalvat: "clay", loganBrooks: "hard", kavyaSaran: "grass",
+  zariaCampbell: "hard", renAoshima: "grass", yasmineElMansouri: "clay",
+  daanVermeer: "hard", lukasEberhardt: "hard", milanVerhaegen: "clay",
+  rosaBenavente: "clay",
 };
 const SURFACE_SPECIALISTS = Object.fromEntries(["grass", "hard", "clay"].map((surface) => [
   surface,
@@ -424,6 +455,13 @@ const CHARACTERS = {
     effects: [
       { side: "Bleu", label: "+1 puissance", type: "gainPower", value: 1 },
       { side: "Rose", label: "Récupère autant d'endurance que de coups visibles", type: "recoverEnduranceByShots" },
+    ],
+  },
+  coachHans: {
+    name: "Coach Hans",
+    effects: [
+      { side: "Bleu", label: "Défaussez une carte de votre main et gagnez 3 puissance", type: "discardHandForPower", value: 3 },
+      { side: "Rose", label: "Tous les Coups du prochain tour adverse coûtent 1 endurance de plus", type: "opponentTurnShotExtraCost", value: 1 },
     ],
   },
   theoBriancourt: {
@@ -573,6 +611,13 @@ const CHARACTERS = {
       { side: "Rose", label: "+1 puissance et +1 endurance", type: "gainEnduranceAndPower", endurance: 1, power: 1 },
     ],
   },
+  rosaBenavente: {
+    name: "Rosa Benavente",
+    effects: [
+      { side: "Bleu", label: "+2 puissance si votre adversaire passe", type: "opponentPassPowerBonus", value: 2 },
+      { side: "Rose", label: "Le placement du prochain Coup adverse repart de 0", type: "opponentNextShotBasePlacementZero" },
+    ],
+  },
 };
 
 const CHARACTER_IMAGES = versionCardAsset({
@@ -599,6 +644,10 @@ const CHARACTER_IMAGES = versionCardAsset({
   coachClem: [
     "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.webp",
     "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.webp",
+  ],
+  coachHans: [
+    "assets/cards/TC-Coach-Hans.webp",
+    "assets/cards/TC-Coach-Hans-VERSO.webp",
   ],
   theoBriancourt: [
     "assets/cards/_0023_BRIANCOURT.webp",
@@ -684,6 +733,10 @@ const CHARACTER_IMAGES = versionCardAsset({
     "assets/cards/TC-new-Milan-Verhaegen.webp",
     "assets/cards/TC-new-Milan-Verhaegen-VERSO.webp",
   ],
+  rosaBenavente: [
+    "assets/cards/TC-Rosa-Benavente.webp",
+    "assets/cards/TC-Rosa-Benavente-VERSO.webp",
+  ],
 });
 
 const MATCH_RESULT_IMAGES = versionCardAsset({
@@ -702,6 +755,14 @@ const MATCH_RESULT_IMAGES = versionCardAsset({
   coachClem: {
     win: "assets/cards/CoachClemWin.webp",
     lose: "assets/cards/CoachClemLoose.webp",
+  },
+  coachHans: {
+    win: "assets/cards/TC-Coach-Hans-WINS.webp",
+    lose: "assets/cards/TC-Coach-Hans-LOSE.webp",
+  },
+  rosaBenavente: {
+    win: "assets/cards/TC-Rosa-Benavente-WINS.webp",
+    lose: "assets/cards/TC-Rosa-Benavente-LOSE.webp",
   },
   theoBriancourt: {
     win: "assets/cards/_0002_BRIANCOURT-WIN.webp",
@@ -1306,6 +1367,7 @@ const els = {
   adminGameToolsPanel: document.querySelector("#adminGameToolsPanel"),
   adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
+  topProgressionActions: document.querySelector("#topProgressionActions"),
   gameAssistTools: document.querySelector("#gameAssistTools"),
   gameAssistButton: document.querySelector("#gameAssistButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
@@ -1454,6 +1516,7 @@ const els = {
   player2Summary: document.querySelector("#player2Summary"),
   rallyPhaseLabel: document.querySelector("#rallyPhaseLabel"),
   rallyStatusBadge: document.querySelector("#rallyStatusBadge"),
+  rallyScoreDeltaBadge: document.querySelector("#rallyScoreDeltaBadge"),
   rallyFullLogButton: document.querySelector("#rallyFullLogButton"),
   rallyState: document.querySelector("#rallyState"),
   effectNotice: document.querySelector("#effectNotice"),
@@ -1688,8 +1751,19 @@ function canAccessAllCharacters() {
 }
 
 function profileCharacterOptionsForCurrentUser() {
-  if (canAccessAllCharacters()) return FULL_PROFILE_CHARACTER_OPTIONS;
-  return currentUserRole() === "pro" ? PRO_PROFILE_CHARACTER_OPTIONS : PROFILE_CHARACTER_OPTIONS;
+  const unlocked = AUTH_STATE.user?.unlockedCharacters;
+  if (Array.isArray(unlocked) && unlocked.length) {
+    const effectiveUnlocked = new Set(unlocked);
+    if (canAccessProFeatures() && Date.now() >= Date.parse("2026-07-21T18:00:00+02:00")) effectiveUnlocked.add("rosaBenavente");
+    if (canAccessProFeatures() && Date.now() >= Date.parse("2026-07-22T08:00:00+02:00")) effectiveUnlocked.add("coachHans");
+    return FULL_PROFILE_CHARACTER_OPTIONS.filter((characterId) => effectiveUnlocked.has(characterId));
+  }
+  const isAvailable = (id) => (
+    (id !== "rosaBenavente" || Date.now() >= Date.parse("2026-07-21T18:00:00+02:00"))
+    && (id !== "coachHans" || Date.now() >= Date.parse("2026-07-22T08:00:00+02:00"))
+  );
+  if (canAccessAllCharacters()) return FULL_PROFILE_CHARACTER_OPTIONS.filter(isAvailable);
+  return currentUserRole() === "pro" ? PRO_PROFILE_CHARACTER_OPTIONS.filter(isAvailable) : PROFILE_CHARACTER_OPTIONS.filter((id) => id !== "coachHans");
 }
 
 function updateAccessControls() {
@@ -1710,7 +1784,8 @@ function updateAccessControls() {
     control.classList.toggle("hidden", !hasAdminAccess);
     if ("disabled" in control) control.disabled = !hasAdminAccess;
   });
-  els.adminPanel?.classList.toggle("hidden", !hasAdminAccess);
+  const hasInlineAdminContent = Boolean(els.adminPanel?.childElementCount || els.adminPanel?.textContent?.trim());
+  els.adminPanel?.classList.toggle("hidden", !hasAdminAccess || !hasInlineAdminContent);
   els.proCodePanel?.classList.toggle("hidden", !AUTH_STATE.user || role !== "free");
   if (role !== "free" && els.proCodeStatus) els.proCodeStatus.textContent = "";
   if (!hasAdminAccess) {
@@ -1781,6 +1856,8 @@ function clearAuthenticatedCircuitCaches() {
 
 function refreshAuthenticatedCircuitData(userId) {
   if (!userId || authenticatedUserId() !== userId) return;
+  if (!canAccessProFeatures()) return;
+  loadRanking(1);
 }
 
 function applyAuthenticatedUser(user) {
@@ -1814,12 +1891,16 @@ function formatGameNewsDate(value) {
 }
 
 function latestGameNews() {
-  return [...GAME_NEWS].sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))[0] || null;
+  return availableGameNews().sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))[0] || null;
+}
+
+function availableGameNews() {
+  return GAME_NEWS.filter((news) => !news.availableAt || Date.now() >= Date.parse(news.availableAt));
 }
 
 function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
-  const newsItems = [...GAME_NEWS]
+  const newsItems = availableGameNews()
     .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))
     .slice(0, 3);
   if (!newsItems.length) {
@@ -1848,7 +1929,7 @@ function renderHomeNewsSection() {
 }
 
 function showGameNewsDialog(newsId) {
-  const news = GAME_NEWS.find((item) => item.id === newsId) || latestGameNews();
+  const news = availableGameNews().find((item) => item.id === newsId) || latestGameNews();
   if (!news || document.querySelector(".pro-news-backdrop")) return;
   const characterId = news.characterId || "milanVerhaegen";
   const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
@@ -2167,16 +2248,16 @@ function rankingMarkup(ranking = AUTH_STATE.ranking) {
     <div class="ranking-row">
       ${rankCell({ ...row, rank: Number(row.rank || index + 1) })}
       <strong>${profileName(row)}</strong>
-      <span class="ranking-score ranking-score-points">${Number(row.score_ref || 0)}</span>
-      <span class="ranking-score ranking-score-week"><strong>${Number(row.score_week || 0)}</strong></span>
-      <span class="ranking-score ranking-score-season">${Number(row.score_total || 0)}</span>
+      <span>${Number(row.score_ref || 0)}</span>
+      <span><strong>${Number(row.score_week || 0)}</strong></span>
+      <span>${Number(row.score_total || 0)}</span>
     </div>
   `).join("");
   const currentRow = current && !top.some((row) => row.id === current.id)
-    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user">${rankCell(current)}<strong>${profileName(current)}</strong><span class="ranking-score ranking-score-points">${Number(current.score_ref || 0)}</span><span class="ranking-score ranking-score-week"><strong>${Number(current.score_week || 0)}</strong></span><span class="ranking-score ranking-score-season">${Number(current.score_total || 0)}</span></div>`
+    ? `<div class="ranking-current-label">Votre classement</div><div class="ranking-row current-user">${rankCell(current)}<strong>${profileName(current)}</strong><span>${Number(current.score_ref || 0)}</span><span><strong>${Number(current.score_week || 0)}</strong></span><span>${Number(current.score_total || 0)}</span></div>`
     : "";
   return `
-    <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-score ranking-score-points ranking-points-heading">Points <small>(S-4)</small></span><span class="ranking-score ranking-score-week">Semaine</span><span class="ranking-score ranking-score-season">Saison</span></div>
+    <div class="ranking-head"><span>#</span><span>Nom</span><span class="ranking-points-heading">Points <small>(S-4)</small></span><span>Semaine</span><span>Saison</span></div>
     ${rows}
     ${currentRow}
     <div class="ranking-meta">Saison ${Number(ranking?.season || 1)} · Semaine ${Number(ranking?.week || 1)}</div>
@@ -2195,17 +2276,14 @@ function attachProfileLinks(container) {
 
 function renderRanking() {
   if (els.rankingList) {
-    els.rankingList.dataset.mobileScore = AUTH_STATE.rankingSort;
     els.rankingList.innerHTML = rankingMarkup(AUTH_STATE.lobbyRanking);
     attachProfileLinks(els.rankingList);
   }
   if (els.rankingFullList) {
-    els.rankingFullList.dataset.mobileScore = AUTH_STATE.rankingSort;
     els.rankingFullList.innerHTML = rankingMarkup(AUTH_STATE.ranking);
     attachProfileLinks(els.rankingFullList);
   }
   if (els.adminRankingList) {
-    els.adminRankingList.dataset.mobileScore = AUTH_STATE.rankingSort;
     els.adminRankingList.innerHTML = rankingMarkup(AUTH_STATE.ranking);
     attachProfileLinks(els.adminRankingList);
   }
@@ -2659,6 +2737,7 @@ function renderAcademyDeck() {
 function profileMarkup(profile) {
   const user = profile?.user || AUTH_STATE.user;
   const ranking = profile?.ranking || {};
+  const circuitLevel = humanCircuitLevelInfo(ranking.score_ref);
   const results = profile?.results || [];
   const honors = profile?.honors || [];
   const aiResults = profile?.aiResults || [];
@@ -2842,6 +2921,11 @@ function profileMarkup(profile) {
       </section>` : ""}
       <section class="profile-card profile-ranking-card">
         <div class="profile-card-heading"><div><p class="label">Circuit Pro</p><h3>Classement mondial</h3></div></div>
+        <div class="profile-player-level" aria-label="Niveau ${circuitLevel.level} sur 6, ${escapeHtml(circuitLevel.label)}">
+          <span>Niveau ${circuitLevel.level}</span>
+          <strong>${escapeHtml(circuitLevel.label)}</strong>
+          <span class="profile-level-stars" title="${circuitLevel.level} étoile${circuitLevel.level > 1 ? "s" : ""}">${"★".repeat(circuitLevel.level)}</span>
+        </div>
         <div class="ranking-row current-user"><span class="ranking-position"><strong>${Number(ranking.rank || 0) || "-"}</strong>${Number(ranking.projected_rank || 0) ? `<small class="ranking-projection">(${Number(ranking.projected_rank)})</small>` : ""}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
         <div class="profile-stats-grid">${statRows}</div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
@@ -3171,7 +3255,6 @@ async function adminRestartSeasonOne() {
 
 function changeRankingSort(sortBy) {
   AUTH_STATE.rankingSort = ["points", "week", "season"].includes(sortBy) ? sortBy : "points";
-  renderRanking();
   loadLobbyRanking();
   if (!els.rankingScreen?.classList.contains("hidden")) loadRanking(1);
 }
@@ -5161,17 +5244,9 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
   }
 }
 
-async function resumeFriendlyMatchFromClubHouse() {
+function resumeFriendlyMatchFromClubHouse() {
   const match = FRIENDLY_TOURNAMENT.resumableMatch;
   if (!match?.id || !FRIENDLY_TOURNAMENT.enabled) return;
-  FRIENDLY_TOURNAMENT.presenceId = crypto.randomUUID();
-  const presenceRestored = await restoreFriendlyTournamentPresence();
-  if (!FRIENDLY_TOURNAMENT.enabled || !presenceRestored) {
-    state.log.unshift("La reprise n'a pas été confirmée par le Club House.");
-    pollFriendlyTournament();
-    renderFriendlyLobbyScreen();
-    return;
-  }
   FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
   FRIENDLY_TOURNAMENT.currentMatchId = match.id;
   FRIENDLY_TOURNAMENT.resumableMatch = null;
@@ -5961,7 +6036,6 @@ async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHou
       body: JSON.stringify({
         participantId: FRIENDLY_TOURNAMENT.participantId,
         token: FRIENDLY_TOURNAMENT.token,
-        presenceId: FRIENDLY_TOURNAMENT.presenceId,
         matchId: currentMatch?.id || null,
         score: scoreAtDeparture,
         state: savedState,
@@ -6039,9 +6113,9 @@ async function restoreFriendlyTournamentPresence() {
     || !FRIENDLY_TOURNAMENT.id
     || !FRIENDLY_TOURNAMENT.participantId
     || !FRIENDLY_TOURNAMENT.token
-  ) return false;
+  ) return;
   try {
-    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/presence`, {
+    await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/presence`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -6051,9 +6125,7 @@ async function restoreFriendlyTournamentPresence() {
         status: "online",
       }),
     });
-    return response.ok;
   } catch (error) {
-    return false;
   } finally {
     FRIENDLY_TOURNAMENT.pageExitSignaled = false;
   }
@@ -6211,6 +6283,8 @@ function createPlayer(name, characterId, nickname = name) {
     nextPowerMultiplierSourceUid: null,
     nextPowerCap: null,
     nextPowerCapSourceUid: null,
+    nextShotBasePlacementZero: false,
+    rosaPassPowerBonus: 0,
     exchangePrecisionBonus: 0,
     exchangePrecisionSources: [],
     exchangePlacementBonus: 0,
@@ -6451,7 +6525,7 @@ function ensureHumanMatchTelemetry() {
   const startedAt = new Date().toISOString();
   const session = {
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
-    gameVersion: "v169",
+    gameVersion: GAME_VERSION,
     matchId: crypto.randomUUID(),
     contextKey,
     status: "active",
@@ -6691,7 +6765,7 @@ function exportLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v169",
+    version: GAME_VERSION,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -6751,7 +6825,7 @@ async function exportHumanMatchLogsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
-    version: "v169",
+    version: GAME_VERSION,
     schemaVersion: HUMAN_MATCH_LOG_SCHEMA_VERSION,
     description: "Parties impliquant au moins un joueur humain, regroupées par match complet.",
     scope: canAccessAdminFeatures() ? "administration et navigateur local" : "joueur connecté",
@@ -6765,7 +6839,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v169");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.21");
 }
 
 function resetSetMatch() {
@@ -7274,6 +7348,7 @@ function clearNextShotBonuses(player) {
   player.nextPowerMultiplierSourceUid = null;
   player.nextPowerCap = null;
   player.nextPowerCapSourceUid = null;
+  player.nextShotBasePlacementZero = false;
 }
 
 function clearNextAnyCardBonuses(player) {
@@ -7302,7 +7377,8 @@ function getCardStats(player, card, boosted) {
   const permanentPowerBonus = isRemise(card) ? 0 : (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus;
   precision += permanentPrecisionBonus;
-  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
+  const basePlacement = !isRemise(card) && player.nextShotBasePlacementZero ? 0 : card.placement;
+  let placement = basePlacement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
   let surfacePowerBonus = 0;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "grassPowerVolleySmash") && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "hardPrecisePower") && precision > 3) surfacePowerBonus += 1;
@@ -7430,9 +7506,9 @@ function canPlayNormal(playerIndex, card) {
 }
 
 function canPlayEffectMode(playerIndex, card) {
-  if (!canPlayNormal(playerIndex, card) || !isRemise(card)) return false;
-  if (card.effectType === "freeBoostNext" && !isFreeBoostNextWindow(playerIndex)) return false;
-  return true;
+  // Une Remise reste jouable en mode Effet même si son effet n'a plus de
+  // cible utile : elle peut relancer l'échange ou absorber une annulation.
+  return canPlayNormal(playerIndex, card) && isRemise(card);
 }
 
 function canEndTurn(playerIndex) {
@@ -8085,9 +8161,15 @@ function scheduleSoloAIWatchdog() {
   SOLO_AI.watchdogTimer = window.setTimeout(() => {
     if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
     if (soloTurnSignature() !== watchedSignature) return;
-    state.log.unshift("Surveillance IA : Coach Max est relancé automatiquement.");
-    forceSoloAITurn();
-  }, 6500);
+    state.log.unshift("Sécurité IA : aucun coup validé après 10 secondes, l’IA passe automatiquement.");
+    state.pendingBoost = null;
+    SOLO_AI.executing = true;
+    resolveSoloPendingChoice(true);
+    if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) {
+      pass(SOLO_AI.playerIndex);
+    }
+    SOLO_AI.executing = false;
+  }, 10000);
 }
 
 function showSoloAINudge() {
@@ -8099,7 +8181,7 @@ function showSoloAINudge() {
   if (SOLO_AI.enabled || state.setMatch.enabled) {
     SOLO_AI.nudgeAutoTimer = window.setTimeout(() => {
       if (state.activePlayer === SOLO_AI.playerIndex && !state.gameOver && !SOLO_AI.executing) {
-        state.log.unshift("Relance automatique de Coach Max après attente.");
+        state.log.unshift("Relance automatique de l’IA après attente.");
         forceSoloAITurn();
       }
     }, 3000);
@@ -8119,14 +8201,20 @@ function forceSoloAITurn() {
   SOLO_AI.executing = false;
   SOLO_AI.nudgeVisible = false;
   SOLO_AI.nudgeWatchedTurn = null;
-  state.log.unshift("Relance de Coach Max.");
+  state.log.unshift("Relance de l’IA.");
   runSoloAITurn();
 }
 
 function resolveSoloPendingChoice(forceClose = false) {
   const playerIndex = SOLO_AI.playerIndex;
   if (state.pendingCoachChoice?.playerIndex === playerIndex) {
-    const chosenCard = [...state.deck].sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
+    const discardMode = state.pendingCoachChoice.mode === "discardHandForPower";
+    const pool = discardMode ? state.players[playerIndex].hand : state.deck;
+    const chosenCard = [...pool].sort((a, b) => (
+      discardMode
+        ? soloCardScore(playerIndex, a) - soloCardScore(playerIndex, b)
+        : soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a)
+    ))[0];
     if (chosenCard) {
       resolveCoachChoice(chosenCard.uid);
     } else if (forceClose) {
@@ -8160,7 +8248,7 @@ function chooseSoloAIStyle() {
   if (state.tournament?.aiIntelligenceLevels?.[SOLO_AI.characterId]) {
     return aiIntelligenceForEntry(SOLO_AI.characterId, state.tournament.difficulty || SOLO_AI.difficulty);
   }
-  if (!state.tournament?.aiClubHouse) return "expert";
+  if (!state.tournament?.aiClubHouse) return state.setMatch?.enabled ? "normal" : "amateur";
   return aiIntelligenceForEntry(SOLO_AI.characterId, state.tournament.difficulty || SOLO_AI.difficulty);
 }
 
@@ -8187,7 +8275,7 @@ function drawRankedAiIntelligence(rankIa) {
   return "amateur";
 }
 
-function drawLevelThreeAiIntelligence(rankIa) {
+function drawLevelSixAiIntelligence(rankIa) {
   if (rankIa <= 2) return "legend";
   if (rankIa === 3) return Math.random() < 0.5 ? "legend" : "champion";
   if (rankIa <= 5) return "champion";
@@ -8198,6 +8286,23 @@ function drawLevelThreeAiIntelligence(rankIa) {
   return Math.random() < 0.5 ? "normal" : "amateur";
 }
 
+function circuitPositionAiIntelligence(position, humanLevel) {
+  const pos = Number(position || 99999);
+  const level = Number(humanLevel || 1);
+  if (level === 1) return pos <= 2 ? "normal" : "amateur";
+  if (level === 2) {
+    if (pos === 1) return "expert";
+    return pos <= 4 ? "normal" : "amateur";
+  }
+  if (level === 3) {
+    if (pos <= 3) return "expert";
+    return pos <= 6 ? "normal" : "amateur";
+  }
+  if (pos === 1) return "champion";
+  if (pos <= 4) return "expert";
+  return pos <= 8 ? "normal" : "amateur";
+}
+
 function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal", options = {}) {
   const aiEntries = [...new Set(entries.filter((entry) => entry && entry !== HUMAN_TOURNAMENT_ENTRY))];
   const normalized = normalizeAiDifficulty(difficulty);
@@ -8205,13 +8310,18 @@ function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal"
     const level = normalizeAiIntelligence(normalized);
     return Object.fromEntries(aiEntries.map((entry) => [entry, level]));
   }
-  const levelFromRank = normalized === "circuit" && Number(options.humanLevel || 0) >= 3
-    ? drawLevelThreeAiIntelligence
-    : drawRankedAiIntelligence;
+  const humanLevel = Number(options.humanLevel || 1);
+  const positionByEntry = Object.fromEntries(entries.map((entry, position) => [entry, position]));
   return Object.fromEntries(
     rankedAiTournamentEntries(aiEntries).map((entry) => [
       entry,
-      levelFromRank(tournamentRankIa(entry)),
+      normalized !== "circuit"
+        ? drawRankedAiIntelligence(tournamentRankIa(entry))
+        : humanLevel <= 4
+          ? circuitPositionAiIntelligence(positionByEntry[entry], humanLevel)
+          : humanLevel === 5
+            ? drawRankedAiIntelligence(tournamentRankIa(entry))
+            : drawLevelSixAiIntelligence(tournamentRankIa(entry)),
     ]),
   );
 }
@@ -8735,12 +8845,10 @@ function soloOpponentResponseProjection(playerIndex) {
   const knownCards = expertKnownOpponentCards(playerIndex);
   const riskPool = knownCards.length ? knownCards : expertUnseenCards(playerIndex);
   const discount = Number(opponent.nextDiscount || 0);
-  const canAffordAny = opponent.endurance > 0 || discount > 0
-    ? riskPool.some((card) => Math.max(0, card.cost - discount) <= opponent.endurance)
-    : false;
+  const canAffordAny = riskPool.some((card) => Math.max(0, card.cost - discount) <= opponent.endurance);
   const canCounterBoost = opponent.hand.length >= 2 && canAffordAny;
   const defensiveTrap = riskPool.some((card) => card.effectType === "jokerResponse")
-    || riskPool.some((card) => card.placement >= 5)
+    || riskPool.some((card) => getCardStats(opponent, card, false).placement >= 4)
     || riskPool.some((card) => ["nextPlacement", "nextPrecisionAndPlacement"].includes(card.effectType));
   let risk = 0.46;
   if (opponent.hand.length === 0) risk = 0;
@@ -9407,7 +9515,8 @@ function expertCounterBoostThreat(playerIndex, boostedCard, sacrifice = null) {
 function expertCanDefendBoostWithCards(playerIndex, cards, endurance, requiredPlacement) {
   if (endurance < 0) return false;
   const player = state.players[playerIndex];
-  if (cards.some((card) => isRemise(card) && ["jokerResponse", "removeOpponentLast"].includes(card.effectType) && effectiveCost(player, card) <= endurance)) {
+  const opponentCanCancelEffect = Boolean(state.players[opponentOf(playerIndex)]?.cancelNextOpponentEffect);
+  if (!opponentCanCancelEffect && cards.some((card) => isRemise(card) && ["jokerResponse", "removeOpponentLast"].includes(card.effectType) && effectiveCost(player, card) <= endurance)) {
     return true;
   }
   const remises = cards.filter((card) => isRemise(card));
@@ -9764,6 +9873,9 @@ function soloCardScore(playerIndex, card, boosted = false) {
   if (card.effectType === "gainEndurance") score += 1;
   if (card.effectType === "drawCard") score += 1.2;
   if (card.effectType === "limitOpponentFamilies") score += 1.4;
+  if (aiIntelligenceAtLeast("champion") && card.family === "Smash" && state.players[opponentOf(playerIndex)].endurance <= 0) {
+    score += state.mandatoryPlacement ? 6 : 18;
+  }
   if (aiIntelligenceAtLeast("expert") && !boosted && state.boostAvailableFor !== playerIndex && opensLikelyBoostWindowForOpponent(playerIndex, card)) {
     score -= state.players[playerIndex].endurance <= 2 ? 8 : 3;
   }
@@ -10890,6 +11002,42 @@ function applyCharacterEffect(playerIndex, playedCard) {
     return false;
   }
 
+  if (effect.type === "opponentTurnShotExtraCost") {
+    const value = effect.value ?? 1;
+    const opponent = state.players[opponentOf(playerIndex)];
+    addNextExtraCost(opponent, value, effectSourceUid);
+    state.log.unshift(`${character.name} (${effect.side}) : tous les Coups du prochain tour de ${displayPlayerName(opponent)} coûtent ${value} endurance de plus.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "opponentNextShotBasePlacementZero") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    opponent.nextShotBasePlacementZero = true;
+    state.log.unshift(`${character.name} (${effect.side}) : le placement de base du prochain Coup de ${displayPlayerName(opponent)} est ramené à 0 ; bonus et Remises restent applicables.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "opponentPassPowerBonus") {
+    player.rosaPassPowerBonus = effect.value ?? 2;
+    state.log.unshift(`${character.name} (${effect.side}) : +${player.rosaPassPowerBonus} puissance si l’adversaire passe avant la fin de l’échange.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "discardHandForPower") {
+    if (!player.hand.length) {
+      state.log.unshift(`${character.name} (${effect.side}) : main vide, aucune carte supprimée et aucun gain de puissance.`);
+      setEffectNotice("coach", { name: character.name }, "La carte personnage est retournée, mais l’effet ne se déclenche pas car la main est vide.");
+      return false;
+    }
+    state.pendingCoachChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid, mode: "discardHandForPower", power: effect.value ?? 3 };
+    state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(player)} choisit une carte de sa main à supprimer.`);
+    setEffectNotice("coach", { name: character.name }, effect.label);
+    return true;
+  }
+
   if (effect.type === "nextPowerMultiplier") {
     const value = effect.value ?? 2;
     player.nextPowerMultiplier = Math.max(player.nextPowerMultiplier ?? 1, value);
@@ -11055,12 +11203,14 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
 function resolveCoachChoice(cardUid) {
   if (!state.pendingCoachChoice) return;
-  const { playerIndex, sourcePlayedUid } = state.pendingCoachChoice;
+  const { playerIndex, sourcePlayedUid, mode, power = 3 } = state.pendingCoachChoice;
   if (!canUseSeat(playerIndex)) return;
   markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
-  const chosen = state.deck.find((card) => card.uid === cardUid);
+  const chosen = mode === "discardHandForPower"
+    ? player.hand.find((card) => card.uid === cardUid)
+    : state.deck.find((card) => card.uid === cardUid);
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
   state.pendingCoachChoice = null;
 
@@ -11070,10 +11220,18 @@ function resolveCoachChoice(cardUid) {
     return;
   }
 
-  state.deck = state.deck.filter((card) => card.uid !== chosen.uid);
-  player.hand.push(chosen);
-  state.log.unshift(`${displayPlayerName(player)} récupère ${chosen.name} grâce à ${characterOf(player).name}.`);
-  setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} rejoint la main.`);
+  if (mode === "discardHandForPower") {
+    player.hand = player.hand.filter((card) => card.uid !== chosen.uid);
+    player.power += power;
+    sourceCard.effectPowerGained = (sourceCard.effectPowerGained ?? 0) + power;
+    state.log.unshift(`${displayPlayerName(player)} supprime ${chosen.name} grâce à ${characterOf(player).name} et gagne +${power} puissance.`);
+    setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} est supprimée : +${power} puissance.`);
+  } else {
+    state.deck = state.deck.filter((card) => card.uid !== chosen.uid);
+    player.hand.push(chosen);
+    state.log.unshift(`${displayPlayerName(player)} récupère ${chosen.name} grâce à ${characterOf(player).name}.`);
+    setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} rejoint la main.`);
+  }
   completePlayedCardResolution(
     playerIndex,
     opponentIndex,
@@ -11144,6 +11302,11 @@ function pass(playerIndex, tutorialBypass = false) {
     player: playerLogInfo(player),
     opponent: playerLogInfo(opponent),
   });
+  const rosaBonus = opponent.characterId === "rosaBenavente" ? Number(opponent.rosaPassPowerBonus || 0) : 0;
+  if (rosaBonus > 0) {
+    opponent.power += rosaBonus;
+    state.log.unshift(`Pouvoir de Rosa Benavente : ${displayPlayerName(opponent)} gagne +${rosaBonus} puissance supplémentaire car son adversaire passe.`);
+  }
   if (state.mandatoryPlacement) {
     player.passed = true;
     const reasonLabel = state.mandatoryPlacementReason === "smash" ? "un Smash" : "un BOOST";
@@ -11161,8 +11324,11 @@ function pass(playerIndex, tutorialBypass = false) {
   opponent.power += bonus;
   state.log.unshift(`${displayPlayerName(player)} passe et donne ${bonus} puissance à ${displayPlayerName(opponent)}.`);
   finishGame({
-    reason: `${displayPlayerName(player)} passe. ${displayPlayerName(opponent)} gagne ${bonus} puissance. L'échange s'arrête immédiatement.`,
-    extraPowerDetails: [{ playerIndex: opponentIndex, label: "Pénalité de passe adverse", points: bonus }],
+    reason: `${displayPlayerName(player)} passe. ${displayPlayerName(opponent)} gagne ${bonus} puissance${rosaBonus ? `, plus ${rosaBonus} grâce au pouvoir de Rosa Benavente` : ""}. L'échange s'arrête immédiatement.`,
+    extraPowerDetails: [
+      { playerIndex: opponentIndex, label: "Pénalité de passe adverse", points: bonus },
+      ...(rosaBonus ? [{ playerIndex: opponentIndex, label: "Pouvoir bleu de Rosa Benavente", points: rosaBonus }] : []),
+    ],
   });
 }
 
@@ -11186,6 +11352,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
+  state.log.unshift(exchangeResultLogLine(winner, winType, setScore));
   recordAction("exchange_end", {
     winner,
     winnerName: playerName(winner),
@@ -11224,6 +11391,23 @@ function getExchangeSetScore(winner, winType) {
     loser,
     label: "Victoire aux points de puissance",
   };
+}
+
+function exchangeResultLogLine(winner, winType, exchangeScore) {
+  const added = [0, 0];
+  added[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
+  added[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
+  const outcome = winType === "boost" ? "Victoire sur Boost" : winType === "power" ? "Victoire aux Points" : "Victoire sur Effet";
+  const scoreImpact = `Jeux ajoutés au score du set : ${playerName(0)} +${added[0]} · ${playerName(1)} +${added[1]}`;
+  if (winType !== "power") {
+    return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Les points de puissance ne sont pas pris en compte pour cette victoire.|${scoreImpact}`;
+  }
+  const powers = state.players.map((player) => Number(player.power || 0));
+  const gap = Math.abs(powers[0] - powers[1]);
+  const loserRule = gap < 5
+    ? `Écart de ${gap}, inférieur à 5 : le perdant reçoit +1.`
+    : `Écart de ${gap}, au moins égal à 5 : le perdant reçoit +0.`;
+  return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Puissance finale : ${playerName(0)} ${powers[0]} · ${playerName(1)} ${powers[1]}|Le vainqueur reçoit +2. ${loserRule}|${scoreImpact}`;
 }
 
 function isDecisiveSetScore(score = state.setMatch.score) {
@@ -11865,11 +12049,20 @@ function currentRankingTotalPoints() {
   return Number(current?.score_ref || 0);
 }
 
+function humanCircuitLevelInfo(points = currentRankingTotalPoints()) {
+  const total = Math.max(0, Number(points || 0));
+  return HUMAN_CIRCUIT_LEVELS.find((level) => total >= level.min && total <= level.max)
+    || HUMAN_CIRCUIT_LEVELS[0];
+}
+
 function circuitHumanLevel(points = currentRankingTotalPoints()) {
-  const total = Number(points || 0);
-  if (total < 1000) return 1;
-  if (total <= 3000) return 2;
-  return 3;
+  const total = Math.max(0, Number(points || 0));
+  if (total < 500) return 1;
+  if (total < 1000) return 2;
+  if (total < 2500) return 3;
+  if (total < 5000) return 4;
+  if (total < 8000) return 5;
+  return 6;
 }
 
 function tournamentRankingEntries() {
@@ -13253,50 +13446,10 @@ function renderCompactMatchScore(setMatch) {
 }
 
 function renderResultPanel() {
-  if (!state.resultInfo) {
-    els.resultPanel.classList.add("hidden");
-    return;
-  }
-  const setScore = state.resultInfo.setScore;
-  const setMatch = state.resultInfo.setMatch;
-  const endBonusDetails = state.resultInfo.endBonusDetails || [];
-  const winnerIndex = state.resultInfo.winner;
-  const loserIndex = opponentOf(winnerIndex);
-  const conditionLabel = setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique");
-  const outcomeClass = state.resultInfo.winType === "boost"
-    ? "boost"
-    : state.resultInfo.winType === "power"
-      ? "power"
-      : "automatic";
-  const outcomeShortLabel = outcomeClass === "boost" ? "BOOST" : outcomeClass === "power" ? "POINTS" : "DÉCISIF";
-  const compactMatchScore = renderCompactMatchScore(setMatch).replace('class="result-match-score"', `class="result-match-score winner-${winnerIndex === 0 ? "left" : "right"}"`);
-  els.resultPanel.innerHTML = `
-    <div class="result-banner-heading outcome-${outcomeClass}">
-      <div class="result-winner-copy">
-        <p class="eyebrow">Fin de l’échange</p>
-        <h2 class="winner-dialog">${escapeHtml(playerName(winnerIndex))} gagne</h2>
-        <span class="result-outcome-badge"><i aria-hidden="true"></i>${outcomeShortLabel}<small>${escapeHtml(conditionLabel)}</small></span>
-      </div>
-      <div class="result-score-summary result-power-secondary">
-        <div class="result-power-score" aria-label="Score de puissance final">
-          <small>Puissance de l’échange</small>
-          <strong>${state.players[winnerIndex]?.power ?? 0}<i>–</i>${state.players[loserIndex]?.power ?? 0}</strong>
-        </div>
-      </div>
-    </div>
-    ${compactMatchScore}
-    <p class="result-reason result-summary-line"><strong>${escapeHtml(playerName(winnerIndex))}</strong> remporte l’échange. ${escapeHtml(state.resultInfo.reason)}</p>
-    ${endBonusDetails.length ? `<div class="result-bonus-list" aria-label="Bonus de fin d’échange">${endBonusDetails.map((bonus) => `<span><strong>+${bonus.points}</strong> ${escapeHtml(playerName(bonus.playerIndex))} · ${escapeHtml(bonus.label)}</span>`).join("")}</div>` : ""}
-    <div class="result-actions">
-      ${renderProgressionButtons()}
-      ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>` : ""}
-    </div>
-  `;
-  bindResultTournamentButton();
-  els.resultPanel.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
-    startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
-  });
-  els.resultPanel.classList.remove("hidden");
+  // La fin d'échange est désormais entièrement intégrée à la carte
+  // « État de l'échange » afin de ne plus superposer deux résumés.
+  els.resultPanel.innerHTML = "";
+  els.resultPanel.classList.add("hidden");
 }
 
 function applyEndBonuses() {
@@ -13530,6 +13683,11 @@ function ensureSoloAIForSet() {
 function renderModeButtons() {
   if (els.modeInfoBadge) els.modeInfoBadge.textContent = currentModeLabel();
   if (els.returnLobbyButton) els.returnLobbyButton.textContent = FRIENDLY_TOURNAMENT.enabled ? "Retour Club House" : "Retour accueil";
+  if (els.topProgressionActions) {
+    els.topProgressionActions.innerHTML = renderRallyEndActions();
+    els.topProgressionActions.classList.toggle("hidden", !els.topProgressionActions.innerHTML.trim());
+    bindRallyEndActions(els.topProgressionActions);
+  }
   const completedFriendlyMatch = Boolean(FRIENDLY_TOURNAMENT.enabled && state.gameOver && state.setMatch?.matchOver);
   els.returnLobbyButton?.classList.toggle("friendly-match-complete-return", completedFriendlyMatch);
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
@@ -14141,6 +14299,87 @@ function currentMatchStake() {
   ].filter(Boolean);
 }
 
+function rallyEndConditionLabel() {
+  if (!state.resultInfo) return "";
+  if (state.resultInfo.winType === "boost") return "BOOST";
+  if (state.resultInfo.winType === "power") return "Points";
+  return "EFFET";
+}
+
+function rallyEndConditionClass() {
+  const condition = rallyEndConditionLabel();
+  if (condition === "BOOST") return "rally-end-boost";
+  if (condition === "EFFET") return "rally-end-effect";
+  return "rally-end-points";
+}
+
+function rallyEndReasonLabel() {
+  const condition = rallyEndConditionLabel();
+  if (condition === "BOOST") return "Victoire sur Boost";
+  if (condition === "EFFET") return "Victoire sur Effet";
+  return "Victoire aux Points";
+}
+
+function rallyEndGamesAdded() {
+  const exchangeScore = state.resultInfo?.setScore;
+  const added = [0, 0];
+  if (!exchangeScore) return added;
+  added[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
+  added[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
+  return added;
+}
+
+function rallyEndGamesAddedLabel() {
+  const added = rallyEndGamesAdded();
+  return `+ ${added[0]}/${added[1]}`;
+}
+
+function rallyEndScoreMarkup() {
+  if (!state.resultInfo) return "";
+  const setMatch = state.resultInfo.setMatch;
+  const scores = [];
+  if (setMatch) {
+    (setMatch.completedScores || []).forEach((score) => {
+      scores.push({ score: [Number(score?.[0] || 0), Number(score?.[1] || 0)], current: false });
+    });
+    if (!setMatch.setOver && Array.isArray(setMatch.score)) {
+      scores.push({ score: [Number(setMatch.score[0] || 0), Number(setMatch.score[1] || 0)], current: true });
+    } else if (!scores.length && Array.isArray(setMatch.score)) {
+      scores.push({ score: [Number(setMatch.score[0] || 0), Number(setMatch.score[1] || 0)], current: true });
+    }
+  }
+  if (!scores.length && state.resultInfo.setScore) {
+    const exchangeScore = state.resultInfo.setScore;
+    const score = [0, 0];
+    score[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
+    score[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
+    scores.push({ score, current: true });
+  }
+  if (!scores.length) return '<span class="rally-end-score-empty">—</span>';
+  return `<div class="rally-end-score-values" aria-label="Score du match">${scores.map(({ score, current }, index) => {
+    const scoreClass = current ? "current" : score[0] > score[1] ? "won-left" : "won-right";
+    const label = current ? "Set en cours" : `Set ${index + 1}`;
+    return `<strong class="${scoreClass}" aria-label="${label} : ${score[0]} à ${score[1]}">${score[0]}–${score[1]}</strong>`;
+  }).join('<i aria-hidden="true">·</i>')}</div>`;
+}
+
+function renderRallyEndActions() {
+  if (!state.gameOver) return "";
+  const progression = renderProgressionButtons();
+  const setMatch = state.resultInfo?.setMatch;
+  const replay = setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets))
+    ? '<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>'
+    : "";
+  return `${progression}${replay}`;
+}
+
+function bindRallyEndActions(root = els.rallyState) {
+  bindProgressionButtons(root);
+  root?.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
+    startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+  });
+}
+
 function renderRallyState() {
   const active = activePlayer();
   const last = state.lastCard;
@@ -14150,29 +14389,45 @@ function renderRallyState() {
   if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
   const preparedPlacement = active.power != null ? turnEndPlacement(state.activePlayer) : 0;
   const stakes = currentMatchStake();
+  const rallyCard = els.rallyState?.closest(".rally-card");
+  rallyCard?.classList.toggle("completed", state.gameOver);
+  ["rally-end-boost", "rally-end-effect", "rally-end-points"].forEach((className) => {
+    rallyCard?.classList.toggle(className, Boolean(state.gameOver && className === rallyEndConditionClass()));
+  });
   if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
   if (els.rallyStatusBadge) {
-    els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
-    els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? "completed" : "live"}`;
+    els.rallyStatusBadge.textContent = state.gameOver ? rallyEndReasonLabel() : `${displayPlayerName(active)} à jouer`;
+    els.rallyStatusBadge.className = `rally-status-badge ${state.gameOver ? `completed ${rallyEndConditionClass()}` : "live"}`;
+  }
+  if (els.rallyScoreDeltaBadge) {
+    els.rallyScoreDeltaBadge.textContent = state.gameOver ? rallyEndGamesAddedLabel() : "";
+    els.rallyScoreDeltaBadge.classList.toggle("hidden", !state.gameOver);
   }
   const contextualNotices = [
     stakes?.length ? `<div class="rally-stakes">${stakes.map((stake) => `<div class="rally-context-line stake"><strong>${escapeHtml(stake.label)}</strong><span>${escapeHtml(stake.names)}</span></div>`).join("")}</div>` : "",
     activeConstraints.length ? `<div class="rally-context-line constraint"><strong>Contrainte</strong><span>${escapeHtml(activeConstraints.join(" · "))}</span></div>` : "",
     state.boostAvailableFor == null ? "" : `<div class="rally-context-line boost"><strong>BOOST disponible</strong><span>${escapeHtml(playerName(state.boostAvailableFor))} peut répondre en BOOST.</span></div>`,
   ].filter(Boolean).join("");
-  els.rallyState.innerHTML = `
+  els.rallyState.innerHTML = state.gameOver && state.resultInfo ? `
+    <div class="rally-info-grid rally-result-grid">
+      <div class="rally-info-chip primary"><span>Vainqueur</span><strong>${escapeHtml(playerName(state.resultInfo.winner))}</strong></div>
+      <div class="rally-info-chip rally-score-chip"><span>Score</span>${rallyEndScoreMarkup()}</div>
+      <div class="rally-info-chip rally-next-chip"><div class="rally-next-actions">${renderRallyEndActions()}</div></div>
+    </div>
+  ` : `
     <div class="rally-info-grid">
-      <div class="rally-info-chip primary"><span>Tour</span><strong>${state.gameOver ? "Terminé" : escapeHtml(displayPlayerName(active))}</strong></div>
+      <div class="rally-info-chip primary"><span>Tour</span><strong>${escapeHtml(displayPlayerName(active))}</strong></div>
       <div class="rally-info-chip"><span>Serveur</span><strong>${escapeHtml(playerName(state.server))}</strong></div>
       <div class="rally-info-chip"><span>Dernier coup</span><strong>${last ? `${escapeHtml(last.name)}${last.boosted ? " · BOOST" : ""}` : "Aucun"}</strong>${last ? `<small>Précision ${last.precision}</small>` : ""}</div>
       <div class="rally-info-chip"><span>Placement préparé</span><strong>${preparedPlacement}</strong></div>
     </div>
     ${contextualNotices ? `<div class="rally-context-list">${contextualNotices}</div>` : ""}
   `;
+  bindRallyEndActions();
 }
 
 function renderEffectNotice() {
-  if (!state.effectNotice) {
+  if (state.gameOver || !state.effectNotice) {
     els.effectNotice.className = "effect-notice muted hidden";
     els.effectNotice.innerHTML = "";
     return;
@@ -14241,9 +14496,6 @@ function renderCharacterCard(player, playerIndex) {
   const crown = state.gameOver && state.resultInfo?.winner === playerIndex
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
-  const aiNudge = playerIndex === SOLO_AI.playerIndex && state.activePlayer === playerIndex && !state.gameOver && !SERVER_SYNC.enabled && SOLO_AI.nudgeVisible
-    ? '<button class="ai-nudge-button" type="button" data-force-ai-turn onclick="window.forceSoloAITurn?.()" onpointerdown="window.forceSoloAITurn?.()">Coach Max à jouer</button>'
-    : "";
   const worldRankReminder = state.tournament.active && [1, 2, 3].includes(Number(player.worldRank))
     ? { label: `N°${Number(player.worldRank)} mondial` }
     : null;
@@ -14259,7 +14511,6 @@ function renderCharacterCard(player, playerIndex) {
     <div class="character-zone">
       <div class="character-card" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
-        ${aiNudge}
       </div>
       ${surfaceBonus}
       <div class="character-stats">
@@ -14476,9 +14727,9 @@ function renderCenterPlayedCard() {
       ${renderCenterSetScore()}
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
-      ${renderProgressionButtons()}
+      <div class="center-progression-actions">${renderRallyEndActions()}</div>
     `;
-    bindCenterButtons();
+    bindRallyEndActions(els.centerPlayedCard);
     return;
   }
   els.centerPlayedCard.innerHTML = `
@@ -14487,9 +14738,9 @@ function renderCenterPlayedCard() {
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
-    ${renderProgressionButtons()}
+    <div class="center-progression-actions">${renderRallyEndActions()}</div>
   `;
-  bindCenterButtons();
+  bindRallyEndActions(els.centerPlayedCard);
 }
 
 function activeEffectBadges(playerIndex) {
@@ -14751,7 +15002,7 @@ function formatLogLine(line) {
 
 function actionLogEntryType(line) {
   const normalized = String(line || "").toLowerCase();
-  if (/gagne|score final|score du set|score du match|échange s'arrête|échange terminé|match terminé/.test(normalized)) return "result";
+  if (/gagne|victoire|bilan de l'échange|bilan de l’échange|score final|score du set|score du match|échange s'arrête|échange terminé|match terminé/.test(normalized)) return "result";
   if (/boost/.test(normalized)) return "boost";
   if (/ joue |joue /.test(normalized)) return "shot";
   if (/effet|active|défausse|pioche|récupère|retourne sa carte|bonus/.test(normalized)) return "effect";
@@ -14781,9 +15032,12 @@ function renderActionLogEntry(line, index, compact = false) {
   const type = actionLogEntryType(line);
   const thumbnail = compact ? "" : actionLogCardThumbnail(line);
   const shot = String(line || "").match(/^(.+?) joue (.+?) : (.+)$/);
-  const content = shot
-    ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
-    : `<p>${formatLogLine(line)}</p>`;
+  const exchangeResult = String(line || "").startsWith("Bilan de l’échange|") ? String(line).split("|").slice(1) : null;
+  const content = exchangeResult
+    ? `<strong class="action-log-result-title">${escapeHtml(exchangeResult[0] || "Résultat de l’échange")}</strong><div class="action-log-result-details">${exchangeResult.slice(1).map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}</div>`
+    : shot
+      ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
+      : `<p>${formatLogLine(line)}</p>`;
   return `
     <article class="action-log-entry ${type}${compact ? " compact" : ""}${thumbnail ? " has-card" : ""}">
       <div class="action-log-marker" aria-hidden="true"></div>
@@ -14910,7 +15164,7 @@ function renderEffectChoiceModal() {
 function renderCoachChoiceModal() {
   document.querySelector(".coach-choice-backdrop")?.remove();
   if (!state.pendingCoachChoice) return;
-  const { playerIndex } = state.pendingCoachChoice;
+  const { playerIndex, mode } = state.pendingCoachChoice;
   if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
   if (SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex) return;
   const player = state.players[playerIndex];
@@ -14919,10 +15173,10 @@ function renderCoachChoiceModal() {
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte non distribuée">
       <h2>${characterOf(player).name}</h2>
-      <p>Choisis une carte non distribuée à ajouter à la main de ${escapeHtml(displayPlayerName(player))}.</p>
+      <p>${mode === "discardHandForPower" ? `Choisis une carte de la main de ${escapeHtml(displayPlayerName(player))} à supprimer pour gagner 3 puissance.` : `Choisis une carte non distribuée à ajouter à la main de ${escapeHtml(displayPlayerName(player))}.`}</p>
       <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
-        ${state.deck.map((choice) => `
+        ${(mode === "discardHandForPower" ? player.hand : state.deck).map((choice) => `
           <button class="choice-card" type="button" data-coach-choice="${choice.uid}">
             ${renderChoiceCardVisual(choice)}
           </button>

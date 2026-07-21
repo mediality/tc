@@ -78,10 +78,12 @@ assert.match(app, /rallyFullLogButton\?\.addEventListener\("click", openFullActi
 assert.match(app, /function renderActionLogEntry\(line, index, compact = false\)/);
 assert.match(app, /function openFullActionLogDialog\(\)/);
 assert.match(app, /rally-info-grid/);
-assert.match(app, /result-banner-heading/);
+assert.match(app, /rally-result-grid/);
 assert.match(app, /function renderCompactMatchScore\(setMatch\)/);
-assert.match(app, /result-outcome-badge/);
-assert.match(app, /outcomeClass === "boost"/);
+assert.match(functionSource("renderResultPanel"), /classList\.add\("hidden"\)/);
+assert.doesNotMatch(functionSource("renderResultPanel"), /result-banner-heading|result-outcome-badge/);
+assert.match(functionSource("rallyEndConditionLabel"), /"BOOST"/);
+assert.match(functionSource("rallyEndConditionLabel"), /"EFFET"/);
 assert.doesNotMatch(functionSource("renderResultPanel"), /Score du set/);
 assert.match(functionSource("renderLeagueStandingsTable"), /<span>Rang<\/span><span>Nom<\/span><span>Points<\/span><span>Diff\. sets<\/span><span>Diff\. jeux<\/span>/);
 assert.match(app, /tournament-match-status/);
@@ -110,9 +112,9 @@ assert.match(css, /\.opponent-inline\.critical-opponent/);
 assert.match(css, /\.confrontation-player-card-frame::after/);
 assert.match(css, /--game-card-radius: 7\.2% \/ 5\.2%/);
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.12/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.21/);
+assert.match(html, /styles\.css\?v=170\.18/);
+assert.match(html, /app\.js\?v=170\.18/);
 
 const profileSource = functionSource("profileMarkup");
 assert.match(profileSource, /<dd>\$\{Number\(ranking\.score_ref \|\| 0\)\}<\/dd><small>4 semaines terminées<\/small>/);
@@ -145,7 +147,8 @@ assert.match(server, /lastOpponent: row\.last_opponent \|\| ""/);
 assert.match(server, /lastScore: row\.last_score \|\| ""/);
 
 const resultPanelSource = functionSource("renderResultPanel");
-assert.ok(resultPanelSource.indexOf("compactMatchScore") < resultPanelSource.indexOf("result-bonus-list"));
+assert.match(resultPanelSource, /classList\.add\("hidden"\)/);
+assert.doesNotMatch(resultPanelSource, /result-bonus-list/);
 assert.doesNotMatch(functionSource("renderCompactMatchScore"), />Score du match</);
 assert.match(functionSource("renderCompactMatchScore"), /won-left/);
 assert.match(functionSource("renderCompactMatchScore"), /won-right/);
