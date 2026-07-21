@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.17";
+const GAME_VERSION = "v2.169.18";
 const CARD_ASSET_VERSION = "169";
 
 function versionCardAsset(value) {
@@ -6765,7 +6765,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.17");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.18");
 }
 
 function resetSetMatch() {
@@ -13286,50 +13286,10 @@ function renderCompactMatchScore(setMatch) {
 }
 
 function renderResultPanel() {
-  if (!state.resultInfo) {
-    els.resultPanel.classList.add("hidden");
-    return;
-  }
-  const setScore = state.resultInfo.setScore;
-  const setMatch = state.resultInfo.setMatch;
-  const endBonusDetails = state.resultInfo.endBonusDetails || [];
-  const winnerIndex = state.resultInfo.winner;
-  const loserIndex = opponentOf(winnerIndex);
-  const conditionLabel = setScore?.label || (state.resultInfo.winType === "boost" ? "Victoire par BOOST" : "Victoire automatique");
-  const outcomeClass = state.resultInfo.winType === "boost"
-    ? "boost"
-    : state.resultInfo.winType === "power"
-      ? "power"
-      : "automatic";
-  const outcomeShortLabel = outcomeClass === "boost" ? "BOOST" : outcomeClass === "power" ? "POINTS" : "DÉCISIF";
-  const compactMatchScore = renderCompactMatchScore(setMatch).replace('class="result-match-score"', `class="result-match-score winner-${winnerIndex === 0 ? "left" : "right"}"`);
-  els.resultPanel.innerHTML = `
-    <div class="result-banner-heading outcome-${outcomeClass}">
-      <div class="result-winner-copy">
-        <p class="eyebrow">Fin de l’échange</p>
-        <h2 class="winner-dialog">${escapeHtml(playerName(winnerIndex))} gagne</h2>
-        <span class="result-outcome-badge"><i aria-hidden="true"></i>${outcomeShortLabel}<small>${escapeHtml(conditionLabel)}</small></span>
-      </div>
-      <div class="result-score-summary result-power-secondary">
-        <div class="result-power-score" aria-label="Score de puissance final">
-          <small>Puissance de l’échange</small>
-          <strong>${state.players[winnerIndex]?.power ?? 0}<i>–</i>${state.players[loserIndex]?.power ?? 0}</strong>
-        </div>
-      </div>
-    </div>
-    ${compactMatchScore}
-    <p class="result-reason result-summary-line"><strong>${escapeHtml(playerName(winnerIndex))}</strong> remporte l’échange. ${escapeHtml(state.resultInfo.reason)}</p>
-    ${endBonusDetails.length ? `<div class="result-bonus-list" aria-label="Bonus de fin d’échange">${endBonusDetails.map((bonus) => `<span><strong>+${bonus.points}</strong> ${escapeHtml(playerName(bonus.playerIndex))} · ${escapeHtml(bonus.label)}</span>`).join("")}</div>` : ""}
-    <div class="result-actions">
-      ${renderProgressionButtons()}
-      ${setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets)) ? `<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>` : ""}
-    </div>
-  `;
-  bindResultTournamentButton();
-  els.resultPanel.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
-    startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
-  });
-  els.resultPanel.classList.remove("hidden");
+  // La fin d'échange est désormais entièrement intégrée à la carte
+  // « État de l'échange » afin de ne plus superposer deux résumés.
+  els.resultPanel.innerHTML = "";
+  els.resultPanel.classList.add("hidden");
 }
 
 function applyEndBonuses() {
@@ -14174,6 +14134,52 @@ function currentMatchStake() {
   ].filter(Boolean);
 }
 
+function rallyEndConditionLabel() {
+  if (!state.resultInfo) return "";
+  if (state.resultInfo.winType === "boost") return "BOOST";
+  if (state.resultInfo.winType === "power") return "Points";
+  return "EFFET";
+}
+
+function rallyEndScoreText() {
+  if (!state.resultInfo) return "";
+  const setMatch = state.resultInfo.setMatch;
+  if (setMatch) {
+    const scores = (setMatch.completedScores || []).map((score) => `${Number(score?.[0] || 0)}–${Number(score?.[1] || 0)}`);
+    if (!setMatch.setOver && Array.isArray(setMatch.score)) {
+      scores.push(`${Number(setMatch.score[0] || 0)}–${Number(setMatch.score[1] || 0)}`);
+    } else if (!scores.length && Array.isArray(setMatch.score)) {
+      scores.push(`${Number(setMatch.score[0] || 0)}–${Number(setMatch.score[1] || 0)}`);
+    }
+    if (scores.length) return scores.join("  ");
+  }
+  const exchangeScore = state.resultInfo.setScore;
+  if (exchangeScore) {
+    const score = [0, 0];
+    score[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
+    score[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
+    return `${score[0]}–${score[1]}`;
+  }
+  return "–";
+}
+
+function renderRallyEndActions() {
+  if (!state.gameOver) return "";
+  const progression = renderProgressionButtons();
+  const setMatch = state.resultInfo?.setMatch;
+  const replay = setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets))
+    ? '<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>'
+    : "";
+  return `${progression}${replay}`;
+}
+
+function bindRallyEndActions() {
+  bindProgressionButtons(els.rallyState);
+  els.rallyState?.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
+    startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+  });
+}
+
 function renderRallyState() {
   const active = activePlayer();
   const last = state.lastCard;
@@ -14183,6 +14189,8 @@ function renderRallyState() {
   if (hasReturnServiceRestriction(state.activePlayer)) activeConstraints.push("retour de service: pas Volée/Smash");
   const preparedPlacement = active.power != null ? turnEndPlacement(state.activePlayer) : 0;
   const stakes = currentMatchStake();
+  const rallyCard = els.rallyState?.closest(".rally-card");
+  rallyCard?.classList.toggle("completed", state.gameOver);
   if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
   if (els.rallyStatusBadge) {
     els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
@@ -14193,19 +14201,27 @@ function renderRallyState() {
     activeConstraints.length ? `<div class="rally-context-line constraint"><strong>Contrainte</strong><span>${escapeHtml(activeConstraints.join(" · "))}</span></div>` : "",
     state.boostAvailableFor == null ? "" : `<div class="rally-context-line boost"><strong>BOOST disponible</strong><span>${escapeHtml(playerName(state.boostAvailableFor))} peut répondre en BOOST.</span></div>`,
   ].filter(Boolean).join("");
-  els.rallyState.innerHTML = `
+  els.rallyState.innerHTML = state.gameOver && state.resultInfo ? `
+    <div class="rally-info-grid rally-result-grid">
+      <div class="rally-info-chip primary"><span>Vainqueur</span><strong>${escapeHtml(playerName(state.resultInfo.winner))}</strong></div>
+      <div class="rally-info-chip"><span>Condition</span><strong>${escapeHtml(rallyEndConditionLabel())}</strong></div>
+      <div class="rally-info-chip"><span>Score</span><strong>${escapeHtml(rallyEndScoreText())}</strong></div>
+      <div class="rally-info-chip rally-next-chip"><span>Échange suivant</span><div class="rally-next-actions">${renderRallyEndActions()}</div></div>
+    </div>
+  ` : `
     <div class="rally-info-grid">
-      <div class="rally-info-chip primary"><span>Tour</span><strong>${state.gameOver ? "Terminé" : escapeHtml(displayPlayerName(active))}</strong></div>
+      <div class="rally-info-chip primary"><span>Tour</span><strong>${escapeHtml(displayPlayerName(active))}</strong></div>
       <div class="rally-info-chip"><span>Serveur</span><strong>${escapeHtml(playerName(state.server))}</strong></div>
       <div class="rally-info-chip"><span>Dernier coup</span><strong>${last ? `${escapeHtml(last.name)}${last.boosted ? " · BOOST" : ""}` : "Aucun"}</strong>${last ? `<small>Précision ${last.precision}</small>` : ""}</div>
       <div class="rally-info-chip"><span>Placement préparé</span><strong>${preparedPlacement}</strong></div>
     </div>
     ${contextualNotices ? `<div class="rally-context-list">${contextualNotices}</div>` : ""}
   `;
+  bindRallyEndActions();
 }
 
 function renderEffectNotice() {
-  if (!state.effectNotice) {
+  if (state.gameOver || !state.effectNotice) {
     els.effectNotice.className = "effect-notice muted hidden";
     els.effectNotice.innerHTML = "";
     return;
@@ -14509,9 +14525,7 @@ function renderCenterPlayedCard() {
       ${renderCenterSetScore()}
       <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
-      ${renderProgressionButtons()}
     `;
-    bindCenterButtons();
     return;
   }
   els.centerPlayedCard.innerHTML = `
@@ -14520,9 +14534,7 @@ function renderCenterPlayedCard() {
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
       ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
     </div>
-    ${renderProgressionButtons()}
   `;
-  bindCenterButtons();
 }
 
 function activeEffectBadges(playerIndex) {

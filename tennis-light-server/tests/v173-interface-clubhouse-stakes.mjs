@@ -22,9 +22,9 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.17/);
-assert.match(html, /styles\.css\?v=170\.13/);
-assert.match(html, /app\.js\?v=170\.13/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.18/);
+assert.match(html, /styles\.css\?v=170\.14/);
+assert.match(html, /app\.js\?v=170\.14/);
 
 const renderTournament = functionSource(app, "renderTournamentPanel");
 const toggleTournament = functionSource(app, "toggleTournamentPanel");

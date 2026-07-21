@@ -21,9 +21,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.18/);
+assert.match(html, /styles\.css\?v=170\.14/);
+assert.match(html, /app\.js\?v=170\.14/);
 
 const progressionContext = {
   renderCenterNextSoloExchangeButton: () => "SOLO",
@@ -33,8 +33,8 @@ const progressionContext = {
 vm.runInNewContext(`${functionSource("renderProgressionButtons")}; result = renderProgressionButtons();`, progressionContext);
 assert.equal(progressionContext.result, "SOLOECHANGESET_OU_MATCH");
 
-assert.match(functionSource("renderResultPanel"), /renderProgressionButtons\(\)/);
-assert.equal((functionSource("renderCenterPlayedCard").match(/renderProgressionButtons\(\)/g) || []).length, 2);
+assert.match(functionSource("renderRallyEndActions"), /renderProgressionButtons\(\)/);
+assert.equal((functionSource("renderCenterPlayedCard").match(/renderProgressionButtons\(\)/g) || []).length, 0);
 const bindingSource = functionSource("bindProgressionButtons");
 for (const action of [
   "data-next-set-exchange",

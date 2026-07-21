@@ -7503,6 +7503,18 @@ h1 {
   backdrop-filter: blur(14px);
 }
 
+.rally-card.completed {
+  border-color: rgba(15, 141, 104, .28);
+  color: #17384a;
+  background: rgba(248, 251, 249, .96);
+  box-shadow: 0 14px 34px rgba(2, 18, 32, .2);
+}
+
+.rally-card.completed .rally-card-header { border-bottom-color: rgba(18, 57, 77, .12); }
+.rally-card.completed .rally-card-header .label { color: #27836b; }
+.rally-card.completed .rally-card-header > div > strong { color: #12394d; }
+.rally-card.completed .rally-full-log-button { border-color: rgba(18, 57, 77, .16); color: #12394d; background: #edf5f3; }
+
 .rally-card-header {
   display: flex;
   align-items: center;
@@ -7526,6 +7538,17 @@ h1 {
 .rally-info-chip span { color: rgba(255, 255, 255, .58); font-size: .58rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
 .rally-info-chip strong { min-width: 0; overflow: hidden; color: #fff; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
 .rally-info-chip small { margin-top: 1px; color: #8ce0bf; font-size: .62rem; font-weight: 850; }
+.rally-card.completed .rally-state { color: #17384a; }
+.rally-card.completed .rally-info-chip { border-right-color: rgba(18, 57, 77, .12); }
+.rally-card.completed .rally-info-chip.primary { background: #edf5f3; }
+.rally-card.completed .rally-info-chip span { color: #6c808b; }
+.rally-card.completed .rally-info-chip strong { color: #12394d; }
+.rally-result-grid .rally-info-chip { min-height: 76px; }
+.rally-next-chip { gap: 5px; }
+.rally-next-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rally-next-actions:empty::after { content: "—"; color: #9bacb4; font-weight: 900; }
+.rally-next-actions .next-exchange-button,
+.rally-next-actions .replay-match-button { width: auto; min-height: 34px; margin: 0; padding: 7px 10px; font-size: .66rem; }
 .rally-context-list { display: grid; gap: 7px; border-top: 1px solid rgba(255, 255, 255, .1); padding: 10px 12px 12px; }
 .rally-context-line { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; align-items: center; border-radius: 9px; padding: 8px 10px; }
 .rally-context-line strong { font-size: .65rem; text-transform: uppercase; }

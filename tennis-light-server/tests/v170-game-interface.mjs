@@ -20,8 +20,8 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /styles\.css\?v=170\.13/);
-assert.match(html, /app\.js\?v=170\.13/);
+assert.match(html, /styles\.css\?v=170\.14/);
+assert.match(html, /app\.js\?v=170\.14/);
 assert.match(html, /id="gameContextStrip"/);
 assert.match(html, /id="gameAssistPanel"/);
 assert.match(html, /Prévisualiser les conséquences/);
@@ -59,8 +59,8 @@ assert.match(functionSource("renderCardAssistPreview"), /Endurance après/);
 assert.match(functionSource("renderCardAssistPreview"), /Puissance BOOST/);
 assert.match(functionSource("renderLog"), /Dernière action importante/);
 assert.match(functionSource("renderActionLogEntry"), /actionLogCardThumbnail/);
-assert.match(functionSource("renderResultPanel"), /result-summary-line/);
-assert.match(functionSource("renderResultPanel"), /winner-/);
+assert.match(functionSource("renderResultPanel"), /classList\.add\("hidden"\)/);
+assert.match(functionSource("renderRallyState"), /rally-result-grid/);
 
 const competitions = functionSource("renderCompetitions");
 assert.doesNotMatch(competitions, /Adversaire :/);
