@@ -8,7 +8,7 @@ const [html, app, server, styles] = await Promise.all([
   readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v149<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
 assert.match(html, /Club House en ligne/);
 assert.doesNotMatch(html, /id="onlineFormatSelect"/);
 assert.doesNotMatch(html, /id="createFriendlyTournamentButton"/);

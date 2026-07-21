@@ -20,12 +20,12 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
 
-const intelligenceSource = functionSource("drawLevelThreeAiIntelligence");
+const intelligenceSource = functionSource("drawLevelSixAiIntelligence");
 const intelligence = (rankIa, random) => {
   const context = { rankIa, Math: { random: () => random } };
-  vm.runInNewContext(`${intelligenceSource}; result = drawLevelThreeAiIntelligence(rankIa);`, context);
+  vm.runInNewContext(`${intelligenceSource}; result = drawLevelSixAiIntelligence(rankIa);`, context);
   return context.result;
 };
 
@@ -75,6 +75,6 @@ const allFailed = runBonusDraw(0.9);
 for (const position of [1, 2, 3, 4]) assert.equal(allFailed[`P${position}`].length, 1);
 for (const position of [5, 6, 7, 8]) assert.equal(allFailed[`P${position}`], undefined);
 
-assert.match(functionSource("buildTournamentAiIntelligenceLevels"), /options\.humanLevel[\s\S]*drawLevelThreeAiIntelligence/);
+assert.match(functionSource("buildTournamentAiIntelligenceLevels"), /humanLevel === 5[\s\S]*drawRankedAiIntelligence[\s\S]*drawLevelSixAiIntelligence/);
 
 console.log("v151 règles spécifiques aux joueurs niveau 3: OK");

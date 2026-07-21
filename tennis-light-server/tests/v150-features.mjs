@@ -6,7 +6,7 @@ const [html, app] = await Promise.all([
   readFile(new URL("../public/app.js", import.meta.url), "utf8"),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v150<\/span>/);
+assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
 assert.match(html, /<p class="label">Tennis Courts Pro Circuit<\/p>/);
 assert.match(html, /DEVENEZ LE GOAT !/);
 assert.doesNotMatch(html, /Barème de parcours/i);

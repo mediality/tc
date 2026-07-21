@@ -7,10 +7,10 @@ const [html, app, styles] = await Promise.all([
   readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
+assert.match(html, /styles\.css\?v=2\.169\.17/);
+assert.match(html, /app\.js\?v=2\.169\.17/);
+assert.match(app, /const CARD_ASSET_VERSION = "2.169.17"/);
 
 assert.match(app, /function showCardLocalPreview\(anchor, imageUrl, label = "Carte", immediate = false\)/);
 assert.doesNotMatch(app, /matchMedia\("\(hover: hover\) and \(pointer: fine\)"\)/);

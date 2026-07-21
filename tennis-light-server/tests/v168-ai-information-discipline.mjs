@@ -20,10 +20,10 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
+assert.match(html, /styles\.css\?v=2\.169\.17/);
+assert.match(html, /app\.js\?v=2\.169\.17/);
+assert.match(app, /const CARD_ASSET_VERSION = "2.169.17"/);
 
 const exposureSource = functionSource(app, "soloInformationExposureProfile");
 const disciplineSource = functionSource(app, "soloCommitmentDiscipline");

@@ -32,9 +32,9 @@ function webpDimensions(buffer) {
   throw new Error(`Flux WebP non pris en charge: ${chunk}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /Tennis Courts Academy <span>v2\.169\.17<\/span>/);
+assert.match(html, /styles\.css\?v=2\.169\.17/);
+assert.match(html, /app\.js\?v=2\.169\.17/);
 
 const webpCards = cardFiles.filter((file) => file.toLowerCase().endsWith(".webp"));
 assert.equal(webpCards.length, 158);
@@ -44,7 +44,7 @@ const dimensions = await Promise.all(webpCards.map(async (file) => ({
 })));
 assert.equal(dimensions.filter(({ width, height }) => width >= 1462 && height >= 2076).length, 158);
 
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(app, /const CARD_ASSET_VERSION = "2.169.17"/);
 assert.match(app, /value\.startsWith\("assets\/cards\/"\) \? `\$\{value\}\?v=\$\{CARD_ASSET_VERSION\}`/);
 assert.match(app, /function fitZoomImageToScreen\(image\)/);
 assert.match(app, /window\.devicePixelRatio/);
