@@ -1467,6 +1467,8 @@ body.spectator-mode .player-panel {
   background: rgba(219, 244, 255, 0.84);
 }
 
+.admin-panel:empty { display: none; }
+
 .admin-panel-header {
   display: flex;
   align-items: center;
@@ -3166,22 +3168,6 @@ h1 {
 .character-endurance-reminder span {
   color: #91443e;
   font-size: 0.66rem;
-}
-
-.ai-nudge-button {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  z-index: 4;
-  min-height: 34px;
-  border: 2px solid rgba(255, 255, 255, 0.86);
-  border-radius: 8px;
-  color: #fff;
-  background: #0f8d68;
-  font-size: 0.76rem;
-  font-weight: 950;
-  box-shadow: 0 10px 18px rgba(10, 32, 44, 0.24);
 }
 
 .character-card img,
@@ -7510,10 +7496,22 @@ h1 {
   box-shadow: 0 14px 34px rgba(2, 18, 32, .2);
 }
 
+.rally-card.completed.rally-end-boost {
+  background: linear-gradient(180deg, rgba(242, 200, 75, .3) 0%, rgba(248, 251, 249, .97) 56%);
+}
+
+.rally-card.completed.rally-end-effect {
+  background: linear-gradient(180deg, rgba(166, 107, 212, .27) 0%, rgba(248, 251, 249, .97) 56%);
+}
+
+.rally-card.completed.rally-end-points {
+  background: linear-gradient(180deg, rgba(68, 179, 135, .26) 0%, rgba(248, 251, 249, .97) 56%);
+}
+
 .rally-card.completed .rally-card-header { border-bottom-color: rgba(18, 57, 77, .12); }
 .rally-card.completed .rally-card-header .label { color: #27836b; }
 .rally-card.completed .rally-card-header > div > strong { color: #12394d; }
-.rally-card.completed .rally-full-log-button { border-color: rgba(18, 57, 77, .16); color: #12394d; background: #edf5f3; }
+.rally-card.completed .rally-full-log-button { border-color: #c5cdd1; color: #344955; background: #e2e6e8; }
 
 .rally-card-header {
   display: flex;
@@ -7528,7 +7526,7 @@ h1 {
 .rally-card-header > div > strong { color: #fff; font-size: 1rem; }
 .rally-status-badge { display: inline-flex; align-items: center; min-height: 30px; border-radius: 999px; padding: 6px 11px; font-size: .68rem; font-weight: 950; text-transform: uppercase; }
 .rally-status-badge.live { color: #06372a; background: #8ce0bf; }
-.rally-status-badge.completed { color: #3b2a00; background: #f2c84b; }
+.rally-status-badge.completed { color: #fff; background: #c83535; box-shadow: 0 4px 10px rgba(150, 26, 26, .2); }
 
 .rally-state { gap: 0; color: #fff; font-size: .84rem; }
 .rally-info-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -7544,6 +7542,22 @@ h1 {
 .rally-card.completed .rally-info-chip span { color: #6c808b; }
 .rally-card.completed .rally-info-chip strong { color: #12394d; }
 .rally-result-grid .rally-info-chip { min-height: 76px; }
+.rally-score-chip { gap: 6px; }
+.rally-end-score-values { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rally-end-score-values strong {
+  overflow: visible;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  line-height: 1;
+  text-overflow: clip;
+}
+.rally-card.completed .rally-end-score-values strong.won-left { border-color: rgba(8, 113, 98, .25); color: #075d51; background: #d8f1e9; }
+.rally-card.completed .rally-end-score-values strong.won-right { border-color: rgba(108, 60, 160, .22); color: #5e348d; background: #eee3f8; }
+.rally-card.completed .rally-end-score-values strong.current { border-color: #087162; color: #fff; background: #087162; box-shadow: 0 5px 12px rgba(8, 113, 98, .2); }
+.rally-end-score-values i { color: #9bacb4; font-style: normal; font-weight: 900; }
+.rally-end-score-empty { color: #9bacb4; font-size: 1.35rem; font-weight: 950; }
 .rally-next-chip { gap: 5px; }
 .rally-next-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .rally-next-actions:empty::after { content: "—"; color: #9bacb4; font-weight: 900; }

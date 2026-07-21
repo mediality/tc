@@ -22,11 +22,11 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(JSON.parse(pkg).version, "2.169.18");
-assert.match(app, /const GAME_VERSION = "v2\.169\.18"/);
-assert.match(html, /Tennis Courts Academy · 2\.169\.18/);
-assert.match(html, /styles\.css\?v=170\.14/);
-assert.match(html, /app\.js\?v=170\.14/);
+assert.equal(JSON.parse(pkg).version, "2.169.19");
+assert.match(app, /const GAME_VERSION = "v2\.169\.19"/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
+assert.match(html, /styles\.css\?v=170\.15/);
+assert.match(html, /app\.js\?v=170\.15/);
 
 const resultPanel = functionSource("renderResultPanel");
 assert.match(resultPanel, /classList\.add\("hidden"\)/);
@@ -43,7 +43,7 @@ assert.doesNotMatch(functionSource("renderCenterPlayedCard"), /renderProgression
 assert.match(functionSource("renderEffectNotice"), /state\.gameOver \|\| !state\.effectNotice/);
 
 const context = vm.createContext({ state: { resultInfo: null } });
-vm.runInContext(`${functionSource("rallyEndConditionLabel")}\n${functionSource("rallyEndScoreText")}`, context);
+vm.runInContext(`${functionSource("rallyEndConditionLabel")}\n${functionSource("rallyEndScoreMarkup")}`, context);
 for (const [winType, expected] of [["power", "Points"], ["boost", "BOOST"], ["smash", "EFFET"]]) {
   context.state.resultInfo = { winType };
   assert.equal(vm.runInContext("rallyEndConditionLabel()", context), expected);
@@ -52,7 +52,9 @@ context.state.resultInfo = {
   winType: "power",
   setMatch: { completedScores: [[6, 4]], score: [2, 1], setOver: false },
 };
-assert.equal(vm.runInContext("rallyEndScoreText()", context), "6–4  2–1");
+const scoreMarkup = vm.runInContext("rallyEndScoreMarkup()", context);
+assert.match(scoreMarkup, /won-left[^>]*>6–4/);
+assert.match(scoreMarkup, /current[^>]*>2–1/);
 
 assert.match(css, /\.rally-card\.completed[\s\S]*background: rgba\(248, 251, 249, \.96\)/);
 assert.match(css, /\.rally-next-actions/);

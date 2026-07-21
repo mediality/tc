@@ -112,9 +112,9 @@ assert.match(css, /\.opponent-inline\.critical-opponent/);
 assert.match(css, /\.confrontation-player-card-frame::after/);
 assert.match(css, /--game-card-radius: 7\.2% \/ 5\.2%/);
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.18/);
-assert.match(html, /styles\.css\?v=170\.14/);
-assert.match(html, /app\.js\?v=170\.14/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
+assert.match(html, /styles\.css\?v=170\.15/);
+assert.match(html, /app\.js\?v=170\.15/);
 
 const profileSource = functionSource("profileMarkup");
 assert.match(profileSource, /<dd>\$\{Number\(ranking\.score_ref \|\| 0\)\}<\/dd><small>4 semaines terminées<\/small>/);

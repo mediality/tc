@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.18";
+const GAME_VERSION = "v2.169.19";
 const CARD_ASSET_VERSION = "169";
 
 function versionCardAsset(value) {
@@ -1719,7 +1719,8 @@ function updateAccessControls() {
     control.classList.toggle("hidden", !hasAdminAccess);
     if ("disabled" in control) control.disabled = !hasAdminAccess;
   });
-  els.adminPanel?.classList.toggle("hidden", !hasAdminAccess);
+  const hasInlineAdminContent = Boolean(els.adminPanel?.childElementCount || els.adminPanel?.textContent?.trim());
+  els.adminPanel?.classList.toggle("hidden", !hasAdminAccess || !hasInlineAdminContent);
   els.proCodePanel?.classList.toggle("hidden", !AUTH_STATE.user || role !== "free");
   if (role !== "free" && els.proCodeStatus) els.proCodeStatus.textContent = "";
   if (!hasAdminAccess) {
@@ -1790,6 +1791,8 @@ function clearAuthenticatedCircuitCaches() {
 
 function refreshAuthenticatedCircuitData(userId) {
   if (!userId || authenticatedUserId() !== userId) return;
+  if (!canAccessProFeatures()) return;
+  loadRanking(1);
 }
 
 function applyAuthenticatedUser(user) {
@@ -6765,7 +6768,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.18");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.19");
 }
 
 function resetSetMatch() {
@@ -14141,26 +14144,40 @@ function rallyEndConditionLabel() {
   return "EFFET";
 }
 
-function rallyEndScoreText() {
+function rallyEndConditionClass() {
+  const condition = rallyEndConditionLabel();
+  if (condition === "BOOST") return "rally-end-boost";
+  if (condition === "EFFET") return "rally-end-effect";
+  return "rally-end-points";
+}
+
+function rallyEndScoreMarkup() {
   if (!state.resultInfo) return "";
   const setMatch = state.resultInfo.setMatch;
+  const scores = [];
   if (setMatch) {
-    const scores = (setMatch.completedScores || []).map((score) => `${Number(score?.[0] || 0)}–${Number(score?.[1] || 0)}`);
+    (setMatch.completedScores || []).forEach((score) => {
+      scores.push({ score: [Number(score?.[0] || 0), Number(score?.[1] || 0)], current: false });
+    });
     if (!setMatch.setOver && Array.isArray(setMatch.score)) {
-      scores.push(`${Number(setMatch.score[0] || 0)}–${Number(setMatch.score[1] || 0)}`);
+      scores.push({ score: [Number(setMatch.score[0] || 0), Number(setMatch.score[1] || 0)], current: true });
     } else if (!scores.length && Array.isArray(setMatch.score)) {
-      scores.push(`${Number(setMatch.score[0] || 0)}–${Number(setMatch.score[1] || 0)}`);
+      scores.push({ score: [Number(setMatch.score[0] || 0), Number(setMatch.score[1] || 0)], current: true });
     }
-    if (scores.length) return scores.join("  ");
   }
-  const exchangeScore = state.resultInfo.setScore;
-  if (exchangeScore) {
+  if (!scores.length && state.resultInfo.setScore) {
+    const exchangeScore = state.resultInfo.setScore;
     const score = [0, 0];
     score[exchangeScore.winner] = Number(exchangeScore.winnerGames || 0);
     score[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
-    return `${score[0]}–${score[1]}`;
+    scores.push({ score, current: true });
   }
-  return "–";
+  if (!scores.length) return '<span class="rally-end-score-empty">—</span>';
+  return `<div class="rally-end-score-values" aria-label="Score du match">${scores.map(({ score, current }, index) => {
+    const scoreClass = current ? "current" : score[0] > score[1] ? "won-left" : "won-right";
+    const label = current ? "Set en cours" : `Set ${index + 1}`;
+    return `<strong class="${scoreClass}" aria-label="${label} : ${score[0]} à ${score[1]}">${score[0]}–${score[1]}</strong>`;
+  }).join('<i aria-hidden="true">·</i>')}</div>`;
 }
 
 function renderRallyEndActions() {
@@ -14191,6 +14208,9 @@ function renderRallyState() {
   const stakes = currentMatchStake();
   const rallyCard = els.rallyState?.closest(".rally-card");
   rallyCard?.classList.toggle("completed", state.gameOver);
+  ["rally-end-boost", "rally-end-effect", "rally-end-points"].forEach((className) => {
+    rallyCard?.classList.toggle(className, Boolean(state.gameOver && className === rallyEndConditionClass()));
+  });
   if (els.rallyPhaseLabel) els.rallyPhaseLabel.textContent = state.gameOver ? "Échange terminé" : "Échange en cours";
   if (els.rallyStatusBadge) {
     els.rallyStatusBadge.textContent = state.gameOver ? "Terminé" : `${displayPlayerName(active)} à jouer`;
@@ -14205,7 +14225,7 @@ function renderRallyState() {
     <div class="rally-info-grid rally-result-grid">
       <div class="rally-info-chip primary"><span>Vainqueur</span><strong>${escapeHtml(playerName(state.resultInfo.winner))}</strong></div>
       <div class="rally-info-chip"><span>Condition</span><strong>${escapeHtml(rallyEndConditionLabel())}</strong></div>
-      <div class="rally-info-chip"><span>Score</span><strong>${escapeHtml(rallyEndScoreText())}</strong></div>
+      <div class="rally-info-chip rally-score-chip"><span>Score</span>${rallyEndScoreMarkup()}</div>
       <div class="rally-info-chip rally-next-chip"><span>Échange suivant</span><div class="rally-next-actions">${renderRallyEndActions()}</div></div>
     </div>
   ` : `
@@ -14290,9 +14310,6 @@ function renderCharacterCard(player, playerIndex) {
   const crown = state.gameOver && state.resultInfo?.winner === playerIndex
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
-  const aiNudge = playerIndex === SOLO_AI.playerIndex && state.activePlayer === playerIndex && !state.gameOver && !SERVER_SYNC.enabled && SOLO_AI.nudgeVisible
-    ? '<button class="ai-nudge-button" type="button" data-force-ai-turn onclick="window.forceSoloAITurn?.()" onpointerdown="window.forceSoloAITurn?.()">Coach Max à jouer</button>'
-    : "";
   const worldRankReminder = state.tournament.active && [1, 2, 3].includes(Number(player.worldRank))
     ? { label: `N°${Number(player.worldRank)} mondial` }
     : null;
@@ -14308,7 +14325,6 @@ function renderCharacterCard(player, playerIndex) {
     <div class="character-zone">
       <div class="character-card" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
-        ${aiNudge}
       </div>
       ${surfaceBonus}
       <div class="character-stats">

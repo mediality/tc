@@ -22,11 +22,11 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.18/);
-assert.match(html, /styles\.css\?v=170\.14/);
-assert.match(html, /app\.js\?v=170\.14/);
-assert.equal(JSON.parse(pkg).version, "2.169.18");
-assert.match(app, /const GAME_VERSION = "v2\.169\.18"/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.19/);
+assert.match(html, /styles\.css\?v=170\.15/);
+assert.match(html, /app\.js\?v=170\.15/);
+assert.equal(JSON.parse(pkg).version, "2.169.19");
+assert.match(app, /const GAME_VERSION = "v2\.169\.19"/);
 
 const levelsContext = vm.createContext({ currentRankingTotalPoints: () => 0, Math });
 vm.runInContext(functionSource("circuitHumanLevel"), levelsContext);
