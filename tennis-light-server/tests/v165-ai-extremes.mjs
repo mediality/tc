@@ -23,7 +23,7 @@ function functionSource(name) {
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
 assert.match(html, /styles\.css\?v=170\.8/);
 assert.match(html, /app\.js\?v=170\.8/);
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 
 const attitude = functionSource("chooseSoloAttitude");
 assert.match(attitude, /intelligence === "legend"\) weights\.opportunistic \+= 4/);

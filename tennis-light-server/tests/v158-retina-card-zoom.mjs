@@ -44,7 +44,7 @@ const dimensions = await Promise.all(webpCards.map(async (file) => ({
 })));
 assert.equal(dimensions.filter(({ width, height }) => width >= 1462 && height >= 2076).length, 158);
 
-assert.match(app, /const CARD_ASSET_VERSION = "169"/);
+assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 assert.match(app, /value\.startsWith\("assets\/cards\/"\) \? `\$\{value\}\?v=\$\{CARD_ASSET_VERSION\}`/);
 assert.match(app, /function fitZoomImageToScreen\(image\)/);
 assert.match(app, /window\.devicePixelRatio/);

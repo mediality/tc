@@ -20,8 +20,8 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /styles\.css\?v=170\.17/);
-assert.match(html, /app\.js\?v=170\.17/);
+assert.match(html, /styles\.css\?v=170\.18/);
+assert.match(html, /app\.js\?v=170\.18/);
 assert.match(html, /id="gameContextStrip"/);
 assert.match(html, /id="gameAssistPanel"/);
 assert.match(html, /Prévisualiser les conséquences/);

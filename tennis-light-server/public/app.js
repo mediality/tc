@@ -1,7 +1,7 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.20";
-const CARD_ASSET_VERSION = "169";
+const GAME_VERSION = "v2.169.21";
+const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -285,15 +285,16 @@ const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV1";
 const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV1";
 const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
 
-const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem"];
+const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
-const PRO_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, "milanVerhaegen"];
+const PRO_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, "milanVerhaegen", "rosaBenavente"];
 const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   tennisHope: "assets/cards/Demo-TC-_0027_Coach-INCONNU.webp",
   coachJu: "assets/cards/Demo-TC-_0028_Coach-JU-LOBBY.webp",
   coachMax: "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.webp",
   coachCarla: "assets/cards/Demo-TC-_0030_Coach-CARLA-LOBBY.webp",
   coachClem: "assets/cards/Demo-TC-_0031_Coach-CLEM-LOBBY.webp",
+  coachHans: "assets/cards/TC-Coach-Hans-LOBBY.webp",
   theoBriancourt: "assets/cards/LOBBY-Briancourt.webp",
   alessandraConti: "assets/cards/LOBBY-Conti.webp",
   saharaJackson: "assets/cards/LOBBY-Jackson.webp",
@@ -315,6 +316,7 @@ const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   daanVermeer: "assets/cards/LOBBY-Daan-Vermeer.webp",
   lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.webp",
   milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.webp",
+  rosaBenavente: "assets/cards/TC-Rosa-Benavente-LOBBY.webp",
 });
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -340,10 +342,29 @@ const NEW_TOURNAMENT_PLAYERS = [
   "daanVermeer",
   "lukasEberhardt",
   "milanVerhaegen",
+  "rosaBenavente",
 ];
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
+  {
+    id: "v16921-rosa-benavente-espana",
+    publishedAt: "2026-07-21",
+    availableAt: "2026-07-21T18:00:00+02:00",
+    title: "Que Viva Espana !",
+    characterId: "rosaBenavente",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
+  },
+  {
+    id: "v16921-coach-hans-staff",
+    publishedAt: "2026-07-22",
+    availableAt: "2026-07-22T08:00:00+02:00",
+    title: "Le staff s’etoffe",
+    characterId: "coachHans",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "S’il y a bien un coach qui a la côte quand on débute, c’est Hans … allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de coeur, pour vous entrainer ou passer en victime expiatoire, à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le circuit pro avec lui. Il fait désormais partie des personnages jouables !",
+  },
   {
     id: "v166-milan-verhaegen-pro-unlock",
     publishedAt: "2026-07-19",
@@ -359,10 +380,11 @@ const AI_SURFACE_PREFERENCES = {
   theoBriancourt: "clay", alessandraConti: "hard", saharaJackson: "clay",
   kjellBlomqvist: "hard", kojiIwata: "grass", elianaMarquez: "grass",
   bryanGoodwin: "hard", calvinBrentwood: "grass", javierRamirez: "clay",
-  petraEckermann: "hard", jonasFalkenried: "hard", yunaSeo: "hard",
-  ikerSalvat: "clay", loganBrooks: "grass", kavyaSaran: "hard",
-  zariaCampbell: "grass", renAoshima: "hard", yasmineElMansouri: "clay",
-  daanVermeer: "grass", lukasEberhardt: "clay", milanVerhaegen: "grass",
+  petraEckermann: "hard", jonasFalkenried: "grass", yunaSeo: "grass",
+  ikerSalvat: "clay", loganBrooks: "hard", kavyaSaran: "grass",
+  zariaCampbell: "hard", renAoshima: "grass", yasmineElMansouri: "clay",
+  daanVermeer: "hard", lukasEberhardt: "hard", milanVerhaegen: "clay",
+  rosaBenavente: "clay",
 };
 const SURFACE_SPECIALISTS = Object.fromEntries(["grass", "hard", "clay"].map((surface) => [
   surface,
@@ -433,6 +455,13 @@ const CHARACTERS = {
     effects: [
       { side: "Bleu", label: "+1 puissance", type: "gainPower", value: 1 },
       { side: "Rose", label: "Récupère autant d'endurance que de coups visibles", type: "recoverEnduranceByShots" },
+    ],
+  },
+  coachHans: {
+    name: "Coach Hans",
+    effects: [
+      { side: "Bleu", label: "Défaussez une carte de votre main et gagnez 3 puissance", type: "discardHandForPower", value: 3 },
+      { side: "Rose", label: "Tous les Coups du prochain tour adverse coûtent 1 endurance de plus", type: "opponentTurnShotExtraCost", value: 1 },
     ],
   },
   theoBriancourt: {
@@ -582,6 +611,13 @@ const CHARACTERS = {
       { side: "Rose", label: "+1 puissance et +1 endurance", type: "gainEnduranceAndPower", endurance: 1, power: 1 },
     ],
   },
+  rosaBenavente: {
+    name: "Rosa Benavente",
+    effects: [
+      { side: "Bleu", label: "+2 puissance si votre adversaire passe", type: "opponentPassPowerBonus", value: 2 },
+      { side: "Rose", label: "Le placement du prochain Coup adverse repart de 0", type: "opponentNextShotBasePlacementZero" },
+    ],
+  },
 };
 
 const CHARACTER_IMAGES = versionCardAsset({
@@ -608,6 +644,10 @@ const CHARACTER_IMAGES = versionCardAsset({
   coachClem: [
     "assets/cards/Demo-TC-_0023_Coach-CLEM-RECTO.webp",
     "assets/cards/Demo-TC-_0024_Coach-CLEM-VERSO.webp",
+  ],
+  coachHans: [
+    "assets/cards/TC-Coach-Hans.webp",
+    "assets/cards/TC-Coach-Hans-VERSO.webp",
   ],
   theoBriancourt: [
     "assets/cards/_0023_BRIANCOURT.webp",
@@ -693,6 +733,10 @@ const CHARACTER_IMAGES = versionCardAsset({
     "assets/cards/TC-new-Milan-Verhaegen.webp",
     "assets/cards/TC-new-Milan-Verhaegen-VERSO.webp",
   ],
+  rosaBenavente: [
+    "assets/cards/TC-Rosa-Benavente.webp",
+    "assets/cards/TC-Rosa-Benavente-VERSO.webp",
+  ],
 });
 
 const MATCH_RESULT_IMAGES = versionCardAsset({
@@ -711,6 +755,14 @@ const MATCH_RESULT_IMAGES = versionCardAsset({
   coachClem: {
     win: "assets/cards/CoachClemWin.webp",
     lose: "assets/cards/CoachClemLoose.webp",
+  },
+  coachHans: {
+    win: "assets/cards/TC-Coach-Hans-WINS.webp",
+    lose: "assets/cards/TC-Coach-Hans-LOSE.webp",
+  },
+  rosaBenavente: {
+    win: "assets/cards/TC-Rosa-Benavente-WINS.webp",
+    lose: "assets/cards/TC-Rosa-Benavente-LOSE.webp",
   },
   theoBriancourt: {
     win: "assets/cards/_0002_BRIANCOURT-WIN.webp",
@@ -1699,8 +1751,19 @@ function canAccessAllCharacters() {
 }
 
 function profileCharacterOptionsForCurrentUser() {
-  if (canAccessAllCharacters()) return FULL_PROFILE_CHARACTER_OPTIONS;
-  return currentUserRole() === "pro" ? PRO_PROFILE_CHARACTER_OPTIONS : PROFILE_CHARACTER_OPTIONS;
+  const unlocked = AUTH_STATE.user?.unlockedCharacters;
+  if (Array.isArray(unlocked) && unlocked.length) {
+    const effectiveUnlocked = new Set(unlocked);
+    if (canAccessProFeatures() && Date.now() >= Date.parse("2026-07-21T18:00:00+02:00")) effectiveUnlocked.add("rosaBenavente");
+    if (canAccessProFeatures() && Date.now() >= Date.parse("2026-07-22T08:00:00+02:00")) effectiveUnlocked.add("coachHans");
+    return FULL_PROFILE_CHARACTER_OPTIONS.filter((characterId) => effectiveUnlocked.has(characterId));
+  }
+  const isAvailable = (id) => (
+    (id !== "rosaBenavente" || Date.now() >= Date.parse("2026-07-21T18:00:00+02:00"))
+    && (id !== "coachHans" || Date.now() >= Date.parse("2026-07-22T08:00:00+02:00"))
+  );
+  if (canAccessAllCharacters()) return FULL_PROFILE_CHARACTER_OPTIONS.filter(isAvailable);
+  return currentUserRole() === "pro" ? PRO_PROFILE_CHARACTER_OPTIONS.filter(isAvailable) : PROFILE_CHARACTER_OPTIONS.filter((id) => id !== "coachHans");
 }
 
 function updateAccessControls() {
@@ -1828,12 +1891,16 @@ function formatGameNewsDate(value) {
 }
 
 function latestGameNews() {
-  return [...GAME_NEWS].sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))[0] || null;
+  return availableGameNews().sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))[0] || null;
+}
+
+function availableGameNews() {
+  return GAME_NEWS.filter((news) => !news.availableAt || Date.now() >= Date.parse(news.availableAt));
 }
 
 function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
-  const newsItems = [...GAME_NEWS]
+  const newsItems = availableGameNews()
     .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))
     .slice(0, 3);
   if (!newsItems.length) {
@@ -1862,7 +1929,7 @@ function renderHomeNewsSection() {
 }
 
 function showGameNewsDialog(newsId) {
-  const news = GAME_NEWS.find((item) => item.id === newsId) || latestGameNews();
+  const news = availableGameNews().find((item) => item.id === newsId) || latestGameNews();
   if (!news || document.querySelector(".pro-news-backdrop")) return;
   const characterId = news.characterId || "milanVerhaegen";
   const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
@@ -6216,6 +6283,8 @@ function createPlayer(name, characterId, nickname = name) {
     nextPowerMultiplierSourceUid: null,
     nextPowerCap: null,
     nextPowerCapSourceUid: null,
+    nextShotBasePlacementZero: false,
+    rosaPassPowerBonus: 0,
     exchangePrecisionBonus: 0,
     exchangePrecisionSources: [],
     exchangePlacementBonus: 0,
@@ -6770,7 +6839,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.20");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.21");
 }
 
 function resetSetMatch() {
@@ -7279,6 +7348,7 @@ function clearNextShotBonuses(player) {
   player.nextPowerMultiplierSourceUid = null;
   player.nextPowerCap = null;
   player.nextPowerCapSourceUid = null;
+  player.nextShotBasePlacementZero = false;
 }
 
 function clearNextAnyCardBonuses(player) {
@@ -7307,7 +7377,8 @@ function getCardStats(player, card, boosted) {
   const permanentPowerBonus = isRemise(card) ? 0 : (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus;
   precision += permanentPrecisionBonus;
-  let placement = card.placement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
+  const basePlacement = !isRemise(card) && player.nextShotBasePlacementZero ? 0 : card.placement;
+  let placement = basePlacement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
   let surfacePowerBonus = 0;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "grassPowerVolleySmash") && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "hardPrecisePower") && precision > 3) surfacePowerBonus += 1;
@@ -8090,9 +8161,15 @@ function scheduleSoloAIWatchdog() {
   SOLO_AI.watchdogTimer = window.setTimeout(() => {
     if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
     if (soloTurnSignature() !== watchedSignature) return;
-    state.log.unshift("Surveillance IA : Coach Max est relancé automatiquement.");
-    forceSoloAITurn();
-  }, 6500);
+    state.log.unshift("Sécurité IA : aucun coup validé après 10 secondes, l’IA passe automatiquement.");
+    state.pendingBoost = null;
+    SOLO_AI.executing = true;
+    resolveSoloPendingChoice(true);
+    if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) {
+      pass(SOLO_AI.playerIndex);
+    }
+    SOLO_AI.executing = false;
+  }, 10000);
 }
 
 function showSoloAINudge() {
@@ -8104,7 +8181,7 @@ function showSoloAINudge() {
   if (SOLO_AI.enabled || state.setMatch.enabled) {
     SOLO_AI.nudgeAutoTimer = window.setTimeout(() => {
       if (state.activePlayer === SOLO_AI.playerIndex && !state.gameOver && !SOLO_AI.executing) {
-        state.log.unshift("Relance automatique de Coach Max après attente.");
+        state.log.unshift("Relance automatique de l’IA après attente.");
         forceSoloAITurn();
       }
     }, 3000);
@@ -8124,14 +8201,20 @@ function forceSoloAITurn() {
   SOLO_AI.executing = false;
   SOLO_AI.nudgeVisible = false;
   SOLO_AI.nudgeWatchedTurn = null;
-  state.log.unshift("Relance de Coach Max.");
+  state.log.unshift("Relance de l’IA.");
   runSoloAITurn();
 }
 
 function resolveSoloPendingChoice(forceClose = false) {
   const playerIndex = SOLO_AI.playerIndex;
   if (state.pendingCoachChoice?.playerIndex === playerIndex) {
-    const chosenCard = [...state.deck].sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
+    const discardMode = state.pendingCoachChoice.mode === "discardHandForPower";
+    const pool = discardMode ? state.players[playerIndex].hand : state.deck;
+    const chosenCard = [...pool].sort((a, b) => (
+      discardMode
+        ? soloCardScore(playerIndex, a) - soloCardScore(playerIndex, b)
+        : soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a)
+    ))[0];
     if (chosenCard) {
       resolveCoachChoice(chosenCard.uid);
     } else if (forceClose) {
@@ -10919,6 +11002,42 @@ function applyCharacterEffect(playerIndex, playedCard) {
     return false;
   }
 
+  if (effect.type === "opponentTurnShotExtraCost") {
+    const value = effect.value ?? 1;
+    const opponent = state.players[opponentOf(playerIndex)];
+    addNextExtraCost(opponent, value, effectSourceUid);
+    state.log.unshift(`${character.name} (${effect.side}) : tous les Coups du prochain tour de ${displayPlayerName(opponent)} coûtent ${value} endurance de plus.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "opponentNextShotBasePlacementZero") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    opponent.nextShotBasePlacementZero = true;
+    state.log.unshift(`${character.name} (${effect.side}) : le placement de base du prochain Coup de ${displayPlayerName(opponent)} est ramené à 0 ; bonus et Remises restent applicables.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "opponentPassPowerBonus") {
+    player.rosaPassPowerBonus = effect.value ?? 2;
+    state.log.unshift(`${character.name} (${effect.side}) : +${player.rosaPassPowerBonus} puissance si l’adversaire passe avant la fin de l’échange.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "discardHandForPower") {
+    if (!player.hand.length) {
+      state.log.unshift(`${character.name} (${effect.side}) : main vide, aucune carte supprimée et aucun gain de puissance.`);
+      setEffectNotice("coach", { name: character.name }, "La carte personnage est retournée, mais l’effet ne se déclenche pas car la main est vide.");
+      return false;
+    }
+    state.pendingCoachChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid, mode: "discardHandForPower", power: effect.value ?? 3 };
+    state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(player)} choisit une carte de sa main à supprimer.`);
+    setEffectNotice("coach", { name: character.name }, effect.label);
+    return true;
+  }
+
   if (effect.type === "nextPowerMultiplier") {
     const value = effect.value ?? 2;
     player.nextPowerMultiplier = Math.max(player.nextPowerMultiplier ?? 1, value);
@@ -11084,12 +11203,14 @@ function applyCharacterEffect(playerIndex, playedCard) {
 
 function resolveCoachChoice(cardUid) {
   if (!state.pendingCoachChoice) return;
-  const { playerIndex, sourcePlayedUid } = state.pendingCoachChoice;
+  const { playerIndex, sourcePlayedUid, mode, power = 3 } = state.pendingCoachChoice;
   if (!canUseSeat(playerIndex)) return;
   markLocalServerDirty(playerIndex);
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
-  const chosen = state.deck.find((card) => card.uid === cardUid);
+  const chosen = mode === "discardHandForPower"
+    ? player.hand.find((card) => card.uid === cardUid)
+    : state.deck.find((card) => card.uid === cardUid);
   const sourceCard = player.played.find((card) => card.playedUid === sourcePlayedUid);
   state.pendingCoachChoice = null;
 
@@ -11099,10 +11220,18 @@ function resolveCoachChoice(cardUid) {
     return;
   }
 
-  state.deck = state.deck.filter((card) => card.uid !== chosen.uid);
-  player.hand.push(chosen);
-  state.log.unshift(`${displayPlayerName(player)} récupère ${chosen.name} grâce à ${characterOf(player).name}.`);
-  setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} rejoint la main.`);
+  if (mode === "discardHandForPower") {
+    player.hand = player.hand.filter((card) => card.uid !== chosen.uid);
+    player.power += power;
+    sourceCard.effectPowerGained = (sourceCard.effectPowerGained ?? 0) + power;
+    state.log.unshift(`${displayPlayerName(player)} supprime ${chosen.name} grâce à ${characterOf(player).name} et gagne +${power} puissance.`);
+    setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} est supprimée : +${power} puissance.`);
+  } else {
+    state.deck = state.deck.filter((card) => card.uid !== chosen.uid);
+    player.hand.push(chosen);
+    state.log.unshift(`${displayPlayerName(player)} récupère ${chosen.name} grâce à ${characterOf(player).name}.`);
+    setEffectNotice("coach", { name: characterOf(player).name }, `${chosen.name} rejoint la main.`);
+  }
   completePlayedCardResolution(
     playerIndex,
     opponentIndex,
@@ -11173,6 +11302,11 @@ function pass(playerIndex, tutorialBypass = false) {
     player: playerLogInfo(player),
     opponent: playerLogInfo(opponent),
   });
+  const rosaBonus = opponent.characterId === "rosaBenavente" ? Number(opponent.rosaPassPowerBonus || 0) : 0;
+  if (rosaBonus > 0) {
+    opponent.power += rosaBonus;
+    state.log.unshift(`Pouvoir de Rosa Benavente : ${displayPlayerName(opponent)} gagne +${rosaBonus} puissance supplémentaire car son adversaire passe.`);
+  }
   if (state.mandatoryPlacement) {
     player.passed = true;
     const reasonLabel = state.mandatoryPlacementReason === "smash" ? "un Smash" : "un BOOST";
@@ -11190,8 +11324,11 @@ function pass(playerIndex, tutorialBypass = false) {
   opponent.power += bonus;
   state.log.unshift(`${displayPlayerName(player)} passe et donne ${bonus} puissance à ${displayPlayerName(opponent)}.`);
   finishGame({
-    reason: `${displayPlayerName(player)} passe. ${displayPlayerName(opponent)} gagne ${bonus} puissance. L'échange s'arrête immédiatement.`,
-    extraPowerDetails: [{ playerIndex: opponentIndex, label: "Pénalité de passe adverse", points: bonus }],
+    reason: `${displayPlayerName(player)} passe. ${displayPlayerName(opponent)} gagne ${bonus} puissance${rosaBonus ? `, plus ${rosaBonus} grâce au pouvoir de Rosa Benavente` : ""}. L'échange s'arrête immédiatement.`,
+    extraPowerDetails: [
+      { playerIndex: opponentIndex, label: "Pénalité de passe adverse", points: bonus },
+      ...(rosaBonus ? [{ playerIndex: opponentIndex, label: "Pouvoir bleu de Rosa Benavente", points: rosaBonus }] : []),
+    ],
   });
 }
 
@@ -15027,7 +15164,7 @@ function renderEffectChoiceModal() {
 function renderCoachChoiceModal() {
   document.querySelector(".coach-choice-backdrop")?.remove();
   if (!state.pendingCoachChoice) return;
-  const { playerIndex } = state.pendingCoachChoice;
+  const { playerIndex, mode } = state.pendingCoachChoice;
   if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
   if (SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex) return;
   const player = state.players[playerIndex];
@@ -15036,10 +15173,10 @@ function renderCoachChoiceModal() {
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte non distribuée">
       <h2>${characterOf(player).name}</h2>
-      <p>Choisis une carte non distribuée à ajouter à la main de ${escapeHtml(displayPlayerName(player))}.</p>
+      <p>${mode === "discardHandForPower" ? `Choisis une carte de la main de ${escapeHtml(displayPlayerName(player))} à supprimer pour gagner 3 puissance.` : `Choisis une carte non distribuée à ajouter à la main de ${escapeHtml(displayPlayerName(player))}.`}</p>
       <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
-        ${state.deck.map((choice) => `
+        ${(mode === "discardHandForPower" ? player.hand : state.deck).map((choice) => `
           <button class="choice-card" type="button" data-coach-choice="${choice.uid}">
             ${renderChoiceCardVisual(choice)}
           </button>

@@ -22,11 +22,11 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(JSON.parse(pkg).version, "2.169.20");
-assert.match(app, /const GAME_VERSION = "v2\.169\.20"/);
-assert.match(html, /Tennis Courts Academy · 2\.169\.20/);
-assert.match(html, /styles\.css\?v=170\.17/);
-assert.match(html, /app\.js\?v=170\.17/);
+assert.equal(JSON.parse(pkg).version, "2.169.21");
+assert.match(app, /const GAME_VERSION = "v2\.169\.21"/);
+assert.match(html, /Tennis Courts Academy · 2\.169\.21/);
+assert.match(html, /styles\.css\?v=170\.18/);
+assert.match(html, /app\.js\?v=170\.18/);
 assert.match(html, /id="rallyScoreDeltaBadge"/);
 
 const badgeContext = vm.createContext({ state: { resultInfo: null } });
@@ -62,4 +62,4 @@ assert.match(css, /\.action-log-result-details/);
 assert.match(css, /\.center-card-wrap\.boosted-center-wrap \+ \.center-progression-actions\s*\{[^}]*margin-top: 140px/);
 assert.match(css, /\.center-progression-actions\s*\{[^}]*z-index: 20/);
 
-console.log("v2.169.20 pastilles de résultat et déroulé détaillé: OK");
+console.log("v2.169.21 pastilles de résultat et déroulé détaillé: OK");
