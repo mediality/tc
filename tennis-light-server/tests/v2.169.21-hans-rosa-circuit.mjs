@@ -29,6 +29,12 @@ assert.match(server, /const totals = new Map\(CIRCUIT_AI_CHARACTER_IDS\.map/);
 assert.match(server, /simulatedAiTournamentPoints/);
 assert.match(app, /\}, 10000\);/);
 assert.match(app, /Sécurité IA : aucun coup validé après 10 secondes/);
+assert.match(app, /function forceSoloBlockedExchangeLoss[\s\S]*winType: boostLoss \? "boost" : "power"/);
+assert.match(app, /gagne l’échange \$\{score\}/);
+assert.match(app, /normalized === "circuit" && level === "amateur" \? "normal" : level/);
+assert.match(app, /si vous passez, Rosa gagne \+\$\{rosaPassBonus\} puissance/);
+assert.match(app, /const remainingAi = rankedAi\.filter\(\(entry\) => !placed\.has\(entry\)\)/);
+assert.match(app, /shuffle\(remainingAi\)\.slice\(0, 8\)/);
 assert.match(css, /\.badge \{[\s\S]*?justify-content: center;[\s\S]*?text-align: center;/);
 assert.match(css, /\.confrontation-player-card-frame \{[^}]*border: 0;/);
 

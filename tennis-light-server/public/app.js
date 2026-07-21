@@ -8160,6 +8160,10 @@ function scheduleSoloAIWatchdog() {
   window.clearTimeout(SOLO_AI.watchdogTimer);
   SOLO_AI.watchdogTimer = window.setTimeout(() => {
     if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+    if (soloTurnIsBlocked(SOLO_AI.playerIndex)) {
+      forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
+      return;
+    }
     if (soloTurnSignature() !== watchedSignature) return;
     state.log.unshift("Sécurité IA : aucun coup validé après 10 secondes, l’IA passe automatiquement.");
     state.pendingBoost = null;
@@ -8170,6 +8174,43 @@ function scheduleSoloAIWatchdog() {
     }
     SOLO_AI.executing = false;
   }, 10000);
+}
+
+function soloTurnIsBlocked(playerIndex) {
+  return state.activePlayer === playerIndex
+    && hasPlayedThisTurn(playerIndex)
+    && !canEndTurn(playerIndex);
+}
+
+function forceSoloBlockedExchangeLoss(playerIndex) {
+  if (state.gameOver || state.activePlayer !== playerIndex) return;
+  const opponentIndex = opponentOf(playerIndex);
+  const boostLoss = state.mandatoryPlacementReason === "boost" || Boolean(state.lastCard?.boosted);
+  state.pendingBoost = null;
+  state.pendingEffectChoice = null;
+  state.pendingRemoveChoice = null;
+  state.pendingCoachChoice = null;
+  state.pendingEndTurnAfterChoice = null;
+  state.players[playerIndex].passed = true;
+  const score = boostLoss ? "3-0" : "2-0";
+  state.log.unshift(`Sécurité IA : ${displayPlayerName(state.players[playerIndex])} est bloqué depuis 10 secondes. Passage forcé, ${displayPlayerName(state.players[opponentIndex])} gagne l’échange ${score}.`);
+  recordAction("pass", {
+    playerIndex,
+    opponentIndex,
+    playerName: displayPlayerName(state.players[playerIndex]),
+    opponentName: displayPlayerName(state.players[opponentIndex]),
+    forced: true,
+    mandatoryPlacement: state.mandatoryPlacement,
+    mandatoryPlacementReason: state.mandatoryPlacementReason,
+    penaltyPowerGiven: 0,
+    constraintsBefore: constraintsLogInfo(),
+  });
+  finishGame({
+    forcedWinner: opponentIndex,
+    ignoreScore: true,
+    winType: boostLoss ? "boost" : "power",
+    reason: `${displayPlayerName(state.players[playerIndex])} reste bloqué après une Remise. Passage forcé : ${displayPlayerName(state.players[opponentIndex])} gagne ${score}.`,
+  });
 }
 
 function showSoloAINudge() {
@@ -8289,18 +8330,18 @@ function drawLevelSixAiIntelligence(rankIa) {
 function circuitPositionAiIntelligence(position, humanLevel) {
   const pos = Number(position || 99999);
   const level = Number(humanLevel || 1);
-  if (level === 1) return pos <= 2 ? "normal" : "amateur";
+  if (level === 1) return "normal";
   if (level === 2) {
     if (pos === 1) return "expert";
-    return pos <= 4 ? "normal" : "amateur";
+    return "normal";
   }
   if (level === 3) {
     if (pos <= 3) return "expert";
-    return pos <= 6 ? "normal" : "amateur";
+    return "normal";
   }
   if (pos === 1) return "champion";
   if (pos <= 4) return "expert";
-  return pos <= 8 ? "normal" : "amateur";
+  return "normal";
 }
 
 function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal", options = {}) {
@@ -8312,18 +8353,16 @@ function buildTournamentAiIntelligenceLevels(entries = [], difficulty = "normal"
   }
   const humanLevel = Number(options.humanLevel || 1);
   const positionByEntry = Object.fromEntries(entries.map((entry, position) => [entry, position]));
-  return Object.fromEntries(
-    rankedAiTournamentEntries(aiEntries).map((entry) => [
-      entry,
-      normalized !== "circuit"
-        ? drawRankedAiIntelligence(tournamentRankIa(entry))
-        : humanLevel <= 4
-          ? circuitPositionAiIntelligence(positionByEntry[entry], humanLevel)
-          : humanLevel === 5
-            ? drawRankedAiIntelligence(tournamentRankIa(entry))
-            : drawLevelSixAiIntelligence(tournamentRankIa(entry)),
-    ]),
-  );
+  return Object.fromEntries(rankedAiTournamentEntries(aiEntries).map((entry) => {
+    const level = normalized !== "circuit"
+      ? drawRankedAiIntelligence(tournamentRankIa(entry))
+      : humanLevel <= 4
+        ? circuitPositionAiIntelligence(positionByEntry[entry], humanLevel)
+        : humanLevel === 5
+          ? drawRankedAiIntelligence(tournamentRankIa(entry))
+          : drawLevelSixAiIntelligence(tournamentRankIa(entry));
+    return [entry, normalized === "circuit" && level === "amateur" ? "normal" : level];
+  }));
 }
 
 function aiIntelligenceBadgeMarkup(entry) {
@@ -14755,6 +14794,8 @@ function activeEffectBadges(playerIndex) {
   if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte: +${player.nextAnyPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextAnyPlacementSources) });
   if (player.nextDiscount) badges.push({ text: `Prochain coup: -${player.nextDiscount} endurance`, type: "effect", sourceUid: preferredSourceUid(player.nextDiscountSources) });
   if (player.nextExtraCost) badges.push({ text: `Prochain coup: +${player.nextExtraCost} endurance`, type: "effect", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
+  const rosaPassBonus = Number(state.players[opponentOf(playerIndex)]?.rosaPassPowerBonus || 0);
+  if (rosaPassBonus > 0) badges.push({ text: `Contrainte échange: si vous passez, Rosa gagne +${rosaPassBonus} puissance`, type: "constraint" });
   if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain coup: puissance x${player.nextPowerMultiplier}`, type: "effect", sourceUid: player.nextPowerMultiplierSourceUid });
   if (player.exchangePrecisionBonus) badges.push({ text: `Échange: +${player.exchangePrecisionBonus} précision`, type: "effect", sourceUid: preferredSourceUid(player.exchangePrecisionSources) });
   if (player.exchangePlacementBonus) badges.push({ text: `Échange: +${player.exchangePlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.exchangePlacementSources) });
