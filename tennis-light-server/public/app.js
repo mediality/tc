@@ -1152,139 +1152,140 @@ const TUTORIAL_NARRATORS = {
 const TUTORIAL_MODULES = {
   basics: {
     id: "module-1-basics",
-    lesson: "Académie · Leçon 1",
-    title: "Les Bases du Jeu",
+    lesson: "Académie · Module 1",
+    title: "Découverte de Tennis Courts Academy",
     narrator: "coachJu",
-    scenario: "base",
-    totalDisplaySteps: 12,
+    scenario: "interface",
+    readOnly: true,
+    initialLog: ["Le journal d'échange affichera ici toutes les actions du point."],
+    totalDisplaySteps: 8,
     steps: [
       {
-        id: "m1-1-part-1",
+        id: "m1-1-welcome",
         displayStep: 1,
-        part: "Partie 1/2",
-        title: "Bienvenue à l'Académie",
+        title: "Bienvenue",
         text: [
-          "Bienvenue dans Tennis Courts Academy ! Ici, tu vas apprendre en jouant.",
-          "Je suis Coach Ju, le créateur de Tennis Courts. Je vais t'accompagner tout au long de ton apprentissage. Prêt à entrer sur le court ?",
+          "Bonjour et bienvenue dans Tennis Courts Academy !",
+          "Cette Académie est un mode d'apprentissage conçu pour te faire découvrir progressivement Tennis Courts.",
+          "Pour simplifier ton apprentissage, nous utiliserons un deck unique de 18 cartes partagé entre les deux joueurs.",
+          "Dans la version complète de Tennis Courts, chaque joueur possède son propre deck de 48 cartes ainsi que son personnage. Tu découvriras alors beaucoup plus de techniques et de tactiques.",
+          "Je suis Coach Ju, le créateur du jeu, et je serai ton entraîneur pendant toute cette Académie.",
         ],
       },
       {
-        id: "m1-1-part-2",
-        displayStep: 1,
-        part: "Partie 2/2",
-        title: "Le format de l'Académie",
-        text: "Pour cette leçon, nous partageons un deck unique de 18 cartes. Dans le jeu complet, chaque joueur possède son deck de 48 cartes et son propre personnage.",
-      },
-      {
-        id: "m1-2",
+        id: "m1-2-board",
         displayStep: 2,
-        title: "L'endurance",
-        text: "Avant de jouer ton premier échange, découvrons l'élément le plus important : l'endurance.",
+        title: "Découverte du plateau",
+        text: [
+          "Avant de jouer, faisons un rapide tour du plateau.",
+          "À gauche se trouve ton personnage. À droite, ton adversaire. Au centre, la dernière carte jouée.",
+        ],
+        focus: [
+          { target: "character", playerIndex: 0 },
+          { target: "character", playerIndex: 1 },
+          { target: "lastCard" },
+        ],
       },
       {
-        id: "m1-3",
+        id: "m1-3-counters",
         displayStep: 3,
-        title: "Ta réserve d'Endurance",
+        title: "Les compteurs",
         text: [
-          "La plupart des joueurs commencent un échange avec 7 points d'endurance.",
-          "Chaque carte jouée consomme une partie de cette réserve. Plus un coup est exigeant, plus il te fatigue.",
+          "Deux informations sont essentielles.",
+          "La puissance te permet de gagner un échange. L'endurance est la ressource qui te permet de jouer tes cartes.",
+          "Lorsque ton endurance est épuisée, tu ne peux plus jouer de nouveau coup.",
         ],
-        focus: [{ target: "endurance", playerIndex: 0 }],
+        focus: [
+          { target: "power", playerIndex: 0 },
+          { target: "endurance", playerIndex: 0 },
+        ],
       },
       {
-        id: "m1-4",
+        id: "m1-4-card-reading",
         displayStep: 4,
-        title: "Le coût d'une carte",
-        text: "En haut à gauche de la carte se trouve son coût en endurance. C'est le nombre de points à dépenser pour la jouer.",
-        showcase: { cardId: "service-coup-droit", pointer: "cost", label: "Coût" },
-      },
-      {
-        id: "m1-5",
-        displayStep: 5,
-        title: "La puissance",
-        text: "En haut à droite se trouve la puissance. Chaque carte jouée l'ajoute à ton total. Termine l'échange avec plus de puissance que ton adversaire pour gagner.",
-        showcase: { cardId: "service-coup-droit", pointer: "power", label: "Puissance" },
-      },
-      {
-        id: "m1-6",
-        displayStep: 6,
-        title: "À toi de servir",
-        text: "Tu es au service. Sélectionne la carte Service dans ta main.",
-        action: { kind: "selectCard", playerIndex: 0, cardId: "service-coup-droit" },
-        error: "Pour commencer un échange, il faut toujours sélectionner la carte Service.",
-      },
-      {
-        id: "m1-7",
-        displayStep: 7,
-        title: "Joue ton service",
-        text: "Parfait. Clique maintenant sur Jouer pour effectuer ton service.",
-        action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal", requiresSelection: true },
-      },
-      {
-        id: "m1-8",
-        displayStep: 8,
-        title: "La réponse adverse",
-        text: "Très bien. Je réponds à ton service. Comme dans un véritable échange, nous jouons chacun notre tour.",
-        autoDelayMs: 2000,
-        auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
-      },
-      {
-        id: "m1-9-select",
-        displayStep: 9,
-        title: "Continue l'échange",
-        text: "À toi. Sélectionne maintenant Coup droit.",
-        action: { kind: "selectCard", playerIndex: 0, cardId: "coup-droit-2-2-2" },
-        error: "Pour cette étape, sélectionne Coup droit. Les autres cartes serviront plus tard.",
-      },
-      {
-        id: "m1-9-play",
-        displayStep: 9,
-        title: "Continue l'échange",
-        text: "Coup droit est sélectionné. Clique sur Jouer.",
-        action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal", requiresSelection: true },
-      },
-      {
-        id: "m1-10",
-        displayStep: 10,
-        title: "La puissance augmente",
-        text: "Je réponds à nouveau. Chaque carte augmente la puissance totale de son joueur. À la fin, nos deux totaux seront comparés.",
-        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
-        autoDelayMs: 2000,
-        auto: { kind: "play", playerIndex: 1, cardId: "volee-2-2-3", mode: "normal" },
-      },
-      {
-        id: "m1-11",
-        displayStep: 11,
-        title: "Je passe",
+        title: "Lecture d'une carte",
         text: [
-          "Le reste de l'échange vient d'être joué automatiquement. J'ai décidé de passer : l'échange prend fin.",
-          "Le joueur qui passe offre à son adversaire un bonus égal à son endurance restante, avec un minimum de 2 points. Nous approfondirons cette mécanique dans une prochaine leçon.",
+          "Regardons une carte.",
+          "En haut à gauche : son coût en endurance. En haut à droite : la puissance qu'elle rapporte.",
         ],
-        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
-        auto: [
-          { kind: "play", playerIndex: 0, cardId: "revers-3-3-3", mode: "normal" },
-          { kind: "pass", playerIndex: 1 },
-        ],
+        showcase: {
+          cardId: "revers-3-3-3",
+          pointers: [
+            { target: "cost", label: "Coût" },
+            { target: "power", label: "Puissance" },
+          ],
+        },
       },
       {
-        id: "m1-12",
-        displayStep: 12,
-        title: "Premier échange remporté",
-        text: "Bravo ! Tu viens de remporter ton premier échange. Tu connais maintenant les bases de Tennis Courts.",
-        summary: [
-          "Utiliser ton endurance",
-          "Jouer une carte",
-          "Accumuler de la puissance",
-          "Terminer et gagner un échange",
+        id: "m1-5-card-details",
+        displayStep: 5,
+        title: "Les autres informations",
+        text: [
+          "Sous la puissance se trouvent la Précision et le Placement. Nous les découvrirons dans les prochaines leçons.",
+          "Au centre de la carte se trouve son effet.",
+          "En bas de certaines cartes se trouve une zone Boost. Nous y reviendrons plus tard.",
         ],
-        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
+        showcase: {
+          cardId: "revers-3-3-3",
+          pointers: [
+            { target: "precision", label: "Précision" },
+            { target: "placement", label: "Placement" },
+            { target: "effect", label: "Effet" },
+            { target: "boost", label: "Zone Boost" },
+          ],
+        },
+      },
+      {
+        id: "m1-6-buttons",
+        displayStep: 6,
+        title: "Les boutons",
+        text: [
+          "Sous tes cartes se trouvent les boutons d'action.",
+          "Le bouton Jouer permet de jouer une carte.",
+          "Le bouton Boost ne s'active que lorsque les conditions de Boost sont réunies. Nous apprendrons cette mécanique plus tard.",
+        ],
+        focus: [
+          { target: "play", playerIndex: 0, cardId: "revers-3-3-3" },
+          { target: "boost", playerIndex: 0, cardId: "revers-3-3-3" },
+        ],
+        dialoguePosition: "top",
+      },
+      {
+        id: "m1-7-history",
+        displayStep: 7,
+        title: "Dernière carte et historique",
+        text: [
+          "Au centre du plateau, tu peux consulter la dernière carte jouée. Tu peux également l'agrandir.",
+          "Le journal d'échange te permet de revoir toutes les actions effectuées pendant le point.",
+        ],
+        focus: [
+          { target: "lastCard" },
+          { target: "history" },
+        ],
+        dialoguePosition: "top",
+      },
+      {
+        id: "m1-8-conclusion",
+        displayStep: 8,
+        title: "Conclusion",
+        text: [
+          "Parfait !",
+          "Tu connais maintenant les principaux éléments de l'interface.",
+          "Dans la prochaine leçon, nous entrerons sur le court pour jouer notre premier échange ensemble.",
+        ],
         final: true,
       },
     ],
   },
 };
 
+const TUTORIAL_ENGINE = window.TennisCourtsTutorialEngine;
+if (!TUTORIAL_ENGINE) throw new Error("Le moteur du tutoriel n'a pas été chargé.");
+TUTORIAL_ENGINE.assertValidModules(TUTORIAL_MODULES);
+const TUTORIAL_PROGRESS_STORAGE_PREFIX = "tennisCourtsTutorialProgressV1";
+
 let tutorialAutoTimer = null;
+let tutorialProgressSaveTimer = null;
 let opponentHandRevealTimer = null;
 let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
@@ -1346,17 +1347,7 @@ const state = {
     matchOver: false,
     matchWinner: null,
   },
-  tutorial: {
-    active: false,
-    moduleId: "basics",
-    stepIndex: 0,
-    completed: false,
-    autoCompletedIds: [],
-    selectedCardUid: null,
-    error: null,
-    scrolledStepId: null,
-    pendingAutoStepId: null,
-  },
+  tutorial: TUTORIAL_ENGINE.createState({ moduleId: "basics" }, TUTORIAL_MODULES),
 };
 
 const els = {
@@ -1878,6 +1869,7 @@ function applyAuthenticatedUser(user) {
     window.setTimeout(uploadPendingHumanMatchLogs, 250);
     if (accountChanged) refreshAuthenticatedCircuitData(nextUserId);
   }
+  if (accountChanged) window.setTimeout(synchronizeTutorialProgress, 0);
 }
 
 function formatGameNewsDate(value) {
@@ -3452,7 +3444,7 @@ async function saveTournamentProgress() {
     humanMatchTelemetry: cloneData(HUMAN_MATCH_TELEMETRY.active),
   };
   if (save.state?.tutorial) {
-    save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
+    save.state.tutorial = inactiveTutorialState(save.state.tutorial);
   }
   const period = {
     season: state.tournament.competitionSeason,
@@ -3879,16 +3871,80 @@ function tutorialHand(cardIds, prefix) {
 }
 
 function tutorialModule() {
-  return TUTORIAL_MODULES[state.tutorial.moduleId] ?? TUTORIAL_MODULES.basics;
+  return TUTORIAL_ENGINE.currentModule(state.tutorial, TUTORIAL_MODULES) ?? TUTORIAL_MODULES.basics;
 }
 
 function tutorialStep() {
-  return state.tutorial.active ? tutorialModule().steps[state.tutorial.stepIndex] ?? null : null;
+  return TUTORIAL_ENGINE.currentStep(state.tutorial, TUTORIAL_MODULES);
 }
 
 function tutorialExpectedAction() {
-  const step = tutorialStep();
-  return step?.action ?? null;
+  return TUTORIAL_ENGINE.expectedValidation(state.tutorial, TUTORIAL_MODULES);
+}
+
+function tutorialProgressStorageKey(userId = authenticatedUserId()) {
+  return `${TUTORIAL_PROGRESS_STORAGE_PREFIX}:${userId || "guest"}`;
+}
+
+function readLocalTutorialProgress(userId = authenticatedUserId()) {
+  try {
+    return JSON.parse(localStorage.getItem(tutorialProgressStorageKey(userId)) || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+function restoreLocalTutorialProgress(userId = authenticatedUserId()) {
+  const progress = readLocalTutorialProgress(userId);
+  if (!progress) return false;
+  state.tutorial = TUTORIAL_ENGINE.restore(progress, TUTORIAL_MODULES);
+  return true;
+}
+
+async function persistTutorialProgress({ remote = true } = {}) {
+  const progress = TUTORIAL_ENGINE.snapshot(state.tutorial);
+  try {
+    localStorage.setItem(tutorialProgressStorageKey(), JSON.stringify(progress));
+  } catch (error) {
+    state.log?.unshift?.(`Sauvegarde locale du tutoriel impossible : ${error.message}`);
+  }
+  if (!remote || !AUTH_STATE.user) return progress;
+  try {
+    await authRequest("/api/tutorial/progress", { progress }, { method: "PUT" });
+  } catch (error) {
+    state.log?.unshift?.(`Sauvegarde serveur du tutoriel impossible : ${error.message}`);
+  }
+  return progress;
+}
+
+function scheduleTutorialProgressSave() {
+  window.clearTimeout(tutorialProgressSaveTimer);
+  tutorialProgressSaveTimer = window.setTimeout(() => {
+    tutorialProgressSaveTimer = null;
+    persistTutorialProgress();
+  }, 120);
+}
+
+async function synchronizeTutorialProgress() {
+  if (!AUTH_STATE.user) {
+    restoreLocalTutorialProgress(null);
+    return;
+  }
+  if (state.tutorial.active) {
+    await persistTutorialProgress();
+    return;
+  }
+  try {
+    const data = await authRequest("/api/tutorial/progress");
+    if (data.progress) {
+      state.tutorial = TUTORIAL_ENGINE.restore(data.progress, TUTORIAL_MODULES);
+      localStorage.setItem(tutorialProgressStorageKey(), JSON.stringify(TUTORIAL_ENGINE.snapshot(state.tutorial)));
+    } else {
+      await persistTutorialProgress();
+    }
+  } catch (error) {
+    restoreLocalTutorialProgress();
+  }
 }
 
 function tutorialAllowsPlay(playerIndex, card, mode, boosted = false) {
@@ -3973,26 +4029,20 @@ function clearTutorialAutoTimer() {
   if (state.tutorial) state.tutorial.pendingAutoStepId = null;
 }
 
-function inactiveTutorialState(completed = false) {
-  return {
-    active: false,
-    moduleId: "basics",
-    stepIndex: 0,
-    completed: Boolean(completed),
-    autoCompletedIds: [],
-    selectedCardUid: null,
-    error: null,
-    scrolledStepId: null,
-    pendingAutoStepId: null,
-  };
+function inactiveTutorialState(progress = state.tutorial) {
+  const source = typeof progress === "boolean"
+    ? { ...state.tutorial, academyCompleted: progress, completed: progress }
+    : progress;
+  return TUTORIAL_ENGINE.deactivate(source, TUTORIAL_MODULES);
 }
 
 function resetTutorialMode() {
   clearTutorialAutoTimer();
-  state.tutorial = inactiveTutorialState(state.tutorial?.completed);
-  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending");
+  state.tutorial = inactiveTutorialState(state.tutorial);
+  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
   els.tutorialOverlay?.classList.add("hidden");
   if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
+  scheduleTutorialProgressSave();
 }
 
 function startTutorial(moduleId = "basics") {
@@ -4010,30 +4060,19 @@ function startTutorial(moduleId = "basics") {
   setupTutorialScenario(module.scenario);
   state.server = 0;
   state.activePlayer = 0;
-  state.tutorial = {
-    active: true,
-    moduleId: selectedModuleId,
-    stepIndex: 0,
-    completed: false,
-    autoCompletedIds: [],
-    selectedCardUid: null,
-    error: null,
-    scrolledStepId: null,
-    pendingAutoStepId: null,
-  };
-  state.log = ["Tutoriel lancé."];
+  state.tutorial = TUTORIAL_ENGINE.start(state.tutorial, TUTORIAL_MODULES, selectedModuleId);
+  state.log = module.initialLog ? [...module.initialLog] : ["Tutoriel lancé."];
   captureTurnSnapshot();
   showGameScreen();
   runTutorialAutoSteps();
   render();
+  scheduleTutorialProgressSave();
 }
 
 function completeTutorialAction(action) {
   if (!state.tutorial.active) return;
   const expected = tutorialExpectedAction();
-  if (!expected || expected.kind !== action.kind || expected.playerIndex !== action.playerIndex) return;
-  if (["play", "selectCard"].includes(expected.kind) && expected.cardId !== action.cardId) return;
-  if (expected.kind === "play" && expected.mode !== action.mode) return;
+  if (!TUTORIAL_ENGINE.validationMatches(expected, action)) return;
   state.tutorial.error = null;
   if (expected.kind === "play") state.tutorial.selectedCardUid = null;
   advanceTutorial();
@@ -4042,15 +4081,23 @@ function completeTutorialAction(action) {
 function advanceTutorial() {
   if (!state.tutorial.active) return;
   clearTutorialAutoTimer();
-  state.tutorial.stepIndex += 1;
+  state.tutorial = TUTORIAL_ENGINE.advance(state.tutorial, TUTORIAL_MODULES);
   state.tutorial.error = null;
   runTutorialAutoSteps();
   render();
+  scheduleTutorialProgressSave();
 }
 
 function finishTutorial() {
-  state.tutorial.completed = true;
-  resetTutorialMode();
+  const module = tutorialModule();
+  state.tutorial = TUTORIAL_ENGINE.completeModule(state.tutorial, TUTORIAL_MODULES, {
+    academyCompleted: Boolean(module.completesAcademy),
+  });
+  clearTutorialAutoTimer();
+  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
+  els.tutorialOverlay?.classList.add("hidden");
+  if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
+  scheduleTutorialProgressSave();
   showMenuScreen();
   render();
 }
@@ -4178,6 +4225,18 @@ function setupTutorialScenario(scenario) {
       0,
       0,
     );
+  } else if (scenario === "interface") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["service-coup-droit", "coup-droit-2-2-2", "revers-3-3-3", "volee-2-2-3", "smash-4-2-1", "joker"], "interface-edt"),
+        tutorialHand(["passing-1-1-4", "amortie-2-1-4", "lob-2-0-4", "double", "revers-5-4-1", "volee-3-4-1"], "interface-ju"),
+      ],
+      0,
+      0,
+    );
+    state.latestPlayedCard = createTutorialPlayedCard("revers-3-3-3", 1);
+    state.lastCard = null;
   } else if (scenario === "points") {
     resetTutorialExchange(
       [edt, coachJu],
@@ -4506,7 +4565,7 @@ function saveAiClubHouseProgress() {
     // reprendre la compétition au même échange.
     humanMatchTelemetry: null,
   };
-  if (save.state?.tutorial) save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
+  if (save.state?.tutorial) save.state.tutorial = inactiveTutorialState(save.state.tutorial);
   try {
     localStorage.setItem(aiClubHouseSaveKey(), JSON.stringify(save));
     return true;
@@ -13613,7 +13672,7 @@ function renderTutorialOverlay() {
   if (!els.tutorialOverlay) return;
   const step = tutorialStep();
   if (!state.tutorial.active || !step) {
-    document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending");
+    document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
     els.tutorialOverlay.classList.add("hidden");
     els.tutorialOverlay.innerHTML = "";
     return;
@@ -13624,13 +13683,15 @@ function renderTutorialOverlay() {
   const progress = step.displayStep ? ` · Étape ${step.displayStep}/${module.totalDisplaySteps}${step.part ? ` · ${step.part}` : ""}` : "";
   const autoPending = state.tutorial.pendingAutoStepId === step.id;
   document.body.classList.add("tutorial-running");
+  document.body.classList.toggle("tutorial-readonly", Boolean(module.readOnly));
+  document.body.classList.toggle("tutorial-interface-tour", module.scenario === "interface");
   document.body.classList.toggle("tutorial-awaiting-action", Boolean(action));
   document.body.classList.toggle("tutorial-showcase-active", Boolean(step.showcase));
   document.body.classList.toggle("tutorial-auto-pending", autoPending);
   els.tutorialOverlay.classList.remove("hidden");
   els.tutorialOverlay.innerHTML = `
     ${renderTutorialShowcase(step.showcase)}
-    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""}" aria-label="Tutoriel" aria-live="polite">
+    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""} ${step.dialoguePosition === "top" ? "tutorial-dialogue-top" : ""}" aria-label="Tutoriel" aria-live="polite">
       <div class="tutorial-dialogue-content">
         <p class="tutorial-kicker">${module.lesson}${progress}</p>
         <div class="tutorial-speaker-line"><strong>${narrator.name}</strong><span>${narrator.role}</span></div>
@@ -13662,10 +13723,11 @@ function renderTutorialOverlay() {
       const dialogue = document.querySelector(".tutorial-dialogue");
       if (!target || !dialogue) return;
       const targetRect = target.getBoundingClientRect();
-      const dialogueTop = dialogue.getBoundingClientRect().top;
-      const availableHeight = Math.max(160, dialogueTop);
+      const dialogueRect = dialogue.getBoundingClientRect();
       const targetDocumentTop = window.scrollY + targetRect.top;
-      const nextScrollTop = Math.max(0, targetDocumentTop - ((availableHeight - targetRect.height) / 2));
+      const nextScrollTop = step.dialoguePosition === "top"
+        ? Math.max(0, targetDocumentTop - dialogueRect.bottom - 24)
+        : Math.max(0, targetDocumentTop - ((Math.max(160, dialogueRect.top) - targetRect.height) / 2));
       window.scrollTo({ top: nextScrollTop, behavior: "auto" });
     });
   }
@@ -13681,11 +13743,17 @@ function renderTutorialShowcase(showcase) {
   const card = CARD_LIBRARY.find((item) => item.id === showcase.cardId);
   const imageUrl = card ? CARD_IMAGES[card.id] : null;
   if (!card || !imageUrl) return "";
-  const pointer = ["cost", "power"].includes(showcase.pointer) ? showcase.pointer : "cost";
+  const allowedTargets = new Set(["cost", "power", "precision", "placement", "effect", "boost"]);
+  const pointers = Array.isArray(showcase.pointers)
+    ? showcase.pointers
+    : [{ target: showcase.pointer, label: showcase.label }];
   return `
     <div class="tutorial-card-showcase" aria-label="Carte ${escapeHtml(card.name)} agrandie">
       <img src="${imageUrl}" alt="${escapeHtml(card.name)} - ${escapeHtml(card.subtitle ?? card.family)}" />
-      <span class="tutorial-showcase-pointer ${pointer}">${escapeHtml(showcase.label ?? "Regarde ici")}</span>
+      ${pointers.map((pointer) => {
+        const target = allowedTargets.has(pointer?.target) ? pointer.target : "cost";
+        return `<span class="tutorial-showcase-pointer ${target}">${escapeHtml(pointer?.label ?? "Regarde ici")}</span>`;
+      }).join("")}
     </div>
   `;
 }
@@ -14548,7 +14616,7 @@ function renderCharacterCard(player, playerIndex) {
     : "";
   return `
     <div class="character-zone">
-      <div class="character-card" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+      <div class="character-card${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
       </div>
       ${surfaceBonus}
@@ -14761,6 +14829,7 @@ function nextSoloExchange() {
 }
 
 function renderCenterPlayedCard() {
+  els.centerPlayedCard.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("lastCard", null)));
   if (!state.latestPlayedCard) {
     els.centerPlayedCard.innerHTML = `
       ${renderCenterSetScore()}
@@ -15015,7 +15084,7 @@ function renderCard(playerIndex, card) {
           <button class="boost-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
         ` : `
           <button class="play-button${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
-          <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
+          <button class="boost-button${tutorialFocusClass("boost", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
       ${(placementIssue || remisePlacementIssue) && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
@@ -15093,6 +15162,7 @@ function renderActionLogEntry(line, index, compact = false) {
 }
 
 function renderLog() {
+  els.log.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("history", null)));
   const latestEntry = state.log.find((line) => actionLogEntryType(line) !== "system") || state.log[0];
   els.log.innerHTML = `
     <div class="action-log-header">
@@ -15165,9 +15235,10 @@ function renderBoostModal() {
     button.addEventListener("click", () => {
       const sacrificeUid = button.dataset.sacrifice;
       const boostCard = player.hand.find((item) => item.uid === cardUid);
+      const sacrificeCard = player.hand.find((item) => item.uid === sacrificeUid);
       state.pendingBoost = null;
       playCard(playerIndex, cardUid, true, sacrificeUid);
-      completeTutorialAction({ kind: "play", playerIndex, cardId: boostCard?.id, mode: "boost" });
+      completeTutorialAction({ kind: "play", playerIndex, cardId: boostCard?.id, mode: "boost", sacrificeCardId: sacrificeCard?.id });
     });
   });
 }
@@ -15487,7 +15558,9 @@ function initMenu() {
   document.querySelectorAll("[data-start-solo]").forEach((button) => {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
-  document.querySelector("[data-start-tutorial]")?.addEventListener("click", () => startTutorial());
+  document.querySelectorAll("[data-start-tutorial]").forEach((button) => {
+    button.addEventListener("click", () => startTutorial());
+  });
   els.openAiClubHouseButton?.addEventListener("click", showAiClubHouseScreen);
   els.aiClubHouseHomeButton?.addEventListener("click", showMenuScreen);
   els.aiClubHouseLogoButton?.addEventListener("click", showMenuScreen);
@@ -15615,6 +15688,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) restoreFriendlyTournamentPresence();
 });
 newGame();
+restoreLocalTutorialProgress(null);
 initMenu();
 initFriendlyTournament();
 initServerSync();

@@ -171,6 +171,7 @@ const authMemory = {
   aiResults: new Map(),
   appState: new Map(),
   humanMatchLogs: new Map(),
+  tutorialProgress: new Map(),
 };
 const db = PgPool && process.env.DATABASE_URL
   ? new PgPool({
@@ -1430,6 +1431,13 @@ async function initAuthStorage() {
     )
   `);
   await db.query(`
+    CREATE TABLE IF NOT EXISTS tutorial_progress (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      progress_json JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_tournament_resets (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       season_number INTEGER NOT NULL,
@@ -2665,9 +2673,72 @@ async function markNewsSeen(user, newsId) {
   return true;
 }
 
+function normalizeTutorialProgress(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const cleanIdentifier = (identifier) => {
+    const text = identifier == null ? "" : String(identifier).trim();
+    return text ? text.slice(0, 120) : null;
+  };
+  const completedModules = [...new Set((Array.isArray(source.completedModules) ? source.completedModules : [])
+    .map(cleanIdentifier)
+    .filter(Boolean))].slice(0, 100);
+  return {
+    schemaVersion: 1,
+    moduleId: cleanIdentifier(source.moduleId),
+    stepId: cleanIdentifier(source.stepId),
+    completedModules,
+    academyCompleted: Boolean(source.academyCompleted),
+  };
+}
+
 async function handleAuth(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/me") {
     sendJson(res, 200, { user: publicUser(await currentUser(req)) });
+    return true;
+  }
+
+  if (url.pathname === "/api/tutorial/progress") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    if (req.method === "GET") {
+      if (db) {
+        const result = await db.query("SELECT progress_json, updated_at FROM tutorial_progress WHERE user_id = $1", [user.id]);
+        const row = result.rows[0] || null;
+        sendJson(res, 200, { progress: row?.progress_json ?? null, updatedAt: row?.updated_at ?? null });
+      } else {
+        const saved = authMemory.tutorialProgress.get(String(user.id)) || null;
+        sendJson(res, 200, { progress: saved?.progress ?? null, updatedAt: saved?.updatedAt ?? null });
+      }
+      return true;
+    }
+    if (req.method === "PUT") {
+      const payload = await readJson(req);
+      const progress = normalizeTutorialProgress(payload.progress);
+      const updatedAt = new Date().toISOString();
+      if (db) {
+        await db.query(`
+          INSERT INTO tutorial_progress (user_id, progress_json, updated_at)
+          VALUES ($1, $2::jsonb, NOW())
+          ON CONFLICT (user_id) DO UPDATE
+            SET progress_json = EXCLUDED.progress_json,
+                updated_at = NOW()
+        `, [user.id, JSON.stringify(progress)]);
+      } else {
+        authMemory.tutorialProgress.set(String(user.id), { progress, updatedAt });
+      }
+      sendJson(res, 200, { ok: true, progress, updatedAt });
+      return true;
+    }
+    if (req.method === "DELETE") {
+      if (db) await db.query("DELETE FROM tutorial_progress WHERE user_id = $1", [user.id]);
+      else authMemory.tutorialProgress.delete(String(user.id));
+      sendJson(res, 200, { ok: true });
+      return true;
+    }
+    sendJson(res, 405, { error: "Méthode non autorisée." });
     return true;
   }
 
@@ -4781,7 +4852,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/profiles/")) && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname.startsWith("/api/tutorial/") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/profiles/")) && await handleAuth(req, res, url)) {
     return;
   }
 

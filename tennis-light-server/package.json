@@ -4,6 +4,8 @@
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
+    "test:tutorial-module-1": "node tests/tutorial-module-1.mjs",
+    "test:tutorial-engine": "node tests/tutorial-engine.mjs",
     "test:v2.169.20": "node tests/v2.169.20-exchange-result-details.mjs",
     "test:v2.169.21": "node tests/v2.169.21-hans-rosa-circuit.mjs",
     "test:v2.169.19": "node tests/v2.169.19-rally-end-visuals.mjs",

@@ -94,6 +94,14 @@ button:disabled {
   pointer-events: none;
 }
 
+.tutorial-dialogue-top {
+  top: 0;
+  bottom: auto;
+  border-top: 0;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
 .tutorial-portrait {
   position: relative;
   min-width: 0;
@@ -219,6 +227,32 @@ button:disabled {
   left: calc(100% - 14px);
 }
 
+.tutorial-showcase-pointer.precision,
+.tutorial-showcase-pointer.placement {
+  left: calc(100% - 14px);
+}
+
+.tutorial-showcase-pointer.precision {
+  top: 20%;
+}
+
+.tutorial-showcase-pointer.placement {
+  top: 29%;
+}
+
+.tutorial-showcase-pointer.effect,
+.tutorial-showcase-pointer.boost {
+  right: calc(100% - 14px);
+}
+
+.tutorial-showcase-pointer.effect {
+  top: 68%;
+}
+
+.tutorial-showcase-pointer.boost {
+  top: 85%;
+}
+
 .tutorial-showcase-pointer::after {
   position: absolute;
   top: 8px;
@@ -229,12 +263,16 @@ button:disabled {
   content: "";
 }
 
-.tutorial-showcase-pointer.cost::after {
+.tutorial-showcase-pointer.cost::after,
+.tutorial-showcase-pointer.effect::after,
+.tutorial-showcase-pointer.boost::after {
   right: -10px;
   border-left: 11px solid #e5312f;
 }
 
-.tutorial-showcase-pointer.power::after {
+.tutorial-showcase-pointer.power::after,
+.tutorial-showcase-pointer.precision::after,
+.tutorial-showcase-pointer.placement::after {
   left: -10px;
   border-right: 11px solid #e5312f;
 }
@@ -336,6 +374,9 @@ button:disabled {
 }
 
 .tutorial-next-button {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   min-width: 150px;
   margin-top: 5px;
   pointer-events: auto;
@@ -366,6 +407,19 @@ button:disabled {
 body.tutorial-running .scoreboard,
 body.tutorial-running .played-history {
   display: none;
+}
+
+body.tutorial-interface-tour .scoreboard,
+body.tutorial-interface-tour .played-history {
+  display: grid;
+}
+
+body.tutorial-interface-tour .tutorial-dialogue:not(.tutorial-dialogue-top) .tutorial-dialogue-content {
+  max-height: 50vh;
+}
+
+body.tutorial-readonly .game-app button:not(.tutorial-next-button) {
+  pointer-events: none;
 }
 
 body.tutorial-running .app {
