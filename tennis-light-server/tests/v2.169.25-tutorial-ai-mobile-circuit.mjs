@@ -25,7 +25,7 @@ function functionSource(source, name) {
   throw new Error(`Source incomplète pour ${name}`);
 }
 
-assert.equal(pkg.version, "2.169.25");
+assert.equal(pkg.version, "2.169.26");
 assert.match(html, /data-open-tutorial-modules data-required-role="admin"/);
 assert.equal((html.match(/data-open-tutorial-modules/g) || []).length, 1);
 assert.match(app, /closest\("\[data-open-tutorial-modules\]"\)/);
@@ -40,8 +40,14 @@ assert.doesNotMatch(functionSource(app, "runAmateurSoloAITurn"), /amateur_early_
 assert.match(functionSource(app, "soloLegalActionInventory"), /coups\.length \|\| boosts\.length \|\| effects\.length \|\| placementRemises\.length \|\| canEnd/);
 assert.match(functionSource(app, "soloEmergencyFallback"), /inventory\.placementRemises/);
 
-assert.match(app, /stat-symbol-power[^>]*>⚡/);
-assert.match(app, /stat-symbol-endurance[^>]*>♥/);
+assert.match(app, /stat-value-row stat-value-power/);
+assert.match(app, /stat-symbol-power[^>]*><\/span>/);
+assert.match(app, /stat-value-row stat-value-endurance/);
+assert.match(app, /stat-symbol-endurance[^>]*><\/span>/);
+assert.match(css, /power-flash\.svg/);
+assert.match(css, /endurance-heart\.svg/);
+assert.match(css, /\.opponent-inline[\s\S]*?color: inherit !important/);
+assert.doesNotMatch(app, /¡Que viva España!/);
 assert.match(css, /width: 22px;[\s\S]*height: 22px;/);
 assert.match(functionSource(app, "renderGameContextStrip"), /Niveau de l’IA/);
 
@@ -61,4 +67,4 @@ vm.runInContext(`${capSource}; result = [aiHumanWinBonusCap(200, 500), aiHumanWi
 assert.deepEqual(Array.from(capContext.result), [300, 50, 100, 100]);
 assert.match(functionSource(server, "registerCircuitAiHumanWinBonuses"), /Math\.min\(300, wins \* 25\)/);
 
-console.log("v2.169.25 navigation tutoriel, IA, mobile, HUD et Circuit Pro : OK");
+console.log("v2.169.26 tutoriel, IA, mobile, HUD SVG et Circuit Pro : OK");

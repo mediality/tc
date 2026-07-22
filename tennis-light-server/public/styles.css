@@ -3159,6 +3159,18 @@ h1 {
   line-height: 0.95;
 }
 
+.stat-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.stat-value-power { color: #9a5d18; }
+.stat-value-endurance { color: #cf4d45; }
+.stat-value-row strong { color: inherit; }
+
 .character-endurance-reminder strong {
   color: #cf4d45;
   font-size: 1.85rem;
@@ -3193,6 +3205,8 @@ h1 {
   color: #0f6b4f;
 }
 
+.character-power-reminder.leading-power .stat-value-power { color: #0f6b4f; }
+
 .character-power-reminder span,
 .character-endurance-reminder span {
   color: #5c3b17;
@@ -3208,16 +3222,28 @@ h1 {
 
 .character-power-reminder .stat-symbol,
 .character-endurance-reminder .stat-symbol {
-  display: grid;
+  display: block;
+  flex: 0 0 22px;
   width: 22px;
   height: 22px;
-  place-items: center;
-  font-size: 19px;
-  line-height: 1;
+  background: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
 }
 
-.character-power-reminder .stat-symbol-power { color: #d99300; }
-.character-endurance-reminder .stat-symbol-endurance { color: #d94d55; }
+.character-power-reminder .stat-symbol-power {
+  mask-image: url("assets/icons/power-flash.svg");
+  -webkit-mask-image: url("assets/icons/power-flash.svg");
+}
+.character-endurance-reminder .stat-symbol-endurance {
+  mask-image: url("assets/icons/endurance-heart.svg");
+  -webkit-mask-image: url("assets/icons/endurance-heart.svg");
+}
+.character-endurance-reminder.low-endurance .stat-value-endurance { color: #fff; }
 
 .character-card img,
 .played-visual img {
@@ -5106,10 +5132,12 @@ h1 {
 
   .opponent-inline {
     display: inline;
+    color: inherit !important;
+    opacity: 0.78;
   }
 
   .opponent-inline.critical-opponent {
-    color: #c92828 !important;
+    color: inherit !important;
     font-weight: 1000;
     opacity: 1;
   }

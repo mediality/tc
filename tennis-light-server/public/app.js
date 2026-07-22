@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.25";
+const GAME_VERSION = "v2.169.26";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -351,7 +351,7 @@ const GAME_NEWS = [
     id: "v16921-rosa-benavente-espana",
     publishedAt: "2026-07-21",
     availableAt: "2026-07-21T18:00:00+02:00",
-    title: "¡Que viva España!",
+    title: "Que viva España!",
     characterId: "rosaBenavente",
     audienceRoles: ["pro", "pro_plus", "admin"],
     message: "Avec la victoire de l’Espagne en Coupe du monde de football, Rosa Benavente et sa tenue en hommage à la Roja intègrent le Tennis Courts Pro Circuit. Vous pouvez la rencontrer dans les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle rejoint également votre sélection de personnages. Tentez de devenir le GOAT avec Rosa Benavente… En tout cas, elle porte déjà un maillot de championne !",
@@ -7191,7 +7191,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.25");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.26");
 }
 
 function resetSetMatch() {
@@ -14961,13 +14961,17 @@ function renderCharacterCard(player, playerIndex) {
       <div class="character-stats">
         <div class="character-power-reminder${leaderClass}${tutorialFocusClass("power", playerIndex)}" data-tutorial-target="power-${playerIndex}">
           ${crown}
-          <span class="stat-symbol stat-symbol-power" aria-hidden="true">⚡</span>
-          <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
+          <div class="stat-value-row stat-value-power">
+            <span class="stat-symbol stat-symbol-power" aria-hidden="true"></span>
+            <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
+          </div>
           <span>Puissance</span>
         </div>
         <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
-          <span class="stat-symbol stat-symbol-endurance" aria-hidden="true">♥</span>
-          <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
+          <div class="stat-value-row stat-value-endurance">
+            <span class="stat-symbol stat-symbol-endurance" aria-hidden="true"></span>
+            <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
+          </div>
           <span>Endurance</span>
         </div>
         <div class="character-hand-reminder${handCountClass}" aria-label="${handCount} carte${handCount > 1 ? "s" : ""} restante${handCount > 1 ? "s" : ""}">
