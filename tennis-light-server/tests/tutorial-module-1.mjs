@@ -32,72 +32,74 @@ assert.equal(module1.id, "module-1-basics");
 assert.equal(module1.title, "Découverte de Tennis Courts Academy");
 assert.equal(module1.scenario, "interface");
 assert.equal(module1.readOnly, true);
-assert.equal(module1.totalDisplaySteps, 8);
-assert.equal(module1.steps.length, 8);
-assert.deepEqual(Array.from(module1.steps, (step) => step.displayStep), [1, 2, 3, 4, 5, 6, 7, 8]);
+assert.equal(module1.totalDisplaySteps, 19);
+assert.equal(module1.steps.length, 19);
+assert.deepEqual(Array.from(module1.steps, (step) => step.displayStep), Array.from({ length: 19 }, (_, index) => index + 1));
 assert.deepEqual(Array.from(module1.steps, (step) => step.title), [
   "Bienvenue",
-  "Découverte du plateau",
-  "Les compteurs",
-  "Lecture d'une carte",
-  "Les autres informations",
-  "Les boutons",
-  "Dernière carte et historique",
+  "Le deck de l'Académie",
+  "Le jeu complet",
+  "Ton personnage",
+  "Ton adversaire",
+  "La dernière carte",
+  "La puissance",
+  "L'endurance",
+  "Une carte de jeu",
+  "Le coût en endurance",
+  "La puissance de la carte",
+  "La précision",
+  "Le placement",
+  "L'effet",
+  "La zone Boost",
+  "Le bouton Jouer",
+  "Le bouton Boost",
+  "Le journal d'échange",
   "Conclusion",
 ]);
 assert.ok(module1.steps.every((step) => !step.action && !step.validation && !step.auto));
+assert.ok(module1.steps.every((step) => (step.focus?.length ?? 0) <= 1));
+assert.ok(module1.steps.every((step) => !Array.isArray(step.showcase?.pointers)));
+assert.ok(module1.steps.every((step) => {
+  const dialogue = Array.isArray(step.text) ? step.text.join(" ") : step.text;
+  return (dialogue.match(/[.!?](?:\s|$)/g) ?? []).length <= 2;
+}), "Une micro-étape ne doit pas dépasser deux phrases");
 assert.equal(module1.steps.at(-1).final, true);
 
 const allDialogue = module1.steps.flatMap((step) => Array.isArray(step.text) ? step.text : [step.text]).join(" ");
 for (const expectedText of [
   "deck unique de 18 cartes",
   "propre deck de 48 cartes",
-  "Lorsque ton endurance est épuisée",
-  "Précision et le Placement",
-  "conditions de Boost",
+  "Quand elle est épuisée",
+  "même endurance que la carte",
+  "sacrifier une autre carte",
   "journal d'échange",
-  "jouer notre premier échange ensemble",
+  "premier échange",
 ]) {
   assert.match(allDialogue, new RegExp(expectedText));
 }
 
-assert.deepEqual(
-  Array.from(module1.steps[1].focus, (focus) => focus.target),
-  ["character", "character", "lastCard"],
-);
-assert.deepEqual(
-  Array.from(module1.steps[2].focus, (focus) => focus.target),
-  ["power", "endurance"],
-);
-assert.equal(module1.steps[3].showcase.cardId, "revers-3-3-3");
-assert.deepEqual(
-  Array.from(module1.steps[3].showcase.pointers, (pointer) => pointer.target),
-  ["cost", "power"],
-);
-assert.deepEqual(
-  Array.from(module1.steps[4].showcase.pointers, (pointer) => pointer.target),
-  ["precision", "placement", "effect", "boost"],
-);
-assert.deepEqual(
-  Array.from(module1.steps[5].focus, (focus) => focus.target),
-  ["play", "boost"],
-);
-assert.equal(module1.steps[5].dialoguePosition, "top");
-assert.deepEqual(
-  Array.from(module1.steps[6].focus, (focus) => focus.target),
-  ["lastCard", "history"],
-);
-assert.equal(module1.steps[6].dialoguePosition, "top");
+assert.equal(module1.steps[8].showcase.cardId, "revers-3-3-3");
+assert.deepEqual(Array.from(module1.steps.slice(9, 15), (step) => step.showcase.pointer), [
+  "cost", "power", "precision", "placement", "effect", "boost",
+]);
+assert.deepEqual(Array.from(module1.steps.slice(15, 18), (step) => step.focus[0].target), [
+  "play", "boost", "history",
+]);
 
 assert.match(appSource, /scenario === "interface"/);
 assert.match(appSource, /state\.latestPlayedCard = createTutorialPlayedCard\("revers-3-3-3", 1\)/);
 assert.match(appSource, /state\.lastCard = null/);
 assert.match(appSource, /tutorialFocusClass\("character", playerIndex\)/);
+assert.match(appSource, /tutorialFocusClass\("hand", playerIndex\)/);
 assert.match(appSource, /tutorialFocusClass\("boost", playerIndex, card\.id\)/);
 assert.match(appSource, /tutorialFocusClass\("lastCard", null\)/);
 assert.match(appSource, /tutorialFocusClass\("history", null\)/);
 assert.match(stylesSource, /body\.tutorial-readonly \.game-app button:not\(\.tutorial-next-button\)/);
 assert.match(stylesSource, /body\.tutorial-interface-tour \.scoreboard/);
+assert.match(appSource, /window\.setInterval[\s\S]*tutorialTypingProgress/);
+assert.match(appSource, /if \(tutorialTypingProgress < tutorialTypingText\.length\)/);
+assert.match(stylesSource, /\.tutorial-action-target::before/);
+assert.doesNotMatch(stylesSource, /\.tutorial-focus-target::before/);
 assert.match(htmlSource, /data-start-solo="exchange">Commencer l'entraînement<\/button>/);
 assert.match(htmlSource, /data-start-tutorial data-required-role="admin"/);
 assert.match(appSource, /querySelectorAll\("\[data-start-tutorial\]"\)/);

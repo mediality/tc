@@ -1158,121 +1158,145 @@ const TUTORIAL_MODULES = {
     scenario: "interface",
     readOnly: true,
     initialLog: ["Le journal d'échange affichera ici toutes les actions du point."],
-    totalDisplaySteps: 8,
+    totalDisplaySteps: 19,
     steps: [
       {
         id: "m1-1-welcome",
         displayStep: 1,
         title: "Bienvenue",
-        text: [
-          "Bonjour et bienvenue dans Tennis Courts Academy !",
-          "Cette Académie est un mode d'apprentissage conçu pour te faire découvrir progressivement Tennis Courts.",
-          "Pour simplifier ton apprentissage, nous utiliserons un deck unique de 18 cartes partagé entre les deux joueurs.",
-          "Dans la version complète de Tennis Courts, chaque joueur possède son propre deck de 48 cartes ainsi que son personnage. Tu découvriras alors beaucoup plus de techniques et de tactiques.",
-          "Je suis Coach Ju, le créateur du jeu, et je serai ton entraîneur pendant toute cette Académie.",
-        ],
+        text: "Bienvenue dans Tennis Courts Academy ! Je suis Coach Ju et je serai ton entraîneur.",
       },
       {
-        id: "m1-2-board",
+        id: "m1-2-shared-deck",
         displayStep: 2,
-        title: "Découverte du plateau",
-        text: [
-          "Avant de jouer, faisons un rapide tour du plateau.",
-          "À gauche se trouve ton personnage. À droite, ton adversaire. Au centre, la dernière carte jouée.",
-        ],
-        focus: [
-          { target: "character", playerIndex: 0 },
-          { target: "character", playerIndex: 1 },
-          { target: "lastCard" },
-        ],
+        title: "Le deck de l'Académie",
+        text: "Pour apprendre simplement, les deux joueurs partagent ici un deck unique de 18 cartes.",
+        focus: [{ target: "hand", playerIndex: 0 }],
       },
       {
-        id: "m1-3-counters",
+        id: "m1-3-full-game",
         displayStep: 3,
-        title: "Les compteurs",
-        text: [
-          "Deux informations sont essentielles.",
-          "La puissance te permet de gagner un échange. L'endurance est la ressource qui te permet de jouer tes cartes.",
-          "Lorsque ton endurance est épuisée, tu ne peux plus jouer de nouveau coup.",
-        ],
-        focus: [
-          { target: "power", playerIndex: 0 },
-          { target: "endurance", playerIndex: 0 },
-        ],
+        title: "Le jeu complet",
+        text: "Dans le jeu complet, chaque joueur possède son propre deck de 48 cartes et son personnage.",
       },
       {
-        id: "m1-4-card-reading",
+        id: "m1-4-player",
         displayStep: 4,
-        title: "Lecture d'une carte",
-        text: [
-          "Regardons une carte.",
-          "En haut à gauche : son coût en endurance. En haut à droite : la puissance qu'elle rapporte.",
-        ],
-        showcase: {
-          cardId: "revers-3-3-3",
-          pointers: [
-            { target: "cost", label: "Coût" },
-            { target: "power", label: "Puissance" },
-          ],
-        },
+        title: "Ton personnage",
+        text: "Ton personnage se trouve à gauche du court.",
+        focus: [{ target: "character", playerIndex: 0 }],
       },
       {
-        id: "m1-5-card-details",
+        id: "m1-5-opponent",
         displayStep: 5,
-        title: "Les autres informations",
-        text: [
-          "Sous la puissance se trouvent la Précision et le Placement. Nous les découvrirons dans les prochaines leçons.",
-          "Au centre de la carte se trouve son effet.",
-          "En bas de certaines cartes se trouve une zone Boost. Nous y reviendrons plus tard.",
-        ],
+        title: "Ton adversaire",
+        text: "Le personnage de ton adversaire se trouve à droite.",
+        focus: [{ target: "character", playerIndex: 1 }],
+      },
+      {
+        id: "m1-6-last-card",
+        displayStep: 6,
+        title: "La dernière carte",
+        text: "Au centre du plateau, tu peux consulter et agrandir la dernière carte jouée.",
+        focus: [{ target: "lastCard" }],
+      },
+      {
+        id: "m1-7-power",
+        displayStep: 7,
+        title: "La puissance",
+        text: "La puissance de ton personnage t'aide à gagner l'échange.",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m1-8-endurance",
+        displayStep: 8,
+        title: "L'endurance",
+        text: "L'endurance permet de jouer tes cartes. Quand elle est épuisée, tu ne peux plus jouer de nouveau coup.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m1-9-card",
+        displayStep: 9,
+        title: "Une carte de jeu",
+        text: "Regardons maintenant une carte de plus près.",
+        showcase: { cardId: "revers-3-3-3" },
+      },
+      {
+        id: "m1-10-card-cost",
+        displayStep: 10,
+        title: "Le coût en endurance",
+        text: "En haut à gauche, ce nombre indique l'endurance dépensée pour jouer la carte.",
         showcase: {
           cardId: "revers-3-3-3",
-          pointers: [
-            { target: "precision", label: "Précision" },
-            { target: "placement", label: "Placement" },
-            { target: "effect", label: "Effet" },
-            { target: "boost", label: "Zone Boost" },
-          ],
+          pointer: "cost",
+          label: "Coût",
         },
       },
       {
-        id: "m1-6-buttons",
-        displayStep: 6,
-        title: "Les boutons",
-        text: [
-          "Sous tes cartes se trouvent les boutons d'action.",
-          "Le bouton Jouer permet de jouer une carte.",
-          "Le bouton Boost ne s'active que lorsque les conditions de Boost sont réunies. Nous apprendrons cette mécanique plus tard.",
-        ],
-        focus: [
-          { target: "play", playerIndex: 0, cardId: "revers-3-3-3" },
-          { target: "boost", playerIndex: 0, cardId: "revers-3-3-3" },
-        ],
-        dialoguePosition: "top",
+        id: "m1-11-card-power",
+        displayStep: 11,
+        title: "La puissance de la carte",
+        text: "En haut à droite, ce nombre indique la puissance apportée par la carte.",
+        showcase: {
+          cardId: "revers-3-3-3",
+          pointer: "power",
+          label: "Puissance",
+        },
       },
       {
-        id: "m1-7-history",
-        displayStep: 7,
-        title: "Dernière carte et historique",
-        text: [
-          "Au centre du plateau, tu peux consulter la dernière carte jouée. Tu peux également l'agrandir.",
-          "Le journal d'échange te permet de revoir toutes les actions effectuées pendant le point.",
-        ],
-        focus: [
-          { target: "lastCard" },
-          { target: "history" },
-        ],
-        dialoguePosition: "top",
+        id: "m1-12-precision",
+        displayStep: 12,
+        title: "La précision",
+        text: "La précision sera utilisée dans une prochaine leçon.",
+        showcase: { cardId: "revers-3-3-3", pointer: "precision", label: "Précision" },
       },
       {
-        id: "m1-8-conclusion",
-        displayStep: 8,
+        id: "m1-13-placement",
+        displayStep: 13,
+        title: "Le placement",
+        text: "Le placement sera lui aussi expliqué dans une prochaine leçon.",
+        showcase: { cardId: "revers-3-3-3", pointer: "placement", label: "Placement" },
+      },
+      {
+        id: "m1-14-effect",
+        displayStep: 14,
+        title: "L'effet",
+        text: "Au centre de la carte se trouve son éventuel effet de jeu.",
+        showcase: { cardId: "revers-3-3-3", pointer: "effect", label: "Effet" },
+      },
+      {
+        id: "m1-15-boost-zone",
+        displayStep: 15,
+        title: "La zone Boost",
+        text: "Certaines cartes possèdent en bas une zone Boost, que nous étudierons plus tard.",
+        showcase: { cardId: "revers-3-3-3", pointer: "boost", label: "Zone Boost" },
+      },
+      {
+        id: "m1-16-play-button",
+        displayStep: 16,
+        title: "Le bouton Jouer",
+        text: "Sous une carte, le bouton Jouer permet de l'utiliser normalement.",
+        focus: [{ target: "play", playerIndex: 0, cardId: "revers-3-3-3" }],
+      },
+      {
+        id: "m1-17-boost-button",
+        displayStep: 17,
+        title: "Le bouton Boost",
+        text: "Le bouton Boost s'active quand ses conditions sont réunies. Le Boost coûte la même endurance que la carte, mais exige de sacrifier une autre carte.",
+        focus: [{ target: "boost", playerIndex: 0, cardId: "revers-3-3-3" }],
+      },
+      {
+        id: "m1-18-history",
+        displayStep: 18,
+        title: "Le journal d'échange",
+        text: "Le journal d'échange conserve toutes les actions effectuées pendant le point.",
+        focus: [{ target: "history" }],
+      },
+      {
+        id: "m1-19-conclusion",
+        displayStep: 19,
         title: "Conclusion",
-        text: [
-          "Parfait !",
-          "Tu connais maintenant les principaux éléments de l'interface.",
-          "Dans la prochaine leçon, nous entrerons sur le court pour jouer notre premier échange ensemble.",
-        ],
+        text: "Parfait, tu connais les principaux éléments de l'interface ! La prochaine leçon te fera jouer ton premier échange.",
         final: true,
       },
     ],
@@ -1286,6 +1310,10 @@ const TUTORIAL_PROGRESS_STORAGE_PREFIX = "tennisCourtsTutorialProgressV1";
 
 let tutorialAutoTimer = null;
 let tutorialProgressSaveTimer = null;
+let tutorialTypingTimer = null;
+let tutorialTypingStepId = null;
+let tutorialTypingText = "";
+let tutorialTypingProgress = 0;
 let opponentHandRevealTimer = null;
 let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
@@ -3994,18 +4022,63 @@ function tutorialFocusClass(target, playerIndex, cardId = null) {
   if (!state.tutorial.active) return "";
   const step = tutorialStep();
   const focuses = [...(step?.focus ?? [])];
+  const actionFocuses = [];
   if (step?.action?.kind === "selectCard") {
-    focuses.push({ target: "card", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
+    actionFocuses.push({ target: "card", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
   }
   if (step?.action?.kind === "play") {
-    focuses.push({ target: "play", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
+    actionFocuses.push({ target: "play", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
   }
-  const matches = focuses.some((focus) => (
+  const focusMatches = (focus) => (
     focus.target === target
     && (focus.playerIndex == null || focus.playerIndex === playerIndex)
     && (focus.cardId == null || focus.cardId === cardId)
-  ));
-  return matches ? " tutorial-focus-target" : "";
+  );
+  if (actionFocuses.some(focusMatches)) return " tutorial-focus-target tutorial-action-target";
+  return focuses.some(focusMatches) ? " tutorial-focus-target" : "";
+}
+
+function clearTutorialTyping() {
+  window.clearInterval(tutorialTypingTimer);
+  tutorialTypingTimer = null;
+}
+
+function tutorialPlainText(text) {
+  return (Array.isArray(text) ? text : [text]).filter(Boolean).join(" ");
+}
+
+function revealTutorialText() {
+  if (!tutorialTypingText) return false;
+  clearTutorialTyping();
+  tutorialTypingProgress = tutorialTypingText.length;
+  updateTutorialTypingDisplay();
+  return true;
+}
+
+function updateTutorialTypingDisplay() {
+  const output = els.tutorialOverlay?.querySelector("[data-tutorial-typed-text]");
+  if (output) output.textContent = tutorialTypingText.slice(0, tutorialTypingProgress);
+  const button = els.tutorialOverlay?.querySelector("[data-tutorial-next]");
+  if (button) button.textContent = tutorialTypingProgress < tutorialTypingText.length
+    ? "Afficher tout"
+    : (tutorialStep()?.final ? "Terminer la leçon" : "Suivant");
+}
+
+function startTutorialTyping(step) {
+  const text = tutorialPlainText(step.text);
+  if (tutorialTypingStepId !== step.id || tutorialTypingText !== text) {
+    clearTutorialTyping();
+    tutorialTypingStepId = step.id;
+    tutorialTypingText = text;
+    tutorialTypingProgress = 0;
+  }
+  updateTutorialTypingDisplay();
+  if (tutorialTypingProgress >= tutorialTypingText.length || tutorialTypingTimer) return;
+  tutorialTypingTimer = window.setInterval(() => {
+    tutorialTypingProgress = Math.min(tutorialTypingText.length, tutorialTypingProgress + 2);
+    updateTutorialTypingDisplay();
+    if (tutorialTypingProgress >= tutorialTypingText.length) clearTutorialTyping();
+  }, 14);
 }
 
 function selectTutorialCard(playerIndex, cardUid) {
@@ -4038,6 +4111,7 @@ function inactiveTutorialState(progress = state.tutorial) {
 
 function resetTutorialMode() {
   clearTutorialAutoTimer();
+  clearTutorialTyping();
   state.tutorial = inactiveTutorialState(state.tutorial);
   document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
   els.tutorialOverlay?.classList.add("hidden");
@@ -4081,6 +4155,7 @@ function completeTutorialAction(action) {
 function advanceTutorial() {
   if (!state.tutorial.active) return;
   clearTutorialAutoTimer();
+  clearTutorialTyping();
   state.tutorial = TUTORIAL_ENGINE.advance(state.tutorial, TUTORIAL_MODULES);
   state.tutorial.error = null;
   runTutorialAutoSteps();
@@ -4094,6 +4169,7 @@ function finishTutorial() {
     academyCompleted: Boolean(module.completesAcademy),
   });
   clearTutorialAutoTimer();
+  clearTutorialTyping();
   document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
   els.tutorialOverlay?.classList.add("hidden");
   if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
@@ -13672,6 +13748,7 @@ function renderTutorialOverlay() {
   if (!els.tutorialOverlay) return;
   const step = tutorialStep();
   if (!state.tutorial.active || !step) {
+    clearTutorialTyping();
     document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
     els.tutorialOverlay.classList.add("hidden");
     els.tutorialOverlay.innerHTML = "";
@@ -13691,31 +13768,36 @@ function renderTutorialOverlay() {
   els.tutorialOverlay.classList.remove("hidden");
   els.tutorialOverlay.innerHTML = `
     ${renderTutorialShowcase(step.showcase)}
-    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""} ${step.dialoguePosition === "top" ? "tutorial-dialogue-top" : ""}" aria-label="Tutoriel" aria-live="polite">
+    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""}" aria-label="Tutoriel">
+      <div class="tutorial-portrait">
+        <img src="${narrator.image}" alt="Portrait de ${narrator.name}" />
+      </div>
       <div class="tutorial-dialogue-content">
         <p class="tutorial-kicker">${module.lesson}${progress}</p>
         <div class="tutorial-speaker-line"><strong>${narrator.name}</strong><span>${narrator.role}</span></div>
         <h2>${step.title}</h2>
-        <div class="tutorial-copy">${renderTutorialText(step.text)}</div>
+        <p class="tutorial-copy" aria-label="${escapeHtml(tutorialPlainText(step.text))}"><span data-tutorial-typed-text></span><span class="tutorial-typewriter-caret" aria-hidden="true"></span></p>
         ${step.summary?.length ? `<ul class="tutorial-summary">${step.summary.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
         ${state.tutorial.error ? `<p class="tutorial-error" role="alert">${escapeHtml(state.tutorial.error)}</p>` : ""}
         ${action ? `<p class="tutorial-action">${tutorialActionLabel(action)}</p>` : ""}
         ${autoPending ? '<p class="tutorial-wait" role="status"><span aria-hidden="true"></span>Coach Ju prépare sa réponse...</p>' : ""}
-        ${!action && !autoPending ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>${tutorialClickArrow()}${step.final ? "Terminer la leçon" : "Suivant"}</button>` : ""}
-      </div>
-      <div class="tutorial-portrait">
-        <img src="${narrator.image}" alt="Portrait de ${narrator.name}" />
+        ${!action && !autoPending ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>Afficher tout</button>` : ""}
       </div>
     </aside>
   `;
   els.tutorialOverlay.querySelector("[data-tutorial-next]")?.addEventListener("click", () => {
+    if (tutorialTypingProgress < tutorialTypingText.length) {
+      revealTutorialText();
+      return;
+    }
     if (step.final) {
       finishTutorial();
     } else {
       advanceTutorial();
     }
   });
-  const hasVisualTarget = Boolean(step.action || step.focus?.length);
+  startTutorialTyping(step);
+  const hasVisualTarget = Boolean(step.action || step.focus?.length || step.showcase);
   if (hasVisualTarget && state.tutorial.scrolledStepId !== step.id) {
     state.tutorial.scrolledStepId = step.id;
     window.queueMicrotask(() => {
@@ -13725,17 +13807,10 @@ function renderTutorialOverlay() {
       const targetRect = target.getBoundingClientRect();
       const dialogueRect = dialogue.getBoundingClientRect();
       const targetDocumentTop = window.scrollY + targetRect.top;
-      const nextScrollTop = step.dialoguePosition === "top"
-        ? Math.max(0, targetDocumentTop - dialogueRect.bottom - 24)
-        : Math.max(0, targetDocumentTop - ((Math.max(160, dialogueRect.top) - targetRect.height) / 2));
+      const nextScrollTop = Math.max(0, targetDocumentTop - ((Math.max(160, dialogueRect.top) - targetRect.height) / 2));
       window.scrollTo({ top: nextScrollTop, behavior: "auto" });
     });
   }
-}
-
-function renderTutorialText(text) {
-  const paragraphs = Array.isArray(text) ? text : [text];
-  return paragraphs.filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
 }
 
 function renderTutorialShowcase(showcase) {
@@ -13744,15 +13819,13 @@ function renderTutorialShowcase(showcase) {
   const imageUrl = card ? CARD_IMAGES[card.id] : null;
   if (!card || !imageUrl) return "";
   const allowedTargets = new Set(["cost", "power", "precision", "placement", "effect", "boost"]);
-  const pointers = Array.isArray(showcase.pointers)
-    ? showcase.pointers
-    : [{ target: showcase.pointer, label: showcase.label }];
+  const pointers = showcase.pointer ? [{ target: showcase.pointer, label: showcase.label }] : [];
   return `
-    <div class="tutorial-card-showcase" aria-label="Carte ${escapeHtml(card.name)} agrandie">
+    <div class="tutorial-card-showcase${pointers.length ? "" : " tutorial-focus-target"}" aria-label="Carte ${escapeHtml(card.name)} agrandie">
       <img src="${imageUrl}" alt="${escapeHtml(card.name)} - ${escapeHtml(card.subtitle ?? card.family)}" />
       ${pointers.map((pointer) => {
         const target = allowedTargets.has(pointer?.target) ? pointer.target : "cost";
-        return `<span class="tutorial-showcase-pointer ${target}">${escapeHtml(pointer?.label ?? "Regarde ici")}</span>`;
+        return `<span class="tutorial-showcase-pointer tutorial-focus-target ${target}">${escapeHtml(pointer?.label ?? "Regarde ici")}</span>`;
       }).join("")}
     </div>
   `;
@@ -14949,7 +15022,7 @@ function renderPlayerPanel(playerIndex, root) {
       </div>
     </header>
     ${renderCharacterCard(player, playerIndex)}
-    <div class="hand">
+    <div class="hand${tutorialFocusClass("hand", playerIndex)}">
       ${player.hand.map((card) => renderCard(playerIndex, card)).join("")}
     </div>
     <div class="played-history">

@@ -81,8 +81,8 @@ button:disabled {
   bottom: 0;
   z-index: 120;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(170px, 18vw, 230px);
-  min-height: 210px;
+  grid-template-columns: clamp(145px, 20vw, 270px) minmax(0, 1fr);
+  min-height: 200px;
   border-top: 3px solid rgba(255, 255, 255, 0.82);
   background: rgba(6, 30, 45, 0.97);
   color: #fff;
@@ -94,46 +94,29 @@ button:disabled {
   pointer-events: none;
 }
 
-.tutorial-dialogue-top {
-  top: 0;
-  bottom: auto;
-  border-top: 0;
-  border-bottom: 3px solid rgba(255, 255, 255, 0.82);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
-}
-
 .tutorial-portrait {
   position: relative;
   min-width: 0;
   overflow: visible;
-  background: rgba(255, 255, 255, 0.05);
 }
 
 .tutorial-portrait img {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: 0;
   display: block;
-  width: 100%;
-  max-height: 330px;
+  width: clamp(210px, 25vw, 350px);
+  max-height: clamp(300px, 48vh, 450px);
   object-fit: contain;
-  object-position: right bottom;
+  object-position: left bottom;
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.38));
-}
-
-.tutorial-dialogue-action .tutorial-portrait {
-  overflow: hidden;
-}
-
-.tutorial-dialogue-action .tutorial-portrait img {
-  max-height: 100%;
 }
 
 .tutorial-dialogue-content {
   min-width: 0;
   max-height: 42vh;
   overflow: auto;
-  padding: 18px clamp(18px, 4vw, 58px) 20px;
+  padding: 16px clamp(20px, 4vw, 64px) 18px;
 }
 
 .tutorial-speaker-line {
@@ -159,11 +142,26 @@ button:disabled {
   letter-spacing: 0;
 }
 
-.tutorial-copy p {
-  margin: 0 0 7px;
+.tutorial-copy {
+  min-height: 3.2em;
+  margin: 0 0 10px;
   max-width: 1000px;
-  font-size: clamp(0.94rem, 1.25vw, 1.08rem);
-  line-height: 1.42;
+  font-size: clamp(1.08rem, 1.5vw, 1.3rem);
+  line-height: 1.48;
+}
+
+.tutorial-typewriter-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  background: #f4d54d;
+  vertical-align: -0.12em;
+  animation: tutorialCaretBlink 0.65s steps(1) infinite;
+}
+
+@keyframes tutorialCaretBlink {
+  50% { opacity: 0; }
 }
 
 .tutorial-summary {
@@ -253,30 +251,6 @@ button:disabled {
   top: 85%;
 }
 
-.tutorial-showcase-pointer::after {
-  position: absolute;
-  top: 8px;
-  width: 0;
-  height: 0;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  content: "";
-}
-
-.tutorial-showcase-pointer.cost::after,
-.tutorial-showcase-pointer.effect::after,
-.tutorial-showcase-pointer.boost::after {
-  right: -10px;
-  border-left: 11px solid #e5312f;
-}
-
-.tutorial-showcase-pointer.power::after,
-.tutorial-showcase-pointer.precision::after,
-.tutorial-showcase-pointer.placement::after {
-  left: -10px;
-  border-right: 11px solid #e5312f;
-}
-
 @keyframes tutorialPointerPulse {
   from { transform: scale(0.96); }
   to { transform: scale(1.04); }
@@ -291,7 +265,11 @@ button:disabled {
   animation: tutorialFocusPulse 0.85s ease-in-out infinite alternate;
 }
 
-.tutorial-focus-target::before {
+.tutorial-showcase-pointer.tutorial-focus-target {
+  position: absolute;
+}
+
+.tutorial-action-target::before {
   position: absolute;
   top: -34px;
   left: 50%;
@@ -414,7 +392,7 @@ body.tutorial-interface-tour .played-history {
   display: grid;
 }
 
-body.tutorial-interface-tour .tutorial-dialogue:not(.tutorial-dialogue-top) .tutorial-dialogue-content {
+body.tutorial-interface-tour .tutorial-dialogue-content {
   max-height: 50vh;
 }
 
@@ -490,13 +468,13 @@ body.tutorial-running .boost-button strong {
 
 @media (max-width: 760px) {
   .tutorial-dialogue {
-    grid-template-columns: minmax(0, 1fr) 108px;
-    min-height: 176px;
+    grid-template-columns: clamp(100px, 28vw, 138px) minmax(0, 1fr);
+    min-height: 190px;
   }
 
   .tutorial-portrait img {
-    width: 100%;
-    max-height: 205px;
+    width: clamp(145px, 40vw, 205px);
+    max-height: 270px;
   }
 
   .tutorial-dialogue-content {
@@ -508,12 +486,12 @@ body.tutorial-running .boost-button strong {
     font-size: 1.08rem;
   }
 
-  .tutorial-copy p,
+  .tutorial-copy,
   .tutorial-action,
   .tutorial-error,
   .tutorial-summary,
   .tutorial-wait {
-    font-size: 0.86rem;
+    font-size: 0.98rem;
   }
 
   .tutorial-summary {
