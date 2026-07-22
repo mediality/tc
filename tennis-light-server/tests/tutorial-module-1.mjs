@@ -101,7 +101,8 @@ assert.match(appSource, /if \(tutorialTypingProgress < tutorialTypingText\.lengt
 assert.match(stylesSource, /\.tutorial-action-target::before/);
 assert.doesNotMatch(stylesSource, /\.tutorial-focus-target::before/);
 assert.match(htmlSource, /data-start-solo="exchange">Commencer l'entraînement<\/button>/);
-assert.match(htmlSource, /data-start-tutorial="basics" data-required-role="admin"/);
-assert.match(appSource, /querySelectorAll\("\[data-start-tutorial\]"\)/);
+assert.match(htmlSource, /id="openTutorialModulesButton"[^>]*data-required-role="admin"/);
+assert.match(htmlSource, /data-tutorial-module="basics"/);
+assert.match(appSource, /querySelectorAll\("\[data-tutorial-module\]"\)/);
 
 console.log("Module 1 conforme à la spécification documentaire : OK");

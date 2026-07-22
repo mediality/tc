@@ -46,7 +46,13 @@ assert.match(appSource, /Date\.now\(\) - tutorialTypingStartedAt/);
 assert.match(appSource, /scenario === "guided-rally"/);
 assert.match(appSource, /state\.players\[0\]\.endurance = 7/);
 assert.match(appSource, /tutorialFocusClass\("pass", playerIndex\)/);
-assert.match(htmlSource, /data-start-tutorial="guidedRally" data-required-role="admin"/);
-assert.match(appSource, /startTutorial\(button\.dataset\.startTutorial \|\| "basics"\)/);
+assert.match(htmlSource, /id="tutorialModulesScreen"/);
+assert.match(htmlSource, /data-tutorial-module="guidedRally"/);
+assert.match(appSource, /startTutorial\(button\.dataset\.tutorialModule\)/);
+assert.match(appSource, /if \(!TUTORIAL_MODULES\[selectedModuleId\]\)/);
+assert.doesNotMatch(appSource, /TUTORIAL_MODULES\[moduleId\] \? moduleId : "basics"/);
+assert.equal((htmlSource.match(/id="openTutorialModulesButton"/g) ?? []).length, 1);
+assert.equal((htmlSource.match(/data-tutorial-module="basics"/g) ?? []).length, 1);
+assert.equal((htmlSource.match(/data-tutorial-module="guidedRally"/g) ?? []).length, 1);
 
 console.log("Module 2 guidé, séquences courtes et animation sous deux secondes : OK");

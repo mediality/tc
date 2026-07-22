@@ -160,14 +160,9 @@
                 <span><small>Guide du joueur</small><strong>Découvrir l'Academy</strong><em>Comprenez le deck partagé et les mécaniques essentielles.</em></span>
                 <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
               </button>
-              <button class="training-action-card tutorial-menu-button hidden" type="button" data-start-tutorial="basics" data-required-role="admin">
+              <button id="openTutorialModulesButton" class="training-action-card tutorial-menu-button hidden" type="button" data-required-role="admin">
                 <span class="training-action-icon">T</span>
-                <span><small>Administration · Module 1</small><strong>Découverte de l'interface</strong><em>Parcours guidé de découverte.</em></span>
-                <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
-              </button>
-              <button class="training-action-card tutorial-menu-button hidden" type="button" data-start-tutorial="guidedRally" data-required-role="admin">
-                <span class="training-action-icon">T2</span>
-                <span><small>Administration · Module 2</small><strong>Premier échange guidé</strong><em>Jouez un échange complet avec Coach Ju.</em></span>
+                <span><small>Administration</small><strong>Tutoriel Academy</strong><em>Consultez et lancez les modules pédagogiques.</em></span>
                 <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
               </button>
             </div>
@@ -368,6 +363,43 @@
             <figure class="academy-upgrade-visual">
               <img src="./assets/academy-shop-banner.jpg" alt="Joueurs et cartes du jeu complet Tennis Courts" />
             </figure>
+          </section>
+        </section>
+      </div>
+    </section>
+
+    <section id="tutorialModulesScreen" class="menu-screen content-page-screen hidden">
+      <div class="menu-shell academy-info-shell content-page-shell tutorial-modules-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions"><button id="backToTrainingFromTutorialButton" class="small-button" type="button">Retour entraînement</button><button id="tutorialModulesHomeButton" class="small-button" type="button">Accueil</button></div>
+        </div>
+        <section class="menu-panel academy-info-panel content-page-panel tutorial-modules-panel">
+          <header class="content-page-hero tutorial-modules-hero">
+            <img src="./assets/ACADEMY-HERO.jpg" alt="Academy Tennis Courts entourée de courts de tennis" />
+            <div class="content-page-hero-copy">
+              <p class="label">Tennis Courts Academy</p>
+              <h1>Parcours pédagogique</h1>
+              <p>Choisissez un module pour découvrir les règles progressivement avec Coach Ju.</p>
+            </div>
+          </header>
+          <section class="tutorial-module-list" aria-labelledby="tutorialModuleListTitle">
+            <div class="academy-section-heading">
+              <p class="label">Modules disponibles</p>
+              <h2 id="tutorialModuleListTitle">Votre entraînement guidé</h2>
+            </div>
+            <div class="tutorial-module-grid">
+              <article class="tutorial-module-card">
+                <span class="tutorial-module-number">01</span>
+                <div><p class="label">Découverte</p><h3>Les éléments de l'interface</h3><p>Repérez le plateau, les compteurs, les cartes et les commandes essentielles.</p></div>
+                <button class="primary-button" type="button" data-tutorial-module="basics">Lancer le Module 1</button>
+              </article>
+              <article class="tutorial-module-card">
+                <span class="tutorial-module-number">02</span>
+                <div><p class="label">Mise en pratique</p><h3>Premier échange guidé</h3><p>Servez, alternez les tours, gérez votre endurance et terminez l'échange.</p></div>
+                <button class="primary-button" type="button" data-tutorial-module="guidedRally">Lancer le Module 2</button>
+              </article>
+            </div>
           </section>
         </section>
       </div>

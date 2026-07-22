@@ -1583,6 +1583,10 @@ const els = {
   rankingScreen: document.querySelector("#rankingScreen"),
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
   academyInfoScreen: document.querySelector("#academyInfoScreen"),
+  tutorialModulesScreen: document.querySelector("#tutorialModulesScreen"),
+  openTutorialModulesButton: document.querySelector("#openTutorialModulesButton"),
+  backToTrainingFromTutorialButton: document.querySelector("#backToTrainingFromTutorialButton"),
+  tutorialModulesHomeButton: document.querySelector("#tutorialModulesHomeButton"),
   profileScreen: document.querySelector("#profileScreen"),
   characterScreen: document.querySelector("#characterScreen"),
   resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
@@ -1869,6 +1873,7 @@ function visibleScreenDestination() {
   if (!els.rankingScreen?.classList.contains("hidden")) return "ranking";
   if (!els.circuitInfoScreen?.classList.contains("hidden")) return "circuit-info";
   if (!els.academyInfoScreen?.classList.contains("hidden")) return "academy-info";
+  if (!els.tutorialModulesScreen?.classList.contains("hidden")) return "tutorial-modules";
   if (!els.adminScreen?.classList.contains("hidden")) return "admin";
   if (!els.characterScreen?.classList.contains("hidden")) return "character";
   if (!els.profileScreen?.classList.contains("hidden")) return "profile";
@@ -1884,7 +1889,7 @@ function updateGlobalPlayerDock() {
   const destination = visibleScreenDestination();
   const gameActive = destination === "game";
   const hidden = !user || destination === "home";
-  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen]
+  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen]
     .find((screen) => screen && !screen.classList.contains("hidden"));
   const dockHost = activeScreen?.querySelector(".lobby-section-header, .mode-clubhouse-topbar, .topbar") || null;
   if (dockHost && els.globalPlayerDock) {
@@ -1917,6 +1922,7 @@ function returnFromProfile() {
   if (destination === "ranking") return showRankingScreen();
   if (destination === "circuit-info") return showCircuitInfoScreen();
   if (destination === "academy-info") return showAcademyInfoScreen();
+  if (destination === "tutorial-modules") return showTutorialModulesScreen();
   if (destination === "online-room") return showFriendlyLobbyScreen();
   if (destination === "admin") return showAdminScreen();
   if (destination === "circuit") return showLobbySection("circuit");
@@ -3851,6 +3857,7 @@ function hideStandaloneScreens() {
     els.rankingScreen,
     els.circuitInfoScreen,
     els.academyInfoScreen,
+    els.tutorialModulesScreen,
     els.profileScreen,
     els.characterScreen,
     els.resetPasswordScreen,
@@ -3890,6 +3897,7 @@ function showGameScreen() {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -3954,6 +3962,7 @@ function showMenuScreen() {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -3973,6 +3982,7 @@ function showProfileScreen(userId = null) {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -4053,8 +4063,20 @@ function showAcademyInfoScreen() {
   els.aiClubHouseScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.academyInfoScreen?.classList.remove("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   applySurfaceBackground(null);
   renderAcademyDeck();
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function showTutorialModulesScreen() {
+  if (!canAccessAdminFeatures()) return;
+  resetTutorialMode();
+  els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
+  hideStandaloneScreens();
+  els.tutorialModulesScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -4307,7 +4329,11 @@ function startTutorial(moduleId = "basics") {
   stopSoloTimers();
   SOLO_AI.enabled = false;
 
-  const selectedModuleId = TUTORIAL_MODULES[moduleId] ? moduleId : "basics";
+  const selectedModuleId = String(moduleId || "basics");
+  if (!TUTORIAL_MODULES[selectedModuleId]) {
+    console.error(`Module de tutoriel inconnu : ${selectedModuleId}`);
+    return;
+  }
   const module = TUTORIAL_MODULES[selectedModuleId];
   setupTutorialScenario(module.scenario);
   state.server = 0;
@@ -4352,8 +4378,8 @@ function finishTutorial() {
   els.tutorialOverlay?.classList.add("hidden");
   if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
   scheduleTutorialProgressSave();
-  showMenuScreen();
-  render();
+  if (canAccessAdminFeatures()) showTutorialModulesScreen();
+  else showMenuScreen();
 }
 
 function runTutorialAutoSteps() {
@@ -15821,9 +15847,12 @@ function initMenu() {
   document.querySelectorAll("[data-start-solo]").forEach((button) => {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
-  document.querySelectorAll("[data-start-tutorial]").forEach((button) => {
-    button.addEventListener("click", () => startTutorial(button.dataset.startTutorial || "basics"));
+  document.querySelectorAll("[data-tutorial-module]").forEach((button) => {
+    button.addEventListener("click", () => startTutorial(button.dataset.tutorialModule));
   });
+  els.openTutorialModulesButton?.addEventListener("click", showTutorialModulesScreen);
+  els.backToTrainingFromTutorialButton?.addEventListener("click", () => showLobbySection("training"));
+  els.tutorialModulesHomeButton?.addEventListener("click", showMenuScreen);
   els.openAiClubHouseButton?.addEventListener("click", showAiClubHouseScreen);
   els.aiClubHouseHomeButton?.addEventListener("click", showMenuScreen);
   els.aiClubHouseLogoButton?.addEventListener("click", showMenuScreen);
@@ -15871,7 +15900,7 @@ function initMenu() {
   });
   document.querySelectorAll(".direct-home-button").forEach((button) => button.addEventListener("click", showMenuScreen));
   const navigationObserver = new MutationObserver(updateGlobalPlayerDock);
-  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp]
+  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp]
     .filter(Boolean)
     .forEach((screen) => navigationObserver.observe(screen, { attributes: true, attributeFilter: ["class"] }));
   updateGlobalPlayerDock();
