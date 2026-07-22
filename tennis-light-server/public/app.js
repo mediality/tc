@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.21";
+const GAME_VERSION = "v2.169.25";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -351,19 +351,19 @@ const GAME_NEWS = [
     id: "v16921-rosa-benavente-espana",
     publishedAt: "2026-07-21",
     availableAt: "2026-07-21T18:00:00+02:00",
-    title: "Que Viva Espana !",
+    title: "¡Que viva España!",
     characterId: "rosaBenavente",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
+    message: "Avec la victoire de l’Espagne en Coupe du monde de football, Rosa Benavente et sa tenue en hommage à la Roja intègrent le Tennis Courts Pro Circuit. Vous pouvez la rencontrer dans les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle rejoint également votre sélection de personnages. Tentez de devenir le GOAT avec Rosa Benavente… En tout cas, elle porte déjà un maillot de championne !",
   },
   {
     id: "v16921-coach-hans-staff",
     publishedAt: "2026-07-22",
     availableAt: "2026-07-22T08:00:00+02:00",
-    title: "Le staff s’etoffe",
+    title: "Le staff s’étoffe",
     characterId: "coachHans",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "S’il y a bien un coach qui a la côte quand on débute, c’est Hans … allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de coeur, pour vous entrainer ou passer en victime expiatoire, à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le circuit pro avec lui. Il fait désormais partie des personnages jouables !",
+    message: "S’il y a bien un coach qui a la cote quand on débute, c’est Hans… allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de cœur, pour vous entraîner ou servir de victime expiatoire : à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le Circuit Pro avec lui. Il fait désormais partie des personnages jouables !",
   },
   {
     id: "v166-milan-verhaegen-pro-unlock",
@@ -371,7 +371,7 @@ const GAME_NEWS = [
     title: "Milan Verhaegen rejoint les joueurs PRO",
     characterId: "milanVerhaegen",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l’utiliser, choisissez-le depuis votre page profil. À bientôt sur les courts ! — Coach Ju",
+    message: "Bravo à Milan Verhaegen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l’utiliser, choisissez-le depuis votre page de profil. À bientôt sur les courts ! — Coach Ju",
     signature: "Coach Ju",
   },
 ];
@@ -2527,8 +2527,9 @@ function renderCircuitDashboard() {
   const week = Number(competitions?.week || ranking?.week || 1);
 
   if (els.circuitHeroPeriod) els.circuitHeroPeriod.textContent = `Saison ${season} · Semaine ${week} · Tournois de la semaine`;
-  if (els.circuitRankValue) els.circuitRankValue.textContent = circuitRankLabel(current?.rank);
-  setCircuitProjection(els.circuitRankProjection, current?.rank, current?.projected_rank);
+  const fixedWorldRank = Number(current?.points_rank || current?.rank || 0);
+  if (els.circuitRankValue) els.circuitRankValue.textContent = circuitRankLabel(fixedWorldRank);
+  setCircuitProjection(els.circuitRankProjection, fixedWorldRank, current?.projected_rank);
   if (els.circuitPointsValue) els.circuitPointsValue.textContent = String(Number(current?.score_ref || 0));
   if (els.circuitWeekPointsValue) els.circuitWeekPointsValue.textContent = String(Number(current?.score_week || 0));
   if (els.circuitAttemptsValue) els.circuitAttemptsValue.textContent = `${remainingAttempts}/${retryLimit}`;
@@ -2543,8 +2544,8 @@ function renderCircuitDashboard() {
   }
   if (els.circuitPlayerNickname) els.circuitPlayerNickname.textContent = AUTH_STATE.user?.nickname || selectedPlayerName();
   if (els.circuitPlayerRole) els.circuitPlayerRole.textContent = ROLE_LABELS[currentUserRole()] || "PRO";
-  if (els.circuitPlayerRank) els.circuitPlayerRank.textContent = circuitRankLabel(current?.rank);
-  setCircuitProjection(els.circuitPlayerProjection, current?.rank, current?.projected_rank);
+  if (els.circuitPlayerRank) els.circuitPlayerRank.textContent = circuitRankLabel(fixedWorldRank);
+  setCircuitProjection(els.circuitPlayerProjection, fixedWorldRank, current?.projected_rank);
   if (els.circuitPlayerPoints) els.circuitPlayerPoints.textContent = String(Number(current?.score_ref || 0));
   if (els.circuitPlayerWeekPoints) els.circuitPlayerWeekPoints.textContent = String(Number(current?.score_week || 0));
   if (els.circuitPlayerAttempts) els.circuitPlayerAttempts.textContent = `${remainingAttempts} / ${retryLimit}`;
@@ -3064,7 +3065,7 @@ function profileMarkup(profile) {
           <p>${escapeHtml(selectedCharacterName)} vous représente dans le lobby et sur les courts.</p>
         </div>
         <dl class="profile-identity-metrics">
-          <div><dt>Rang mondial</dt><dd>${Number(ranking.rank || 0) ? `#${Number(ranking.rank)}` : "-"}</dd><small>${Number(ranking.projected_rank || 0) ? `#${Number(ranking.projected_rank)} projeté` : "Projection indisponible"}</small></div>
+          <div><dt>Rang mondial</dt><dd>${Number(ranking.points_rank || ranking.rank || 0) ? `#${Number(ranking.points_rank || ranking.rank)}` : "-"}</dd><small>${Number(ranking.projected_rank || 0) ? `#${Number(ranking.projected_rank)} projeté` : "Projection indisponible"}</small></div>
           <div><dt>Points Circuit</dt><dd>${Number(ranking.score_ref || 0)}</dd><small>4 semaines terminées</small></div>
           <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd><small>En cours</small></div>
           <div class="profile-trophy-metric gold"><dt>Tournois gagnés</dt><dd><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />${tournamentWins}</dd></div>
@@ -3121,7 +3122,7 @@ function profileMarkup(profile) {
           <strong>${escapeHtml(circuitLevel.label)}</strong>
           <span class="profile-level-stars" title="${circuitLevel.level} étoile${circuitLevel.level > 1 ? "s" : ""}">${"★".repeat(circuitLevel.level)}</span>
         </div>
-        <div class="ranking-row current-user"><span class="ranking-position"><strong>${Number(ranking.rank || 0) || "-"}</strong>${Number(ranking.projected_rank || 0) ? `<small class="ranking-projection">(${Number(ranking.projected_rank)})</small>` : ""}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
+        <div class="ranking-row current-user"><span class="ranking-position"><strong>${Number(ranking.points_rank || ranking.rank || 0) || "-"}</strong>${Number(ranking.projected_rank || 0) ? `<small class="ranking-projection">(${Number(ranking.projected_rank)})</small>` : ""}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
         <div class="profile-stats-grid">${statRows}</div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
@@ -7190,7 +7191,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.21");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.25");
 }
 
 function resetSetMatch() {
@@ -8024,6 +8025,7 @@ function runSoloAITurn() {
       ensureSoloProgress(beforeSignature);
       return;
     }
+    const legalInventory = soloLegalActionInventory(playerIndex);
     const scenarioPlan = prepareSoloScenarioPlan(playerIndex);
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
       recordSoloAiDecision("end_turn_after_effect");
@@ -8032,7 +8034,7 @@ function runSoloAITurn() {
       return;
     }
 
-    if (canSoloPassAndWin(playerIndex)) {
+    if (!legalInventory.canProgress && canSoloPassAndWin(playerIndex)) {
       const punitivePath = chooseSoloPunitiveContinuation(playerIndex, scenarioPlan);
       if (punitivePath) {
         recordSoloAiDecision("press_secured_advantage", {
@@ -8049,7 +8051,9 @@ function runSoloAITurn() {
       return;
     }
 
-    const legendarySafetyPass = legendaryPassSafetyDecision(playerIndex, scenarioPlan?.legendaryPlan);
+    const legendarySafetyPass = !legalInventory.canProgress
+      ? legendaryPassSafetyDecision(playerIndex, scenarioPlan?.legendaryPlan)
+      : null;
     if (legendarySafetyPass) {
       recordSoloAiDecision("legendary_safety_pass", legendarySafetyPass);
       pass(playerIndex);
@@ -8057,7 +8061,7 @@ function runSoloAITurn() {
       return;
     }
 
-    if (shouldSoloPassToLimitBoostDamage(playerIndex)) {
+    if (!legalInventory.canProgress && shouldSoloPassToLimitBoostDamage(playerIndex)) {
       recordSoloAiDecision("pass_limit_boost_damage", soloPassDecisionSnapshot(playerIndex));
       pass(playerIndex);
       ensureSoloProgress(beforeSignature);
@@ -8141,6 +8145,14 @@ function runSoloAITurn() {
       return;
     }
 
+    const legalPlacementRemise = legalInventory.placementRemises[0];
+    if (legalPlacementRemise) {
+      recordSoloAiDecision("fallback_placement_remise", { card: cardLogInfo(legalPlacementRemise) });
+      playCard(playerIndex, legalPlacementRemise.uid, false, null, "placement");
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
+
     const usefulEffect = chooseSoloEffectCard(playerIndex);
     if (usefulEffect) {
       recordSoloAiDecision("fallback_effect", { card: cardLogInfo(usefulEffect) });
@@ -8213,13 +8225,6 @@ function runAmateurSoloAITurn(playerIndex) {
       return true;
     }
     recordSoloAiDecision("amateur_forced_pass", soloPassDecisionSnapshot(playerIndex));
-    pass(playerIndex);
-    return true;
-  }
-
-  const amateurPassChance = isMatchDangerForPlayer(playerIndex) ? 0.1 : 0.24;
-  if (!hasPlayedThisTurn(playerIndex) && Math.random() < amateurPassChance) {
-    recordSoloAiDecision("amateur_early_pass", soloPassDecisionSnapshot(playerIndex));
     pass(playerIndex);
     return true;
   }
@@ -8364,25 +8369,25 @@ function soloEmergencyFallback(playerIndex) {
     endTurn(playerIndex);
     return;
   }
-  const player = state.players[playerIndex];
-  const forcedBoost = chooseSoloBoostPlay(playerIndex);
-  if (forcedBoost) {
+  const inventory = soloLegalActionInventory(playerIndex);
+  if (inventory.boosts.length) {
+    const forcedBoost = inventory.boosts[0];
     playCard(playerIndex, forcedBoost.card.uid, true, forcedBoost.sacrifice.uid);
     return;
   }
-  const forcedCoup = player.hand.find((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  const forcedCoup = inventory.coups[0];
   if (forcedCoup) {
     playCard(playerIndex, forcedCoup.uid);
     return;
   }
-  const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
-  const forcedRemise = player.hand.find((card) => (
-    isRemise(card)
-    && canPlayNormal(playerIndex, card)
-    && (!effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2))
-  ));
-  if (forcedRemise && !state.mandatoryPlacement) {
-    playCard(playerIndex, forcedRemise.uid, false, null, "effect");
+  const usefulEffect = inventory.effects[0];
+  if (usefulEffect && !state.mandatoryPlacement) {
+    playCard(playerIndex, usefulEffect.uid, false, null, "effect");
+    return;
+  }
+  const placementRemise = inventory.placementRemises[0];
+  if (placementRemise) {
+    playCard(playerIndex, placementRemise.uid, false, null, "placement");
     return;
   }
   pass(playerIndex);
@@ -9687,6 +9692,45 @@ function hasSafeSoloContinuation(playerIndex) {
   return Boolean(defensePlan?.coup || defensePlan?.remises?.length);
 }
 
+function soloLegalActionInventory(playerIndex) {
+  const player = state.players[playerIndex];
+  if (!player || state.gameOver || state.activePlayer !== playerIndex) {
+    return { coups: [], boosts: [], effects: [], placementRemises: [], canEnd: false, canProgress: false };
+  }
+  const coups = player.hand.filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  const boosts = player.hand
+    .filter((card) => canPlayBoost(playerIndex, card))
+    .map((card) => ({
+      card,
+      sacrifice: player.hand.find((candidate) => candidate.uid !== card.uid) || null,
+    }))
+    .filter((option) => option.sacrifice);
+  const effects = player.hand.filter((card) => (
+    isRemise(card)
+    && canPlayEffectMode(playerIndex, card)
+    && soloImmediateEffectValue(playerIndex, card) > 0
+  ));
+  const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
+  const placementRemises = defensePlan?.remises?.length
+    ? [...defensePlan.remises]
+    : !state.mandatoryPlacement
+      ? player.hand.filter((card) => (
+        isRemise(card)
+        && canPlayNormal(playerIndex, card)
+        && getCardStats(player, card, false).placement > 0
+      ))
+      : [];
+  const canEnd = canEndTurn(playerIndex);
+  return {
+    coups,
+    boosts,
+    effects,
+    placementRemises,
+    canEnd,
+    canProgress: Boolean(coups.length || boosts.length || effects.length || placementRemises.length || canEnd),
+  };
+}
+
 function wouldPassLoseSetOrMatch(playerIndex) {
   if (!state.setMatch.enabled || hasPlayedThisTurn(playerIndex)) return false;
   const player = state.players[playerIndex];
@@ -10236,14 +10280,12 @@ function chooseSoloEffectCard(playerIndex) {
   const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
   const remises = player.hand
     .filter((card) => isRemise(card) && canPlayEffectMode(playerIndex, card))
-    .filter((card) => !effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2));
+    .filter((card) => !effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2))
+    .filter((card) => soloImmediateEffectValue(playerIndex, card) > 0);
   const joker = remises
     .filter((card) => card.effectType === "jokerResponse" && state.lastCard?.boosted)
     .sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
   if (joker) return joker;
-  if (player.limitedFamilies?.includes("Remise") && !canSoloFinishWithCoup(playerIndex)) {
-    return remises.sort((a, b) => soloEffectScore(b) - soloEffectScore(a))[0] ?? null;
-  }
   if (!canSoloFinishWithCoup(playerIndex)) {
     return remises.sort((a, b) => soloEffectScore(b) - soloEffectScore(a))[0] ?? null;
   }
@@ -14148,11 +14190,18 @@ function renderGameContextStrip() {
       ? `IA ${tournamentDifficultyLabel(state.tournament.difficulty || "normal")}`
       : `IA ${aiStyleLabel()}`
     : SERVER_SYNC.enabled ? "En ligne" : "Local";
+  const encounteredAiLevel = SOLO_AI.enabled
+    ? aiIntelligenceForEntry(SOLO_AI.characterId, state.tournament?.difficulty || SOLO_AI.difficulty)
+    : null;
+  const encounteredAiLabel = encounteredAiLevel
+    ? ({ amateur: "Amateur", normal: "Normal", expert: "Expert", champion: "Champion", legend: "Légende" }[encounteredAiLevel] || "Normal")
+    : null;
   const standing = leagueHumanStandingReminder();
   els.gameContextStrip.innerHTML = `
     <div><span>Format</span><strong>${escapeHtml(format)}</strong></div>
     ${standing ? `<div><span>Classement</span><strong>${escapeHtml(standing)}</strong></div>` : ""}
     <div><span>Réglage</span><strong>${escapeHtml(difficulty)}</strong></div>
+    ${encounteredAiLabel ? `<div class="game-context-ai-level"><span>Niveau de l’IA</span><strong>${escapeHtml(encounteredAiLabel)}</strong></div>` : ""}
     <div class="game-context-score"><span>Score</span><strong>${escapeHtml(currentMatchScoreText())}</strong></div>
   `;
 }
@@ -14912,10 +14961,12 @@ function renderCharacterCard(player, playerIndex) {
       <div class="character-stats">
         <div class="character-power-reminder${leaderClass}${tutorialFocusClass("power", playerIndex)}" data-tutorial-target="power-${playerIndex}">
           ${crown}
+          <span class="stat-symbol stat-symbol-power" aria-hidden="true">⚡</span>
           <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
           <span>Puissance</span>
         </div>
         <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
+          <span class="stat-symbol stat-symbol-endurance" aria-hidden="true">♥</span>
           <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
           <span>Endurance</span>
         </div>
@@ -15850,7 +15901,12 @@ function initMenu() {
   document.querySelectorAll("[data-tutorial-module]").forEach((button) => {
     button.addEventListener("click", () => startTutorial(button.dataset.tutorialModule));
   });
-  els.openTutorialModulesButton?.addEventListener("click", showTutorialModulesScreen);
+  document.addEventListener("click", (event) => {
+    const trigger = event.target instanceof Element ? event.target.closest("[data-open-tutorial-modules]") : null;
+    if (!trigger) return;
+    event.preventDefault();
+    showTutorialModulesScreen();
+  });
   els.backToTrainingFromTutorialButton?.addEventListener("click", () => showLobbySection("training"));
   els.tutorialModulesHomeButton?.addEventListener("click", showMenuScreen);
   els.openAiClubHouseButton?.addEventListener("click", showAiClubHouseScreen);

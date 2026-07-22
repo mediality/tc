@@ -22,7 +22,7 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(JSON.parse(pkg).version, "2.169.21");
+assert.equal(JSON.parse(pkg).version, "2.169.25");
 assert.match(app, /const GAME_VERSION = "v2\.169\.21"/);
 assert.match(html, /Tennis Courts Academy · 2\.169\.21/);
 assert.match(html, /styles\.css\?v=170\.18/);

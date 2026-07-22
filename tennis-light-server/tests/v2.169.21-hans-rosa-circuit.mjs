@@ -7,7 +7,7 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "2.169.21");
+assert.equal(pkg.version, "2.169.25");
 assert.match(app, /const GAME_VERSION = "v2\.169\.21"/);
 assert.match(html, /Tennis Courts Academy · 2\.169\.21/);
 

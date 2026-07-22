@@ -21,8 +21,8 @@ function functionSource(name) {
 }
 
 assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /styles\.css\?v=170\.25/);
+assert.match(html, /app\.js\?v=170\.25/);
 assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 
 const attitude = functionSource("chooseSoloAttitude");
@@ -52,7 +52,7 @@ assert.match(aiTurn, /legendary_safety_pass/);
 assert.match(aiTurn, /legendary_sequence/);
 
 const amateur = functionSource("runAmateurSoloAITurn");
-assert.match(amateur, /amateurPassChance/);
+assert.doesNotMatch(amateur, /amateurPassChance|amateur_early_pass/);
 assert.match(amateur, /Math\.random\(\) < 0\.16/);
 assert.match(amateur, /Math\.random\(\) < 0\.08/);
 assert.match(amateur, /amateur_basic_coup/);

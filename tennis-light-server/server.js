@@ -771,6 +771,12 @@ function maxWeeklyTournamentPoints(week) {
     }, 0);
 }
 
+function aiHumanWinBonusCap(basePoints, weeklyPotential) {
+  const base = Math.max(0, Number(basePoints || 0));
+  const potential = Math.max(0, Number(weeklyPotential || 0));
+  return base >= potential ? 100 : Math.min(300, Math.max(0, potential - base));
+}
+
 function previousCircuitWeekNumber(week) {
   return week <= 1 ? CIRCUIT_SEASON_LENGTH : week - 1;
 }
@@ -911,7 +917,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
           SET points = EXCLUDED.points,
               human_win_bonus = LEAST(
                 circuit_ai_week_scores.human_win_bonus,
-                GREATEST(0, $5 - EXCLUDED.points)
+                CASE WHEN EXCLUDED.points >= $5 THEN 100 ELSE LEAST(300, GREATEST(0, $5 - EXCLUDED.points)) END
               ),
               updated_at = NOW()
       `, [characterId, season, week, points, maxSem]);
@@ -924,7 +930,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
     authMemory.circuitAiWeekScores.set(key, points);
     authMemory.circuitAiHumanBonuses.set(
       key,
-      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), Math.max(0, maxSem - points)),
+      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), aiHumanWinBonusCap(points, maxSem)),
     );
   }
 }
@@ -1956,7 +1962,7 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
 async function circuitWorldRankForUser(user) {
   if (!user?.id) return null;
   const ranking = await buildRanking(1, 100000, user, "points");
-  return Number(ranking.currentUserRank?.rank || 0) || null;
+  return Number(ranking.currentUserRank?.points_rank || ranking.currentUserRank?.rank || 0) || null;
 }
 
 async function registerCircuitAiResults(userId, results = []) {
@@ -1990,16 +1996,16 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
   if (!winsByAi.size) return;
   const maxSem = maxWeeklyTournamentPoints(week);
   for (const [aiCharacterId, wins] of winsByAi) {
-    const increment = Math.min(250, wins * 25);
+    const increment = Math.min(300, wins * 25);
     if (db) {
       await db.query(`
         INSERT INTO circuit_ai_week_scores
           (ai_character_id, season_number, week_number, points, human_win_bonus)
-        VALUES ($1, $2, $3, 0, LEAST(250, $4, $5))
+        VALUES ($1, $2, $3, 0, LEAST(300, $4, $5))
         ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
           SET human_win_bonus = LEAST(
-                250,
-                GREATEST(0, $5 - circuit_ai_week_scores.points),
+                300,
+                CASE WHEN circuit_ai_week_scores.points >= $5 THEN 100 ELSE GREATEST(0, $5 - circuit_ai_week_scores.points) END,
                 circuit_ai_week_scores.human_win_bonus + EXCLUDED.human_win_bonus
               ),
               updated_at = NOW()
@@ -2010,7 +2016,7 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
       const previousBonus = Number(authMemory.circuitAiHumanBonuses.get(key) || 0);
       authMemory.circuitAiHumanBonuses.set(
         key,
-        Math.min(250, previousBonus + increment, Math.max(0, maxSem - basePoints)),
+        Math.min(previousBonus + increment, aiHumanWinBonusCap(basePoints, maxSem)),
       );
     }
   }
