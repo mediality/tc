@@ -1301,6 +1301,173 @@ const TUTORIAL_MODULES = {
       },
     ],
   },
+  guidedRally: {
+    id: "module-2-guided-rally",
+    lesson: "Académie · Module 2",
+    title: "Premier échange guidé",
+    narrator: "coachJu",
+    scenario: "guided-rally",
+    initialLog: ["Premier échange guidé : suis les indications de Coach Ju."],
+    totalDisplaySteps: 22,
+    steps: [
+      {
+        id: "m2-1-court",
+        displayStep: 1,
+        title: "Bienvenue sur le court",
+        text: "Nous allons jouer ensemble ton premier échange. Je te guiderai à chaque action.",
+      },
+      {
+        id: "m2-2-server",
+        displayStep: 2,
+        title: "Tu es au service",
+        text: "Le badge Serveur indique que tu dois engager l'échange.",
+        focus: [{ target: "character", playerIndex: 0 }],
+      },
+      {
+        id: "m2-3-select-service",
+        displayStep: 3,
+        title: "Choisis le Service",
+        text: "Sélectionne maintenant la carte Service.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "service-coup-droit" },
+        error: "Sélectionne la carte Service indiquée par la flèche.",
+      },
+      {
+        id: "m2-4-play-service",
+        displayStep: 4,
+        title: "Joue le Service",
+        text: "Clique sur Jouer sous la carte Service pour engager l'échange.",
+        action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal" },
+      },
+      {
+        id: "m2-5-service-cost",
+        displayStep: 5,
+        title: "Endurance dépensée",
+        text: "Ton Service a coûté 2 points d'endurance.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m2-6-service-power",
+        displayStep: 6,
+        title: "Puissance gagnée",
+        text: "Ton Service t'a rapporté 4 points de puissance.",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m2-7-coach-first-reply",
+        displayStep: 7,
+        title: "La réponse de Coach Ju",
+        text: "Je réponds avec un Passing. Regarde l'échange changer de côté.",
+        auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
+        autoDelayMs: 500,
+      },
+      {
+        id: "m2-8-alternation",
+        displayStep: 8,
+        title: "Chacun son tour",
+        text: "Chaque joueur joue une carte à son tour. C'est de nouveau à toi.",
+        focus: [{ target: "character", playerIndex: 0 }],
+      },
+      {
+        id: "m2-9-select-forehand",
+        displayStep: 9,
+        title: "Choisis le Coup droit",
+        text: "Sélectionne le Coup droit indiqué.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "coup-droit-4-3-5" },
+      },
+      {
+        id: "m2-10-play-forehand",
+        displayStep: 10,
+        title: "Joue le Coup droit",
+        text: "Clique sur Jouer sous ton Coup droit.",
+        action: { kind: "play", playerIndex: 0, cardId: "coup-droit-4-3-5", mode: "normal" },
+      },
+      {
+        id: "m2-11-less-endurance",
+        displayStep: 11,
+        title: "L'endurance diminue",
+        text: "À chaque carte jouée, son coût est retiré de ton endurance.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m2-12-more-power",
+        displayStep: 12,
+        title: "La puissance augmente",
+        text: "La puissance de la carte s'ajoute à ton total.",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m2-13-coach-second-reply",
+        displayStep: 13,
+        title: "Coach Ju poursuit",
+        text: "Je joue maintenant un Lob. L'échange continue.",
+        auto: { kind: "play", playerIndex: 1, cardId: "lob-2-0-4", mode: "normal" },
+        autoDelayMs: 500,
+      },
+      {
+        id: "m2-14-select-backhand",
+        displayStep: 14,
+        title: "Choisis le Revers",
+        text: "Il te reste exactement assez d'endurance. Sélectionne ton Revers.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "revers-3-3-3" },
+      },
+      {
+        id: "m2-15-play-backhand",
+        displayStep: 15,
+        title: "Joue le Revers",
+        text: "Clique sur Jouer pour utiliser tes derniers points d'endurance.",
+        action: { kind: "play", playerIndex: 0, cardId: "revers-3-3-3", mode: "normal" },
+      },
+      {
+        id: "m2-16-empty-endurance",
+        displayStep: 16,
+        title: "Endurance épuisée",
+        text: "Ton endurance est maintenant à zéro.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m2-17-coach-last-reply",
+        displayStep: 17,
+        title: "Dernière réponse",
+        text: "Je joue une dernière Amortie. Tu ne peux plus répondre avec une carte.",
+        auto: { kind: "play", playerIndex: 1, cardId: "amortie-2-1-4", mode: "normal" },
+        autoDelayMs: 500,
+      },
+      {
+        id: "m2-18-pass-explanation",
+        displayStep: 18,
+        title: "Quand passer",
+        text: "Quand tu ne peux plus continuer, utilise le bouton Passer.",
+        focus: [{ target: "pass", playerIndex: 0 }],
+      },
+      {
+        id: "m2-19-pass-action",
+        displayStep: 19,
+        title: "Passe",
+        text: "Clique maintenant sur Passer pour terminer l'échange.",
+        action: { kind: "pass", playerIndex: 0 },
+      },
+      {
+        id: "m2-20-pass-bonus",
+        displayStep: 20,
+        title: "Le bonus de passe",
+        text: "Ton adversaire reçoit un bonus égal à ton endurance restante, avec un minimum de 2 points.",
+      },
+      {
+        id: "m2-21-result",
+        displayStep: 21,
+        title: "Résolution de l'échange",
+        text: "Les puissances finales sont comparées. Tu remportes cet échange !",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m2-22-conclusion",
+        displayStep: 22,
+        title: "Premier échange terminé",
+        text: "Bravo, tu viens de terminer ton premier échange ! La prochaine leçon expliquera en détail le calcul du vainqueur.",
+        final: true,
+      },
+    ],
+  },
 };
 
 const TUTORIAL_ENGINE = window.TennisCourtsTutorialEngine;
@@ -1314,6 +1481,8 @@ let tutorialTypingTimer = null;
 let tutorialTypingStepId = null;
 let tutorialTypingText = "";
 let tutorialTypingProgress = 0;
+let tutorialTypingStartedAt = 0;
+let tutorialTypingDurationMs = 0;
 let opponentHandRevealTimer = null;
 let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
@@ -4029,6 +4198,9 @@ function tutorialFocusClass(target, playerIndex, cardId = null) {
   if (step?.action?.kind === "play") {
     actionFocuses.push({ target: "play", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
   }
+  if (step?.action?.kind === "pass") {
+    actionFocuses.push({ target: "pass", playerIndex: step.action.playerIndex });
+  }
   const focusMatches = (focus) => (
     focus.target === target
     && (focus.playerIndex == null || focus.playerIndex === playerIndex)
@@ -4071,11 +4243,17 @@ function startTutorialTyping(step) {
     tutorialTypingStepId = step.id;
     tutorialTypingText = text;
     tutorialTypingProgress = 0;
+    tutorialTypingStartedAt = Date.now();
+    tutorialTypingDurationMs = Math.min(1800, Math.max(350, text.length * 10));
   }
   updateTutorialTypingDisplay();
   if (tutorialTypingProgress >= tutorialTypingText.length || tutorialTypingTimer) return;
   tutorialTypingTimer = window.setInterval(() => {
-    tutorialTypingProgress = Math.min(tutorialTypingText.length, tutorialTypingProgress + 2);
+    const elapsed = Date.now() - tutorialTypingStartedAt;
+    tutorialTypingProgress = Math.min(
+      tutorialTypingText.length,
+      Math.ceil(tutorialTypingText.length * (elapsed / tutorialTypingDurationMs)),
+    );
     updateTutorialTypingDisplay();
     if (tutorialTypingProgress >= tutorialTypingText.length) clearTutorialTyping();
   }, 14);
@@ -4313,6 +4491,18 @@ function setupTutorialScenario(scenario) {
     );
     state.latestPlayedCard = createTutorialPlayedCard("revers-3-3-3", 1);
     state.lastCard = null;
+  } else if (scenario === "guided-rally") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["service-coup-droit", "coup-droit-4-3-5", "revers-3-3-3", "volee-2-2-3", "smash-4-2-1", "joker"], "guided-rally-edt"),
+        tutorialHand(["passing-1-1-4", "lob-2-0-4", "amortie-2-1-4"], "guided-rally-ju"),
+      ],
+      0,
+      0,
+    );
+    state.players[0].endurance = 7;
+    state.players[1].endurance = 7;
   } else if (scenario === "points") {
     resetTutorialExchange(
       [edt, coachJu],
@@ -15009,7 +15199,7 @@ function renderPlayerPanel(playerIndex, root) {
         <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${escapeHtml(displayPlayerName(player))}</h2>
         <div class="player-character-name">${escapeHtml(player.name)} ${playerIndex === SOLO_AI.playerIndex ? aiIntelligenceBadgeMarkup(player.characterId) : ""}</div>
         <div class="turn-buttons">
-          <button class="pass-button" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
+          <button class="pass-button${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
           ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
         </div>
@@ -15632,7 +15822,7 @@ function initMenu() {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
   document.querySelectorAll("[data-start-tutorial]").forEach((button) => {
-    button.addEventListener("click", () => startTutorial());
+    button.addEventListener("click", () => startTutorial(button.dataset.startTutorial || "basics"));
   });
   els.openAiClubHouseButton?.addEventListener("click", showAiClubHouseScreen);
   els.aiClubHouseHomeButton?.addEventListener("click", showMenuScreen);
