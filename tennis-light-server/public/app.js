@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.26";
+const GAME_VERSION = "v2.169.27";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1491,6 +1491,7 @@ let soloTournamentCountdownTimer = null;
 
 const GAMEPLAY_ASSIST = {
   preview: localStorage.getItem("tennisLightAssistPreview") === "true",
+  information: localStorage.getItem("tennisLightAssistInformation") === "true",
   panelOpen: false,
 };
 
@@ -1560,6 +1561,7 @@ const els = {
   gameAssistButton: document.querySelector("#gameAssistButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gamePreviewToggle: document.querySelector("#gamePreviewToggle"),
+  gameInformationToggle: document.querySelector("#gameInformationToggle"),
   gameContextStrip: document.querySelector("#gameContextStrip"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
@@ -7101,7 +7103,10 @@ function formatPermanentBonusStats(bonus) {
 }
 
 function permanentBonusLogLine(player) {
-  const bonuses = player.permanentBonuses ?? [];
+  const bonuses = [...(player.surfaceBonuses ?? []), ...(player.permanentBonuses ?? [])]
+    .filter((bonus, index, entries) => bonus && entries.findIndex((entry) => (
+      String(entry?.id || entry?.label || "") === String(bonus.id || bonus.label || "")
+    )) === index);
   if (!bonuses.length) return `Bonus permanent de ${displayPlayerName(player)} : aucun.`;
   const details = bonuses.map((bonus) => {
     const stats = formatPermanentBonusStats(bonus);
@@ -7191,7 +7196,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.26");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.27");
 }
 
 function resetSetMatch() {
@@ -14131,6 +14136,7 @@ function renderModeButtons() {
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
+  if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
@@ -14942,7 +14948,7 @@ function renderCharacterCard(player, playerIndex) {
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
   const worldRankReminder = state.tournament.active && [1, 2, 3].includes(Number(player.worldRank))
-    ? { label: `N°${Number(player.worldRank)} mondial` }
+    ? { label: `N°${Number(player.worldRank)} mondial`, goldWorldRank: true }
     : null;
   const bonusReminders = [
     worldRankReminder,
@@ -14950,11 +14956,11 @@ function renderCharacterCard(player, playerIndex) {
     ...(player.permanentBonuses ?? []),
   ].filter(Boolean);
   const surfaceBonus = bonusReminders.length
-    ? `<div class="surface-bonus-stack">${bonusReminders.map((bonus) => `<div class="surface-bonus-reminder">${escapeHtml(bonus.label)}</div>`).join("")}</div>`
+    ? `<div class="surface-bonus-stack">${bonusReminders.map((bonus) => `<div class="surface-bonus-reminder${bonus.goldWorldRank ? " world-rank-gold" : ""}">${escapeHtml(bonus.label)}</div>`).join("")}</div>`
     : "";
   return `
     <div class="character-zone">
-      <div class="character-card${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+      <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
       </div>
       ${surfaceBonus}
@@ -14965,14 +14971,14 @@ function renderCharacterCard(player, playerIndex) {
             <span class="stat-symbol stat-symbol-power" aria-hidden="true"></span>
             <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
           </div>
-          <span>Puissance</span>
+          ${GAMEPLAY_ASSIST.information ? "<span>Puissance</span>" : ""}
         </div>
         <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
           <div class="stat-value-row stat-value-endurance">
             <span class="stat-symbol stat-symbol-endurance" aria-hidden="true"></span>
             <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
           </div>
-          <span>Endurance</span>
+          ${GAMEPLAY_ASSIST.information ? "<span>Endurance</span>" : ""}
         </div>
         <div class="character-hand-reminder${handCountClass}" aria-label="${handCount} carte${handCount > 1 ? "s" : ""} restante${handCount > 1 ? "s" : ""}">
           <span class="hand-cards-icon" aria-hidden="true"><i></i><i></i></span>
@@ -15276,8 +15282,8 @@ function renderPlayerPanel(playerIndex, root) {
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
     <header class="player-header">
-      <div>
-        <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${escapeHtml(displayPlayerName(player))}</h2>
+      <div class="player-identity-panel${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
+        <h2>${escapeHtml(displayPlayerName(player))}</h2>
         <div class="player-character-name">${escapeHtml(player.name)} ${playerIndex === SOLO_AI.playerIndex ? aiIntelligenceBadgeMarkup(player.characterId) : ""}</div>
         <div class="turn-buttons">
           <button class="pass-button${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
@@ -15980,6 +15986,11 @@ els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GA
 els.gamePreviewToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.preview = Boolean(els.gamePreviewToggle.checked);
   localStorage.setItem("tennisLightAssistPreview", String(GAMEPLAY_ASSIST.preview));
+  render();
+});
+els.gameInformationToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.information = Boolean(els.gameInformationToggle.checked);
+  localStorage.setItem("tennisLightAssistInformation", String(GAMEPLAY_ASSIST.information));
   render();
 });
 els.friendlyLobbyHomeButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "online" }));

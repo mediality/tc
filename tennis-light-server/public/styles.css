@@ -3040,14 +3040,19 @@ h1 {
   font-weight: 750;
 }
 
-.player-header h2.turn-name {
-  display: inline-block;
+.player-identity-panel {
+  display: inline-grid;
+  min-width: min(240px, 100%);
   border-radius: 8px;
   padding: 5px 10px;
-  color: #06281f;
-  background: #90f0b8;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
+  background: transparent;
+  box-shadow: 0 3px 0 transparent;
 }
+
+.player-identity-panel h2 { color: #fff; }
+.player-identity-panel.active-turn { background: #90f0b8; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18); }
+.player-identity-panel.active-turn h2 { color: #06281f; }
+.player-identity-panel.active-turn .player-character-name { color: rgba(6, 40, 31, .78); }
 
 .badges {
   display: flex;
@@ -3207,15 +3212,15 @@ h1 {
 
 .character-power-reminder.leading-power .stat-value-power { color: #0f6b4f; }
 
-.character-power-reminder span,
-.character-endurance-reminder span {
+.character-power-reminder > span,
+.character-endurance-reminder > span {
   color: #5c3b17;
   font-size: 0.78rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
-.character-endurance-reminder span {
+.character-endurance-reminder > span {
   color: #91443e;
   font-size: 0.66rem;
 }
@@ -3235,7 +3240,12 @@ h1 {
   -webkit-mask-size: contain;
 }
 
+.stat-value-row .stat-symbol { color: inherit; }
+
 .character-power-reminder .stat-symbol-power {
+  flex-basis: 29px;
+  width: 29px;
+  height: 29px;
   mask-image: url("assets/icons/power-flash.svg");
   -webkit-mask-image: url("assets/icons/power-flash.svg");
 }
@@ -3244,6 +3254,16 @@ h1 {
   -webkit-mask-image: url("assets/icons/endurance-heart.svg");
 }
 .character-endurance-reminder.low-endurance .stat-value-endurance { color: #fff; }
+
+.character-card.exchange-winner {
+  z-index: 2;
+  animation: exchange-winner-halo 1.45s ease-in-out infinite alternate;
+}
+
+@keyframes exchange-winner-halo {
+  from { box-shadow: 0 0 0 3px rgba(255, 238, 128, .72), 0 0 18px rgba(255, 222, 70, .62); }
+  to { box-shadow: 0 0 0 5px rgba(255, 248, 183, .95), 0 0 38px rgba(255, 217, 38, .95); }
+}
 
 .character-card img,
 .played-visual img {
@@ -3847,6 +3867,13 @@ h1 {
 .surface-bonus-reminder {
   max-width: 220px;
   text-align: center;
+}
+
+.surface-bonus-reminder.world-rank-gold {
+  border-color: #fff0a6;
+  color: #4b3000;
+  background: linear-gradient(135deg, #ffe795, #dcae2d);
+  box-shadow: 0 5px 16px rgba(130, 86, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .7);
 }
 
 .tournament-champion {

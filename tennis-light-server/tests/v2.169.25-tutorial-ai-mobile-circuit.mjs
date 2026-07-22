@@ -25,7 +25,7 @@ function functionSource(source, name) {
   throw new Error(`Source incomplète pour ${name}`);
 }
 
-assert.equal(pkg.version, "2.169.26");
+assert.equal(pkg.version, "2.169.27");
 assert.match(html, /data-open-tutorial-modules data-required-role="admin"/);
 assert.equal((html.match(/data-open-tutorial-modules/g) || []).length, 1);
 assert.match(app, /closest\("\[data-open-tutorial-modules\]"\)/);
@@ -47,6 +47,13 @@ assert.match(app, /stat-symbol-endurance[^>]*><\/span>/);
 assert.match(css, /power-flash\.svg/);
 assert.match(css, /endurance-heart\.svg/);
 assert.match(css, /\.opponent-inline[\s\S]*?color: inherit !important/);
+assert.match(app, /tennisLightAssistInformation/);
+assert.match(app, /GAMEPLAY_ASSIST\.information \? "<span>Puissance<\/span>"/);
+assert.match(app, /GAMEPLAY_ASSIST\.information \? "<span>Endurance<\/span>"/);
+assert.match(app, /exchange-winner/);
+assert.match(app, /world-rank-gold/);
+assert.match(css, /\.character-power-reminder \.stat-symbol-power \{[\s\S]*?width: 29px/);
+assert.match(css, /\.player-identity-panel\.active-turn/);
 assert.doesNotMatch(app, /¡Que viva España!/);
 assert.match(css, /width: 22px;[\s\S]*height: 22px;/);
 assert.match(functionSource(app, "renderGameContextStrip"), /Niveau de l’IA/);
@@ -67,4 +74,4 @@ vm.runInContext(`${capSource}; result = [aiHumanWinBonusCap(200, 500), aiHumanWi
 assert.deepEqual(Array.from(capContext.result), [300, 50, 100, 100]);
 assert.match(functionSource(server, "registerCircuitAiHumanWinBonuses"), /Math\.min\(300, wins \* 25\)/);
 
-console.log("v2.169.26 tutoriel, IA, mobile, HUD SVG et Circuit Pro : OK");
+console.log("v2.169.27 assistance, identités, HUD SVG et retours visuels : OK");
