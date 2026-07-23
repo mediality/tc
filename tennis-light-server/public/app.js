@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.30";
+const GAME_VERSION = "v2.169.31";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -354,7 +354,7 @@ const GAME_NEWS = [
     title: "Bienvenue dans la Prestige League et l’Ultimate League",
     image: "assets/prestige-ultimate-league.jpeg",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. À noter cependant que, contrairement aux autres tournois, les Leagues ne sont pas rejouables dans la semaine. Bons matchs !",
   },
   {
     id: "v16921-rosa-benavente-espana",
@@ -3572,8 +3572,11 @@ function renderCompetitions() {
     </div>
     ${competitions.map((competition) => {
       const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competition.id);
-      const canReplay = !alreadyPlayed || retriesUsed < retryLimit;
-      const label = alreadyPlayed ? "Rejouer" : "Jouer";
+      const singleEntryLeague = competition.eventType === "League"
+        || ["Prestige League", "Ultimate League"].includes(competition.level);
+      const replayLocked = alreadyPlayed && singleEntryLeague;
+      const canReplay = !alreadyPlayed || (!replayLocked && retriesUsed < retryLimit);
+      const label = replayLocked ? "Terminé" : alreadyPlayed ? "Rejouer" : "Jouer";
       const replayClass = alreadyPlayed ? "replay-button" : "";
       const saved = savedTournamentProgress(competition.id);
       const performance = bestPerformances[competition.id] || null;
@@ -3592,7 +3595,7 @@ function renderCompetitions() {
       <article class="weekly-competition circuit-competition-card" data-competition-category="${escapeHtml(categoryKey)}">
         <div class="circuit-competition-head">
           <span class="circuit-competition-category">${escapeHtml(category)}</span>
-          <span class="circuit-competition-state ${saved ? "saved" : alreadyPlayed ? "played" : "new"}">${saved ? "Sauvegardé" : alreadyPlayed ? "Déjà joué" : "À jouer"}</span>
+          <span class="circuit-competition-state ${saved ? "saved" : alreadyPlayed ? "played" : "new"}">${saved ? "Sauvegardé" : replayLocked ? "Participation terminée" : alreadyPlayed ? "Déjà joué" : "À jouer"}</span>
         </div>
         <div class="circuit-competition-copy">
           <h3>${escapeHtml(competition.name)}</h3>
@@ -3600,12 +3603,13 @@ function renderCompetitions() {
           <div class="circuit-competition-meta">
             <span>${escapeHtml(competition.surfaceLabel)}</span>
             <span>${Number(competition.targetSets || 2)} sets gagnants</span>
+            ${singleEntryLeague ? '<span class="single-entry-league-badge">Non rejouable</span>' : ""}
           </div>
         </div>
         <div class="circuit-competition-footer">
           ${performanceMarkup}
           <div class="weekly-competition-actions">
-            ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
+            ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"} title="${replayLocked ? "Une seule participation est autorisée pour cette League." : ""}">${label}</button>`}
             ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
           </div>
         </div>
@@ -7264,7 +7268,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.30");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.31");
 }
 
 function emptyMomentumState() {

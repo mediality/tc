@@ -6397,6 +6397,7 @@ h1 {
 .circuit-competition-copy > span { color: #718078; font-size: 0.75rem; font-weight: 750; }
 .circuit-competition-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
 .circuit-competition-meta span { border-radius: 7px; padding: 5px 7px; color: #486259; background: #eef4f1; font-size: 0.65rem; font-weight: 850; }
+.circuit-competition-meta .single-entry-league-badge { border: 1px solid rgba(151,71,20,.26); color: #8a3f12; background: #fff0df; }
 .circuit-competition-footer { padding-top: 12px; border-top: 1px solid #e4ebe8; }
 .circuit-competition-footer > span { display: grid; gap: 1px; }
 .circuit-competition-footer > span small { color: #7c8b84; font-size: 0.6rem; font-weight: 850; text-transform: uppercase; }
