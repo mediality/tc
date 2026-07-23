@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.28";
+const GAME_VERSION = "v2.169.29";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -279,11 +279,11 @@ const EMPTY_TOURNAMENT = {
   matches: [],
 };
 
-const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
-const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
-const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV1";
-const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV1";
-const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
+const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogsV2";
+const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogsV2";
+const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV2";
+const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV2";
+const HUMAN_MATCH_LOG_SCHEMA_VERSION = 2;
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
@@ -1544,6 +1544,10 @@ const state = {
     setsWon: [0, 0],
     matchOver: false,
     matchWinner: null,
+    momentum: [
+      { consecutiveWins: 0, activeBonuses: [] },
+      { consecutiveWins: 0, activeBonuses: [] },
+    ],
   },
   tutorial: TUTORIAL_ENGINE.createState({ moduleId: "basics" }, TUTORIAL_MODULES),
 };
@@ -6659,6 +6663,7 @@ function createPlayer(name, characterId, nickname = name) {
     surfaceBonus: null,
     surfaceBonuses: [],
     permanentBonuses: [],
+    temporaryBonuses: [],
     passed: false,
   };
 }
@@ -6719,6 +6724,8 @@ function playerLogInfo(player) {
     handCount: player.hand.length,
     playedCount: player.played.filter((card) => !card.removed).length,
     hand: player.hand.map(cardLogInfo),
+    permanentBonuses: cloneData(player.permanentBonuses || []),
+    temporaryBonuses: cloneData(player.temporaryBonuses || []),
   };
 }
 
@@ -6757,9 +6764,11 @@ function recordAction(kind, payload = {}) {
     coachJuFocus: payload.playerIndex === 0 || payload.opponentIndex === 0,
   };
   state.actionLog.push(entry);
-  const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
-  stored.push(entry);
-  writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-2500));
+  if (["admin", "pro_plus"].includes(currentUserRole())) {
+    const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
+    stored.push(entry);
+    writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-5000));
+  }
   recordHumanMatchAction(entry);
 }
 
@@ -6784,6 +6793,7 @@ function absorbServerLogs(logs = []) {
 
 function shouldTrackHumanMatch() {
   if (!AUTH_STATE.user || SPECTATOR_MODE.enabled || state.tutorial.active) return false;
+  if (!["admin", "pro_plus"].includes(currentUserRole())) return false;
   if (!Array.isArray(state.players) || state.players.length !== 2) return false;
   return state.players.some((_, playerIndex) => isHumanTelemetrySeat(playerIndex));
 }
@@ -6905,7 +6915,6 @@ function ensureHumanMatchTelemetry() {
 
 function compactHumanMatchAction(entry) {
   const compact = cloneData(entry);
-  delete compact.after;
   return compact;
 }
 
@@ -7104,16 +7113,16 @@ function formatPermanentBonusStats(bonus) {
 }
 
 function permanentBonusLogLine(player) {
-  const bonuses = [...(player.surfaceBonuses ?? []), ...(player.permanentBonuses ?? [])]
+  const bonuses = [...(player.surfaceBonuses ?? []), ...(player.permanentBonuses ?? []), ...(player.temporaryBonuses ?? [])]
     .filter((bonus, index, entries) => bonus && entries.findIndex((entry) => (
       String(entry?.id || entry?.label || "") === String(bonus.id || bonus.label || "")
     )) === index);
-  if (!bonuses.length) return `Bonus permanent de ${displayPlayerName(player)} : aucun.`;
+  if (!bonuses.length) return `Bonus de ${displayPlayerName(player)} : aucun.`;
   const details = bonuses.map((bonus) => {
     const stats = formatPermanentBonusStats(bonus);
     return stats ? `${bonus.label} (${stats})` : bonus.label;
   }).join(" ; ");
-  return `Bonus permanent de ${displayPlayerName(player)} : ${details}.`;
+  return `Bonus de ${displayPlayerName(player)} : ${details}.`;
 }
 
 function exportLogsFile() {
@@ -7197,7 +7206,14 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.28");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.29");
+}
+
+function emptyMomentumState() {
+  return [
+    { consecutiveWins: 0, activeBonuses: [], motivationResolved: false, ascendantResolved: false, permanentAwards: [] },
+    { consecutiveWins: 0, activeBonuses: [], motivationResolved: false, ascendantResolved: false, permanentAwards: [] },
+  ];
 }
 
 function resetSetMatch() {
@@ -7214,6 +7230,7 @@ function resetSetMatch() {
     setsWon: [0, 0],
     matchOver: false,
     matchWinner: null,
+    momentum: emptyMomentumState(),
   };
 }
 
@@ -7274,21 +7291,14 @@ function newGame(options = {}) {
     player.permanentBonuses = state.tournament.active && !humanInProCircuit && state.tournament.permanentBonuses
       ? cloneData(state.tournament.permanentBonuses[tournamentEntry] ?? [])
       : [];
+    player.permanentBonuses.push(...cloneData(state.setMatch.momentum?.[playerIndex]?.permanentAwards || []));
     player.worldRank = state.tournament.active
       ? tournamentWorldRankForEntry(tournamentEntry)
       : null;
+    player.temporaryBonuses = cloneData(state.setMatch.momentum?.[playerIndex]?.activeBonuses || []);
   });
-  if (state.tournament.active && !state.tournament.aiClubHouse && !SERVER_SYNC.enabled) {
-    const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
-    if (headToHead) {
-      const targetIndex = headToHead.target === "human" ? 0 : 1;
-      state.players[targetIndex].permanentBonuses.push({
-        id: "headToHeadPlacement",
-        label: headToHead.label,
-        placement: headToHead.placement,
-      });
-    }
-  }
+  applyMotivationBonus();
+  applyHumanAscendantBonus();
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
@@ -7646,8 +7656,14 @@ function canUseSeat(playerIndex) {
 }
 
 function surfaceBonusesForPlayer(player) {
-  if (player?.surfaceBonuses?.length) return player.surfaceBonuses;
-  return player?.surfaceBonus ? [player.surfaceBonus] : [];
+  const assigned = player?.surfaceBonuses?.length
+    ? player.surfaceBonuses
+    : player?.surfaceBonus ? [player.surfaceBonus] : [];
+  const dynamic = [...(player?.permanentBonuses || []), ...(player?.temporaryBonuses || [])]
+    .filter((bonus) => bonus?.surface || bonus?.sourceBonusId);
+  return [...assigned, ...dynamic].map((bonus) => (
+    bonus.sourceBonusId ? { ...bonus, id: bonus.sourceBonusId } : bonus
+  ));
 }
 
 function playerHasSurfaceBonus(player, bonusId) {
@@ -8994,6 +9010,36 @@ function soloInformationExposureProfile(playerIndex) {
   };
 }
 
+function strategicEnduranceReserve(playerIndex) {
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (opponent.hand.length <= 1 || opponent.endurance <= 0) return 0;
+  if (isSetDangerForPlayer(playerIndex) || isMatchDangerForPlayer(playerIndex)) return 0;
+  return {
+    amateur: 0,
+    normal: 0,
+    expert: 1,
+    champion: 1,
+    legend: 2,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0;
+}
+
+function boostDisruptionValue(playerIndex, threat, passPressure = false) {
+  const opponent = state.players[opponentOf(playerIndex)];
+  const tier = {
+    amateur: 0.25,
+    normal: 0.55,
+    expert: 1,
+    champion: 1.25,
+    legend: 1.45,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0.25;
+  const forcedCardCost = opponent.hand.length > 1 ? 4 : 1;
+  const forcedEnduranceCost = Math.min(4, opponent.endurance) * 1.7;
+  const strategyInterruption = opponent.hand.length >= 3 ? 3 : 1;
+  const directPressure = passPressure ? 10 : 0;
+  const counterableDiscount = threat?.canDefend ? 0.9 : 1;
+  return (forcedCardCost + forcedEnduranceCost + strategyInterruption + directPressure) * tier * counterableDiscount;
+}
+
 function soloCommitmentDiscipline(playerIndex, options = {}) {
   const profile = soloInformationExposureProfile(playerIndex);
   const intelligence = normalizeAiIntelligence(SOLO_AI.style);
@@ -9011,7 +9057,7 @@ function soloCommitmentDiscipline(playerIndex, options = {}) {
   const cost = Math.max(0, Number(options.cost ?? (options.card ? effectiveCost(player, options.card) : 0)));
   const cardsCommitted = Math.max(1, Number(options.cardsCommitted || (options.boosted ? 2 : 1)));
   const remainingEndurance = Number(options.remainingEndurance ?? (player.endurance - cost));
-  const reserve = Math.max(0, Number(options.reserve || 0));
+  const reserve = Math.max(0, Number(options.reserve ?? strategicEnduranceReserve(playerIndex)));
   const risk = Math.max(0, Number(options.risk || 0));
   const canDefend = Boolean(options.canDefend);
   const projectedPowerLead = profile.powerLead + power;
@@ -9033,6 +9079,10 @@ function soloCommitmentDiscipline(playerIndex, options = {}) {
   if (profile.alreadyExposed && !profile.opponentMoreCommitted) {
     penalty += (2 + Math.max(0, profile.powerLead) * 0.35) * tier;
   }
+  const reserveShortfall = Math.max(0, reserve - remainingEndurance);
+  if (reserveShortfall && !options.passPressure) {
+    penalty += reserveShortfall * (8 + 10 * tier);
+  }
 
   let aggressionBonus = 0;
   if (profile.opponentConservative && !options.plannedSequence && power <= 3 && cost <= 1) aggressionBonus += 2.5 * tier;
@@ -9046,6 +9096,8 @@ function soloCommitmentDiscipline(playerIndex, options = {}) {
     penalty,
     aggressionBonus,
     safeSequence,
+    reserve,
+    reserveShortfall,
     profile,
   };
 }
@@ -9073,7 +9125,8 @@ function soloBoostOptionCandidates(playerIndex) {
         passPressure,
         plannedSequence: true,
       });
-      const boostedScore = rawBoostedScore - threat.danger + informationDiscipline.score;
+      const disruptionValue = boostDisruptionValue(playerIndex, threat, passPressure);
+      const boostedScore = rawBoostedScore + disruptionValue - threat.danger + informationDiscipline.score;
       const catastrophicRisk = !state.mandatoryPlacement && !threat.canDefend && boostedScore < 0;
       const destroysSuppression = sacrifice.effectType === "removeOpponentLast";
       return {
@@ -9086,6 +9139,7 @@ function soloBoostOptionCandidates(playerIndex) {
         passPressure,
         sacrificeScore,
         informationDiscipline,
+        disruptionValue,
         rejected: catastrophicRisk || (destroysSuppression && !state.mandatoryPlacement),
         rejectionReason: catastrophicRisk ? "projection négative sans défense" : destroysSuppression ? "Suppression préservée" : null,
       };
@@ -11770,6 +11824,78 @@ function pass(playerIndex, tutorialBypass = false) {
   });
 }
 
+function exchangeWasAce(winner) {
+  if (winner !== state.server) return false;
+  const coups = state.players.flatMap((player) => player.played || [])
+    .filter((card) => !isRemise(card));
+  return coups.length === 1
+    && coups[0].owner === winner
+    && Boolean(coups[0].isServiceTurn);
+}
+
+function expireUsedTemporaryBonuses() {
+  for (const [playerIndex, momentum] of (state.setMatch.momentum || []).entries()) {
+    momentum.activeBonuses = (momentum.activeBonuses || [])
+      .map((bonus) => {
+        const remainingExchanges = Number(bonus.remainingExchanges || 0) - 1;
+        return {
+          ...bonus,
+          remainingExchanges,
+          label: `${bonus.baseLabel || bonus.label} · ${remainingExchanges} échange${remainingExchanges > 1 ? "s" : ""}`,
+        };
+      })
+      .filter((bonus) => bonus.remainingExchanges > 0);
+    state.players[playerIndex].temporaryBonuses = cloneData(momentum.activeBonuses);
+  }
+}
+
+function activateSequenceBonus(playerIndex, triggerName, validFor) {
+  const player = state.players[playerIndex];
+  const momentum = state.setMatch.momentum?.[playerIndex];
+  if (!momentum) return null;
+  const bonus = wrappedRandomBonus(player, triggerName, triggerName, validFor);
+  if (!bonus) return null;
+  bonus.baseLabel = bonus.label;
+  bonus.label = `${bonus.baseLabel} · ${validFor} échange${validFor > 1 ? "s" : ""}`;
+  momentum.activeBonuses = [...(momentum.activeBonuses || []), cloneData(bonus)];
+  player.temporaryBonuses = cloneData(momentum.activeBonuses);
+  const message = `${displayPlayerName(player)} vient de déclencher le ${triggerName} : ${bonus.label} pour ${validFor} échange${validFor > 1 ? "s" : ""}.`;
+  state.log.unshift(message);
+  recordAction("bonus_activation", {
+    playerIndex,
+    playerName: displayPlayerName(player),
+    trigger: triggerName,
+    validForExchanges: validFor,
+    bonus: cloneData(bonus),
+    message,
+  });
+  return bonus;
+}
+
+function updateSequenceBonusesAfterExchange(winner) {
+  if (!state.setMatch.momentum) state.setMatch.momentum = emptyMomentumState();
+  expireUsedTemporaryBonuses();
+  const loser = opponentOf(winner);
+  state.setMatch.momentum[winner].consecutiveWins += 1;
+  state.setMatch.momentum[loser].consecutiveWins = 0;
+  const activated = [];
+  if (exchangeWasAce(winner)) {
+    const bonus = activateSequenceBonus(winner, "Ace", 1);
+    if (bonus) activated.push(bonus);
+  }
+  if (state.setMatch.momentum[winner].consecutiveWins >= 3) {
+    state.setMatch.momentum[winner].consecutiveWins = 0;
+    const bonus = activateSequenceBonus(winner, "Enchaînement", 2);
+    if (bonus) activated.push(bonus);
+  }
+  const completedSet = state.setMatch.setOver ? state.setMatch.completedScores.at(-1) : null;
+  if (completedSet && Math.max(...completedSet) === 6 && Math.min(...completedSet) === 0 && state.setMatch.winner === winner) {
+    const bonus = activateSequenceBonus(winner, "Bulle", 2);
+    if (bonus) activated.push(bonus);
+  }
+  return activated;
+}
+
 function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power", reason, extraPowerDetails = [] }) {
   const endBonusDetails = ignoreScore ? [] : applyEndBonuses();
   state.gameOver = true;
@@ -11790,6 +11916,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
+  state.resultInfo.activatedBonuses = updateSequenceBonusesAfterExchange(winner);
   state.log.unshift(exchangeResultLogLine(winner, winType, setScore));
   recordAction("exchange_end", {
     winner,
@@ -11807,6 +11934,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
       winner: state.setMatch.winner,
     } : null,
     players: state.players.map(playerLogInfo),
+    activatedBonuses: cloneData(state.resultInfo.activatedBonuses),
   });
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
@@ -12629,6 +12757,63 @@ function allCircuitSeedBonuses() {
 function randomCircuitBonus(excludedIds = []) {
   const excluded = new Set(excludedIds);
   return shuffle(allCircuitSeedBonuses()).find((bonus) => !excluded.has(bonus.id)) || null;
+}
+
+function wrappedRandomBonus(player, label, reason, remainingExchanges = null) {
+  const excludedIds = [
+    ...(player.surfaceBonuses || []),
+    ...(player.permanentBonuses || []),
+    ...(player.temporaryBonuses || []),
+  ].map((bonus) => bonus.sourceBonusId || bonus.id);
+  const source = randomCircuitBonus(excludedIds) || randomCircuitBonus();
+  if (!source) return null;
+  return {
+    ...source,
+    id: `${label.toLowerCase().replace(/\s+/g, "-")}-${crypto.randomUUID()}`,
+    sourceBonusId: source.id,
+    label: `${label} · ${source.label}`,
+    reason,
+    remainingExchanges,
+  };
+}
+
+function persistMatchPermanentAward(playerIndex, bonus) {
+  if (!bonus) return;
+  const momentum = state.setMatch.momentum?.[playerIndex];
+  if (!momentum) return;
+  momentum.permanentAwards = [...(momentum.permanentAwards || []), cloneData(bonus)];
+  state.players[playerIndex].permanentBonuses.push(cloneData(bonus));
+}
+
+function applyMotivationBonus() {
+  const ranks = state.players.map((player) => Number(player.worldRank || 0) || null);
+  if (!ranks[0] || !ranks[1] || ranks[0] === ranks[1]) return;
+  const lessWellRanked = ranks[0] > ranks[1] ? 0 : 1;
+  const momentum = state.setMatch.momentum?.[lessWellRanked];
+  if (!momentum || momentum.motivationResolved) return;
+  momentum.motivationResolved = true;
+  if (Math.random() >= 0.5) return;
+  const bonus = wrappedRandomBonus(
+    state.players[lessWellRanked],
+    "Motivation",
+    "Joueur moins bien classé",
+  );
+  persistMatchPermanentAward(lessWellRanked, bonus);
+}
+
+function applyHumanAscendantBonus() {
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || !state.tournament.active) return;
+  const momentum = state.setMatch.momentum?.[0];
+  if (!momentum || momentum.ascendantResolved) return;
+  momentum.ascendantResolved = true;
+  const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
+  if (headToHead?.target !== "human" || Math.random() >= 0.5) return;
+  const bonus = wrappedRandomBonus(
+    state.players[0],
+    "Ascendant",
+    `Ascendant sur ${displayPlayerName(state.players[1])}`,
+  );
+  persistMatchPermanentAward(0, bonus);
 }
 
 function addCircuitBonus(target, entry, bonus) {
@@ -13732,6 +13917,7 @@ function nextFullSet() {
   const completedScores = state.setMatch.completedScores.map((score) => [...score]);
   const targetSets = state.setMatch.targetSets;
   const setsWon = [...state.setMatch.setsWon];
+  const momentum = cloneData(state.setMatch.momentum || emptyMomentumState());
   state.setMatch = {
     enabled: true,
     score: [0, 0],
@@ -13745,6 +13931,7 @@ function nextFullSet() {
     setsWon,
     matchOver: false,
     matchWinner: null,
+    momentum,
   };
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
@@ -13844,6 +14031,7 @@ function simulateAdminMatchScore() {
 }
 
 function storeMatchLog(winner, reason) {
+  if (!["admin", "pro_plus"].includes(currentUserRole())) return;
   try {
     const existing = JSON.parse(localStorage.getItem(MATCH_LOG_STORAGE_KEY) || "[]");
     const entry = {
@@ -15218,7 +15406,7 @@ async function exitTournamentToLobby() {
 
 function nextSoloExchange() {
   if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.setMatch.enabled || !state.gameOver) return;
-  newGame();
+  newGame({ preserveSet: true });
   state.log.unshift(`Nouvel échange contre l'IA ${aiStyleLabel()}.`);
   render();
 }

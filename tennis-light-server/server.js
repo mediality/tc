@@ -2633,6 +2633,9 @@ async function listProCodes() {
 }
 
 function normalizeHumanMatchLogSession(payload, user) {
+  if (!["admin", "pro_plus"].includes(normalizeRole(user?.role))) {
+    throw new Error("Les journaux détaillés sont réservés aux joueurs ADMIN et PRO+.");
+  }
   const session = payload?.session;
   if (!session || typeof session !== "object" || Array.isArray(session)) {
     throw new Error("Journal de partie invalide.");
@@ -2646,7 +2649,7 @@ function normalizeHumanMatchLogSession(payload, user) {
   if (serialized.length > 9_000_000) throw new Error("Journal de partie trop volumineux.");
   return {
     ...session,
-    schemaVersion: Number(session.schemaVersion || 1),
+    schemaVersion: Number(session.schemaVersion || 2),
     matchId,
     status: "completed",
     observerUser: {
@@ -2691,8 +2694,12 @@ async function listHumanMatchLogs({ userId = null, limit = 100 } = {}) {
   const safeLimit = Math.max(1, Math.min(500, Number(limit || 100)));
   if (db) {
     const params = [];
-    const where = userId ? "WHERE observer_user_id = $1" : "";
-    if (userId) params.push(userId);
+    const clauses = ["COALESCE((payload->>'schemaVersion')::int, 0) >= 2"];
+    if (userId) {
+      params.push(userId);
+      clauses.push(`observer_user_id = $${params.length}`);
+    }
+    const where = `WHERE ${clauses.join(" AND ")}`;
     params.push(safeLimit);
     const result = await db.query(`
       SELECT payload
@@ -2706,6 +2713,7 @@ async function listHumanMatchLogs({ userId = null, limit = 100 } = {}) {
   return [...authMemory.humanMatchLogs.entries()]
     .filter(([key]) => !userId || key.startsWith(`${userId}:`))
     .map(([, session]) => session)
+    .filter((session) => Number(session.schemaVersion || 0) >= 2)
     .sort((a, b) => String(b.completedAt || b.receivedAt || "").localeCompare(String(a.completedAt || a.receivedAt || "")))
     .slice(0, safeLimit);
 }
@@ -4899,6 +4907,10 @@ async function handleApi(req, res) {
     const user = await currentUser(req);
     if (!user) {
       sendJson(res, 401, { error: "Connexion requise." });
+      return;
+    }
+    if (!["admin", "pro_plus"].includes(normalizeRole(user.role))) {
+      sendJson(res, 403, { error: "Journaux détaillés réservés aux joueurs ADMIN et PRO+." });
       return;
     }
     if (req.method === "POST") {

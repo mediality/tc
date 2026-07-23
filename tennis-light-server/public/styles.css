@@ -7889,10 +7889,13 @@ h1 {
 .league-standings-row.human-player { position: relative; border-left-color: #f2c84b; outline-color: rgba(242,200,75,.92); }
 .league-rank { color: #547080; font-size: .78rem; }
 
-.character-stats { grid-template-columns: minmax(96px, 104px) minmax(76px, 84px); grid-template-areas: "power endurance" "power hand"; align-items: stretch; }
+.character-stats { grid-template-columns: minmax(104px, 112px) 84px; grid-template-areas: "power endurance" "power hand"; align-items: stretch; }
 .character-power-reminder { grid-area: power; }
-.character-endurance-reminder { grid-area: endurance; min-height: 48px; padding: 6px 8px; }
-.character-hand-reminder { grid-area: hand; position: relative; display: grid; grid-template-columns: 24px auto; column-gap: 6px; align-items: center; justify-content: center; min-width: 76px; min-height: 48px; border: 2px solid rgba(255,255,255,.88); border-radius: 8px; padding: 5px 7px; color: #244b5e; background: #edf4f6; text-align: center; box-shadow: 0 10px 22px rgba(9,71,74,.13); }
+.character-power-reminder { min-width: 104px; padding: 10px 6px; }
+.character-power-reminder .stat-value-row { width: 100%; justify-content: flex-start; gap: 4px; }
+.character-power-reminder .stat-value-row strong { min-width: 2ch; text-align: left; }
+.character-endurance-reminder { grid-area: endurance; width: 84px; min-width: 84px; min-height: 48px; padding: 6px 8px; }
+.character-hand-reminder { grid-area: hand; position: relative; display: grid; grid-template-columns: 24px auto; column-gap: 6px; align-items: center; justify-content: center; width: 84px; min-width: 84px; min-height: 48px; border: 2px solid rgba(255,255,255,.88); border-radius: 8px; padding: 5px 7px; color: #244b5e; background: #edf4f6; text-align: center; box-shadow: 0 10px 22px rgba(9,71,74,.13); }
 .character-hand-reminder > strong { color: #244b5e; font-size: 1.3rem; line-height: .9; }
 .hand-cards-icon { position: relative; display: block; width: 22px; height: 22px; }
 .hand-cards-icon i { position: absolute; width: 14px; height: 19px; border: 2px solid currentColor; border-radius: 3px; background: #fff; }
