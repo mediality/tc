@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.29";
+const GAME_VERSION = "v2.169.30";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1599,6 +1599,7 @@ const els = {
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
   academyInfoScreen: document.querySelector("#academyInfoScreen"),
   tutorialModulesScreen: document.querySelector("#tutorialModulesScreen"),
+  newsArchiveScreen: document.querySelector("#newsArchiveScreen"),
   openTutorialModulesButton: document.querySelector("#openTutorialModulesButton"),
   backToTrainingFromTutorialButton: document.querySelector("#backToTrainingFromTutorialButton"),
   tutorialModulesHomeButton: document.querySelector("#tutorialModulesHomeButton"),
@@ -1708,6 +1709,10 @@ const els = {
   onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
   lobbyRooms: document.querySelector("#lobbyRooms"),
   homeNewsList: document.querySelector("#homeNewsList"),
+  homeNewsArchiveAction: document.querySelector("#homeNewsArchiveAction"),
+  openNewsArchiveButton: document.querySelector("#openNewsArchiveButton"),
+  backFromNewsArchiveButton: document.querySelector("#backFromNewsArchiveButton"),
+  newsArchiveList: document.querySelector("#newsArchiveList"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
   exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
@@ -2116,9 +2121,10 @@ function gameNewsImage(news) {
 
 function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
-  const newsItems = availableGameNews()
-    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))
-    .slice(0, 3);
+  const allNews = availableGameNews()
+    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
+  const newsItems = allNews.slice(0, 5);
+  els.homeNewsArchiveAction?.classList.toggle("hidden", allNews.length < 6);
   if (!newsItems.length) {
     els.homeNewsList.innerHTML = '<div class="home-news-empty">Les prochaines actualités de l’Academy arrivent bientôt.</div>';
     return;
@@ -2142,6 +2148,41 @@ function renderHomeNewsSection() {
   els.homeNewsList.querySelectorAll("[data-read-game-news]").forEach((button) => {
     button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
   });
+}
+
+function renderNewsArchive() {
+  if (!els.newsArchiveList) return;
+  const newsItems = availableGameNews()
+    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
+  els.newsArchiveList.innerHTML = newsItems.map((news) => {
+    const characterId = news.characterId || "milanVerhaegen";
+    const image = gameNewsImage(news);
+    return `
+      <article class="news-archive-card">
+        <button class="news-archive-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
+          <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Portrait de ${characterNameFromId(characterId)}`)}" />
+        </button>
+        <div class="news-archive-copy">
+          <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
+          <button class="news-archive-title" type="button" data-read-game-news="${escapeHtml(news.id)}">${escapeHtml(news.title)}</button>
+          <p>${escapeHtml(news.message)}</p>
+          <button class="home-news-read" type="button" data-read-game-news="${escapeHtml(news.id)}">Lire l’actualité <span aria-hidden="true">→</span></button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  els.newsArchiveList.querySelectorAll("[data-read-game-news]").forEach((button) => {
+    button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
+  });
+}
+
+function showNewsArchiveScreen() {
+  els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
+  hideStandaloneScreens();
+  els.newsArchiveScreen?.classList.remove("hidden");
+  renderNewsArchive();
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function showGameNewsDialog(newsId) {
@@ -3881,6 +3922,7 @@ function hideStandaloneScreens() {
     els.circuitInfoScreen,
     els.academyInfoScreen,
     els.tutorialModulesScreen,
+    els.newsArchiveScreen,
     els.profileScreen,
     els.characterScreen,
     els.resetPasswordScreen,
@@ -3921,6 +3963,7 @@ function showGameScreen() {
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
   els.tutorialModulesScreen?.classList.add("hidden");
+  els.newsArchiveScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -7221,7 +7264,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.29");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.30");
 }
 
 function emptyMomentumState() {
@@ -16099,6 +16142,8 @@ function initMenu() {
     card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
   });
   els.backToHomeButton?.addEventListener("click", showMenuScreen);
+  els.openNewsArchiveButton?.addEventListener("click", showNewsArchiveScreen);
+  els.backFromNewsArchiveButton?.addEventListener("click", showMenuScreen);
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.forgotPasswordButton?.addEventListener("click", requestPasswordReset);

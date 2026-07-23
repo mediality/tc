@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=170.28" />
+    <link rel="stylesheet" href="./styles.css?v=170.30" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -102,6 +102,9 @@
             <span class="home-news-live"><i aria-hidden="true"></i>Dernières informations</span>
           </div>
           <div id="homeNewsList" class="home-news-list" aria-live="polite"></div>
+          <div id="homeNewsArchiveAction" class="home-news-archive-action hidden">
+            <button id="openNewsArchiveButton" class="small-button home-news-archive-button" type="button">Toutes les actualités</button>
+          </div>
         </section>
 
         <section class="academy-upgrade-cta" aria-labelledby="academyUpgradeTitle">
@@ -120,9 +123,24 @@
         </section>
 
         <footer class="lobby-footer">
-          <span>Tennis Courts Academy · 2.169.29</span>
+          <span>Tennis Courts Academy · 2.169.30</span>
           <span>Mediality Games</span>
         </footer>
+      </div>
+    </section>
+
+    <section id="newsArchiveScreen" class="menu-screen news-archive-screen hidden">
+      <div class="menu-shell news-archive-shell">
+        <header class="lobby-section-header">
+          <button class="brand-home-button direct-home-button" type="button" aria-label="Retourner à l'accueil"><img class="brand-logo lobby-section-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" /></button>
+          <button id="backFromNewsArchiveButton" class="small-button" type="button">Retour accueil</button>
+        </header>
+        <header class="news-archive-heading">
+          <p class="label">La vie de l’Academy</p>
+          <h1>Toutes les actualités</h1>
+          <p>Retrouvez les annonces et nouveautés de Tennis Courts Academy.</p>
+        </header>
+        <div id="newsArchiveList" class="news-archive-list" aria-live="polite"></div>
       </div>
     </section>
 
@@ -834,7 +852,7 @@
       </div>
     </div>
 
-    <script src="./tutorial-engine.js?v=2.169.29"></script>
-    <script src="./app.js?v=170.28"></script>
+    <script src="./tutorial-engine.js?v=2.169.30"></script>
+    <script src="./app.js?v=170.30"></script>
   </body>
 </html>
