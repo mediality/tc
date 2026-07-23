@@ -44,6 +44,15 @@ const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
 const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
 const GAME_NEWS = [
   {
+    id: "v16929-prestige-ultimate-league",
+    publishedAt: "2026-07-23",
+    availableAt: "2026-07-23T00:00:00+02:00",
+    title: "Bienvenue dans la Prestige League et l’Ultimate League",
+    image: "assets/prestige-ultimate-league.jpeg",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+  },
+  {
     id: "v16921-rosa-benavente-espana", publishedAt: "2026-07-21", availableAt: "2026-07-21T18:00:00+02:00",
     title: "Que Viva Espana !", characterId: "rosaBenavente", audienceRoles: ["pro", "pro_plus", "admin"],
     message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
@@ -997,10 +1006,82 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
 
 async function ensureAiCircuitWeekSimulated(season, week, options = {}) {
   const marker = `ai_simulated_${season}_${week}`;
-  if (!options.force && await getAppStateValue(marker, null)) return;
+  if (!options.force && await getAppStateValue(marker, null)) return false;
   const bonusTopIds = options.bonusTopIds || await topAiIdsForReference(season, week, 8);
   await simulateAiCircuitWeek(season, week, { bonusTopIds, simulationNonce: options.simulationNonce });
   await setAppStateValue(marker, new Date().toISOString());
+  return true;
+}
+
+async function backfillCurrentLeagueAiPoints(current) {
+  const releaseId = "v2.169.29-league-launch";
+  const marker = `${releaseId}_${current.season}_${current.week}`;
+  if (await getAppStateValue(marker, null)) return { applied: false, reason: "already-applied" };
+  const competition = COMPETITION_DEFINITIONS.find((entry) => (
+    entry.week === current.week && entry.eventType === "League"
+  ));
+  if (!competition) {
+    await setAppStateValue(marker, "no-league");
+    return { applied: false, reason: "no-league" };
+  }
+  // Une période simulée pour la première fois avec cette version contient déjà
+  // sa League : le rattrapage ne doit alors surtout pas l'ajouter une seconde fois.
+  if (current.aiSimulatedNow) {
+    await setAppStateValue(marker, `included-in-full-simulation:${new Date().toISOString()}`);
+    return { applied: false, reason: "included-in-full-simulation", competition: competition.name };
+  }
+  let simulationNonce = await getAppStateValue("ai_simulation_nonce", null);
+  if (!simulationNonce) {
+    simulationNonce = makeToken();
+    await setAppStateValue("ai_simulation_nonce", simulationNonce);
+  }
+  const bonusTopIds = await topAiIdsForReference(current.season, current.week, 8);
+  const standings = await aiCircuitStandingsForBoost(current.season, current.week);
+  const awards = simulatedAiLeaguePoints(
+    competition,
+    current.season,
+    current.week,
+    bonusTopIds,
+    simulationNonce,
+    standings.worldOrderIds,
+  );
+  if (db) {
+    for (const [characterId, points] of awards) {
+      const safePoints = Math.max(0, Number(points || 0));
+      if (!safePoints) continue;
+      await db.query(`
+        WITH claim AS (
+          INSERT INTO circuit_ai_league_backfills
+            (release_id, season_number, week_number, ai_character_id, points)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT DO NOTHING
+          RETURNING 1
+        )
+        UPDATE circuit_ai_week_scores
+        SET points = circuit_ai_week_scores.points + $5,
+            updated_at = NOW()
+        WHERE ai_character_id = $4
+          AND season_number = $2
+          AND week_number = $3
+          AND EXISTS (SELECT 1 FROM claim)
+      `, [releaseId, current.season, current.week, characterId, safePoints]);
+    }
+  } else {
+    authMemory.circuitAiWeekScores = authMemory.circuitAiWeekScores || new Map();
+    for (const [characterId, points] of awards) {
+      const key = `${current.season}:${current.week}:${characterId}`;
+      authMemory.circuitAiWeekScores.set(
+        key,
+        Number(authMemory.circuitAiWeekScores.get(key) || 0) + Math.max(0, Number(points || 0)),
+      );
+    }
+  }
+  await setAppStateValue(marker, new Date().toISOString());
+  return {
+    applied: true,
+    competition: competition.name,
+    aiCount: [...awards.values()].filter((points) => Number(points || 0) > 0).length,
+  };
 }
 
 async function circuitState() {
@@ -1027,8 +1108,8 @@ async function circuitState() {
     await setAppStateValue("circuit_week_number", week);
     await setAppStateValue("circuit_season_number", season);
   }
-  await ensureAiCircuitWeekSimulated(season, week);
-  return { weekKey: periodKey, week, season, nextUpdateAt: nextCircuitUpdateAt() };
+  const aiSimulatedNow = await ensureAiCircuitWeekSimulated(season, week);
+  return { weekKey: periodKey, week, season, nextUpdateAt: nextCircuitUpdateAt(), aiSimulatedNow };
 }
 
 async function advanceCircuitWeek() {
@@ -1567,6 +1648,17 @@ async function initAuthStorage() {
   `);
   await db.query("CREATE INDEX IF NOT EXISTS human_match_logs_completed_idx ON human_match_logs(completed_at DESC, received_at DESC)");
   await db.query("CREATE INDEX IF NOT EXISTS human_match_logs_context_idx ON human_match_logs(context_type, completed_at DESC)");
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_ai_league_backfills (
+      release_id TEXT NOT NULL,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      ai_character_id TEXT NOT NULL,
+      points INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (release_id, season_number, week_number, ai_character_id)
+    )
+  `);
   await applyWeeklyRankingRollover();
 }
 
@@ -5925,7 +6017,10 @@ const friendlyPresenceSweep = setInterval(() => {
 friendlyPresenceSweep.unref?.();
 
 initAuthStorage()
-  .then(() => {
+  .then(async () => {
+    const currentCircuit = await circuitState();
+    const leagueLaunch = await backfillCurrentLeagueAiPoints(currentCircuit);
+    console.log(`League IA: ${leagueLaunch.applied ? "rattrapage ajouté" : leagueLaunch.reason}${leagueLaunch.competition ? ` · ${leagueLaunch.competition}` : ""}.`);
     server.listen(PORT, () => {
       console.log(`Tennis Courts Light server running on http://localhost:${PORT}`);
       console.log(`Create a remote test room at http://localhost:${PORT}/new-room`);

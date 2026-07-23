@@ -348,6 +348,15 @@ const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNA
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
   {
+    id: "v16929-prestige-ultimate-league",
+    publishedAt: "2026-07-23",
+    availableAt: "2026-07-23T00:00:00+02:00",
+    title: "Bienvenue dans la Prestige League et l’Ultimate League",
+    image: "assets/prestige-ultimate-league.jpeg",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+  },
+  {
     id: "v16921-rosa-benavente-espana",
     publishedAt: "2026-07-21",
     availableAt: "2026-07-21T18:00:00+02:00",
@@ -2099,6 +2108,12 @@ function availableGameNews() {
   return GAME_NEWS.filter((news) => !news.availableAt || Date.now() >= Date.parse(news.availableAt));
 }
 
+function gameNewsImage(news) {
+  if (news?.image) return news.image;
+  const characterId = news?.characterId || "milanVerhaegen";
+  return PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
+}
+
 function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
   const newsItems = availableGameNews()
@@ -2110,11 +2125,11 @@ function renderHomeNewsSection() {
   }
   els.homeNewsList.innerHTML = newsItems.map((news, index) => {
     const characterId = news.characterId || "milanVerhaegen";
-    const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
+    const image = gameNewsImage(news);
     return `
       <article class="home-news-card ${index === 0 ? "home-news-featured" : ""}">
         <button class="home-news-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
-          <img src="${escapeHtml(image)}" alt="Portrait de ${escapeHtml(characterNameFromId(characterId))}" />
+          <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Portrait de ${characterNameFromId(characterId)}`)}" />
         </button>
         <div class="home-news-copy">
           <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
@@ -2133,13 +2148,13 @@ function showGameNewsDialog(newsId) {
   const news = availableGameNews().find((item) => item.id === newsId) || latestGameNews();
   if (!news || document.querySelector(".pro-news-backdrop")) return;
   const characterId = news.characterId || "milanVerhaegen";
-  const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
+  const image = gameNewsImage(news);
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop pro-news-backdrop";
   backdrop.innerHTML = `
     <article class="modal pro-news-modal" role="dialog" aria-modal="true" aria-labelledby="proNewsTitle" aria-describedby="proNewsMessage">
       <div class="pro-news-card-frame">
-        <img src="${escapeHtml(image)}" alt="Carte de ${escapeHtml(characterNameFromId(characterId))}" />
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Carte de ${characterNameFromId(characterId)}`)}" />
       </div>
       <div class="pro-news-copy">
         <p class="label">DERNIÈRES ACTU · ${escapeHtml(formatGameNewsDate(news.publishedAt))}</p>
