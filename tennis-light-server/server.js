@@ -44,6 +44,15 @@ const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
 const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
 const GAME_NEWS = [
   {
+    id: "v16929-prestige-ultimate-league",
+    publishedAt: "2026-07-23",
+    availableAt: "2026-07-23T00:00:00+02:00",
+    title: "Bienvenue dans la Prestige League et l’Ultimate League",
+    image: "assets/prestige-ultimate-league.jpeg",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+  },
+  {
     id: "v16921-rosa-benavente-espana", publishedAt: "2026-07-21", availableAt: "2026-07-21T18:00:00+02:00",
     title: "Que Viva Espana !", characterId: "rosaBenavente", audienceRoles: ["pro", "pro_plus", "admin"],
     message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
@@ -138,6 +147,9 @@ const LEVEL_LABELS = {
   Premier: "Premier 1000",
   Crown: "Crown 1500",
   Slam: "Slam 2000",
+  "Prestige League": "League 800",
+  "Ultimate League": "League 1200",
+  "World Finals": "Tennis Courts World Finals 4000",
   Finals: "Tennis Courts World Finals 4000",
 };
 const SURFACE_FROM_CSV = {
@@ -148,7 +160,9 @@ const SURFACE_FROM_CSV = {
 const POINT_TABLES = {
   400: { qualif: 0, quarter: 50, semi: 100, finalist: 200, winner: 400 },
   600: { qualif: 0, quarter: 75, semi: 150, finalist: 300, winner: 600 },
+  800: { group4: 0, group3: 25, semi: 200, finalist: 400, winner: 800, matchWin: 10, weeklyPotential: 1100 },
   1000: { qualif: 0, quarter: 100, semi: 200, finalist: 500, winner: 1000 },
+  1200: { group4: 0, group3: 40, semi: 300, finalist: 700, winner: 1200, matchWin: 20, weeklyPotential: 1500 },
   1500: { qualif: 0, quarter: 150, semi: 350, finalist: 750, winner: 1500 },
   2000: { qualif: 0, quarter: 200, semi: 500, finalist: 1200, winner: 2000 },
   4000: { qualif: 0, quarter: 400, semi: 1000, finalist: 2400, winner: 4000 },
@@ -171,6 +185,7 @@ const authMemory = {
   aiResults: new Map(),
   appState: new Map(),
   humanMatchLogs: new Map(),
+  tutorialProgress: new Map(),
 };
 const db = PgPool && process.env.DATABASE_URL
   ? new PgPool({
@@ -401,8 +416,8 @@ function loadWorldTourDefinitions() {
       flag: COUNTRY_FLAGS[row.pays] || "🏳️",
       surface,
       surfaceLabel: SURFACE_LABELS[surface],
-      difficulty: pointsValue === 400 || pointsValue === 1000 ? "normal" : "champion",
-      targetSets: pointsValue >= 2000 ? 3 : 2,
+      difficulty: pointsValue === 400 || pointsValue === 1000 || pointsValue === 800 ? "normal" : "champion",
+      targetSets: level === "Ultimate League" || pointsValue >= 2000 ? 3 : 2,
       points: POINT_TABLES[pointsValue] || POINT_TABLES[400],
       directThreshold: DIRECT_THRESHOLDS[pointsValue] || 500,
       eventType: row.type_epreuve || "Tour",
@@ -737,6 +752,59 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
   ]));
 }
 
+function simulatedAiLeaguePoints(competition, season, week, bonusTopIds = [], simulationNonce = "", rankingOrder = []) {
+  const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[800];
+  const totalAwards = new Map(CIRCUIT_AI_CHARACTER_IDS.map((id) => [id, 0]));
+  const rankBands = [[1, 8], [9, 16], [15, 22]];
+  const ranked = rankingOrder.length ? rankingOrder : CIRCUIT_AI_CHARACTER_IDS;
+  const add = (id, points) => totalAwards.set(id, (totalAwards.get(id) || 0) + Math.max(0, Number(points || 0)));
+  const playMatch = (playerA, playerB, label) => {
+    const strengthA = aiMatchStrength(playerA, competition, season, week, `${label}:a`, bonusTopIds, simulationNonce, rankingOrder);
+    const strengthB = aiMatchStrength(playerB, competition, season, week, `${label}:b`, bonusTopIds, simulationNonce, rankingOrder);
+    const chanceA = Math.max(.08, Math.min(.92, 1 / (1 + Math.exp(-(strengthA - strengthB) / 10))));
+    const winner = seededRandom(`${simulationNonce}:${competition.id}:${season}:${week}:${label}`) < chanceA ? playerA : playerB;
+    const performance = simulatedAiMatchPerformancePoints(playerA, playerB, winner, Number(competition.targetSets || 2), `${simulationNonce}:${competition.id}:${season}:${week}:${label}:score`);
+    performance.forEach((points, id) => add(id, points));
+    add(winner, table.matchWin || 0);
+    return winner;
+  };
+  rankBands.forEach(([from, to], bandIndex) => {
+    const roster = ranked.slice(from - 1, to);
+    if (roster.length < 8) return;
+    const groups = {
+      A: [roster[0], roster[3], roster[4], roster[7]],
+      B: [roster[1], roster[2], roster[5], roster[6]],
+    };
+    const qualifiers = {};
+    for (const groupName of ["A", "B"]) {
+      const entries = groups[groupName];
+      const stats = new Map(entries.map((id) => [id, { wins: 0, strength: 0 }]));
+      for (let a = 0; a < entries.length; a += 1) {
+        for (let b = a + 1; b < entries.length; b += 1) {
+          const winner = playMatch(entries[a], entries[b], `band${bandIndex + 1}:${groupName}:g${a}-${b}`);
+          stats.get(winner).wins += 1;
+        }
+      }
+      entries.forEach((id) => { stats.get(id).strength = -ranked.indexOf(id); });
+      const ordered = [...entries].sort((a, b) => stats.get(b).wins - stats.get(a).wins || stats.get(b).strength - stats.get(a).strength);
+      qualifiers[groupName] = ordered.slice(0, 2);
+      add(ordered[2], table.group3 || 0);
+      add(ordered[3], table.group4 || 0);
+    }
+    const semiWinner1 = playMatch(qualifiers.A[0], qualifiers.B[1], `band${bandIndex + 1}:semi1`);
+    const semiLoser1 = semiWinner1 === qualifiers.A[0] ? qualifiers.B[1] : qualifiers.A[0];
+    const semiWinner2 = playMatch(qualifiers.B[0], qualifiers.A[1], `band${bandIndex + 1}:semi2`);
+    const semiLoser2 = semiWinner2 === qualifiers.B[0] ? qualifiers.A[1] : qualifiers.B[0];
+    add(semiLoser1, table.semi || 0);
+    add(semiLoser2, table.semi || 0);
+    const champion = playMatch(semiWinner1, semiWinner2, `band${bandIndex + 1}:final`);
+    const finalist = champion === semiWinner1 ? semiWinner2 : semiWinner1;
+    add(finalist, table.finalist || 0);
+    add(champion, table.winner || 0);
+  });
+  return totalAwards;
+}
+
 async function topAiIdsForReference(season, week, limit = 8) {
   const refPeriods = previousCircuitPeriods(season, week);
   const refPeriodKeys = refPeriods.map((period) => period.key);
@@ -766,8 +834,14 @@ function maxWeeklyTournamentPoints(week) {
     .filter((competition) => competition.week === week)
     .reduce((sum, competition) => {
       const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
-      return sum + (table.winner || 0);
+      return sum + (table.weeklyPotential || table.winner || 0);
     }, 0);
+}
+
+function aiHumanWinBonusCap(basePoints, weeklyPotential) {
+  const base = Math.max(0, Number(basePoints || 0));
+  const potential = Math.max(0, Number(weeklyPotential || 0));
+  return base >= potential ? 100 : Math.min(300, Math.max(0, potential - base));
 }
 
 function previousCircuitWeekNumber(week) {
@@ -894,7 +968,9 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
   const totals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
   const standings = await aiCircuitStandingsForBoost(season, week);
   competitions.forEach((competition) => {
-    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds);
+    const awards = competition.eventType === "League"
+      ? simulatedAiLeaguePoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds)
+      : simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds);
     awards.forEach((points, characterId) => {
       totals.set(characterId, (totals.get(characterId) || 0) + points);
     });
@@ -910,7 +986,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
           SET points = EXCLUDED.points,
               human_win_bonus = LEAST(
                 circuit_ai_week_scores.human_win_bonus,
-                GREATEST(0, $5 - EXCLUDED.points)
+                CASE WHEN EXCLUDED.points >= $5 THEN 100 ELSE LEAST(300, GREATEST(0, $5 - EXCLUDED.points)) END
               ),
               updated_at = NOW()
       `, [characterId, season, week, points, maxSem]);
@@ -923,17 +999,89 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
     authMemory.circuitAiWeekScores.set(key, points);
     authMemory.circuitAiHumanBonuses.set(
       key,
-      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), Math.max(0, maxSem - points)),
+      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), aiHumanWinBonusCap(points, maxSem)),
     );
   }
 }
 
 async function ensureAiCircuitWeekSimulated(season, week, options = {}) {
   const marker = `ai_simulated_${season}_${week}`;
-  if (!options.force && await getAppStateValue(marker, null)) return;
+  if (!options.force && await getAppStateValue(marker, null)) return false;
   const bonusTopIds = options.bonusTopIds || await topAiIdsForReference(season, week, 8);
   await simulateAiCircuitWeek(season, week, { bonusTopIds, simulationNonce: options.simulationNonce });
   await setAppStateValue(marker, new Date().toISOString());
+  return true;
+}
+
+async function backfillCurrentLeagueAiPoints(current) {
+  const releaseId = "v2.169.29-league-launch";
+  const marker = `${releaseId}_${current.season}_${current.week}`;
+  if (await getAppStateValue(marker, null)) return { applied: false, reason: "already-applied" };
+  const competition = COMPETITION_DEFINITIONS.find((entry) => (
+    entry.week === current.week && entry.eventType === "League"
+  ));
+  if (!competition) {
+    await setAppStateValue(marker, "no-league");
+    return { applied: false, reason: "no-league" };
+  }
+  // Une période simulée pour la première fois avec cette version contient déjà
+  // sa League : le rattrapage ne doit alors surtout pas l'ajouter une seconde fois.
+  if (current.aiSimulatedNow) {
+    await setAppStateValue(marker, `included-in-full-simulation:${new Date().toISOString()}`);
+    return { applied: false, reason: "included-in-full-simulation", competition: competition.name };
+  }
+  let simulationNonce = await getAppStateValue("ai_simulation_nonce", null);
+  if (!simulationNonce) {
+    simulationNonce = makeToken();
+    await setAppStateValue("ai_simulation_nonce", simulationNonce);
+  }
+  const bonusTopIds = await topAiIdsForReference(current.season, current.week, 8);
+  const standings = await aiCircuitStandingsForBoost(current.season, current.week);
+  const awards = simulatedAiLeaguePoints(
+    competition,
+    current.season,
+    current.week,
+    bonusTopIds,
+    simulationNonce,
+    standings.worldOrderIds,
+  );
+  if (db) {
+    for (const [characterId, points] of awards) {
+      const safePoints = Math.max(0, Number(points || 0));
+      if (!safePoints) continue;
+      await db.query(`
+        WITH claim AS (
+          INSERT INTO circuit_ai_league_backfills
+            (release_id, season_number, week_number, ai_character_id, points)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT DO NOTHING
+          RETURNING 1
+        )
+        UPDATE circuit_ai_week_scores
+        SET points = circuit_ai_week_scores.points + $5,
+            updated_at = NOW()
+        WHERE ai_character_id = $4
+          AND season_number = $2
+          AND week_number = $3
+          AND EXISTS (SELECT 1 FROM claim)
+      `, [releaseId, current.season, current.week, characterId, safePoints]);
+    }
+  } else {
+    authMemory.circuitAiWeekScores = authMemory.circuitAiWeekScores || new Map();
+    for (const [characterId, points] of awards) {
+      const key = `${current.season}:${current.week}:${characterId}`;
+      authMemory.circuitAiWeekScores.set(
+        key,
+        Number(authMemory.circuitAiWeekScores.get(key) || 0) + Math.max(0, Number(points || 0)),
+      );
+    }
+  }
+  await setAppStateValue(marker, new Date().toISOString());
+  return {
+    applied: true,
+    competition: competition.name,
+    aiCount: [...awards.values()].filter((points) => Number(points || 0) > 0).length,
+  };
 }
 
 async function circuitState() {
@@ -960,8 +1108,8 @@ async function circuitState() {
     await setAppStateValue("circuit_week_number", week);
     await setAppStateValue("circuit_season_number", season);
   }
-  await ensureAiCircuitWeekSimulated(season, week);
-  return { weekKey: periodKey, week, season, nextUpdateAt: nextCircuitUpdateAt() };
+  const aiSimulatedNow = await ensureAiCircuitWeekSimulated(season, week);
+  return { weekKey: periodKey, week, season, nextUpdateAt: nextCircuitUpdateAt(), aiSimulatedNow };
 }
 
 async function advanceCircuitWeek() {
@@ -1430,6 +1578,13 @@ async function initAuthStorage() {
     )
   `);
   await db.query(`
+    CREATE TABLE IF NOT EXISTS tutorial_progress (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      progress_json JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS circuit_tournament_resets (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       season_number INTEGER NOT NULL,
@@ -1493,6 +1648,17 @@ async function initAuthStorage() {
   `);
   await db.query("CREATE INDEX IF NOT EXISTS human_match_logs_completed_idx ON human_match_logs(completed_at DESC, received_at DESC)");
   await db.query("CREATE INDEX IF NOT EXISTS human_match_logs_context_idx ON human_match_logs(context_type, completed_at DESC)");
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS circuit_ai_league_backfills (
+      release_id TEXT NOT NULL,
+      season_number INTEGER NOT NULL,
+      week_number INTEGER NOT NULL,
+      ai_character_id TEXT NOT NULL,
+      points INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (release_id, season_number, week_number, ai_character_id)
+    )
+  `);
   await applyWeeklyRankingRollover();
 }
 
@@ -1948,7 +2114,7 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
 async function circuitWorldRankForUser(user) {
   if (!user?.id) return null;
   const ranking = await buildRanking(1, 100000, user, "points");
-  return Number(ranking.currentUserRank?.rank || 0) || null;
+  return Number(ranking.currentUserRank?.points_rank || ranking.currentUserRank?.rank || 0) || null;
 }
 
 async function registerCircuitAiResults(userId, results = []) {
@@ -1982,16 +2148,16 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
   if (!winsByAi.size) return;
   const maxSem = maxWeeklyTournamentPoints(week);
   for (const [aiCharacterId, wins] of winsByAi) {
-    const increment = Math.min(250, wins * 25);
+    const increment = Math.min(300, wins * 25);
     if (db) {
       await db.query(`
         INSERT INTO circuit_ai_week_scores
           (ai_character_id, season_number, week_number, points, human_win_bonus)
-        VALUES ($1, $2, $3, 0, LEAST(250, $4, $5))
+        VALUES ($1, $2, $3, 0, LEAST(300, $4, $5))
         ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
           SET human_win_bonus = LEAST(
-                250,
-                GREATEST(0, $5 - circuit_ai_week_scores.points),
+                300,
+                CASE WHEN circuit_ai_week_scores.points >= $5 THEN 100 ELSE GREATEST(0, $5 - circuit_ai_week_scores.points) END,
                 circuit_ai_week_scores.human_win_bonus + EXCLUDED.human_win_bonus
               ),
               updated_at = NOW()
@@ -2002,7 +2168,7 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
       const previousBonus = Number(authMemory.circuitAiHumanBonuses.get(key) || 0);
       authMemory.circuitAiHumanBonuses.set(
         key,
-        Math.min(250, previousBonus + increment, Math.max(0, maxSem - basePoints)),
+        Math.min(previousBonus + increment, aiHumanWinBonusCap(basePoints, maxSem)),
       );
     }
   }
@@ -2013,6 +2179,8 @@ function normalizeTournamentAchievement(value) {
   if (key === "winner" || key === "vainqueur") return "winner";
   if (key === "finalist" || key === "finaliste") return "finalist";
   if (key === "semi" || key === "demi-finale") return "semi";
+  if (key === "group3" || key === "groupe (3e)" || key === "groupe 3e") return "group3";
+  if (key === "group4" || key === "groupe (4e)" || key === "groupe 4e") return "group4";
   if (key === "quarter" || key === "quart de finale") return "quarter";
   if (key === "round16" || key === "8e de finale" || key === "qualif" || key === "qualification") return "round16";
   return key || "round16";
@@ -2024,6 +2192,8 @@ function achievementLabel(value) {
     winner: "VAINQUEUR",
     finalist: "FINALISTE",
     semi: "DEMI-FINALE",
+    group3: "Groupe (3e)",
+    group4: "Groupe (4e)",
     quarter: "QUART DE FINALE",
     round16: "8e DE FINALE",
   }[key] || "8e DE FINALE";
@@ -2555,6 +2725,9 @@ async function listProCodes() {
 }
 
 function normalizeHumanMatchLogSession(payload, user) {
+  if (!["admin", "pro_plus"].includes(normalizeRole(user?.role))) {
+    throw new Error("Les journaux détaillés sont réservés aux joueurs ADMIN et PRO+.");
+  }
   const session = payload?.session;
   if (!session || typeof session !== "object" || Array.isArray(session)) {
     throw new Error("Journal de partie invalide.");
@@ -2568,7 +2741,7 @@ function normalizeHumanMatchLogSession(payload, user) {
   if (serialized.length > 9_000_000) throw new Error("Journal de partie trop volumineux.");
   return {
     ...session,
-    schemaVersion: Number(session.schemaVersion || 1),
+    schemaVersion: Number(session.schemaVersion || 2),
     matchId,
     status: "completed",
     observerUser: {
@@ -2613,8 +2786,12 @@ async function listHumanMatchLogs({ userId = null, limit = 100 } = {}) {
   const safeLimit = Math.max(1, Math.min(500, Number(limit || 100)));
   if (db) {
     const params = [];
-    const where = userId ? "WHERE observer_user_id = $1" : "";
-    if (userId) params.push(userId);
+    const clauses = ["COALESCE((payload->>'schemaVersion')::int, 0) >= 2"];
+    if (userId) {
+      params.push(userId);
+      clauses.push(`observer_user_id = $${params.length}`);
+    }
+    const where = `WHERE ${clauses.join(" AND ")}`;
     params.push(safeLimit);
     const result = await db.query(`
       SELECT payload
@@ -2628,6 +2805,7 @@ async function listHumanMatchLogs({ userId = null, limit = 100 } = {}) {
   return [...authMemory.humanMatchLogs.entries()]
     .filter(([key]) => !userId || key.startsWith(`${userId}:`))
     .map(([, session]) => session)
+    .filter((session) => Number(session.schemaVersion || 0) >= 2)
     .sort((a, b) => String(b.completedAt || b.receivedAt || "").localeCompare(String(a.completedAt || a.receivedAt || "")))
     .slice(0, safeLimit);
 }
@@ -2665,9 +2843,72 @@ async function markNewsSeen(user, newsId) {
   return true;
 }
 
+function normalizeTutorialProgress(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const cleanIdentifier = (identifier) => {
+    const text = identifier == null ? "" : String(identifier).trim();
+    return text ? text.slice(0, 120) : null;
+  };
+  const completedModules = [...new Set((Array.isArray(source.completedModules) ? source.completedModules : [])
+    .map(cleanIdentifier)
+    .filter(Boolean))].slice(0, 100);
+  return {
+    schemaVersion: 1,
+    moduleId: cleanIdentifier(source.moduleId),
+    stepId: cleanIdentifier(source.stepId),
+    completedModules,
+    academyCompleted: Boolean(source.academyCompleted),
+  };
+}
+
 async function handleAuth(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/auth/me") {
     sendJson(res, 200, { user: publicUser(await currentUser(req)) });
+    return true;
+  }
+
+  if (url.pathname === "/api/tutorial/progress") {
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Connexion requise." });
+      return true;
+    }
+    if (req.method === "GET") {
+      if (db) {
+        const result = await db.query("SELECT progress_json, updated_at FROM tutorial_progress WHERE user_id = $1", [user.id]);
+        const row = result.rows[0] || null;
+        sendJson(res, 200, { progress: row?.progress_json ?? null, updatedAt: row?.updated_at ?? null });
+      } else {
+        const saved = authMemory.tutorialProgress.get(String(user.id)) || null;
+        sendJson(res, 200, { progress: saved?.progress ?? null, updatedAt: saved?.updatedAt ?? null });
+      }
+      return true;
+    }
+    if (req.method === "PUT") {
+      const payload = await readJson(req);
+      const progress = normalizeTutorialProgress(payload.progress);
+      const updatedAt = new Date().toISOString();
+      if (db) {
+        await db.query(`
+          INSERT INTO tutorial_progress (user_id, progress_json, updated_at)
+          VALUES ($1, $2::jsonb, NOW())
+          ON CONFLICT (user_id) DO UPDATE
+            SET progress_json = EXCLUDED.progress_json,
+                updated_at = NOW()
+        `, [user.id, JSON.stringify(progress)]);
+      } else {
+        authMemory.tutorialProgress.set(String(user.id), { progress, updatedAt });
+      }
+      sendJson(res, 200, { ok: true, progress, updatedAt });
+      return true;
+    }
+    if (req.method === "DELETE") {
+      if (db) await db.query("DELETE FROM tutorial_progress WHERE user_id = $1", [user.id]);
+      else authMemory.tutorialProgress.delete(String(user.id));
+      sendJson(res, 200, { ok: true });
+      return true;
+    }
+    sendJson(res, 405, { error: "Méthode non autorisée." });
     return true;
   }
 
@@ -4760,6 +5001,10 @@ async function handleApi(req, res) {
       sendJson(res, 401, { error: "Connexion requise." });
       return;
     }
+    if (!["admin", "pro_plus"].includes(normalizeRole(user.role))) {
+      sendJson(res, 403, { error: "Journaux détaillés réservés aux joueurs ADMIN et PRO+." });
+      return;
+    }
     if (req.method === "POST") {
       try {
         const session = await saveHumanMatchLog(user, await readJson(req));
@@ -4781,7 +5026,7 @@ async function handleApi(req, res) {
     return;
   }
 
-  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/profiles/")) && await handleAuth(req, res, url)) {
+  if ((url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/competitions") || url.pathname.startsWith("/api/tutorial/") || url.pathname === "/api/ranking" || url.pathname.startsWith("/api/profile") || url.pathname.startsWith("/api/profiles/")) && await handleAuth(req, res, url)) {
     return;
   }
 
@@ -5772,7 +6017,10 @@ const friendlyPresenceSweep = setInterval(() => {
 friendlyPresenceSweep.unref?.();
 
 initAuthStorage()
-  .then(() => {
+  .then(async () => {
+    const currentCircuit = await circuitState();
+    const leagueLaunch = await backfillCurrentLeagueAiPoints(currentCircuit);
+    console.log(`League IA: ${leagueLaunch.applied ? "rattrapage ajouté" : leagueLaunch.reason}${leagueLaunch.competition ? ` · ${leagueLaunch.competition}` : ""}.`);
     server.listen(PORT, () => {
       console.log(`Tennis Courts Light server running on http://localhost:${PORT}`);
       console.log(`Create a remote test room at http://localhost:${PORT}/new-room`);

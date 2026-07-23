@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.21";
+const GAME_VERSION = "v2.169.30";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -279,11 +279,11 @@ const EMPTY_TOURNAMENT = {
   matches: [],
 };
 
-const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogs";
-const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogs";
-const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV1";
-const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV1";
-const HUMAN_MATCH_LOG_SCHEMA_VERSION = 1;
+const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogsV2";
+const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogsV2";
+const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV2";
+const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV2";
+const HUMAN_MATCH_LOG_SCHEMA_VERSION = 2;
 
 const COACH_OPTIONS = ["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"];
 const PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS];
@@ -348,22 +348,31 @@ const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNA
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
   {
+    id: "v16929-prestige-ultimate-league",
+    publishedAt: "2026-07-23",
+    availableAt: "2026-07-23T00:00:00+02:00",
+    title: "Bienvenue dans la Prestige League et l’Ultimate League",
+    image: "assets/prestige-ultimate-league.jpeg",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+  },
+  {
     id: "v16921-rosa-benavente-espana",
     publishedAt: "2026-07-21",
     availableAt: "2026-07-21T18:00:00+02:00",
-    title: "Que Viva Espana !",
+    title: "Que viva España!",
     characterId: "rosaBenavente",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Avec la victoire de l’Espagne en coupe du monde de football, Rosa Benavente et sa tenue hommage à la Roja intègre le Tennis Courts Pro Circuit. Vous pouvez la rencontrer sur les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle intègre également votre choix de personnages. Tentez de devenir le GOAT avec Rosa Benavente… en tout cas, elle a un maillot de champions, c’est déjà ça !",
+    message: "Avec la victoire de l’Espagne en Coupe du monde de football, Rosa Benavente et sa tenue en hommage à la Roja intègrent le Tennis Courts Pro Circuit. Vous pouvez la rencontrer dans les tournois dès maintenant. Et comme une bonne nouvelle n’arrive jamais seule, elle rejoint également votre sélection de personnages. Tentez de devenir le GOAT avec Rosa Benavente… En tout cas, elle porte déjà un maillot de championne !",
   },
   {
     id: "v16921-coach-hans-staff",
     publishedAt: "2026-07-22",
     availableAt: "2026-07-22T08:00:00+02:00",
-    title: "Le staff s’etoffe",
+    title: "Le staff s’étoffe",
     characterId: "coachHans",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "S’il y a bien un coach qui a la côte quand on débute, c’est Hans … allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de coeur, pour vous entrainer ou passer en victime expiatoire, à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le circuit pro avec lui. Il fait désormais partie des personnages jouables !",
+    message: "S’il y a bien un coach qui a la cote quand on débute, c’est Hans… allez savoir pourquoi. En tout cas, l’équipe de Tennis Courts en sait quelque chose. Il a revêtu sa plus belle tenue, aux couleurs de son pays de cœur, pour vous entraîner ou servir de victime expiatoire : à vous de voir. Et si vous aimez changer les destinées, prenez le contrôle de Coach Hans et affrontez le Circuit Pro avec lui. Il fait désormais partie des personnages jouables !",
   },
   {
     id: "v166-milan-verhaegen-pro-unlock",
@@ -371,7 +380,7 @@ const GAME_NEWS = [
     title: "Milan Verhaegen rejoint les joueurs PRO",
     characterId: "milanVerhaegen",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Bravo à Milan Verhaeghen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l’utiliser, choisissez-le depuis votre page profil. À bientôt sur les courts ! — Coach Ju",
+    message: "Bravo à Milan Verhaegen, meilleur joueur de la semaine dernière. Pour fêter sa progression au classement, ce personnage est désormais débloqué et jouable. Pour l’utiliser, choisissez-le depuis votre page de profil. À bientôt sur les courts ! — Coach Ju",
     signature: "Coach Ju",
   },
 ];
@@ -1152,139 +1161,337 @@ const TUTORIAL_NARRATORS = {
 const TUTORIAL_MODULES = {
   basics: {
     id: "module-1-basics",
-    lesson: "Académie · Leçon 1",
-    title: "Les Bases du Jeu",
+    lesson: "Académie · Module 1",
+    title: "Découverte de Tennis Courts Academy",
     narrator: "coachJu",
-    scenario: "base",
-    totalDisplaySteps: 12,
+    scenario: "interface",
+    readOnly: true,
+    initialLog: ["Le journal d'échange affichera ici toutes les actions du point."],
+    totalDisplaySteps: 19,
     steps: [
       {
-        id: "m1-1-part-1",
+        id: "m1-1-welcome",
         displayStep: 1,
-        part: "Partie 1/2",
-        title: "Bienvenue à l'Académie",
-        text: [
-          "Bienvenue dans Tennis Courts Academy ! Ici, tu vas apprendre en jouant.",
-          "Je suis Coach Ju, le créateur de Tennis Courts. Je vais t'accompagner tout au long de ton apprentissage. Prêt à entrer sur le court ?",
-        ],
+        title: "Bienvenue",
+        text: "Bienvenue dans Tennis Courts Academy ! Je suis Coach Ju et je serai ton entraîneur.",
       },
       {
-        id: "m1-1-part-2",
-        displayStep: 1,
-        part: "Partie 2/2",
-        title: "Le format de l'Académie",
-        text: "Pour cette leçon, nous partageons un deck unique de 18 cartes. Dans le jeu complet, chaque joueur possède son deck de 48 cartes et son propre personnage.",
-      },
-      {
-        id: "m1-2",
+        id: "m1-2-shared-deck",
         displayStep: 2,
-        title: "L'endurance",
-        text: "Avant de jouer ton premier échange, découvrons l'élément le plus important : l'endurance.",
+        title: "Le deck de l'Académie",
+        text: "Pour apprendre simplement, les deux joueurs partagent ici un deck unique de 18 cartes.",
+        focus: [{ target: "hand", playerIndex: 0 }],
       },
       {
-        id: "m1-3",
+        id: "m1-3-full-game",
         displayStep: 3,
-        title: "Ta réserve d'Endurance",
-        text: [
-          "La plupart des joueurs commencent un échange avec 7 points d'endurance.",
-          "Chaque carte jouée consomme une partie de cette réserve. Plus un coup est exigeant, plus il te fatigue.",
-        ],
+        title: "Le jeu complet",
+        text: "Dans le jeu complet, chaque joueur possède son propre deck de 48 cartes et son personnage.",
+      },
+      {
+        id: "m1-4-player",
+        displayStep: 4,
+        title: "Ton personnage",
+        text: "Ton personnage se trouve à gauche du court.",
+        focus: [{ target: "character", playerIndex: 0 }],
+      },
+      {
+        id: "m1-5-opponent",
+        displayStep: 5,
+        title: "Ton adversaire",
+        text: "Le personnage de ton adversaire se trouve à droite.",
+        focus: [{ target: "character", playerIndex: 1 }],
+      },
+      {
+        id: "m1-6-last-card",
+        displayStep: 6,
+        title: "La dernière carte",
+        text: "Au centre du plateau, tu peux consulter et agrandir la dernière carte jouée.",
+        focus: [{ target: "lastCard" }],
+      },
+      {
+        id: "m1-7-power",
+        displayStep: 7,
+        title: "La puissance",
+        text: "La puissance de ton personnage t'aide à gagner l'échange.",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m1-8-endurance",
+        displayStep: 8,
+        title: "L'endurance",
+        text: "L'endurance permet de jouer tes cartes. Quand elle est épuisée, tu ne peux plus jouer de nouveau coup.",
         focus: [{ target: "endurance", playerIndex: 0 }],
       },
       {
-        id: "m1-4",
-        displayStep: 4,
-        title: "Le coût d'une carte",
-        text: "En haut à gauche de la carte se trouve son coût en endurance. C'est le nombre de points à dépenser pour la jouer.",
-        showcase: { cardId: "service-coup-droit", pointer: "cost", label: "Coût" },
-      },
-      {
-        id: "m1-5",
-        displayStep: 5,
-        title: "La puissance",
-        text: "En haut à droite se trouve la puissance. Chaque carte jouée l'ajoute à ton total. Termine l'échange avec plus de puissance que ton adversaire pour gagner.",
-        showcase: { cardId: "service-coup-droit", pointer: "power", label: "Puissance" },
-      },
-      {
-        id: "m1-6",
-        displayStep: 6,
-        title: "À toi de servir",
-        text: "Tu es au service. Sélectionne la carte Service dans ta main.",
-        action: { kind: "selectCard", playerIndex: 0, cardId: "service-coup-droit" },
-        error: "Pour commencer un échange, il faut toujours sélectionner la carte Service.",
-      },
-      {
-        id: "m1-7",
-        displayStep: 7,
-        title: "Joue ton service",
-        text: "Parfait. Clique maintenant sur Jouer pour effectuer ton service.",
-        action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal", requiresSelection: true },
-      },
-      {
-        id: "m1-8",
-        displayStep: 8,
-        title: "La réponse adverse",
-        text: "Très bien. Je réponds à ton service. Comme dans un véritable échange, nous jouons chacun notre tour.",
-        autoDelayMs: 2000,
-        auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
-      },
-      {
-        id: "m1-9-select",
+        id: "m1-9-card",
         displayStep: 9,
-        title: "Continue l'échange",
-        text: "À toi. Sélectionne maintenant Coup droit.",
-        action: { kind: "selectCard", playerIndex: 0, cardId: "coup-droit-2-2-2" },
-        error: "Pour cette étape, sélectionne Coup droit. Les autres cartes serviront plus tard.",
+        title: "Une carte de jeu",
+        text: "Regardons maintenant une carte de plus près.",
+        showcase: { cardId: "revers-3-3-3" },
       },
       {
-        id: "m1-9-play",
-        displayStep: 9,
-        title: "Continue l'échange",
-        text: "Coup droit est sélectionné. Clique sur Jouer.",
-        action: { kind: "play", playerIndex: 0, cardId: "coup-droit-2-2-2", mode: "normal", requiresSelection: true },
-      },
-      {
-        id: "m1-10",
+        id: "m1-10-card-cost",
         displayStep: 10,
-        title: "La puissance augmente",
-        text: "Je réponds à nouveau. Chaque carte augmente la puissance totale de son joueur. À la fin, nos deux totaux seront comparés.",
-        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
-        autoDelayMs: 2000,
-        auto: { kind: "play", playerIndex: 1, cardId: "volee-2-2-3", mode: "normal" },
+        title: "Le coût en endurance",
+        text: "En haut à gauche, ce nombre indique l'endurance dépensée pour jouer la carte.",
+        showcase: {
+          cardId: "revers-3-3-3",
+          pointer: "cost",
+          label: "Coût",
+        },
       },
       {
-        id: "m1-11",
+        id: "m1-11-card-power",
         displayStep: 11,
-        title: "Je passe",
-        text: [
-          "Le reste de l'échange vient d'être joué automatiquement. J'ai décidé de passer : l'échange prend fin.",
-          "Le joueur qui passe offre à son adversaire un bonus égal à son endurance restante, avec un minimum de 2 points. Nous approfondirons cette mécanique dans une prochaine leçon.",
-        ],
-        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
-        auto: [
-          { kind: "play", playerIndex: 0, cardId: "revers-3-3-3", mode: "normal" },
-          { kind: "pass", playerIndex: 1 },
-        ],
+        title: "La puissance de la carte",
+        text: "En haut à droite, ce nombre indique la puissance apportée par la carte.",
+        showcase: {
+          cardId: "revers-3-3-3",
+          pointer: "power",
+          label: "Puissance",
+        },
       },
       {
-        id: "m1-12",
+        id: "m1-12-precision",
         displayStep: 12,
-        title: "Premier échange remporté",
-        text: "Bravo ! Tu viens de remporter ton premier échange. Tu connais maintenant les bases de Tennis Courts.",
-        summary: [
-          "Utiliser ton endurance",
-          "Jouer une carte",
-          "Accumuler de la puissance",
-          "Terminer et gagner un échange",
-        ],
-        focus: [{ target: "power", playerIndex: 0 }, { target: "power", playerIndex: 1 }],
+        title: "La précision",
+        text: "La précision sera utilisée dans une prochaine leçon.",
+        showcase: { cardId: "revers-3-3-3", pointer: "precision", label: "Précision" },
+      },
+      {
+        id: "m1-13-placement",
+        displayStep: 13,
+        title: "Le placement",
+        text: "Le placement sera lui aussi expliqué dans une prochaine leçon.",
+        showcase: { cardId: "revers-3-3-3", pointer: "placement", label: "Placement" },
+      },
+      {
+        id: "m1-14-effect",
+        displayStep: 14,
+        title: "L'effet",
+        text: "Au centre de la carte se trouve son éventuel effet de jeu.",
+        showcase: { cardId: "revers-3-3-3", pointer: "effect", label: "Effet" },
+      },
+      {
+        id: "m1-15-boost-zone",
+        displayStep: 15,
+        title: "La zone Boost",
+        text: "Certaines cartes possèdent en bas une zone Boost, que nous étudierons plus tard.",
+        showcase: { cardId: "revers-3-3-3", pointer: "boost", label: "Zone Boost" },
+      },
+      {
+        id: "m1-16-play-button",
+        displayStep: 16,
+        title: "Le bouton Jouer",
+        text: "Sous une carte, le bouton Jouer permet de l'utiliser normalement.",
+        focus: [{ target: "play", playerIndex: 0, cardId: "revers-3-3-3" }],
+      },
+      {
+        id: "m1-17-boost-button",
+        displayStep: 17,
+        title: "Le bouton Boost",
+        text: "Le bouton Boost s'active quand ses conditions sont réunies. Le Boost coûte la même endurance que la carte, mais exige de sacrifier une autre carte.",
+        focus: [{ target: "boost", playerIndex: 0, cardId: "revers-3-3-3" }],
+      },
+      {
+        id: "m1-18-history",
+        displayStep: 18,
+        title: "Le journal d'échange",
+        text: "Le journal d'échange conserve toutes les actions effectuées pendant le point.",
+        focus: [{ target: "history" }],
+      },
+      {
+        id: "m1-19-conclusion",
+        displayStep: 19,
+        title: "Conclusion",
+        text: "Parfait, tu connais les principaux éléments de l'interface ! La prochaine leçon te fera jouer ton premier échange.",
+        final: true,
+      },
+    ],
+  },
+  guidedRally: {
+    id: "module-2-guided-rally",
+    lesson: "Académie · Module 2",
+    title: "Premier échange guidé",
+    narrator: "coachJu",
+    scenario: "guided-rally",
+    initialLog: ["Premier échange guidé : suis les indications de Coach Ju."],
+    totalDisplaySteps: 22,
+    steps: [
+      {
+        id: "m2-1-court",
+        displayStep: 1,
+        title: "Bienvenue sur le court",
+        text: "Nous allons jouer ensemble ton premier échange. Je te guiderai à chaque action.",
+      },
+      {
+        id: "m2-2-server",
+        displayStep: 2,
+        title: "Tu es au service",
+        text: "Le badge Serveur indique que tu dois engager l'échange.",
+        focus: [{ target: "character", playerIndex: 0 }],
+      },
+      {
+        id: "m2-3-select-service",
+        displayStep: 3,
+        title: "Choisis le Service",
+        text: "Sélectionne maintenant la carte Service.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "service-coup-droit" },
+        error: "Sélectionne la carte Service indiquée par la flèche.",
+      },
+      {
+        id: "m2-4-play-service",
+        displayStep: 4,
+        title: "Joue le Service",
+        text: "Clique sur Jouer sous la carte Service pour engager l'échange.",
+        action: { kind: "play", playerIndex: 0, cardId: "service-coup-droit", mode: "normal" },
+      },
+      {
+        id: "m2-5-service-cost",
+        displayStep: 5,
+        title: "Endurance dépensée",
+        text: "Ton Service a coûté 2 points d'endurance.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m2-6-service-power",
+        displayStep: 6,
+        title: "Puissance gagnée",
+        text: "Ton Service t'a rapporté 4 points de puissance.",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m2-7-coach-first-reply",
+        displayStep: 7,
+        title: "La réponse de Coach Ju",
+        text: "Je réponds avec un Passing. Regarde l'échange changer de côté.",
+        auto: { kind: "play", playerIndex: 1, cardId: "passing-1-1-4", mode: "normal" },
+        autoDelayMs: 500,
+      },
+      {
+        id: "m2-8-alternation",
+        displayStep: 8,
+        title: "Chacun son tour",
+        text: "Chaque joueur joue une carte à son tour. C'est de nouveau à toi.",
+        focus: [{ target: "character", playerIndex: 0 }],
+      },
+      {
+        id: "m2-9-select-forehand",
+        displayStep: 9,
+        title: "Choisis le Coup droit",
+        text: "Sélectionne le Coup droit indiqué.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "coup-droit-4-3-5" },
+      },
+      {
+        id: "m2-10-play-forehand",
+        displayStep: 10,
+        title: "Joue le Coup droit",
+        text: "Clique sur Jouer sous ton Coup droit.",
+        action: { kind: "play", playerIndex: 0, cardId: "coup-droit-4-3-5", mode: "normal" },
+      },
+      {
+        id: "m2-11-less-endurance",
+        displayStep: 11,
+        title: "L'endurance diminue",
+        text: "À chaque carte jouée, son coût est retiré de ton endurance.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m2-12-more-power",
+        displayStep: 12,
+        title: "La puissance augmente",
+        text: "La puissance de la carte s'ajoute à ton total.",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m2-13-coach-second-reply",
+        displayStep: 13,
+        title: "Coach Ju poursuit",
+        text: "Je joue maintenant un Lob. L'échange continue.",
+        auto: { kind: "play", playerIndex: 1, cardId: "lob-2-0-4", mode: "normal" },
+        autoDelayMs: 500,
+      },
+      {
+        id: "m2-14-select-backhand",
+        displayStep: 14,
+        title: "Choisis le Revers",
+        text: "Il te reste exactement assez d'endurance. Sélectionne ton Revers.",
+        action: { kind: "selectCard", playerIndex: 0, cardId: "revers-3-3-3" },
+      },
+      {
+        id: "m2-15-play-backhand",
+        displayStep: 15,
+        title: "Joue le Revers",
+        text: "Clique sur Jouer pour utiliser tes derniers points d'endurance.",
+        action: { kind: "play", playerIndex: 0, cardId: "revers-3-3-3", mode: "normal" },
+      },
+      {
+        id: "m2-16-empty-endurance",
+        displayStep: 16,
+        title: "Endurance épuisée",
+        text: "Ton endurance est maintenant à zéro.",
+        focus: [{ target: "endurance", playerIndex: 0 }],
+      },
+      {
+        id: "m2-17-coach-last-reply",
+        displayStep: 17,
+        title: "Dernière réponse",
+        text: "Je joue une dernière Amortie. Tu ne peux plus répondre avec une carte.",
+        auto: { kind: "play", playerIndex: 1, cardId: "amortie-2-1-4", mode: "normal" },
+        autoDelayMs: 500,
+      },
+      {
+        id: "m2-18-pass-explanation",
+        displayStep: 18,
+        title: "Quand passer",
+        text: "Quand tu ne peux plus continuer, utilise le bouton Passer.",
+        focus: [{ target: "pass", playerIndex: 0 }],
+      },
+      {
+        id: "m2-19-pass-action",
+        displayStep: 19,
+        title: "Passe",
+        text: "Clique maintenant sur Passer pour terminer l'échange.",
+        action: { kind: "pass", playerIndex: 0 },
+      },
+      {
+        id: "m2-20-pass-bonus",
+        displayStep: 20,
+        title: "Le bonus de passe",
+        text: "Ton adversaire reçoit un bonus égal à ton endurance restante, avec un minimum de 2 points.",
+      },
+      {
+        id: "m2-21-result",
+        displayStep: 21,
+        title: "Résolution de l'échange",
+        text: "Les puissances finales sont comparées. Tu remportes cet échange !",
+        focus: [{ target: "power", playerIndex: 0 }],
+      },
+      {
+        id: "m2-22-conclusion",
+        displayStep: 22,
+        title: "Premier échange terminé",
+        text: "Bravo, tu viens de terminer ton premier échange ! La prochaine leçon expliquera en détail le calcul du vainqueur.",
         final: true,
       },
     ],
   },
 };
 
+const TUTORIAL_ENGINE = window.TennisCourtsTutorialEngine;
+if (!TUTORIAL_ENGINE) throw new Error("Le moteur du tutoriel n'a pas été chargé.");
+TUTORIAL_ENGINE.assertValidModules(TUTORIAL_MODULES);
+const TUTORIAL_PROGRESS_STORAGE_PREFIX = "tennisCourtsTutorialProgressV1";
+
 let tutorialAutoTimer = null;
+let tutorialProgressSaveTimer = null;
+let tutorialTypingTimer = null;
+let tutorialTypingStepId = null;
+let tutorialTypingText = "";
+let tutorialTypingProgress = 0;
+let tutorialTypingStartedAt = 0;
+let tutorialTypingDurationMs = 0;
 let opponentHandRevealTimer = null;
 let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
@@ -1293,6 +1500,7 @@ let soloTournamentCountdownTimer = null;
 
 const GAMEPLAY_ASSIST = {
   preview: localStorage.getItem("tennisLightAssistPreview") === "true",
+  information: localStorage.getItem("tennisLightAssistInformation") === "true",
   panelOpen: false,
 };
 
@@ -1345,18 +1553,12 @@ const state = {
     setsWon: [0, 0],
     matchOver: false,
     matchWinner: null,
+    momentum: [
+      { consecutiveWins: 0, activeBonuses: [] },
+      { consecutiveWins: 0, activeBonuses: [] },
+    ],
   },
-  tutorial: {
-    active: false,
-    moduleId: "basics",
-    stepIndex: 0,
-    completed: false,
-    autoCompletedIds: [],
-    selectedCardUid: null,
-    error: null,
-    scrolledStepId: null,
-    pendingAutoStepId: null,
-  },
+  tutorial: TUTORIAL_ENGINE.createState({ moduleId: "basics" }, TUTORIAL_MODULES),
 };
 
 const els = {
@@ -1372,6 +1574,7 @@ const els = {
   gameAssistButton: document.querySelector("#gameAssistButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gamePreviewToggle: document.querySelector("#gamePreviewToggle"),
+  gameInformationToggle: document.querySelector("#gameInformationToggle"),
   gameContextStrip: document.querySelector("#gameContextStrip"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
@@ -1395,6 +1598,11 @@ const els = {
   rankingScreen: document.querySelector("#rankingScreen"),
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
   academyInfoScreen: document.querySelector("#academyInfoScreen"),
+  tutorialModulesScreen: document.querySelector("#tutorialModulesScreen"),
+  newsArchiveScreen: document.querySelector("#newsArchiveScreen"),
+  openTutorialModulesButton: document.querySelector("#openTutorialModulesButton"),
+  backToTrainingFromTutorialButton: document.querySelector("#backToTrainingFromTutorialButton"),
+  tutorialModulesHomeButton: document.querySelector("#tutorialModulesHomeButton"),
   profileScreen: document.querySelector("#profileScreen"),
   characterScreen: document.querySelector("#characterScreen"),
   resetPasswordScreen: document.querySelector("#resetPasswordScreen"),
@@ -1501,6 +1709,10 @@ const els = {
   onlineFormatSelect: document.querySelector("#onlineFormatSelect"),
   lobbyRooms: document.querySelector("#lobbyRooms"),
   homeNewsList: document.querySelector("#homeNewsList"),
+  homeNewsArchiveAction: document.querySelector("#homeNewsArchiveAction"),
+  openNewsArchiveButton: document.querySelector("#openNewsArchiveButton"),
+  backFromNewsArchiveButton: document.querySelector("#backFromNewsArchiveButton"),
+  newsArchiveList: document.querySelector("#newsArchiveList"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
   exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
@@ -1681,6 +1893,7 @@ function visibleScreenDestination() {
   if (!els.rankingScreen?.classList.contains("hidden")) return "ranking";
   if (!els.circuitInfoScreen?.classList.contains("hidden")) return "circuit-info";
   if (!els.academyInfoScreen?.classList.contains("hidden")) return "academy-info";
+  if (!els.tutorialModulesScreen?.classList.contains("hidden")) return "tutorial-modules";
   if (!els.adminScreen?.classList.contains("hidden")) return "admin";
   if (!els.characterScreen?.classList.contains("hidden")) return "character";
   if (!els.profileScreen?.classList.contains("hidden")) return "profile";
@@ -1696,7 +1909,7 @@ function updateGlobalPlayerDock() {
   const destination = visibleScreenDestination();
   const gameActive = destination === "game";
   const hidden = !user || destination === "home";
-  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen]
+  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen]
     .find((screen) => screen && !screen.classList.contains("hidden"));
   const dockHost = activeScreen?.querySelector(".lobby-section-header, .mode-clubhouse-topbar, .topbar") || null;
   if (dockHost && els.globalPlayerDock) {
@@ -1729,6 +1942,7 @@ function returnFromProfile() {
   if (destination === "ranking") return showRankingScreen();
   if (destination === "circuit-info") return showCircuitInfoScreen();
   if (destination === "academy-info") return showAcademyInfoScreen();
+  if (destination === "tutorial-modules") return showTutorialModulesScreen();
   if (destination === "online-room") return showFriendlyLobbyScreen();
   if (destination === "admin") return showAdminScreen();
   if (destination === "circuit") return showLobbySection("circuit");
@@ -1878,6 +2092,7 @@ function applyAuthenticatedUser(user) {
     window.setTimeout(uploadPendingHumanMatchLogs, 250);
     if (accountChanged) refreshAuthenticatedCircuitData(nextUserId);
   }
+  if (accountChanged) window.setTimeout(synchronizeTutorialProgress, 0);
 }
 
 function formatGameNewsDate(value) {
@@ -1898,22 +2113,29 @@ function availableGameNews() {
   return GAME_NEWS.filter((news) => !news.availableAt || Date.now() >= Date.parse(news.availableAt));
 }
 
+function gameNewsImage(news) {
+  if (news?.image) return news.image;
+  const characterId = news?.characterId || "milanVerhaegen";
+  return PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
+}
+
 function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
-  const newsItems = availableGameNews()
-    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)))
-    .slice(0, 3);
+  const allNews = availableGameNews()
+    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
+  const newsItems = allNews.slice(0, 5);
+  els.homeNewsArchiveAction?.classList.toggle("hidden", allNews.length < 6);
   if (!newsItems.length) {
     els.homeNewsList.innerHTML = '<div class="home-news-empty">Les prochaines actualités de l’Academy arrivent bientôt.</div>';
     return;
   }
   els.homeNewsList.innerHTML = newsItems.map((news, index) => {
     const characterId = news.characterId || "milanVerhaegen";
-    const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
+    const image = gameNewsImage(news);
     return `
       <article class="home-news-card ${index === 0 ? "home-news-featured" : ""}">
         <button class="home-news-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
-          <img src="${escapeHtml(image)}" alt="Portrait de ${escapeHtml(characterNameFromId(characterId))}" />
+          <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Portrait de ${characterNameFromId(characterId)}`)}" />
         </button>
         <div class="home-news-copy">
           <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
@@ -1928,17 +2150,52 @@ function renderHomeNewsSection() {
   });
 }
 
+function renderNewsArchive() {
+  if (!els.newsArchiveList) return;
+  const newsItems = availableGameNews()
+    .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
+  els.newsArchiveList.innerHTML = newsItems.map((news) => {
+    const characterId = news.characterId || "milanVerhaegen";
+    const image = gameNewsImage(news);
+    return `
+      <article class="news-archive-card">
+        <button class="news-archive-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
+          <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Portrait de ${characterNameFromId(characterId)}`)}" />
+        </button>
+        <div class="news-archive-copy">
+          <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
+          <button class="news-archive-title" type="button" data-read-game-news="${escapeHtml(news.id)}">${escapeHtml(news.title)}</button>
+          <p>${escapeHtml(news.message)}</p>
+          <button class="home-news-read" type="button" data-read-game-news="${escapeHtml(news.id)}">Lire l’actualité <span aria-hidden="true">→</span></button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  els.newsArchiveList.querySelectorAll("[data-read-game-news]").forEach((button) => {
+    button.addEventListener("click", () => showGameNewsDialog(button.dataset.readGameNews));
+  });
+}
+
+function showNewsArchiveScreen() {
+  els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
+  hideStandaloneScreens();
+  els.newsArchiveScreen?.classList.remove("hidden");
+  renderNewsArchive();
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
 function showGameNewsDialog(newsId) {
   const news = availableGameNews().find((item) => item.id === newsId) || latestGameNews();
   if (!news || document.querySelector(".pro-news-backdrop")) return;
   const characterId = news.characterId || "milanVerhaegen";
-  const image = PROFILE_CHARACTER_IMAGES[characterId] || CHARACTER_IMAGES[characterId]?.[0];
+  const image = gameNewsImage(news);
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop pro-news-backdrop";
   backdrop.innerHTML = `
     <article class="modal pro-news-modal" role="dialog" aria-modal="true" aria-labelledby="proNewsTitle" aria-describedby="proNewsMessage">
       <div class="pro-news-card-frame">
-        <img src="${escapeHtml(image)}" alt="Carte de ${escapeHtml(characterNameFromId(characterId))}" />
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Carte de ${characterNameFromId(characterId)}`)}" />
       </div>
       <div class="pro-news-copy">
         <p class="label">DERNIÈRES ACTU · ${escapeHtml(formatGameNewsDate(news.publishedAt))}</p>
@@ -2332,8 +2589,9 @@ function renderCircuitDashboard() {
   const week = Number(competitions?.week || ranking?.week || 1);
 
   if (els.circuitHeroPeriod) els.circuitHeroPeriod.textContent = `Saison ${season} · Semaine ${week} · Tournois de la semaine`;
-  if (els.circuitRankValue) els.circuitRankValue.textContent = circuitRankLabel(current?.rank);
-  setCircuitProjection(els.circuitRankProjection, current?.rank, current?.projected_rank);
+  const fixedWorldRank = Number(current?.points_rank || current?.rank || 0);
+  if (els.circuitRankValue) els.circuitRankValue.textContent = circuitRankLabel(fixedWorldRank);
+  setCircuitProjection(els.circuitRankProjection, fixedWorldRank, current?.projected_rank);
   if (els.circuitPointsValue) els.circuitPointsValue.textContent = String(Number(current?.score_ref || 0));
   if (els.circuitWeekPointsValue) els.circuitWeekPointsValue.textContent = String(Number(current?.score_week || 0));
   if (els.circuitAttemptsValue) els.circuitAttemptsValue.textContent = `${remainingAttempts}/${retryLimit}`;
@@ -2348,8 +2606,8 @@ function renderCircuitDashboard() {
   }
   if (els.circuitPlayerNickname) els.circuitPlayerNickname.textContent = AUTH_STATE.user?.nickname || selectedPlayerName();
   if (els.circuitPlayerRole) els.circuitPlayerRole.textContent = ROLE_LABELS[currentUserRole()] || "PRO";
-  if (els.circuitPlayerRank) els.circuitPlayerRank.textContent = circuitRankLabel(current?.rank);
-  setCircuitProjection(els.circuitPlayerProjection, current?.rank, current?.projected_rank);
+  if (els.circuitPlayerRank) els.circuitPlayerRank.textContent = circuitRankLabel(fixedWorldRank);
+  setCircuitProjection(els.circuitPlayerProjection, fixedWorldRank, current?.projected_rank);
   if (els.circuitPlayerPoints) els.circuitPlayerPoints.textContent = String(Number(current?.score_ref || 0));
   if (els.circuitPlayerWeekPoints) els.circuitPlayerWeekPoints.textContent = String(Number(current?.score_week || 0));
   if (els.circuitPlayerAttempts) els.circuitPlayerAttempts.textContent = `${remainingAttempts} / ${retryLimit}`;
@@ -2869,7 +3127,7 @@ function profileMarkup(profile) {
           <p>${escapeHtml(selectedCharacterName)} vous représente dans le lobby et sur les courts.</p>
         </div>
         <dl class="profile-identity-metrics">
-          <div><dt>Rang mondial</dt><dd>${Number(ranking.rank || 0) ? `#${Number(ranking.rank)}` : "-"}</dd><small>${Number(ranking.projected_rank || 0) ? `#${Number(ranking.projected_rank)} projeté` : "Projection indisponible"}</small></div>
+          <div><dt>Rang mondial</dt><dd>${Number(ranking.points_rank || ranking.rank || 0) ? `#${Number(ranking.points_rank || ranking.rank)}` : "-"}</dd><small>${Number(ranking.projected_rank || 0) ? `#${Number(ranking.projected_rank)} projeté` : "Projection indisponible"}</small></div>
           <div><dt>Points Circuit</dt><dd>${Number(ranking.score_ref || 0)}</dd><small>4 semaines terminées</small></div>
           <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd><small>En cours</small></div>
           <div class="profile-trophy-metric gold"><dt>Tournois gagnés</dt><dd><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />${tournamentWins}</dd></div>
@@ -2926,7 +3184,7 @@ function profileMarkup(profile) {
           <strong>${escapeHtml(circuitLevel.label)}</strong>
           <span class="profile-level-stars" title="${circuitLevel.level} étoile${circuitLevel.level > 1 ? "s" : ""}">${"★".repeat(circuitLevel.level)}</span>
         </div>
-        <div class="ranking-row current-user"><span class="ranking-position"><strong>${Number(ranking.rank || 0) || "-"}</strong>${Number(ranking.projected_rank || 0) ? `<small class="ranking-projection">(${Number(ranking.projected_rank)})</small>` : ""}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
+        <div class="ranking-row current-user"><span class="ranking-position"><strong>${Number(ranking.points_rank || ranking.rank || 0) || "-"}</strong>${Number(ranking.projected_rank || 0) ? `<small class="ranking-projection">(${Number(ranking.projected_rank)})</small>` : ""}</span><strong>${escapeHtml(user?.nickname || "")}</strong><span>${Number(ranking.score_ref || 0)}</span><span>${Number(ranking.score_week || 0)}</span><span>${Number(ranking.score_total || 0)}</span></div>
         <div class="profile-stats-grid">${statRows}</div>
         <button id="profileRankingLinkButton" class="small-button" type="button">Classement général</button>
       </section>
@@ -3452,7 +3710,7 @@ async function saveTournamentProgress() {
     humanMatchTelemetry: cloneData(HUMAN_MATCH_TELEMETRY.active),
   };
   if (save.state?.tutorial) {
-    save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
+    save.state.tutorial = inactiveTutorialState(save.state.tutorial);
   }
   const period = {
     season: state.tournament.competitionSeason,
@@ -3578,7 +3836,8 @@ async function startWeeklyCompetition(competitionId) {
     applySurfaceBackground(competition.surface);
     const targetSets = Number(competition.targetSets || 2);
     try {
-      startTournamentMode(targetSets, { competition });
+      if (competition.eventType === "League") startLeagueTournamentMode(targetSets, { competition });
+      else startTournamentMode(targetSets, { competition });
       showGameScreen();
       render();
     } catch (error) {
@@ -3662,6 +3921,8 @@ function hideStandaloneScreens() {
     els.rankingScreen,
     els.circuitInfoScreen,
     els.academyInfoScreen,
+    els.tutorialModulesScreen,
+    els.newsArchiveScreen,
     els.profileScreen,
     els.characterScreen,
     els.resetPasswordScreen,
@@ -3701,6 +3962,8 @@ function showGameScreen() {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
+  els.newsArchiveScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -3765,6 +4028,7 @@ function showMenuScreen() {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -3784,6 +4048,7 @@ function showProfileScreen(userId = null) {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
@@ -3864,8 +4129,20 @@ function showAcademyInfoScreen() {
   els.aiClubHouseScreen?.classList.add("hidden");
   els.gameApp?.classList.add("hidden");
   els.academyInfoScreen?.classList.remove("hidden");
+  els.tutorialModulesScreen?.classList.add("hidden");
   applySurfaceBackground(null);
   renderAcademyDeck();
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function showTutorialModulesScreen() {
+  if (!canAccessAdminFeatures()) return;
+  resetTutorialMode();
+  els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
+  hideStandaloneScreens();
+  els.tutorialModulesScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
@@ -3879,16 +4156,80 @@ function tutorialHand(cardIds, prefix) {
 }
 
 function tutorialModule() {
-  return TUTORIAL_MODULES[state.tutorial.moduleId] ?? TUTORIAL_MODULES.basics;
+  return TUTORIAL_ENGINE.currentModule(state.tutorial, TUTORIAL_MODULES) ?? TUTORIAL_MODULES.basics;
 }
 
 function tutorialStep() {
-  return state.tutorial.active ? tutorialModule().steps[state.tutorial.stepIndex] ?? null : null;
+  return TUTORIAL_ENGINE.currentStep(state.tutorial, TUTORIAL_MODULES);
 }
 
 function tutorialExpectedAction() {
-  const step = tutorialStep();
-  return step?.action ?? null;
+  return TUTORIAL_ENGINE.expectedValidation(state.tutorial, TUTORIAL_MODULES);
+}
+
+function tutorialProgressStorageKey(userId = authenticatedUserId()) {
+  return `${TUTORIAL_PROGRESS_STORAGE_PREFIX}:${userId || "guest"}`;
+}
+
+function readLocalTutorialProgress(userId = authenticatedUserId()) {
+  try {
+    return JSON.parse(localStorage.getItem(tutorialProgressStorageKey(userId)) || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+function restoreLocalTutorialProgress(userId = authenticatedUserId()) {
+  const progress = readLocalTutorialProgress(userId);
+  if (!progress) return false;
+  state.tutorial = TUTORIAL_ENGINE.restore(progress, TUTORIAL_MODULES);
+  return true;
+}
+
+async function persistTutorialProgress({ remote = true } = {}) {
+  const progress = TUTORIAL_ENGINE.snapshot(state.tutorial);
+  try {
+    localStorage.setItem(tutorialProgressStorageKey(), JSON.stringify(progress));
+  } catch (error) {
+    state.log?.unshift?.(`Sauvegarde locale du tutoriel impossible : ${error.message}`);
+  }
+  if (!remote || !AUTH_STATE.user) return progress;
+  try {
+    await authRequest("/api/tutorial/progress", { progress }, { method: "PUT" });
+  } catch (error) {
+    state.log?.unshift?.(`Sauvegarde serveur du tutoriel impossible : ${error.message}`);
+  }
+  return progress;
+}
+
+function scheduleTutorialProgressSave() {
+  window.clearTimeout(tutorialProgressSaveTimer);
+  tutorialProgressSaveTimer = window.setTimeout(() => {
+    tutorialProgressSaveTimer = null;
+    persistTutorialProgress();
+  }, 120);
+}
+
+async function synchronizeTutorialProgress() {
+  if (!AUTH_STATE.user) {
+    restoreLocalTutorialProgress(null);
+    return;
+  }
+  if (state.tutorial.active) {
+    await persistTutorialProgress();
+    return;
+  }
+  try {
+    const data = await authRequest("/api/tutorial/progress");
+    if (data.progress) {
+      state.tutorial = TUTORIAL_ENGINE.restore(data.progress, TUTORIAL_MODULES);
+      localStorage.setItem(tutorialProgressStorageKey(), JSON.stringify(TUTORIAL_ENGINE.snapshot(state.tutorial)));
+    } else {
+      await persistTutorialProgress();
+    }
+  } catch (error) {
+    restoreLocalTutorialProgress();
+  }
 }
 
 function tutorialAllowsPlay(playerIndex, card, mode, boosted = false) {
@@ -3938,18 +4279,72 @@ function tutorialFocusClass(target, playerIndex, cardId = null) {
   if (!state.tutorial.active) return "";
   const step = tutorialStep();
   const focuses = [...(step?.focus ?? [])];
+  const actionFocuses = [];
   if (step?.action?.kind === "selectCard") {
-    focuses.push({ target: "card", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
+    actionFocuses.push({ target: "card", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
   }
   if (step?.action?.kind === "play") {
-    focuses.push({ target: "play", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
+    actionFocuses.push({ target: "play", playerIndex: step.action.playerIndex, cardId: step.action.cardId });
   }
-  const matches = focuses.some((focus) => (
+  if (step?.action?.kind === "pass") {
+    actionFocuses.push({ target: "pass", playerIndex: step.action.playerIndex });
+  }
+  const focusMatches = (focus) => (
     focus.target === target
     && (focus.playerIndex == null || focus.playerIndex === playerIndex)
     && (focus.cardId == null || focus.cardId === cardId)
-  ));
-  return matches ? " tutorial-focus-target" : "";
+  );
+  if (actionFocuses.some(focusMatches)) return " tutorial-focus-target tutorial-action-target";
+  return focuses.some(focusMatches) ? " tutorial-focus-target" : "";
+}
+
+function clearTutorialTyping() {
+  window.clearInterval(tutorialTypingTimer);
+  tutorialTypingTimer = null;
+}
+
+function tutorialPlainText(text) {
+  return (Array.isArray(text) ? text : [text]).filter(Boolean).join(" ");
+}
+
+function revealTutorialText() {
+  if (!tutorialTypingText) return false;
+  clearTutorialTyping();
+  tutorialTypingProgress = tutorialTypingText.length;
+  updateTutorialTypingDisplay();
+  return true;
+}
+
+function updateTutorialTypingDisplay() {
+  const output = els.tutorialOverlay?.querySelector("[data-tutorial-typed-text]");
+  if (output) output.textContent = tutorialTypingText.slice(0, tutorialTypingProgress);
+  const button = els.tutorialOverlay?.querySelector("[data-tutorial-next]");
+  if (button) button.textContent = tutorialTypingProgress < tutorialTypingText.length
+    ? "Afficher tout"
+    : (tutorialStep()?.final ? "Terminer la leçon" : "Suivant");
+}
+
+function startTutorialTyping(step) {
+  const text = tutorialPlainText(step.text);
+  if (tutorialTypingStepId !== step.id || tutorialTypingText !== text) {
+    clearTutorialTyping();
+    tutorialTypingStepId = step.id;
+    tutorialTypingText = text;
+    tutorialTypingProgress = 0;
+    tutorialTypingStartedAt = Date.now();
+    tutorialTypingDurationMs = Math.min(1800, Math.max(350, text.length * 10));
+  }
+  updateTutorialTypingDisplay();
+  if (tutorialTypingProgress >= tutorialTypingText.length || tutorialTypingTimer) return;
+  tutorialTypingTimer = window.setInterval(() => {
+    const elapsed = Date.now() - tutorialTypingStartedAt;
+    tutorialTypingProgress = Math.min(
+      tutorialTypingText.length,
+      Math.ceil(tutorialTypingText.length * (elapsed / tutorialTypingDurationMs)),
+    );
+    updateTutorialTypingDisplay();
+    if (tutorialTypingProgress >= tutorialTypingText.length) clearTutorialTyping();
+  }, 14);
 }
 
 function selectTutorialCard(playerIndex, cardUid) {
@@ -3973,26 +4368,21 @@ function clearTutorialAutoTimer() {
   if (state.tutorial) state.tutorial.pendingAutoStepId = null;
 }
 
-function inactiveTutorialState(completed = false) {
-  return {
-    active: false,
-    moduleId: "basics",
-    stepIndex: 0,
-    completed: Boolean(completed),
-    autoCompletedIds: [],
-    selectedCardUid: null,
-    error: null,
-    scrolledStepId: null,
-    pendingAutoStepId: null,
-  };
+function inactiveTutorialState(progress = state.tutorial) {
+  const source = typeof progress === "boolean"
+    ? { ...state.tutorial, academyCompleted: progress, completed: progress }
+    : progress;
+  return TUTORIAL_ENGINE.deactivate(source, TUTORIAL_MODULES);
 }
 
 function resetTutorialMode() {
   clearTutorialAutoTimer();
-  state.tutorial = inactiveTutorialState(state.tutorial?.completed);
-  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending");
+  clearTutorialTyping();
+  state.tutorial = inactiveTutorialState(state.tutorial);
+  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
   els.tutorialOverlay?.classList.add("hidden");
   if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
+  scheduleTutorialProgressSave();
 }
 
 function startTutorial(moduleId = "basics") {
@@ -4005,35 +4395,28 @@ function startTutorial(moduleId = "basics") {
   stopSoloTimers();
   SOLO_AI.enabled = false;
 
-  const selectedModuleId = TUTORIAL_MODULES[moduleId] ? moduleId : "basics";
+  const selectedModuleId = String(moduleId || "basics");
+  if (!TUTORIAL_MODULES[selectedModuleId]) {
+    console.error(`Module de tutoriel inconnu : ${selectedModuleId}`);
+    return;
+  }
   const module = TUTORIAL_MODULES[selectedModuleId];
   setupTutorialScenario(module.scenario);
   state.server = 0;
   state.activePlayer = 0;
-  state.tutorial = {
-    active: true,
-    moduleId: selectedModuleId,
-    stepIndex: 0,
-    completed: false,
-    autoCompletedIds: [],
-    selectedCardUid: null,
-    error: null,
-    scrolledStepId: null,
-    pendingAutoStepId: null,
-  };
-  state.log = ["Tutoriel lancé."];
+  state.tutorial = TUTORIAL_ENGINE.start(state.tutorial, TUTORIAL_MODULES, selectedModuleId);
+  state.log = module.initialLog ? [...module.initialLog] : ["Tutoriel lancé."];
   captureTurnSnapshot();
   showGameScreen();
   runTutorialAutoSteps();
   render();
+  scheduleTutorialProgressSave();
 }
 
 function completeTutorialAction(action) {
   if (!state.tutorial.active) return;
   const expected = tutorialExpectedAction();
-  if (!expected || expected.kind !== action.kind || expected.playerIndex !== action.playerIndex) return;
-  if (["play", "selectCard"].includes(expected.kind) && expected.cardId !== action.cardId) return;
-  if (expected.kind === "play" && expected.mode !== action.mode) return;
+  if (!TUTORIAL_ENGINE.validationMatches(expected, action)) return;
   state.tutorial.error = null;
   if (expected.kind === "play") state.tutorial.selectedCardUid = null;
   advanceTutorial();
@@ -4042,17 +4425,27 @@ function completeTutorialAction(action) {
 function advanceTutorial() {
   if (!state.tutorial.active) return;
   clearTutorialAutoTimer();
-  state.tutorial.stepIndex += 1;
+  clearTutorialTyping();
+  state.tutorial = TUTORIAL_ENGINE.advance(state.tutorial, TUTORIAL_MODULES);
   state.tutorial.error = null;
   runTutorialAutoSteps();
   render();
+  scheduleTutorialProgressSave();
 }
 
 function finishTutorial() {
-  state.tutorial.completed = true;
-  resetTutorialMode();
-  showMenuScreen();
-  render();
+  const module = tutorialModule();
+  state.tutorial = TUTORIAL_ENGINE.completeModule(state.tutorial, TUTORIAL_MODULES, {
+    academyCompleted: Boolean(module.completesAcademy),
+  });
+  clearTutorialAutoTimer();
+  clearTutorialTyping();
+  document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
+  els.tutorialOverlay?.classList.add("hidden");
+  if (els.tutorialOverlay) els.tutorialOverlay.innerHTML = "";
+  scheduleTutorialProgressSave();
+  if (canAccessAdminFeatures()) showTutorialModulesScreen();
+  else showMenuScreen();
 }
 
 function runTutorialAutoSteps() {
@@ -4178,6 +4571,30 @@ function setupTutorialScenario(scenario) {
       0,
       0,
     );
+  } else if (scenario === "interface") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["service-coup-droit", "coup-droit-2-2-2", "revers-3-3-3", "volee-2-2-3", "smash-4-2-1", "joker"], "interface-edt"),
+        tutorialHand(["passing-1-1-4", "amortie-2-1-4", "lob-2-0-4", "double", "revers-5-4-1", "volee-3-4-1"], "interface-ju"),
+      ],
+      0,
+      0,
+    );
+    state.latestPlayedCard = createTutorialPlayedCard("revers-3-3-3", 1);
+    state.lastCard = null;
+  } else if (scenario === "guided-rally") {
+    resetTutorialExchange(
+      [edt, coachJu],
+      [
+        tutorialHand(["service-coup-droit", "coup-droit-4-3-5", "revers-3-3-3", "volee-2-2-3", "smash-4-2-1", "joker"], "guided-rally-edt"),
+        tutorialHand(["passing-1-1-4", "lob-2-0-4", "amortie-2-1-4"], "guided-rally-ju"),
+      ],
+      0,
+      0,
+    );
+    state.players[0].endurance = 7;
+    state.players[1].endurance = 7;
   } else if (scenario === "points") {
     resetTutorialExchange(
       [edt, coachJu],
@@ -4506,7 +4923,7 @@ function saveAiClubHouseProgress() {
     // reprendre la compétition au même échange.
     humanMatchTelemetry: null,
   };
-  if (save.state?.tutorial) save.state.tutorial = inactiveTutorialState(save.state.tutorial.completed);
+  if (save.state?.tutorial) save.state.tutorial = inactiveTutorialState(save.state.tutorial);
   try {
     localStorage.setItem(aiClubHouseSaveKey(), JSON.stringify(save));
     return true;
@@ -6304,6 +6721,7 @@ function createPlayer(name, characterId, nickname = name) {
     surfaceBonus: null,
     surfaceBonuses: [],
     permanentBonuses: [],
+    temporaryBonuses: [],
     passed: false,
   };
 }
@@ -6364,6 +6782,8 @@ function playerLogInfo(player) {
     handCount: player.hand.length,
     playedCount: player.played.filter((card) => !card.removed).length,
     hand: player.hand.map(cardLogInfo),
+    permanentBonuses: cloneData(player.permanentBonuses || []),
+    temporaryBonuses: cloneData(player.temporaryBonuses || []),
   };
 }
 
@@ -6402,9 +6822,11 @@ function recordAction(kind, payload = {}) {
     coachJuFocus: payload.playerIndex === 0 || payload.opponentIndex === 0,
   };
   state.actionLog.push(entry);
-  const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
-  stored.push(entry);
-  writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-2500));
+  if (["admin", "pro_plus"].includes(currentUserRole())) {
+    const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
+    stored.push(entry);
+    writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-5000));
+  }
   recordHumanMatchAction(entry);
 }
 
@@ -6429,6 +6851,7 @@ function absorbServerLogs(logs = []) {
 
 function shouldTrackHumanMatch() {
   if (!AUTH_STATE.user || SPECTATOR_MODE.enabled || state.tutorial.active) return false;
+  if (!["admin", "pro_plus"].includes(currentUserRole())) return false;
   if (!Array.isArray(state.players) || state.players.length !== 2) return false;
   return state.players.some((_, playerIndex) => isHumanTelemetrySeat(playerIndex));
 }
@@ -6550,7 +6973,6 @@ function ensureHumanMatchTelemetry() {
 
 function compactHumanMatchAction(entry) {
   const compact = cloneData(entry);
-  delete compact.after;
   return compact;
 }
 
@@ -6749,13 +7171,16 @@ function formatPermanentBonusStats(bonus) {
 }
 
 function permanentBonusLogLine(player) {
-  const bonuses = player.permanentBonuses ?? [];
-  if (!bonuses.length) return `Bonus permanent de ${displayPlayerName(player)} : aucun.`;
+  const bonuses = [...(player.surfaceBonuses ?? []), ...(player.permanentBonuses ?? []), ...(player.temporaryBonuses ?? [])]
+    .filter((bonus, index, entries) => bonus && entries.findIndex((entry) => (
+      String(entry?.id || entry?.label || "") === String(bonus.id || bonus.label || "")
+    )) === index);
+  if (!bonuses.length) return `Bonus de ${displayPlayerName(player)} : aucun.`;
   const details = bonuses.map((bonus) => {
     const stats = formatPermanentBonusStats(bonus);
     return stats ? `${bonus.label} (${stats})` : bonus.label;
   }).join(" ; ");
-  return `Bonus permanent de ${displayPlayerName(player)} : ${details}.`;
+  return `Bonus de ${displayPlayerName(player)} : ${details}.`;
 }
 
 function exportLogsFile() {
@@ -6839,7 +7264,14 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.21");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.30");
+}
+
+function emptyMomentumState() {
+  return [
+    { consecutiveWins: 0, activeBonuses: [], motivationResolved: false, ascendantResolved: false, permanentAwards: [] },
+    { consecutiveWins: 0, activeBonuses: [], motivationResolved: false, ascendantResolved: false, permanentAwards: [] },
+  ];
 }
 
 function resetSetMatch() {
@@ -6856,6 +7288,7 @@ function resetSetMatch() {
     setsWon: [0, 0],
     matchOver: false,
     matchWinner: null,
+    momentum: emptyMomentumState(),
   };
 }
 
@@ -6916,21 +7349,14 @@ function newGame(options = {}) {
     player.permanentBonuses = state.tournament.active && !humanInProCircuit && state.tournament.permanentBonuses
       ? cloneData(state.tournament.permanentBonuses[tournamentEntry] ?? [])
       : [];
+    player.permanentBonuses.push(...cloneData(state.setMatch.momentum?.[playerIndex]?.permanentAwards || []));
     player.worldRank = state.tournament.active
       ? tournamentWorldRankForEntry(tournamentEntry)
       : null;
+    player.temporaryBonuses = cloneData(state.setMatch.momentum?.[playerIndex]?.activeBonuses || []);
   });
-  if (state.tournament.active && !state.tournament.aiClubHouse && !SERVER_SYNC.enabled) {
-    const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
-    if (headToHead) {
-      const targetIndex = headToHead.target === "human" ? 0 : 1;
-      state.players[targetIndex].permanentBonuses.push({
-        id: "headToHeadPlacement",
-        label: headToHead.label,
-        placement: headToHead.placement,
-      });
-    }
-  }
+  applyMotivationBonus();
+  applyHumanAscendantBonus();
   state.players[0].hand = deck.splice(0, HAND_SIZE);
   state.players[1].hand = deck.splice(0, HAND_SIZE);
   state.deck = deck;
@@ -7288,8 +7714,14 @@ function canUseSeat(playerIndex) {
 }
 
 function surfaceBonusesForPlayer(player) {
-  if (player?.surfaceBonuses?.length) return player.surfaceBonuses;
-  return player?.surfaceBonus ? [player.surfaceBonus] : [];
+  const assigned = player?.surfaceBonuses?.length
+    ? player.surfaceBonuses
+    : player?.surfaceBonus ? [player.surfaceBonus] : [];
+  const dynamic = [...(player?.permanentBonuses || []), ...(player?.temporaryBonuses || [])]
+    .filter((bonus) => bonus?.surface || bonus?.sourceBonusId);
+  return [...assigned, ...dynamic].map((bonus) => (
+    bonus.sourceBonusId ? { ...bonus, id: bonus.sourceBonusId } : bonus
+  ));
 }
 
 function playerHasSurfaceBonus(player, bonusId) {
@@ -7673,6 +8105,7 @@ function runSoloAITurn() {
       ensureSoloProgress(beforeSignature);
       return;
     }
+    const legalInventory = soloLegalActionInventory(playerIndex);
     const scenarioPlan = prepareSoloScenarioPlan(playerIndex);
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
       recordSoloAiDecision("end_turn_after_effect");
@@ -7681,7 +8114,7 @@ function runSoloAITurn() {
       return;
     }
 
-    if (canSoloPassAndWin(playerIndex)) {
+    if (!legalInventory.canProgress && canSoloPassAndWin(playerIndex)) {
       const punitivePath = chooseSoloPunitiveContinuation(playerIndex, scenarioPlan);
       if (punitivePath) {
         recordSoloAiDecision("press_secured_advantage", {
@@ -7698,7 +8131,9 @@ function runSoloAITurn() {
       return;
     }
 
-    const legendarySafetyPass = legendaryPassSafetyDecision(playerIndex, scenarioPlan?.legendaryPlan);
+    const legendarySafetyPass = !legalInventory.canProgress
+      ? legendaryPassSafetyDecision(playerIndex, scenarioPlan?.legendaryPlan)
+      : null;
     if (legendarySafetyPass) {
       recordSoloAiDecision("legendary_safety_pass", legendarySafetyPass);
       pass(playerIndex);
@@ -7706,7 +8141,7 @@ function runSoloAITurn() {
       return;
     }
 
-    if (shouldSoloPassToLimitBoostDamage(playerIndex)) {
+    if (!legalInventory.canProgress && shouldSoloPassToLimitBoostDamage(playerIndex)) {
       recordSoloAiDecision("pass_limit_boost_damage", soloPassDecisionSnapshot(playerIndex));
       pass(playerIndex);
       ensureSoloProgress(beforeSignature);
@@ -7790,6 +8225,14 @@ function runSoloAITurn() {
       return;
     }
 
+    const legalPlacementRemise = legalInventory.placementRemises[0];
+    if (legalPlacementRemise) {
+      recordSoloAiDecision("fallback_placement_remise", { card: cardLogInfo(legalPlacementRemise) });
+      playCard(playerIndex, legalPlacementRemise.uid, false, null, "placement");
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
+
     const usefulEffect = chooseSoloEffectCard(playerIndex);
     if (usefulEffect) {
       recordSoloAiDecision("fallback_effect", { card: cardLogInfo(usefulEffect) });
@@ -7862,13 +8305,6 @@ function runAmateurSoloAITurn(playerIndex) {
       return true;
     }
     recordSoloAiDecision("amateur_forced_pass", soloPassDecisionSnapshot(playerIndex));
-    pass(playerIndex);
-    return true;
-  }
-
-  const amateurPassChance = isMatchDangerForPlayer(playerIndex) ? 0.1 : 0.24;
-  if (!hasPlayedThisTurn(playerIndex) && Math.random() < amateurPassChance) {
-    recordSoloAiDecision("amateur_early_pass", soloPassDecisionSnapshot(playerIndex));
     pass(playerIndex);
     return true;
   }
@@ -8013,25 +8449,25 @@ function soloEmergencyFallback(playerIndex) {
     endTurn(playerIndex);
     return;
   }
-  const player = state.players[playerIndex];
-  const forcedBoost = chooseSoloBoostPlay(playerIndex);
-  if (forcedBoost) {
+  const inventory = soloLegalActionInventory(playerIndex);
+  if (inventory.boosts.length) {
+    const forcedBoost = inventory.boosts[0];
     playCard(playerIndex, forcedBoost.card.uid, true, forcedBoost.sacrifice.uid);
     return;
   }
-  const forcedCoup = player.hand.find((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  const forcedCoup = inventory.coups[0];
   if (forcedCoup) {
     playCard(playerIndex, forcedCoup.uid);
     return;
   }
-  const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
-  const forcedRemise = player.hand.find((card) => (
-    isRemise(card)
-    && canPlayNormal(playerIndex, card)
-    && (!effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2))
-  ));
-  if (forcedRemise && !state.mandatoryPlacement) {
-    playCard(playerIndex, forcedRemise.uid, false, null, "effect");
+  const usefulEffect = inventory.effects[0];
+  if (usefulEffect && !state.mandatoryPlacement) {
+    playCard(playerIndex, usefulEffect.uid, false, null, "effect");
+    return;
+  }
+  const placementRemise = inventory.placementRemises[0];
+  if (placementRemise) {
+    playCard(playerIndex, placementRemise.uid, false, null, "placement");
     return;
   }
   pass(playerIndex);
@@ -8632,6 +9068,36 @@ function soloInformationExposureProfile(playerIndex) {
   };
 }
 
+function strategicEnduranceReserve(playerIndex) {
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (opponent.hand.length <= 1 || opponent.endurance <= 0) return 0;
+  if (isSetDangerForPlayer(playerIndex) || isMatchDangerForPlayer(playerIndex)) return 0;
+  return {
+    amateur: 0,
+    normal: 0,
+    expert: 1,
+    champion: 1,
+    legend: 2,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0;
+}
+
+function boostDisruptionValue(playerIndex, threat, passPressure = false) {
+  const opponent = state.players[opponentOf(playerIndex)];
+  const tier = {
+    amateur: 0.25,
+    normal: 0.55,
+    expert: 1,
+    champion: 1.25,
+    legend: 1.45,
+  }[normalizeAiIntelligence(SOLO_AI.style)] ?? 0.25;
+  const forcedCardCost = opponent.hand.length > 1 ? 4 : 1;
+  const forcedEnduranceCost = Math.min(4, opponent.endurance) * 1.7;
+  const strategyInterruption = opponent.hand.length >= 3 ? 3 : 1;
+  const directPressure = passPressure ? 10 : 0;
+  const counterableDiscount = threat?.canDefend ? 0.9 : 1;
+  return (forcedCardCost + forcedEnduranceCost + strategyInterruption + directPressure) * tier * counterableDiscount;
+}
+
 function soloCommitmentDiscipline(playerIndex, options = {}) {
   const profile = soloInformationExposureProfile(playerIndex);
   const intelligence = normalizeAiIntelligence(SOLO_AI.style);
@@ -8649,7 +9115,7 @@ function soloCommitmentDiscipline(playerIndex, options = {}) {
   const cost = Math.max(0, Number(options.cost ?? (options.card ? effectiveCost(player, options.card) : 0)));
   const cardsCommitted = Math.max(1, Number(options.cardsCommitted || (options.boosted ? 2 : 1)));
   const remainingEndurance = Number(options.remainingEndurance ?? (player.endurance - cost));
-  const reserve = Math.max(0, Number(options.reserve || 0));
+  const reserve = Math.max(0, Number(options.reserve ?? strategicEnduranceReserve(playerIndex)));
   const risk = Math.max(0, Number(options.risk || 0));
   const canDefend = Boolean(options.canDefend);
   const projectedPowerLead = profile.powerLead + power;
@@ -8671,6 +9137,10 @@ function soloCommitmentDiscipline(playerIndex, options = {}) {
   if (profile.alreadyExposed && !profile.opponentMoreCommitted) {
     penalty += (2 + Math.max(0, profile.powerLead) * 0.35) * tier;
   }
+  const reserveShortfall = Math.max(0, reserve - remainingEndurance);
+  if (reserveShortfall && !options.passPressure) {
+    penalty += reserveShortfall * (8 + 10 * tier);
+  }
 
   let aggressionBonus = 0;
   if (profile.opponentConservative && !options.plannedSequence && power <= 3 && cost <= 1) aggressionBonus += 2.5 * tier;
@@ -8684,6 +9154,8 @@ function soloCommitmentDiscipline(playerIndex, options = {}) {
     penalty,
     aggressionBonus,
     safeSequence,
+    reserve,
+    reserveShortfall,
     profile,
   };
 }
@@ -8711,7 +9183,8 @@ function soloBoostOptionCandidates(playerIndex) {
         passPressure,
         plannedSequence: true,
       });
-      const boostedScore = rawBoostedScore - threat.danger + informationDiscipline.score;
+      const disruptionValue = boostDisruptionValue(playerIndex, threat, passPressure);
+      const boostedScore = rawBoostedScore + disruptionValue - threat.danger + informationDiscipline.score;
       const catastrophicRisk = !state.mandatoryPlacement && !threat.canDefend && boostedScore < 0;
       const destroysSuppression = sacrifice.effectType === "removeOpponentLast";
       return {
@@ -8724,6 +9197,7 @@ function soloBoostOptionCandidates(playerIndex) {
         passPressure,
         sacrificeScore,
         informationDiscipline,
+        disruptionValue,
         rejected: catastrophicRisk || (destroysSuppression && !state.mandatoryPlacement),
         rejectionReason: catastrophicRisk ? "projection négative sans défense" : destroysSuppression ? "Suppression préservée" : null,
       };
@@ -9336,6 +9810,45 @@ function hasSafeSoloContinuation(playerIndex) {
   return Boolean(defensePlan?.coup || defensePlan?.remises?.length);
 }
 
+function soloLegalActionInventory(playerIndex) {
+  const player = state.players[playerIndex];
+  if (!player || state.gameOver || state.activePlayer !== playerIndex) {
+    return { coups: [], boosts: [], effects: [], placementRemises: [], canEnd: false, canProgress: false };
+  }
+  const coups = player.hand.filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  const boosts = player.hand
+    .filter((card) => canPlayBoost(playerIndex, card))
+    .map((card) => ({
+      card,
+      sacrifice: player.hand.find((candidate) => candidate.uid !== card.uid) || null,
+    }))
+    .filter((option) => option.sacrifice);
+  const effects = player.hand.filter((card) => (
+    isRemise(card)
+    && canPlayEffectMode(playerIndex, card)
+    && soloImmediateEffectValue(playerIndex, card) > 0
+  ));
+  const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
+  const placementRemises = defensePlan?.remises?.length
+    ? [...defensePlan.remises]
+    : !state.mandatoryPlacement
+      ? player.hand.filter((card) => (
+        isRemise(card)
+        && canPlayNormal(playerIndex, card)
+        && getCardStats(player, card, false).placement > 0
+      ))
+      : [];
+  const canEnd = canEndTurn(playerIndex);
+  return {
+    coups,
+    boosts,
+    effects,
+    placementRemises,
+    canEnd,
+    canProgress: Boolean(coups.length || boosts.length || effects.length || placementRemises.length || canEnd),
+  };
+}
+
 function wouldPassLoseSetOrMatch(playerIndex) {
   if (!state.setMatch.enabled || hasPlayedThisTurn(playerIndex)) return false;
   const player = state.players[playerIndex];
@@ -9885,14 +10398,12 @@ function chooseSoloEffectCard(playerIndex) {
   const effectWillBeCanceled = state.players[opponentOf(playerIndex)].cancelNextOpponentEffect;
   const remises = player.hand
     .filter((card) => isRemise(card) && canPlayEffectMode(playerIndex, card))
-    .filter((card) => !effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2));
+    .filter((card) => !effectWillBeCanceled || (card.effectType !== "removeOpponentLast" && effectiveCost(player, card) <= 2))
+    .filter((card) => soloImmediateEffectValue(playerIndex, card) > 0);
   const joker = remises
     .filter((card) => card.effectType === "jokerResponse" && state.lastCard?.boosted)
     .sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
   if (joker) return joker;
-  if (player.limitedFamilies?.includes("Remise") && !canSoloFinishWithCoup(playerIndex)) {
-    return remises.sort((a, b) => soloEffectScore(b) - soloEffectScore(a))[0] ?? null;
-  }
   if (!canSoloFinishWithCoup(playerIndex)) {
     return remises.sort((a, b) => soloEffectScore(b) - soloEffectScore(a))[0] ?? null;
   }
@@ -11371,6 +11882,78 @@ function pass(playerIndex, tutorialBypass = false) {
   });
 }
 
+function exchangeWasAce(winner) {
+  if (winner !== state.server) return false;
+  const coups = state.players.flatMap((player) => player.played || [])
+    .filter((card) => !isRemise(card));
+  return coups.length === 1
+    && coups[0].owner === winner
+    && Boolean(coups[0].isServiceTurn);
+}
+
+function expireUsedTemporaryBonuses() {
+  for (const [playerIndex, momentum] of (state.setMatch.momentum || []).entries()) {
+    momentum.activeBonuses = (momentum.activeBonuses || [])
+      .map((bonus) => {
+        const remainingExchanges = Number(bonus.remainingExchanges || 0) - 1;
+        return {
+          ...bonus,
+          remainingExchanges,
+          label: `${bonus.baseLabel || bonus.label} · ${remainingExchanges} échange${remainingExchanges > 1 ? "s" : ""}`,
+        };
+      })
+      .filter((bonus) => bonus.remainingExchanges > 0);
+    state.players[playerIndex].temporaryBonuses = cloneData(momentum.activeBonuses);
+  }
+}
+
+function activateSequenceBonus(playerIndex, triggerName, validFor) {
+  const player = state.players[playerIndex];
+  const momentum = state.setMatch.momentum?.[playerIndex];
+  if (!momentum) return null;
+  const bonus = wrappedRandomBonus(player, triggerName, triggerName, validFor);
+  if (!bonus) return null;
+  bonus.baseLabel = bonus.label;
+  bonus.label = `${bonus.baseLabel} · ${validFor} échange${validFor > 1 ? "s" : ""}`;
+  momentum.activeBonuses = [...(momentum.activeBonuses || []), cloneData(bonus)];
+  player.temporaryBonuses = cloneData(momentum.activeBonuses);
+  const message = `${displayPlayerName(player)} vient de déclencher le ${triggerName} : ${bonus.label} pour ${validFor} échange${validFor > 1 ? "s" : ""}.`;
+  state.log.unshift(message);
+  recordAction("bonus_activation", {
+    playerIndex,
+    playerName: displayPlayerName(player),
+    trigger: triggerName,
+    validForExchanges: validFor,
+    bonus: cloneData(bonus),
+    message,
+  });
+  return bonus;
+}
+
+function updateSequenceBonusesAfterExchange(winner) {
+  if (!state.setMatch.momentum) state.setMatch.momentum = emptyMomentumState();
+  expireUsedTemporaryBonuses();
+  const loser = opponentOf(winner);
+  state.setMatch.momentum[winner].consecutiveWins += 1;
+  state.setMatch.momentum[loser].consecutiveWins = 0;
+  const activated = [];
+  if (exchangeWasAce(winner)) {
+    const bonus = activateSequenceBonus(winner, "Ace", 1);
+    if (bonus) activated.push(bonus);
+  }
+  if (state.setMatch.momentum[winner].consecutiveWins >= 3) {
+    state.setMatch.momentum[winner].consecutiveWins = 0;
+    const bonus = activateSequenceBonus(winner, "Enchaînement", 2);
+    if (bonus) activated.push(bonus);
+  }
+  const completedSet = state.setMatch.setOver ? state.setMatch.completedScores.at(-1) : null;
+  if (completedSet && Math.max(...completedSet) === 6 && Math.min(...completedSet) === 0 && state.setMatch.winner === winner) {
+    const bonus = activateSequenceBonus(winner, "Bulle", 2);
+    if (bonus) activated.push(bonus);
+  }
+  return activated;
+}
+
 function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power", reason, extraPowerDetails = [] }) {
   const endBonusDetails = ignoreScore ? [] : applyEndBonuses();
   state.gameOver = true;
@@ -11391,6 +11974,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
   }
+  state.resultInfo.activatedBonuses = updateSequenceBonusesAfterExchange(winner);
   state.log.unshift(exchangeResultLogLine(winner, winType, setScore));
   recordAction("exchange_end", {
     winner,
@@ -11408,6 +11992,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
       winner: state.setMatch.winner,
     } : null,
     players: state.players.map(playerLogInfo),
+    activatedBonuses: cloneData(state.resultInfo.activatedBonuses),
   });
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
@@ -11580,6 +12165,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
+  const weeklyCompetition = options.competition || null;
+  if (weeklyCompetition) SOLO_AI.difficulty = "circuit";
   const aiClubHouse = Boolean(options.aiClubHouse);
   const circuitIntelligence = aiClubHouse && SOLO_AI.difficulty === "circuit";
   const humanLevel = circuitHumanLevel();
@@ -11590,6 +12177,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     playerSelection: options.players || "random",
     distribution: leagueDistribution,
     humanCharacterId,
+    humanLevel,
+    weeklyCompetition,
   });
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
   const permanentBonuses = aiClubHouse
@@ -11598,9 +12187,13 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   const surfaceBonuses = aiClubHouse
       ? buildAiClubHouseBonuses(setup.seededEntries, bonusLevel)
       : {};
-  const aiIntelligenceLevels = aiClubHouse
-    ? buildTournamentAiIntelligenceLevels(setup.seededEntries, SOLO_AI.difficulty, { humanLevel })
-    : {};
+  const aiIntelligenceLevels = weeklyCompetition
+    ? weeklyCompetition.level === "Ultimate League" && humanLevel === 6
+      ? Object.fromEntries(setup.seededEntries.filter((entry) => entry !== HUMAN_TOURNAMENT_ENTRY).map((entry) => [entry, "legend"]))
+      : buildTournamentAiIntelligenceLevels(setup.seededEntries, "circuit", { humanLevel })
+    : aiClubHouse
+      ? buildTournamentAiIntelligenceLevels(setup.seededEntries, SOLO_AI.difficulty, { humanLevel })
+      : {};
   state.tournament = {
     active: true,
     visible: true,
@@ -11611,12 +12204,17 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     bonusLevel,
     playerSelection: options.players || "random",
     distribution: leagueDistribution,
-    weekly: false,
-    competitionId: null,
-    competitionName: `LEAGUE ${targetSets} sets`,
-    competitionSurface: null,
-    competitionSurfaceLabel: null,
-    competitionPoints: null,
+    weekly: Boolean(weeklyCompetition),
+    competitionId: weeklyCompetition?.id || null,
+    competitionName: weeklyCompetition?.name || `LEAGUE ${targetSets} sets`,
+    competitionCity: weeklyCompetition?.city || null,
+    competitionCountry: weeklyCompetition?.country || null,
+    competitionFlag: weeklyCompetition?.flag || null,
+    competitionSurface: weeklyCompetition?.surface || null,
+    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
+    competitionSeason: Number(AUTH_STATE.competitions?.season || 1),
+    competitionWeek: Number(AUTH_STATE.competitions?.week || 1),
+    competitionPoints: weeklyCompetition?.points || null,
     matchBonusPoints: 0,
     matchBonusDetails: [],
     pointsRecorded: false,
@@ -11633,7 +12231,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     leagueSeededEntries: setup.seededEntries,
     tournamentSeedNumbers: Object.fromEntries(setup.seededEntries.slice(0, 4).map((entry, index) => [entry, index + 1])),
     leagueCompletedDays: 0,
-    humanCircuitLevel: circuitIntelligence ? humanLevel : null,
+    humanCircuitLevel: weeklyCompetition || circuitIntelligence ? humanLevel : null,
     circuitBonusSurface: null,
     surfaceBonuses,
     permanentBonuses,
@@ -11644,7 +12242,9 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   state.tournament.matches = buildLeagueTournamentMatches(setup.groups, HUMAN_TOURNAMENT_ENTRY, targetSets, setup.seededEntries);
   prepareLeagueHumanMatch();
   const bonusLabel = `bonus ${aiBonusLabel(bonusLevel)}`;
-  state.log.unshift(`CLUB HOUSE · LEAGUE ${targetSets} sets · intelligence ${tournamentDifficultyLabel(SOLO_AI.difficulty)} · ${bonusLabel}.`);
+  state.log.unshift(weeklyCompetition
+    ? `${weeklyCompetition.name} · ${targetSets} sets gagnants · niveau Circuit Pro ${humanLevel}.`
+    : `CLUB HOUSE · LEAGUE ${targetSets} sets · intelligence ${tournamentDifficultyLabel(SOLO_AI.difficulty)} · ${bonusLabel}.`);
   render();
 }
 
@@ -11666,9 +12266,17 @@ function selectAiClubHousePlayers(count, selection = "random", humanCharacterId 
 }
 
 function buildLeagueTournamentSetup(options = {}) {
-  const selectedAi = options.aiClubHouse
-    ? selectAiClubHousePlayers(7, options.playerSelection, options.humanCharacterId)
-    : shuffle(TOURNAMENT_CHARACTER_POOL).slice(0, 7);
+  const humanLevel = Number(options.humanLevel || circuitHumanLevel());
+  const rankedAi = rankedAiTournamentEntries(TOURNAMENT_CHARACTER_POOL);
+  const weeklySelected = humanLevel === 6 ? rankedAi.slice(0, 7)
+    : humanLevel === 5 ? rankedAi.slice(2, 9)
+      : humanLevel === 4 ? rankedAi.slice(4, 11)
+        : shuffle(rankedAi.slice(humanLevel === 3 ? 9 : humanLevel === 2 ? 11 : 13)).slice(0, 7);
+  const selectedAi = options.weeklyCompetition
+    ? weeklySelected
+    : options.aiClubHouse
+      ? selectAiClubHousePlayers(7, options.playerSelection, options.humanCharacterId)
+      : shuffle(TOURNAMENT_CHARACTER_POOL).slice(0, 7);
   const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
   const seededEntries = rankedTournamentEntries(roster);
   if (options.distribution !== "ranking") {
@@ -12207,6 +12815,63 @@ function allCircuitSeedBonuses() {
 function randomCircuitBonus(excludedIds = []) {
   const excluded = new Set(excludedIds);
   return shuffle(allCircuitSeedBonuses()).find((bonus) => !excluded.has(bonus.id)) || null;
+}
+
+function wrappedRandomBonus(player, label, reason, remainingExchanges = null) {
+  const excludedIds = [
+    ...(player.surfaceBonuses || []),
+    ...(player.permanentBonuses || []),
+    ...(player.temporaryBonuses || []),
+  ].map((bonus) => bonus.sourceBonusId || bonus.id);
+  const source = randomCircuitBonus(excludedIds) || randomCircuitBonus();
+  if (!source) return null;
+  return {
+    ...source,
+    id: `${label.toLowerCase().replace(/\s+/g, "-")}-${crypto.randomUUID()}`,
+    sourceBonusId: source.id,
+    label: `${label} · ${source.label}`,
+    reason,
+    remainingExchanges,
+  };
+}
+
+function persistMatchPermanentAward(playerIndex, bonus) {
+  if (!bonus) return;
+  const momentum = state.setMatch.momentum?.[playerIndex];
+  if (!momentum) return;
+  momentum.permanentAwards = [...(momentum.permanentAwards || []), cloneData(bonus)];
+  state.players[playerIndex].permanentBonuses.push(cloneData(bonus));
+}
+
+function applyMotivationBonus() {
+  const ranks = state.players.map((player) => Number(player.worldRank || 0) || null);
+  if (!ranks[0] || !ranks[1] || ranks[0] === ranks[1]) return;
+  const lessWellRanked = ranks[0] > ranks[1] ? 0 : 1;
+  const momentum = state.setMatch.momentum?.[lessWellRanked];
+  if (!momentum || momentum.motivationResolved) return;
+  momentum.motivationResolved = true;
+  if (Math.random() >= 0.5) return;
+  const bonus = wrappedRandomBonus(
+    state.players[lessWellRanked],
+    "Motivation",
+    "Joueur moins bien classé",
+  );
+  persistMatchPermanentAward(lessWellRanked, bonus);
+}
+
+function applyHumanAscendantBonus() {
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || !state.tournament.active) return;
+  const momentum = state.setMatch.momentum?.[0];
+  if (!momentum || momentum.ascendantResolved) return;
+  momentum.ascendantResolved = true;
+  const headToHead = tournamentHeadToHeadBonus(state.players[1].characterId);
+  if (headToHead?.target !== "human" || Math.random() >= 0.5) return;
+  const bonus = wrappedRandomBonus(
+    state.players[0],
+    "Ascendant",
+    `Ascendant sur ${displayPlayerName(state.players[1])}`,
+  );
+  persistMatchPermanentAward(0, bonus);
 }
 
 function addCircuitBonus(target, entry, bonus) {
@@ -12827,6 +13492,7 @@ function handleLeagueTournamentMatchComplete() {
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
+  if (state.tournament.weekly) addHumanMatchPerformanceBonus(match);
   if (match.day) {
     revealLeagueDay(match.day);
     refreshLeagueKnockoutSlots();
@@ -12840,6 +13506,7 @@ function handleLeagueTournamentMatchComplete() {
       return;
     }
     completeLeagueWithoutHuman();
+    if (state.tournament.weekly && state.tournament.stage === "complete") recordWeeklyCompetitionResult();
     render();
     return;
   }
@@ -12855,6 +13522,7 @@ function handleLeagueTournamentMatchComplete() {
       return;
     }
     completeLeagueWithoutHuman();
+    if (state.tournament.weekly && state.tournament.stage === "complete") recordWeeklyCompetitionResult();
     render();
     return;
   }
@@ -12864,6 +13532,7 @@ function handleLeagueTournamentMatchComplete() {
     state.tournament.nextHumanMatchId = null;
     state.tournament.championCharacterId = winnerEntry;
     state.log.unshift(`LEAGUE gagnée par ${tournamentPlayerLabel(winnerEntry)}.`);
+    if (state.tournament.weekly) recordWeeklyCompetitionResult();
     render();
   }
 }
@@ -12931,6 +13600,19 @@ function humanTournamentAchievement() {
   const human = humanTournamentEntry();
   const final = tournamentMatchById("final");
   if (state.tournament.championCharacterId === human) return "winner";
+  if (state.tournament.league) {
+    const finalLeague = tournamentMatchById("final");
+    if (finalLeague?.score && (finalLeague.playerA === human || finalLeague.playerB === human)) return "finalist";
+    const humanSemi = state.tournament.matches.find((match) => match.round === "semi" && match.score && (match.playerA === human || match.playerB === human));
+    if (humanSemi) return "semi";
+    if (leagueCompletedGroupDays() >= 3) {
+      for (const group of ["A", "B"]) {
+        const position = leagueStandings(group, 3).findIndex((row) => row.entry === human);
+        if (position >= 0) return position === 2 ? "group3" : position === 3 ? "group4" : null;
+      }
+    }
+    return null;
+  }
   if (state.tournament.weekly) {
     const playedHumanMatches = state.tournament.matches.filter((match) => match.score && (match.playerA === human || match.playerB === human));
     const last = playedHumanMatches.at(-1);
@@ -12987,13 +13669,17 @@ function humanMatchPerformanceBonus(match, setScores = tournamentCompletedSetSco
 function addHumanMatchPerformanceBonus(match) {
   if (!state.tournament.weekly || !match || match.performanceBonusRecorded) return;
   const bonus = humanMatchPerformanceBonus(match);
+  const matchWinPoints = match.winner === humanTournamentEntry()
+    ? Number(state.tournament.competitionPoints?.matchWin || 0)
+    : 0;
   match.performanceBonusRecorded = true;
-  match.performanceBonusPoints = bonus.points;
+  match.performanceBonusPoints = bonus.points + matchWinPoints;
   match.performanceBonusDetails = bonus.details;
-  state.tournament.matchBonusPoints = (state.tournament.matchBonusPoints || 0) + bonus.points;
-  state.tournament.matchBonusDetails = [...(state.tournament.matchBonusDetails || []), ...bonus.details.map((detail) => `${match.label}: ${detail}`)];
-  if (bonus.points) {
-    state.log.unshift(`${match.label}: bonus performance +${bonus.points} points.`);
+  state.tournament.matchBonusPoints = (state.tournament.matchBonusPoints || 0) + bonus.points + matchWinPoints;
+  const details = [...bonus.details, ...(matchWinPoints ? [`Match gagné: +${matchWinPoints}`] : [])];
+  state.tournament.matchBonusDetails = [...(state.tournament.matchBonusDetails || []), ...details.map((detail) => `${match.label}: ${detail}`)];
+  if (bonus.points + matchWinPoints) {
+    state.log.unshift(`${match.label}: bonus performance +${bonus.points + matchWinPoints} points.`);
   }
 }
 
@@ -13289,6 +13975,7 @@ function nextFullSet() {
   const completedScores = state.setMatch.completedScores.map((score) => [...score]);
   const targetSets = state.setMatch.targetSets;
   const setsWon = [...state.setMatch.setsWon];
+  const momentum = cloneData(state.setMatch.momentum || emptyMomentumState());
   state.setMatch = {
     enabled: true,
     score: [0, 0],
@@ -13302,6 +13989,7 @@ function nextFullSet() {
     setsWon,
     matchOver: false,
     matchWinner: null,
+    momentum,
   };
   const server = Math.random() < 0.5 ? 0 : 1;
   newGame({ preserveSet: true, serverOverride: server });
@@ -13401,6 +14089,7 @@ function simulateAdminMatchScore() {
 }
 
 function storeMatchLog(winner, reason) {
+  if (!["admin", "pro_plus"].includes(currentUserRole())) return;
   try {
     const existing = JSON.parse(localStorage.getItem(MATCH_LOG_STORAGE_KEY) || "[]");
     const entry = {
@@ -13613,7 +14302,8 @@ function renderTutorialOverlay() {
   if (!els.tutorialOverlay) return;
   const step = tutorialStep();
   if (!state.tutorial.active || !step) {
-    document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending");
+    clearTutorialTyping();
+    document.body.classList.remove("tutorial-running", "tutorial-awaiting-action", "tutorial-showcase-active", "tutorial-auto-pending", "tutorial-readonly", "tutorial-interface-tour");
     els.tutorialOverlay.classList.add("hidden");
     els.tutorialOverlay.innerHTML = "";
     return;
@@ -13624,37 +14314,44 @@ function renderTutorialOverlay() {
   const progress = step.displayStep ? ` · Étape ${step.displayStep}/${module.totalDisplaySteps}${step.part ? ` · ${step.part}` : ""}` : "";
   const autoPending = state.tutorial.pendingAutoStepId === step.id;
   document.body.classList.add("tutorial-running");
+  document.body.classList.toggle("tutorial-readonly", Boolean(module.readOnly));
+  document.body.classList.toggle("tutorial-interface-tour", module.scenario === "interface");
   document.body.classList.toggle("tutorial-awaiting-action", Boolean(action));
   document.body.classList.toggle("tutorial-showcase-active", Boolean(step.showcase));
   document.body.classList.toggle("tutorial-auto-pending", autoPending);
   els.tutorialOverlay.classList.remove("hidden");
   els.tutorialOverlay.innerHTML = `
     ${renderTutorialShowcase(step.showcase)}
-    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""}" aria-label="Tutoriel" aria-live="polite">
+    <aside class="tutorial-dialogue ${action ? "tutorial-dialogue-action" : ""}" aria-label="Tutoriel">
+      <div class="tutorial-portrait">
+        <img src="${narrator.image}" alt="Portrait de ${narrator.name}" />
+      </div>
       <div class="tutorial-dialogue-content">
         <p class="tutorial-kicker">${module.lesson}${progress}</p>
         <div class="tutorial-speaker-line"><strong>${narrator.name}</strong><span>${narrator.role}</span></div>
         <h2>${step.title}</h2>
-        <div class="tutorial-copy">${renderTutorialText(step.text)}</div>
+        <p class="tutorial-copy" aria-label="${escapeHtml(tutorialPlainText(step.text))}"><span data-tutorial-typed-text></span><span class="tutorial-typewriter-caret" aria-hidden="true"></span></p>
         ${step.summary?.length ? `<ul class="tutorial-summary">${step.summary.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
         ${state.tutorial.error ? `<p class="tutorial-error" role="alert">${escapeHtml(state.tutorial.error)}</p>` : ""}
         ${action ? `<p class="tutorial-action">${tutorialActionLabel(action)}</p>` : ""}
         ${autoPending ? '<p class="tutorial-wait" role="status"><span aria-hidden="true"></span>Coach Ju prépare sa réponse...</p>' : ""}
-        ${!action && !autoPending ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>${tutorialClickArrow()}${step.final ? "Terminer la leçon" : "Suivant"}</button>` : ""}
-      </div>
-      <div class="tutorial-portrait">
-        <img src="${narrator.image}" alt="Portrait de ${narrator.name}" />
+        ${!action && !autoPending ? `<button class="primary-button tutorial-next-button" type="button" data-tutorial-next>Afficher tout</button>` : ""}
       </div>
     </aside>
   `;
   els.tutorialOverlay.querySelector("[data-tutorial-next]")?.addEventListener("click", () => {
+    if (tutorialTypingProgress < tutorialTypingText.length) {
+      revealTutorialText();
+      return;
+    }
     if (step.final) {
       finishTutorial();
     } else {
       advanceTutorial();
     }
   });
-  const hasVisualTarget = Boolean(step.action || step.focus?.length);
+  startTutorialTyping(step);
+  const hasVisualTarget = Boolean(step.action || step.focus?.length || step.showcase);
   if (hasVisualTarget && state.tutorial.scrolledStepId !== step.id) {
     state.tutorial.scrolledStepId = step.id;
     window.queueMicrotask(() => {
@@ -13662,18 +14359,12 @@ function renderTutorialOverlay() {
       const dialogue = document.querySelector(".tutorial-dialogue");
       if (!target || !dialogue) return;
       const targetRect = target.getBoundingClientRect();
-      const dialogueTop = dialogue.getBoundingClientRect().top;
-      const availableHeight = Math.max(160, dialogueTop);
+      const dialogueRect = dialogue.getBoundingClientRect();
       const targetDocumentTop = window.scrollY + targetRect.top;
-      const nextScrollTop = Math.max(0, targetDocumentTop - ((availableHeight - targetRect.height) / 2));
+      const nextScrollTop = Math.max(0, targetDocumentTop - ((Math.max(160, dialogueRect.top) - targetRect.height) / 2));
       window.scrollTo({ top: nextScrollTop, behavior: "auto" });
     });
   }
-}
-
-function renderTutorialText(text) {
-  const paragraphs = Array.isArray(text) ? text : [text];
-  return paragraphs.filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
 }
 
 function renderTutorialShowcase(showcase) {
@@ -13681,11 +14372,15 @@ function renderTutorialShowcase(showcase) {
   const card = CARD_LIBRARY.find((item) => item.id === showcase.cardId);
   const imageUrl = card ? CARD_IMAGES[card.id] : null;
   if (!card || !imageUrl) return "";
-  const pointer = ["cost", "power"].includes(showcase.pointer) ? showcase.pointer : "cost";
+  const allowedTargets = new Set(["cost", "power", "precision", "placement", "effect", "boost"]);
+  const pointers = showcase.pointer ? [{ target: showcase.pointer, label: showcase.label }] : [];
   return `
-    <div class="tutorial-card-showcase" aria-label="Carte ${escapeHtml(card.name)} agrandie">
+    <div class="tutorial-card-showcase${pointers.length ? "" : " tutorial-focus-target"}" aria-label="Carte ${escapeHtml(card.name)} agrandie">
       <img src="${imageUrl}" alt="${escapeHtml(card.name)} - ${escapeHtml(card.subtitle ?? card.family)}" />
-      <span class="tutorial-showcase-pointer ${pointer}">${escapeHtml(showcase.label ?? "Regarde ici")}</span>
+      ${pointers.map((pointer) => {
+        const target = allowedTargets.has(pointer?.target) ? pointer.target : "cost";
+        return `<span class="tutorial-showcase-pointer tutorial-focus-target ${target}">${escapeHtml(pointer?.label ?? "Regarde ici")}</span>`;
+      }).join("")}
     </div>
   `;
 }
@@ -13732,6 +14427,7 @@ function renderModeButtons() {
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
+  if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
@@ -13791,11 +14487,18 @@ function renderGameContextStrip() {
       ? `IA ${tournamentDifficultyLabel(state.tournament.difficulty || "normal")}`
       : `IA ${aiStyleLabel()}`
     : SERVER_SYNC.enabled ? "En ligne" : "Local";
+  const encounteredAiLevel = SOLO_AI.enabled
+    ? aiIntelligenceForEntry(SOLO_AI.characterId, state.tournament?.difficulty || SOLO_AI.difficulty)
+    : null;
+  const encounteredAiLabel = encounteredAiLevel
+    ? ({ amateur: "Amateur", normal: "Normal", expert: "Expert", champion: "Champion", legend: "Légende" }[encounteredAiLevel] || "Normal")
+    : null;
   const standing = leagueHumanStandingReminder();
   els.gameContextStrip.innerHTML = `
     <div><span>Format</span><strong>${escapeHtml(format)}</strong></div>
     ${standing ? `<div><span>Classement</span><strong>${escapeHtml(standing)}</strong></div>` : ""}
     <div><span>Réglage</span><strong>${escapeHtml(difficulty)}</strong></div>
+    ${encounteredAiLabel ? `<div class="game-context-ai-level"><span>Niveau de l’IA</span><strong>${escapeHtml(encounteredAiLabel)}</strong></div>` : ""}
     <div class="game-context-score"><span>Score</span><strong>${escapeHtml(currentMatchScoreText())}</strong></div>
   `;
 }
@@ -14536,7 +15239,7 @@ function renderCharacterCard(player, playerIndex) {
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
   const worldRankReminder = state.tournament.active && [1, 2, 3].includes(Number(player.worldRank))
-    ? { label: `N°${Number(player.worldRank)} mondial` }
+    ? { label: `N°${Number(player.worldRank)} mondial`, goldWorldRank: true }
     : null;
   const bonusReminders = [
     worldRankReminder,
@@ -14544,23 +15247,29 @@ function renderCharacterCard(player, playerIndex) {
     ...(player.permanentBonuses ?? []),
   ].filter(Boolean);
   const surfaceBonus = bonusReminders.length
-    ? `<div class="surface-bonus-stack">${bonusReminders.map((bonus) => `<div class="surface-bonus-reminder">${escapeHtml(bonus.label)}</div>`).join("")}</div>`
+    ? `<div class="surface-bonus-stack">${bonusReminders.map((bonus) => `<div class="surface-bonus-reminder${bonus.goldWorldRank ? " world-rank-gold" : ""}">${escapeHtml(bonus.label)}</div>`).join("")}</div>`
     : "";
   return `
     <div class="character-zone">
-      <div class="character-card" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+      <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
       </div>
       ${surfaceBonus}
       <div class="character-stats">
         <div class="character-power-reminder${leaderClass}${tutorialFocusClass("power", playerIndex)}" data-tutorial-target="power-${playerIndex}">
           ${crown}
-          <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
-          <span>Puissance</span>
+          <div class="stat-value-row stat-value-power">
+            <span class="stat-symbol stat-symbol-power" aria-hidden="true"></span>
+            <strong>${player.power}<span class="opponent-inline">(${opponent?.power ?? 0})</span></strong>
+          </div>
+          ${GAMEPLAY_ASSIST.information ? "<span>Puissance</span>" : ""}
         </div>
         <div class="character-endurance-reminder${enduranceClass}${tutorialFocusClass("endurance", playerIndex)}" data-tutorial-target="endurance-${playerIndex}">
-          <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
-          <span>Endurance</span>
+          <div class="stat-value-row stat-value-endurance">
+            <span class="stat-symbol stat-symbol-endurance" aria-hidden="true"></span>
+            <strong>${player.endurance}<span class="opponent-inline ${opponentEndurance <= 2 ? "critical-opponent" : ""}">(${opponentEndurance})</span></strong>
+          </div>
+          ${GAMEPLAY_ASSIST.information ? "<span>Endurance</span>" : ""}
         </div>
         <div class="character-hand-reminder${handCountClass}" aria-label="${handCount} carte${handCount > 1 ? "s" : ""} restante${handCount > 1 ? "s" : ""}">
           <span class="hand-cards-icon" aria-hidden="true"><i></i><i></i></span>
@@ -14755,12 +15464,13 @@ async function exitTournamentToLobby() {
 
 function nextSoloExchange() {
   if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.setMatch.enabled || !state.gameOver) return;
-  newGame();
+  newGame({ preserveSet: true });
   state.log.unshift(`Nouvel échange contre l'IA ${aiStyleLabel()}.`);
   render();
 }
 
 function renderCenterPlayedCard() {
+  els.centerPlayedCard.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("lastCard", null)));
   if (!state.latestPlayedCard) {
     els.centerPlayedCard.innerHTML = `
       ${renderCenterSetScore()}
@@ -14863,11 +15573,11 @@ function renderPlayerPanel(playerIndex, root) {
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
     <header class="player-header">
-      <div>
-        <h2 class="${state.activePlayer === playerIndex && !state.gameOver ? "turn-name" : ""}">${escapeHtml(displayPlayerName(player))}</h2>
+      <div class="player-identity-panel${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
+        <h2>${escapeHtml(displayPlayerName(player))}</h2>
         <div class="player-character-name">${escapeHtml(player.name)} ${playerIndex === SOLO_AI.playerIndex ? aiIntelligenceBadgeMarkup(player.characterId) : ""}</div>
         <div class="turn-buttons">
-          <button class="pass-button" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
+          <button class="pass-button${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
           ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
         </div>
@@ -14880,7 +15590,7 @@ function renderPlayerPanel(playerIndex, root) {
       </div>
     </header>
     ${renderCharacterCard(player, playerIndex)}
-    <div class="hand">
+    <div class="hand${tutorialFocusClass("hand", playerIndex)}">
       ${player.hand.map((card) => renderCard(playerIndex, card)).join("")}
     </div>
     <div class="played-history">
@@ -15015,7 +15725,7 @@ function renderCard(playerIndex, card) {
           <button class="boost-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
         ` : `
           <button class="play-button${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
-          <button class="boost-button" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
+          <button class="boost-button${tutorialFocusClass("boost", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
         `}
       </div>
       ${(placementIssue || remisePlacementIssue) && !state.mandatoryPlacement ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
@@ -15093,6 +15803,7 @@ function renderActionLogEntry(line, index, compact = false) {
 }
 
 function renderLog() {
+  els.log.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("history", null)));
   const latestEntry = state.log.find((line) => actionLogEntryType(line) !== "system") || state.log[0];
   els.log.innerHTML = `
     <div class="action-log-header">
@@ -15165,9 +15876,10 @@ function renderBoostModal() {
     button.addEventListener("click", () => {
       const sacrificeUid = button.dataset.sacrifice;
       const boostCard = player.hand.find((item) => item.uid === cardUid);
+      const sacrificeCard = player.hand.find((item) => item.uid === sacrificeUid);
       state.pendingBoost = null;
       playCard(playerIndex, cardUid, true, sacrificeUid);
-      completeTutorialAction({ kind: "play", playerIndex, cardId: boostCard?.id, mode: "boost" });
+      completeTutorialAction({ kind: "play", playerIndex, cardId: boostCard?.id, mode: "boost", sacrificeCardId: sacrificeCard?.id });
     });
   });
 }
@@ -15430,6 +16142,8 @@ function initMenu() {
     card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
   });
   els.backToHomeButton?.addEventListener("click", showMenuScreen);
+  els.openNewsArchiveButton?.addEventListener("click", showNewsArchiveScreen);
+  els.backFromNewsArchiveButton?.addEventListener("click", showMenuScreen);
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
   els.forgotPasswordButton?.addEventListener("click", requestPasswordReset);
@@ -15487,7 +16201,17 @@ function initMenu() {
   document.querySelectorAll("[data-start-solo]").forEach((button) => {
     button.addEventListener("click", () => startSoloFromMenu(button.dataset.startSolo));
   });
-  document.querySelector("[data-start-tutorial]")?.addEventListener("click", () => startTutorial());
+  document.querySelectorAll("[data-tutorial-module]").forEach((button) => {
+    button.addEventListener("click", () => startTutorial(button.dataset.tutorialModule));
+  });
+  document.addEventListener("click", (event) => {
+    const trigger = event.target instanceof Element ? event.target.closest("[data-open-tutorial-modules]") : null;
+    if (!trigger) return;
+    event.preventDefault();
+    showTutorialModulesScreen();
+  });
+  els.backToTrainingFromTutorialButton?.addEventListener("click", () => showLobbySection("training"));
+  els.tutorialModulesHomeButton?.addEventListener("click", showMenuScreen);
   els.openAiClubHouseButton?.addEventListener("click", showAiClubHouseScreen);
   els.aiClubHouseHomeButton?.addEventListener("click", showMenuScreen);
   els.aiClubHouseLogoButton?.addEventListener("click", showMenuScreen);
@@ -15535,7 +16259,7 @@ function initMenu() {
   });
   document.querySelectorAll(".direct-home-button").forEach((button) => button.addEventListener("click", showMenuScreen));
   const navigationObserver = new MutationObserver(updateGlobalPlayerDock);
-  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp]
+  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp]
     .filter(Boolean)
     .forEach((screen) => navigationObserver.observe(screen, { attributes: true, attributeFilter: ["class"] }));
   updateGlobalPlayerDock();
@@ -15555,6 +16279,11 @@ els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GA
 els.gamePreviewToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.preview = Boolean(els.gamePreviewToggle.checked);
   localStorage.setItem("tennisLightAssistPreview", String(GAMEPLAY_ASSIST.preview));
+  render();
+});
+els.gameInformationToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.information = Boolean(els.gameInformationToggle.checked);
+  localStorage.setItem("tennisLightAssistInformation", String(GAMEPLAY_ASSIST.information));
   render();
 });
 els.friendlyLobbyHomeButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "online" }));
@@ -15615,6 +16344,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) restoreFriendlyTournamentPresence();
 });
 newGame();
+restoreLocalTutorialProgress(null);
 initMenu();
 initFriendlyTournament();
 initServerSync();
