@@ -138,6 +138,9 @@ const LEVEL_LABELS = {
   Premier: "Premier 1000",
   Crown: "Crown 1500",
   Slam: "Slam 2000",
+  "Prestige League": "League 800",
+  "Ultimate League": "League 1200",
+  "World Finals": "Tennis Courts World Finals 4000",
   Finals: "Tennis Courts World Finals 4000",
 };
 const SURFACE_FROM_CSV = {
@@ -148,7 +151,9 @@ const SURFACE_FROM_CSV = {
 const POINT_TABLES = {
   400: { qualif: 0, quarter: 50, semi: 100, finalist: 200, winner: 400 },
   600: { qualif: 0, quarter: 75, semi: 150, finalist: 300, winner: 600 },
+  800: { group4: 0, group3: 25, semi: 200, finalist: 400, winner: 800, matchWin: 10, weeklyPotential: 1100 },
   1000: { qualif: 0, quarter: 100, semi: 200, finalist: 500, winner: 1000 },
+  1200: { group4: 0, group3: 40, semi: 300, finalist: 700, winner: 1200, matchWin: 20, weeklyPotential: 1500 },
   1500: { qualif: 0, quarter: 150, semi: 350, finalist: 750, winner: 1500 },
   2000: { qualif: 0, quarter: 200, semi: 500, finalist: 1200, winner: 2000 },
   4000: { qualif: 0, quarter: 400, semi: 1000, finalist: 2400, winner: 4000 },
@@ -402,8 +407,8 @@ function loadWorldTourDefinitions() {
       flag: COUNTRY_FLAGS[row.pays] || "🏳️",
       surface,
       surfaceLabel: SURFACE_LABELS[surface],
-      difficulty: pointsValue === 400 || pointsValue === 1000 ? "normal" : "champion",
-      targetSets: pointsValue >= 2000 ? 3 : 2,
+      difficulty: pointsValue === 400 || pointsValue === 1000 || pointsValue === 800 ? "normal" : "champion",
+      targetSets: level === "Ultimate League" || pointsValue >= 2000 ? 3 : 2,
       points: POINT_TABLES[pointsValue] || POINT_TABLES[400],
       directThreshold: DIRECT_THRESHOLDS[pointsValue] || 500,
       eventType: row.type_epreuve || "Tour",
@@ -738,6 +743,59 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
   ]));
 }
 
+function simulatedAiLeaguePoints(competition, season, week, bonusTopIds = [], simulationNonce = "", rankingOrder = []) {
+  const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[800];
+  const totalAwards = new Map(CIRCUIT_AI_CHARACTER_IDS.map((id) => [id, 0]));
+  const rankBands = [[1, 8], [9, 16], [15, 22]];
+  const ranked = rankingOrder.length ? rankingOrder : CIRCUIT_AI_CHARACTER_IDS;
+  const add = (id, points) => totalAwards.set(id, (totalAwards.get(id) || 0) + Math.max(0, Number(points || 0)));
+  const playMatch = (playerA, playerB, label) => {
+    const strengthA = aiMatchStrength(playerA, competition, season, week, `${label}:a`, bonusTopIds, simulationNonce, rankingOrder);
+    const strengthB = aiMatchStrength(playerB, competition, season, week, `${label}:b`, bonusTopIds, simulationNonce, rankingOrder);
+    const chanceA = Math.max(.08, Math.min(.92, 1 / (1 + Math.exp(-(strengthA - strengthB) / 10))));
+    const winner = seededRandom(`${simulationNonce}:${competition.id}:${season}:${week}:${label}`) < chanceA ? playerA : playerB;
+    const performance = simulatedAiMatchPerformancePoints(playerA, playerB, winner, Number(competition.targetSets || 2), `${simulationNonce}:${competition.id}:${season}:${week}:${label}:score`);
+    performance.forEach((points, id) => add(id, points));
+    add(winner, table.matchWin || 0);
+    return winner;
+  };
+  rankBands.forEach(([from, to], bandIndex) => {
+    const roster = ranked.slice(from - 1, to);
+    if (roster.length < 8) return;
+    const groups = {
+      A: [roster[0], roster[3], roster[4], roster[7]],
+      B: [roster[1], roster[2], roster[5], roster[6]],
+    };
+    const qualifiers = {};
+    for (const groupName of ["A", "B"]) {
+      const entries = groups[groupName];
+      const stats = new Map(entries.map((id) => [id, { wins: 0, strength: 0 }]));
+      for (let a = 0; a < entries.length; a += 1) {
+        for (let b = a + 1; b < entries.length; b += 1) {
+          const winner = playMatch(entries[a], entries[b], `band${bandIndex + 1}:${groupName}:g${a}-${b}`);
+          stats.get(winner).wins += 1;
+        }
+      }
+      entries.forEach((id) => { stats.get(id).strength = -ranked.indexOf(id); });
+      const ordered = [...entries].sort((a, b) => stats.get(b).wins - stats.get(a).wins || stats.get(b).strength - stats.get(a).strength);
+      qualifiers[groupName] = ordered.slice(0, 2);
+      add(ordered[2], table.group3 || 0);
+      add(ordered[3], table.group4 || 0);
+    }
+    const semiWinner1 = playMatch(qualifiers.A[0], qualifiers.B[1], `band${bandIndex + 1}:semi1`);
+    const semiLoser1 = semiWinner1 === qualifiers.A[0] ? qualifiers.B[1] : qualifiers.A[0];
+    const semiWinner2 = playMatch(qualifiers.B[0], qualifiers.A[1], `band${bandIndex + 1}:semi2`);
+    const semiLoser2 = semiWinner2 === qualifiers.B[0] ? qualifiers.A[1] : qualifiers.B[0];
+    add(semiLoser1, table.semi || 0);
+    add(semiLoser2, table.semi || 0);
+    const champion = playMatch(semiWinner1, semiWinner2, `band${bandIndex + 1}:final`);
+    const finalist = champion === semiWinner1 ? semiWinner2 : semiWinner1;
+    add(finalist, table.finalist || 0);
+    add(champion, table.winner || 0);
+  });
+  return totalAwards;
+}
+
 async function topAiIdsForReference(season, week, limit = 8) {
   const refPeriods = previousCircuitPeriods(season, week);
   const refPeriodKeys = refPeriods.map((period) => period.key);
@@ -767,7 +825,7 @@ function maxWeeklyTournamentPoints(week) {
     .filter((competition) => competition.week === week)
     .reduce((sum, competition) => {
       const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
-      return sum + (table.winner || 0);
+      return sum + (table.weeklyPotential || table.winner || 0);
     }, 0);
 }
 
@@ -901,7 +959,9 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
   const totals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
   const standings = await aiCircuitStandingsForBoost(season, week);
   competitions.forEach((competition) => {
-    const awards = simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds);
+    const awards = competition.eventType === "League"
+      ? simulatedAiLeaguePoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds)
+      : simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds);
     awards.forEach((points, characterId) => {
       totals.set(characterId, (totals.get(characterId) || 0) + points);
     });
@@ -2027,6 +2087,8 @@ function normalizeTournamentAchievement(value) {
   if (key === "winner" || key === "vainqueur") return "winner";
   if (key === "finalist" || key === "finaliste") return "finalist";
   if (key === "semi" || key === "demi-finale") return "semi";
+  if (key === "group3" || key === "groupe (3e)" || key === "groupe 3e") return "group3";
+  if (key === "group4" || key === "groupe (4e)" || key === "groupe 4e") return "group4";
   if (key === "quarter" || key === "quart de finale") return "quarter";
   if (key === "round16" || key === "8e de finale" || key === "qualif" || key === "qualification") return "round16";
   return key || "round16";
@@ -2038,6 +2100,8 @@ function achievementLabel(value) {
     winner: "VAINQUEUR",
     finalist: "FINALISTE",
     semi: "DEMI-FINALE",
+    group3: "Groupe (3e)",
+    group4: "Groupe (4e)",
     quarter: "QUART DE FINALE",
     round16: "8e DE FINALE",
   }[key] || "8e DE FINALE";

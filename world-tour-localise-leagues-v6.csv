@@ -1,0 +1,121 @@
+﻿tournament_id;semaine;slot_semaine;niveau;points;nom_tournoi;ville;pays;surface;type_epreuve
+TCWT-01-01;1;1;Circuit;400;Blue Lantern Cup;Vancouver;Canada;DUR;Tour
+TCWT-01-02;1;2;Major;600;Open del Turia;Valence;Espagne;TERRE-BATTUE;Tour
+TCWT-01-03;1;3;Premier;1000;Oakspire Masters;Copenhague;Danemark;HERBE;Tour
+TCWT-01-04;1;4;Crown;1500;Sunbridge Crown;Tokyo;Japon;DUR;Tour
+TCWT-01-05;1;5;Circuit;400;Atlas Bloom Cup;Marrakech;Maroc;TERRE-BATTUE;Tour
+TCWT-01-06;1;6;Prestige League;800;Prestige League;Belgrade;Serbie;HERBE;League
+TCWT-02-01;2;1;Circuit;400;Open do Douro;Porto;Portugal;TERRE-BATTUE;Tour
+TCWT-02-02;2;2;Major;600;Reeflight Trophy;Brisbane;Australie;DUR;Tour
+TCWT-02-03;2;3;Premier;1000;Limewood Masters;Hambourg;Allemagne;HERBE;Tour
+TCWT-02-04;2;4;Crown;1500;Steel Harbor Crown;Chicago;États-Unis;DUR;Tour
+TCWT-02-05;2;5;Major;600;Copa de los Andes;Santiago;Chili;HERBE;Tour
+TCWT-02-06;2;6;Ultimate League;1200;Ultimate League;Bucarest;Roumanie;TERRE-BATTUE;League
+TCWT-03-01;3;1;Circuit;400;Canal Fern Open;Amsterdam;Pays-Bas;HERBE;Tour
+TCWT-03-02;3;2;Major;600;Pearlwave Cup;Busan;Corée du Sud;TERRE-BATTUE;Tour
+TCWT-03-03;3;3;Premier;1000;Amberstone Masters;Rome;Italie;DUR;Tour
+TCWT-03-04;3;4;Crown;1500;Mirage Tower Crown;Dubaï;Émirats arabes unis;DUR;Tour
+TCWT-03-05;3;5;Premier;1000;Northstar Meadow Masters;Stockholm;Suède;TERRE-BATTUE;Tour
+TCWT-03-06;3;6;Prestige League;800;Prestige League;Sofia;Bulgarie;HERBE;League
+TCWT-04-01;4;1;Circuit;400;Open Royal de Bruxelles;Bruxelles;Belgique;DUR;Tour
+TCWT-04-02;4;2;Major;600;Open de las Sierras;Córdoba;Argentine;HERBE;Tour
+TCWT-04-03;4;3;Premier;1000;Zurich Summit Masters;Zurich;Suisse;HERBE;Tour
+TCWT-04-04;4;4;Crown;1500;Moon Temple Crown;Osaka;Japon;DUR;Tour
+TCWT-04-05;4;5;Slam;2000;Slam de Paris;Paris;France;TERRE-BATTUE;Slam
+TCWT-04-06;4;6;Prestige League;800;Prestige League;Bratislava;Slovaquie;TERRE-BATTUE;League
+TCWT-05-01;5;1;Circuit;400;Shamrock Shore Cup;Dublin;Irlande;DUR;Tour
+TCWT-05-02;5;2;Major;600;Open de Jalisco;Guadalajara;Mexique;TERRE-BATTUE;Tour
+TCWT-05-03;5;3;Premier;1000;Adriatic Ember Masters;Split;Croatie;HERBE;Tour
+TCWT-05-04;5;4;Crown;1500;Open du Saint-Laurent;Montréal;Canada;DUR;Tour
+TCWT-05-05;5;5;Circuit;400;Aegean Clay Cup;Athènes;Grèce;TERRE-BATTUE;Tour
+TCWT-05-06;5;6;Prestige League;800;Prestige League;Vilnius;Lituanie;HERBE;League
+TCWT-06-01;6;1;Circuit;400;Frostline Cup;Helsinki;Finlande;TERRE-BATTUE;Tour
+TCWT-06-02;6;2;Major;600;Vesuvio Clay Open;Naples;Italie;DUR;Tour
+TCWT-06-03;6;3;Premier;1000;Cottonfield Masters;Manchester;Royaume-Uni;HERBE;Tour
+TCWT-06-04;6;4;Crown;1500;Falcon Gate Crown;Doha;Qatar;DUR;Tour
+TCWT-06-05;6;5;Major;600;Cape Meadow Trophy;Le Cap;Afrique du Sud;HERBE;Tour
+TCWT-06-06;6;6;Ultimate League;1200;Ultimate League;Riga;Lettonie;TERRE-BATTUE;League
+TCWT-07-01;7;1;Circuit;400;Kauri Coast Cup;Auckland;Nouvelle-Zélande;HERBE;Tour
+TCWT-07-02;7;2;Major;600;Dragon Salt Open;Cracovie;Pologne;TERRE-BATTUE;Tour
+TCWT-07-03;7;3;Premier;1000;Golden Tuk Masters;Bangkok;Thaïlande;DUR;Tour
+TCWT-07-04;7;4;Crown;1500;Bavarian Lawn Crown;Munich;Allemagne;DUR;Tour
+TCWT-07-05;7;5;Premier;1000;White Medina Masters;Casablanca;Maroc;TERRE-BATTUE;Tour
+TCWT-07-06;7;6;Prestige League;800;Prestige League;Limassol;Chypre;HERBE;League
+TCWT-08-01;8;1;Circuit;400;Clocktower Clay Cup;Prague;Tchéquie;TERRE-BATTUE;Tour
+TCWT-08-02;8;2;Major;600;Western Reef Open;Perth;Australie;DUR;Tour
+TCWT-08-03;8;3;Premier;1000;Masters d'Anvers;Anvers;Belgique;HERBE;Tour
+TCWT-08-04;8;4;Crown;1500;Orchid Bay Crown;Singapour;Singapour;DUR;Tour
+TCWT-08-05;8;5;Slam;2000;Royal Grasslight Slam;Londres;Royaume-Uni;HERBE;Slam
+TCWT-08-06;8;6;Prestige League;800;Prestige League;Tunis;Tunisie;TERRE-BATTUE;League
+TCWT-09-01;9;1;Circuit;400;Imperial Waltz Cup;Vienne;Autriche;DUR;Tour
+TCWT-09-02;9;2;Major;600;Open do Pão de Açúcar;Rio de Janeiro;Brésil;TERRE-BATTUE;Tour
+TCWT-09-03;9;3;Premier;1000;Fjord Meadow Masters;Oslo;Norvège;HERBE;Tour
+TCWT-09-04;9;4;Crown;1500;Silver Lantern Crown;Taipei;Taïwan;DUR;Tour
+TCWT-09-05;9;5;Circuit;400;Atlantic Garden Cup;Montevideo;Uruguay;TERRE-BATTUE;Tour
+TCWT-09-06;9;6;Prestige League;800;Prestige League;Le Caire;Égypte;HERBE;League
+TCWT-10-01;10;1;Circuit;400;Lakeside Clover Cup;Ljubljana;Slovénie;TERRE-BATTUE;Tour
+TCWT-10-02;10;2;Major;600;Han River Open;Séoul;Corée du Sud;DUR;Tour
+TCWT-10-03;10;3;Premier;1000;Masters do Tejo;Lisbonne;Portugal;HERBE;Tour
+TCWT-10-04;10;4;Crown;1500;Palmline Crown;Nassau;Bahamas;DUR;Tour
+TCWT-10-05;10;5;Major;600;Viking Lawn Trophy;Aarhus;Danemark;HERBE;Tour
+TCWT-10-06;10;6;Ultimate League;1200;Ultimate League;Dakar;Sénégal;TERRE-BATTUE;League
+TCWT-11-01;11;1;Circuit;400;Thermal Clay Cup;Budapest;Hongrie;HERBE;Tour
+TCWT-11-02;11;2;Major;600;Dragon Pearl Open;Shanghai;Chine;TERRE-BATTUE;Tour
+TCWT-11-03;11;3;Premier;1000;Open des Confluences;Lyon;France;DUR;Tour
+TCWT-11-04;11;4;Crown;1500;Aurora Dome Crown;Reykjavik;Islande;DUR;Tour
+TCWT-11-05;11;5;Premier;1000;Olive Harbor Masters;Thessalonique;Grèce;TERRE-BATTUE;Tour
+TCWT-11-06;11;6;Prestige League;800;Prestige League;Accra;Ghana;HERBE;League
+TCWT-12-01;12;1;Circuit;400;Harbor Clover Cup;Göteborg;Suède;TERRE-BATTUE;Tour
+TCWT-12-02;12;2;Major;600;Bosphorus Clay Open;Istanbul;Turquie;HERBE;Tour
+TCWT-12-03;12;3;Premier;1000;Desert Pearl Masters;Abou Dhabi;Émirats arabes unis;HERBE;Tour
+TCWT-12-04;12;4;Crown;1500;Nightfall Crown;Tallinn;Estonie;DUR;Tour
+TCWT-12-05;12;5;Slam;2000;Atlantic Skyline Slam;New York;États-Unis;DUR;Slam
+TCWT-12-06;12;6;Prestige League;800;Prestige League;Kigali;Rwanda;TERRE-BATTUE;League
+TCWT-13-01;13;1;Circuit;400;Stonewall Clay Cup;Dubrovnik;Croatie;DUR;Tour
+TCWT-13-02;13;2;Major;600;Celtic Leaf Open;Cork;Irlande;TERRE-BATTUE;Tour
+TCWT-13-03;13;3;Premier;1000;Masters de la Sierra Madre;Monterrey;Mexique;HERBE;Tour
+TCWT-13-04;13;4;Crown;1500;Corona del Río de la Plata;Buenos Aires;Argentine;DUR;Tour
+TCWT-13-05;13;5;Circuit;400;Lakeglass Cup;Tampere;Finlande;TERRE-BATTUE;Tour
+TCWT-13-06;13;6;Prestige League;800;Prestige League;Jakarta;Indonésie;HERBE;League
+TCWT-14-01;14;1;Circuit;400;Copa da Serra do Mar;São Paulo;Brésil;TERRE-BATTUE;Tour
+TCWT-14-02;14;2;Major;600;Harborlight Open;Wellington;Nouvelle-Zélande;DUR;Tour
+TCWT-14-03;14;3;Premier;1000;Bohemian Grass Masters;Brno;Tchéquie;HERBE;Tour
+TCWT-14-04;14;4;Crown;1500;Jade Wall Crown;Pékin;Chine;DUR;Tour
+TCWT-14-05;14;5;Major;600;Trofeo de la Sabana;Bogotá;Colombie;HERBE;Tour
+TCWT-14-06;14;6;Ultimate League;1200;Ultimate League;Kuala Lumpur;Malaisie;TERRE-BATTUE;League
+TCWT-15-01;15;1;Circuit;400;Royal Mint Cup;Varsovie;Pologne;HERBE;Tour
+TCWT-15-02;15;2;Major;600;Nordic Pine Open;Bergen;Norvège;TERRE-BATTUE;Tour
+TCWT-15-03;15;3;Premier;1000;Masters del Guadalquivir;Séville;Espagne;DUR;Tour
+TCWT-15-04;15;4;Crown;1500;Savanna Spark Crown;Mombasa;Kenya;DUR;Tour
+TCWT-15-05;15;5;Premier;1000;Alpine Velvet Masters;Salzbourg;Autriche;TERRE-BATTUE;Tour
+TCWT-15-06;15;6;Prestige League;800;Prestige League;Hô Chi Minh-Ville;Vietnam;HERBE;League
+TCWT-16-01;16;1;Circuit;400;Ruby Plains Cup;Debrecen;Hongrie;TERRE-BATTUE;Tour
+TCWT-16-02;16;2;Major;600;Surfline Open;Durban;Afrique du Sud;DUR;Tour
+TCWT-16-03;16;3;Premier;1000;Tulip Lawn Masters;Rotterdam;Pays-Bas;HERBE;Tour
+TCWT-16-04;16;4;Crown;1500;Pearl Sail Crown;Manille;Philippines;HERBE;Tour
+TCWT-16-05;16;5;Slam;2000;Pacific Sails Slam;Melbourne;Australie;DUR;Slam
+TCWT-16-06;16;6;Prestige League;800;Prestige League;Almaty;Kazakhstan;TERRE-BATTUE;League
+TCWT-17-01;17;1;Circuit;400;Copa del Valle de Aburrá;Medellín;Colombie;DUR;Tour
+TCWT-17-02;17;2;Major;600;Glacier Arc Open;Akureyri;Islande;TERRE-BATTUE;Tour
+TCWT-17-03;17;3;Premier;1000;Highland Echo Masters;Glasgow;Royaume-Uni;HERBE;Tour
+TCWT-17-04;17;4;Crown;1500;Pearl Dune Crown;Lusail;Qatar;DUR;Tour
+TCWT-17-05;17;5;Circuit;400;Copa do Algarve;Faro;Portugal;TERRE-BATTUE;Tour
+TCWT-17-06;17;6;Prestige League;800;Prestige League;Tachkent;Ouzbékistan;HERBE;League
+TCWT-18-01;18;1;Circuit;400;Turquoise Clay Cup;Antalya;Turquie;TERRE-BATTUE;Tour
+TCWT-18-02;18;2;Major;600;Marina Spark Open;Sentosa;Singapour;DUR;Tour
+TCWT-18-03;18;3;Premier;1000;Open du Léman;Lausanne;Suisse;HERBE;Tour
+TCWT-18-04;18;4;Crown;1500;Coroa do Cerrado;Brasilia;Brésil;DUR;Tour
+TCWT-18-05;18;5;Major;600;Baltic Meadow Trophy;Malmö;Suède;HERBE;Tour
+TCWT-18-06;18;6;Ultimate League;1200;Ultimate League;Riyad;Arabie saoudite;TERRE-BATTUE;League
+TCWT-19-01;19;1;Circuit;400;Copa del Pacífico Sur;Valparaíso;Chili;HERBE;Tour
+TCWT-19-02;19;2;Major;600;Snowbell Open;Kaohsiung;Taïwan;TERRE-BATTUE;Tour
+TCWT-19-03;19;3;Premier;1000;Open de la Meuse;Liège;Belgique;DUR;Tour
+TCWT-19-04;19;4;Crown;1500;Corona del Valle de México;Mexico City;Mexique;DUR;Tour
+TCWT-19-05;19;5;Premier;1000;Motor Valley Masters;Luxembourg;Luxembourg;TERRE-BATTUE;Tour
+TCWT-19-06;19;6;Prestige League;800;Prestige League;Panama City;Panama;HERBE;League
+TCWT-20-01;20;1;Circuit;400;Copa de la Cordillera;Mendoza;Argentine;TERRE-BATTUE;Tour
+TCWT-20-02;20;2;Major;600;Open de la Promenade Azur;Nice;France;DUR;Tour
+TCWT-20-03;20;3;Premier;1000;Monsoon Clover Masters;Bangalore;Inde;HERBE;Tour
+TCWT-20-04;20;4;Crown;1500;Sunset Boulevard Crown;Los Angeles;États-Unis;HERBE;Tour
+TCWT-20-05;20;5;World Finals;4000;Tennis Courts World Finals;Genève;Suisse;DUR;World Finals
+TCWT-20-06;20;6;Prestige League;800;Prestige League;Saint-Domingue;République dominicaine;TERRE-BATTUE;League

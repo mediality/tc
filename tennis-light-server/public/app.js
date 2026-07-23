@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.27";
+const GAME_VERSION = "v2.169.28";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -3776,7 +3776,8 @@ async function startWeeklyCompetition(competitionId) {
     applySurfaceBackground(competition.surface);
     const targetSets = Number(competition.targetSets || 2);
     try {
-      startTournamentMode(targetSets, { competition });
+      if (competition.eventType === "League") startLeagueTournamentMode(targetSets, { competition });
+      else startTournamentMode(targetSets, { competition });
       showGameScreen();
       render();
     } catch (error) {
@@ -7196,7 +7197,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.27");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.28");
 }
 
 function resetSetMatch() {
@@ -11978,6 +11979,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
+  const weeklyCompetition = options.competition || null;
+  if (weeklyCompetition) SOLO_AI.difficulty = "circuit";
   const aiClubHouse = Boolean(options.aiClubHouse);
   const circuitIntelligence = aiClubHouse && SOLO_AI.difficulty === "circuit";
   const humanLevel = circuitHumanLevel();
@@ -11988,6 +11991,8 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     playerSelection: options.players || "random",
     distribution: leagueDistribution,
     humanCharacterId,
+    humanLevel,
+    weeklyCompetition,
   });
   const dynamicBonusIds = aiClubHouse ? [] : previousWeekDynamicBonusIds();
   const permanentBonuses = aiClubHouse
@@ -11996,9 +12001,13 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   const surfaceBonuses = aiClubHouse
       ? buildAiClubHouseBonuses(setup.seededEntries, bonusLevel)
       : {};
-  const aiIntelligenceLevels = aiClubHouse
-    ? buildTournamentAiIntelligenceLevels(setup.seededEntries, SOLO_AI.difficulty, { humanLevel })
-    : {};
+  const aiIntelligenceLevels = weeklyCompetition
+    ? weeklyCompetition.level === "Ultimate League" && humanLevel === 6
+      ? Object.fromEntries(setup.seededEntries.filter((entry) => entry !== HUMAN_TOURNAMENT_ENTRY).map((entry) => [entry, "legend"]))
+      : buildTournamentAiIntelligenceLevels(setup.seededEntries, "circuit", { humanLevel })
+    : aiClubHouse
+      ? buildTournamentAiIntelligenceLevels(setup.seededEntries, SOLO_AI.difficulty, { humanLevel })
+      : {};
   state.tournament = {
     active: true,
     visible: true,
@@ -12009,12 +12018,17 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     bonusLevel,
     playerSelection: options.players || "random",
     distribution: leagueDistribution,
-    weekly: false,
-    competitionId: null,
-    competitionName: `LEAGUE ${targetSets} sets`,
-    competitionSurface: null,
-    competitionSurfaceLabel: null,
-    competitionPoints: null,
+    weekly: Boolean(weeklyCompetition),
+    competitionId: weeklyCompetition?.id || null,
+    competitionName: weeklyCompetition?.name || `LEAGUE ${targetSets} sets`,
+    competitionCity: weeklyCompetition?.city || null,
+    competitionCountry: weeklyCompetition?.country || null,
+    competitionFlag: weeklyCompetition?.flag || null,
+    competitionSurface: weeklyCompetition?.surface || null,
+    competitionSurfaceLabel: weeklyCompetition?.surfaceLabel || null,
+    competitionSeason: Number(AUTH_STATE.competitions?.season || 1),
+    competitionWeek: Number(AUTH_STATE.competitions?.week || 1),
+    competitionPoints: weeklyCompetition?.points || null,
     matchBonusPoints: 0,
     matchBonusDetails: [],
     pointsRecorded: false,
@@ -12031,7 +12045,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     leagueSeededEntries: setup.seededEntries,
     tournamentSeedNumbers: Object.fromEntries(setup.seededEntries.slice(0, 4).map((entry, index) => [entry, index + 1])),
     leagueCompletedDays: 0,
-    humanCircuitLevel: circuitIntelligence ? humanLevel : null,
+    humanCircuitLevel: weeklyCompetition || circuitIntelligence ? humanLevel : null,
     circuitBonusSurface: null,
     surfaceBonuses,
     permanentBonuses,
@@ -12042,7 +12056,9 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
   state.tournament.matches = buildLeagueTournamentMatches(setup.groups, HUMAN_TOURNAMENT_ENTRY, targetSets, setup.seededEntries);
   prepareLeagueHumanMatch();
   const bonusLabel = `bonus ${aiBonusLabel(bonusLevel)}`;
-  state.log.unshift(`CLUB HOUSE · LEAGUE ${targetSets} sets · intelligence ${tournamentDifficultyLabel(SOLO_AI.difficulty)} · ${bonusLabel}.`);
+  state.log.unshift(weeklyCompetition
+    ? `${weeklyCompetition.name} · ${targetSets} sets gagnants · niveau Circuit Pro ${humanLevel}.`
+    : `CLUB HOUSE · LEAGUE ${targetSets} sets · intelligence ${tournamentDifficultyLabel(SOLO_AI.difficulty)} · ${bonusLabel}.`);
   render();
 }
 
@@ -12064,9 +12080,17 @@ function selectAiClubHousePlayers(count, selection = "random", humanCharacterId 
 }
 
 function buildLeagueTournamentSetup(options = {}) {
-  const selectedAi = options.aiClubHouse
-    ? selectAiClubHousePlayers(7, options.playerSelection, options.humanCharacterId)
-    : shuffle(TOURNAMENT_CHARACTER_POOL).slice(0, 7);
+  const humanLevel = Number(options.humanLevel || circuitHumanLevel());
+  const rankedAi = rankedAiTournamentEntries(TOURNAMENT_CHARACTER_POOL);
+  const weeklySelected = humanLevel === 6 ? rankedAi.slice(0, 7)
+    : humanLevel === 5 ? rankedAi.slice(2, 9)
+      : humanLevel === 4 ? rankedAi.slice(4, 11)
+        : shuffle(rankedAi.slice(humanLevel === 3 ? 9 : humanLevel === 2 ? 11 : 13)).slice(0, 7);
+  const selectedAi = options.weeklyCompetition
+    ? weeklySelected
+    : options.aiClubHouse
+      ? selectAiClubHousePlayers(7, options.playerSelection, options.humanCharacterId)
+      : shuffle(TOURNAMENT_CHARACTER_POOL).slice(0, 7);
   const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
   const seededEntries = rankedTournamentEntries(roster);
   if (options.distribution !== "ranking") {
@@ -13225,6 +13249,7 @@ function handleLeagueTournamentMatchComplete() {
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
+  if (state.tournament.weekly) addHumanMatchPerformanceBonus(match);
   if (match.day) {
     revealLeagueDay(match.day);
     refreshLeagueKnockoutSlots();
@@ -13238,6 +13263,7 @@ function handleLeagueTournamentMatchComplete() {
       return;
     }
     completeLeagueWithoutHuman();
+    if (state.tournament.weekly && state.tournament.stage === "complete") recordWeeklyCompetitionResult();
     render();
     return;
   }
@@ -13253,6 +13279,7 @@ function handleLeagueTournamentMatchComplete() {
       return;
     }
     completeLeagueWithoutHuman();
+    if (state.tournament.weekly && state.tournament.stage === "complete") recordWeeklyCompetitionResult();
     render();
     return;
   }
@@ -13262,6 +13289,7 @@ function handleLeagueTournamentMatchComplete() {
     state.tournament.nextHumanMatchId = null;
     state.tournament.championCharacterId = winnerEntry;
     state.log.unshift(`LEAGUE gagnée par ${tournamentPlayerLabel(winnerEntry)}.`);
+    if (state.tournament.weekly) recordWeeklyCompetitionResult();
     render();
   }
 }
@@ -13329,6 +13357,19 @@ function humanTournamentAchievement() {
   const human = humanTournamentEntry();
   const final = tournamentMatchById("final");
   if (state.tournament.championCharacterId === human) return "winner";
+  if (state.tournament.league) {
+    const finalLeague = tournamentMatchById("final");
+    if (finalLeague?.score && (finalLeague.playerA === human || finalLeague.playerB === human)) return "finalist";
+    const humanSemi = state.tournament.matches.find((match) => match.round === "semi" && match.score && (match.playerA === human || match.playerB === human));
+    if (humanSemi) return "semi";
+    if (leagueCompletedGroupDays() >= 3) {
+      for (const group of ["A", "B"]) {
+        const position = leagueStandings(group, 3).findIndex((row) => row.entry === human);
+        if (position >= 0) return position === 2 ? "group3" : position === 3 ? "group4" : null;
+      }
+    }
+    return null;
+  }
   if (state.tournament.weekly) {
     const playedHumanMatches = state.tournament.matches.filter((match) => match.score && (match.playerA === human || match.playerB === human));
     const last = playedHumanMatches.at(-1);
@@ -13385,13 +13426,17 @@ function humanMatchPerformanceBonus(match, setScores = tournamentCompletedSetSco
 function addHumanMatchPerformanceBonus(match) {
   if (!state.tournament.weekly || !match || match.performanceBonusRecorded) return;
   const bonus = humanMatchPerformanceBonus(match);
+  const matchWinPoints = match.winner === humanTournamentEntry()
+    ? Number(state.tournament.competitionPoints?.matchWin || 0)
+    : 0;
   match.performanceBonusRecorded = true;
-  match.performanceBonusPoints = bonus.points;
+  match.performanceBonusPoints = bonus.points + matchWinPoints;
   match.performanceBonusDetails = bonus.details;
-  state.tournament.matchBonusPoints = (state.tournament.matchBonusPoints || 0) + bonus.points;
-  state.tournament.matchBonusDetails = [...(state.tournament.matchBonusDetails || []), ...bonus.details.map((detail) => `${match.label}: ${detail}`)];
-  if (bonus.points) {
-    state.log.unshift(`${match.label}: bonus performance +${bonus.points} points.`);
+  state.tournament.matchBonusPoints = (state.tournament.matchBonusPoints || 0) + bonus.points + matchWinPoints;
+  const details = [...bonus.details, ...(matchWinPoints ? [`Match gagné: +${matchWinPoints}`] : [])];
+  state.tournament.matchBonusDetails = [...(state.tournament.matchBonusDetails || []), ...details.map((detail) => `${match.label}: ${detail}`)];
+  if (bonus.points + matchWinPoints) {
+    state.log.unshift(`${match.label}: bonus performance +${bonus.points + matchWinPoints} points.`);
   }
 }
 

@@ -25,7 +25,7 @@ function functionSource(source, name) {
   throw new Error(`Source incomplète pour ${name}`);
 }
 
-assert.equal(pkg.version, "2.169.27");
+assert.equal(pkg.version, "2.169.28");
 assert.match(html, /data-open-tutorial-modules data-required-role="admin"/);
 assert.equal((html.match(/data-open-tutorial-modules/g) || []).length, 1);
 assert.match(app, /closest\("\[data-open-tutorial-modules\]"\)/);
@@ -74,4 +74,4 @@ vm.runInContext(`${capSource}; result = [aiHumanWinBonusCap(200, 500), aiHumanWi
 assert.deepEqual(Array.from(capContext.result), [300, 50, 100, 100]);
 assert.match(functionSource(server, "registerCircuitAiHumanWinBonuses"), /Math\.min\(300, wins \* 25\)/);
 
-console.log("v2.169.27 assistance, identités, HUD SVG et retours visuels : OK");
+console.log("v2.169.28 assistance, identités, HUD SVG et retours visuels : OK");

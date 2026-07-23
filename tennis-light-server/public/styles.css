@@ -3044,15 +3044,20 @@ h1 {
   display: inline-grid;
   min-width: min(240px, 100%);
   border-radius: 8px;
-  padding: 5px 10px;
   background: transparent;
   box-shadow: 0 3px 0 transparent;
 }
 
-.player-identity-panel h2 { color: #fff; }
-.player-identity-panel.active-turn { background: #90f0b8; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18); }
-.player-identity-panel.active-turn h2 { color: #06281f; }
-.player-identity-panel.active-turn .player-character-name { color: rgba(6, 40, 31, .78); }
+.player-identity-panel h2 {
+  width: fit-content;
+  min-width: 100%;
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: #fff;
+  background: transparent;
+  box-shadow: 0 3px 0 transparent;
+}
+.player-identity-panel.active-turn h2 { color: #06281f; background: #90f0b8; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18); }
 
 .badges {
   display: flex;
@@ -3257,12 +3262,12 @@ h1 {
 
 .character-card.exchange-winner {
   z-index: 2;
-  animation: exchange-winner-halo 1.45s ease-in-out infinite alternate;
+  animation: exchange-winner-halo .55s ease-in-out infinite alternate;
 }
 
 @keyframes exchange-winner-halo {
-  from { box-shadow: 0 0 0 3px rgba(255, 238, 128, .72), 0 0 18px rgba(255, 222, 70, .62); }
-  to { box-shadow: 0 0 0 5px rgba(255, 248, 183, .95), 0 0 38px rgba(255, 217, 38, .95); }
+  from { box-shadow: 0 0 0 3px rgba(255, 255, 255, .72), 0 0 18px rgba(255, 255, 255, .62); }
+  to { box-shadow: 0 0 0 5px rgba(255, 255, 255, .98), 0 0 40px rgba(255, 255, 255, .98); }
 }
 
 .character-card img,
