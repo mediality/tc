@@ -54,6 +54,13 @@
       || (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1);
   }
 
+  function mobilePlayerArtwork(artwork) {
+    if (String(artwork || "").endsWith("assets/CoachMaxTRS.png")) {
+      return "assets/cards/Demo-TC-_0029_Coach-MAX-LOBBY.webp";
+    }
+    return artwork || "";
+  }
+
   function isSmartphonePortrait() {
     const previewRequested = new URLSearchParams(window.location.search).get("mobileGamePreview") === "1";
     return Math.min(window.innerWidth, window.innerHeight) <= MOBILE_MAX_WIDTH
@@ -86,7 +93,7 @@
     return `
       <article class="mobile-player mobile-player--${side}${player.isActive ? " mobile-player--active" : ""}">
         <div class="mobile-player-avatar">
-          <img src="${player.artwork}" alt="" decoding="async" fetchpriority="high" />
+          <img src="${escapeText(mobilePlayerArtwork(player.artwork))}" alt="" decoding="async" fetchpriority="high" />
           ${isServer ? '<span class="mobile-server" aria-label="Au service">●</span>' : ""}
         </div>
         <div class="mobile-player-copy">

@@ -15,6 +15,8 @@ assert.match(mobile, /aria-live="assertive" aria-atomic="true"/);
 assert.match(mobile, /gain de.*perte de/s);
 assert.match(mobile, /class="mobile-skip-link"/);
 assert.match(mobile, /loading="lazy" decoding="async"/);
+assert.match(mobile, /function mobilePlayerArtwork\(artwork\)/);
+assert.match(mobile, /Demo-TC-_0029_Coach-MAX-LOBBY\.webp/);
 assert.match(mobile, /function scheduleMobileRender\(\)/);
 assert.match(mobile, /window\.requestAnimationFrame/);
 assert.match(mobile, /window\.addEventListener\("resize", scheduleMobileRender\)/);

@@ -9,8 +9,8 @@ const [html, app, mobileApp, mobileStyles] = await Promise.all([
 ]);
 
 assert.match(html, /<main id="mobileGameApp" class="mobile-game-app hidden"/);
-assert.match(html, /mobile-game\.css\?v=3\.8\.0/);
-assert.match(html, /mobile-game\.js\?v=3\.8\.0/);
+assert.match(html, /mobile-game\.css\?v=3\.8\.2/);
+assert.match(html, /mobile-game\.js\?v=3\.8\.2/);
 assert.match(html, /<main class="app game-app hidden">/);
 
 assert.match(app, /window\.tennisLightMobileAdapter = \{\s*getViewState: getMobileMatchViewState/);
