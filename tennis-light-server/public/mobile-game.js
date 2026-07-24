@@ -314,6 +314,13 @@
       <p class="mobile-assistance-note">${assistance.stopOpponentCard
     ? "Activé : utilisez Continuer pour chaque carte adverse."
     : "Désactivé : chaque carte adverse reste visible une seconde puis la partie continue."}</p>
+      <label class="mobile-assistance-option">
+        <span><strong>Plein écran</strong><small>Masquer l’interface du navigateur pendant le match.</small></span>
+        <input type="checkbox" data-mobile-fullscreen ${assistance.fullscreenActive ? "checked" : ""} ${assistance.fullscreenAvailable ? "" : "disabled"} />
+      </label>
+      <p class="mobile-assistance-note">${assistance.fullscreenAvailable
+    ? assistance.fullscreenActive ? "Activé : le match occupe tout l’écran." : "Désactivé par défaut."
+    : "Le plein écran n’est pas disponible dans ce navigateur."}</p>
     `;
   }
 
@@ -423,6 +430,7 @@
   function renderMobileGame(force = false) {
     if (!matchUsesMobileView || !root) return;
     if (resolutionSequence && !force) return;
+    const previousHandScrollLeft = root.querySelector(".mobile-card-hand")?.scrollLeft || 0;
     const viewState = window.tennisLightMobileAdapter?.getViewState();
     if (!viewState) {
       root.innerHTML = '<p class="mobile-game-fallback" role="status">Chargement du match…</p>';
@@ -465,10 +473,13 @@
     : `<section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
           ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
         </section>
-        <section class="mobile-last-card" aria-label="Dernière carte jouée">
-          <header><strong>Dernière carte jouée</strong></header>
-          ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
-        </section>
+        <div class="mobile-last-card-row">
+          <section class="mobile-last-card" aria-label="Dernière carte jouée">
+            <header><strong>Dernière carte jouée</strong></header>
+            ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
+          </section>
+          ${viewState.lastPlayedCard ? '<button class="mobile-history-inline" type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>' : ""}
+        </div>
         ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
           ${viewState.turnActions.canUndo
     ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>ANNULER</button>'
@@ -511,9 +522,6 @@
           <strong>Revenez en mode portrait</strong>
           <span>La partie mobile reste ouverte pendant la rotation.</span>
         </div>
-        ${viewState.lastPlayedCard ? `<nav class="mobile-utility-nav" aria-label="Informations et navigation">
-          <button type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>
-        </nav>` : ""}
         ${mobileSheetMarkup("bonuses-player", `Bonus · ${escapeText(viewState.player.name)}`, bonusesMarkup(viewState.bonuses))}
         ${mobileSheetMarkup("bonuses-opponent", `Bonus · ${escapeText(viewState.opponent.name)}`, bonusesMarkup(viewState.opponentBonuses))}
         ${mobileSheetMarkup("star-player", "Pouvoir étoile", starCardMarkup(viewState.playerStarCard))}
@@ -527,6 +535,8 @@
       </div>
     `;
     bindMobileGameInteractions(viewState);
+    const nextHand = root.querySelector(".mobile-card-hand");
+    if (nextHand) nextHand.scrollLeft = previousHandScrollLeft;
     if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
     anchorMobileGameToBottom(viewState);
   }
@@ -917,6 +927,20 @@
       if (!(input instanceof HTMLInputElement)) return;
       window.tennisLightMobileAdapter?.setAssistance({ stopOpponentCard: input.checked });
     });
+    root?.querySelector("[data-mobile-fullscreen]")?.addEventListener("change", async (event) => {
+      const input = event.currentTarget;
+      if (!(input instanceof HTMLInputElement)) return;
+      try {
+        if (input.checked && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        } else if (!input.checked && document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+      } catch (error) {
+        input.checked = Boolean(document.fullscreenElement);
+      }
+      renderMobileGame(true);
+    });
     root?.querySelector("[data-mobile-tutorial-next]")?.addEventListener("click", () => {
       window.tennisLightMobileAdapter?.continueTutorial();
     });
@@ -1001,6 +1025,7 @@
   window.addEventListener("tennis-light:match-render", scheduleMobileRender);
   window.addEventListener("orientationchange", scheduleMobileRender);
   window.addEventListener("resize", scheduleMobileRender);
+  document.addEventListener("fullscreenchange", scheduleMobileRender);
   document.addEventListener("keydown", (event) => {
     if (!matchUsesMobileView) return;
     const explanation = root?.querySelector(".mobile-card-explanation:not(.hidden)");

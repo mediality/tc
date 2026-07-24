@@ -21,6 +21,8 @@ assert.match(app, /opponentBonuses: activeEffectBadges\(opponentIndex\)/);
 assert.match(app, /stopOpponentCard: GAMEPLAY_ASSIST\.stopOpponentCard/);
 assert.match(app, /consequence: consequenceParts\.join\(" · "\)/);
 assert.match(app, /boosted: Boolean\(card\.boosted\)/);
+assert.match(app, /!boosted[\s\S]*mode !== "effect"[\s\S]*totalTurnPlacement\(playerIndex, card, boosted\) < Number\(state\.lastCard\.precision/);
+assert.match(app, /fullscreenAvailable: Boolean\(document\.fullscreenEnabled/);
 
 assert.match(mobile, /data-mobile-open-match-menu/);
 assert.match(mobile, /data-mobile-menu-destination="competition"/);
@@ -37,6 +39,11 @@ assert.match(mobile, /mobile-pass-button--\$\{viewState\.turnActions\.passProjec
 assert.match(mobile, /card\.consequence \? `<p><strong>Conséquence/);
 assert.match(mobile, /En attente de votre coup/);
 assert.match(mobile, /mobile-last-card-boost/);
+assert.match(mobile, /class="mobile-last-card-row"/);
+assert.match(mobile, /data-mobile-fullscreen/);
+assert.match(mobile, /document\.documentElement\.requestFullscreen\(\)/);
+assert.match(mobile, /document\.exitFullscreen\(\)/);
+assert.match(mobile, /previousHandScrollLeft/);
 assert.match(mobile, /mobileSheetMarkup\("bonuses-player"/);
 assert.match(mobile, /mobileSheetMarkup\("bonuses-opponent"/);
 assert.match(mobile, /showMobilePanel\(`bonuses-\$\{event\.currentTarget\.dataset\.mobileOpenBonuses\}`/);
@@ -47,7 +54,7 @@ assert.match(mobile, /mobileSheetMarkup\("history", "Déroulé de l’échange"/
 assert.match(mobile, /data-mobile-player-star=/);
 assert.match(mobile, /mobileSheetMarkup\("star-player"/);
 assert.match(mobile, /mobileSheetMarkup\("star-opponent"/);
-assert.match(mobile, /viewState\.lastPlayedCard \? `<nav class="mobile-utility-nav"/);
+assert.match(mobile, /class="mobile-history-inline"/);
 assert.doesNotMatch(mobile, /<header><strong>Votre main<\/strong>/);
 assert.doesNotMatch(mobile, /Placement requis/);
 assert.doesNotMatch(mobile, /Comment jouer cette carte/);
@@ -62,6 +69,8 @@ assert.match(css, /\.mobile-pass-button--player/);
 assert.match(css, /\.mobile-pass-button--opponent/);
 assert.match(css, /\.mobile-player-stat--critical dd/);
 assert.match(css, /\.mobile-last-card-button--boost/);
+assert.match(css, /\.mobile-hand-section\s*\{[\s\S]*position:\s*fixed/);
+assert.match(css, /\.mobile-last-card-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.13 : lancement des matchs et tour allégé : OK");
+console.log("Mobile v3.14 : risque de Boost, main fixe et plein écran : OK");
