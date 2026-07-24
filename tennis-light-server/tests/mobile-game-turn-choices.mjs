@@ -19,7 +19,7 @@ assert.match(mobile, /data-mobile-play-mode=/);
 assert.match(mobile, /data-mobile-boost-sacrifice=/);
 assert.match(mobile, /data-mobile-pass/);
 assert.match(mobile, /data-mobile-end-turn/);
-assert.match(mobile, /Choisissez Effet ou Remise/);
+assert.match(mobile, /Choisissez un mode de jeu/);
 assert.match(mobile, /class="mobile-power-bolt"[^>]*>⚡</);
 assert.doesNotMatch(mobile, />VS</);
 

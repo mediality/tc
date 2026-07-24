@@ -169,7 +169,7 @@
       </section>
       <div class="mobile-card-actions" aria-label="Actions de la carte sélectionnée">
         <button class="mobile-cancel-card" type="button" data-mobile-cancel>Annuler</button>
-        <button class="mobile-play-card" type="button" data-mobile-play ${validationDisabled ? "disabled" : ""}>${activeOption ? `${escapeText(activeOption.label)} (-${activeOption.realCost} endurance)` : "Choisissez Effet ou Remise"}</button>
+        <button class="mobile-play-card" type="button" data-mobile-play ${validationDisabled ? "disabled" : ""}>${activeOption ? `${escapeText(activeOption.label)} (-${activeOption.realCost} endurance)` : "Choisissez un mode de jeu"}</button>
       </div>
     `;
   }
