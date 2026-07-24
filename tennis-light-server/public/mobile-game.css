@@ -45,6 +45,87 @@ body.mobile-game-view .mobile-game-app {
   text-transform: uppercase;
 }
 
+.mobile-mode-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(72px, 0.7fr) auto;
+  gap: 6px;
+}
+
+.mobile-mode-context > div {
+  display: grid;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.mobile-mode-context span {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mobile-mode-context strong {
+  overflow: hidden;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-mode-context button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(223, 243, 118, 0.35);
+  border-radius: 10px;
+  padding: 5px 8px;
+  color: #dff376;
+  background: rgba(223, 243, 118, 0.08);
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.mobile-connection {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(116, 230, 192, 0.25);
+  border-radius: 10px;
+  padding: 6px 8px;
+  background: rgba(5, 36, 51, 0.8);
+  font-size: 0.62rem;
+}
+
+.mobile-connection span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.66);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-connection i {
+  color: #8ce0bf;
+  font-size: 0.55rem;
+  font-style: normal;
+}
+
+.mobile-connection--spectator {
+  border-color: rgba(242, 163, 127, 0.36);
+}
+
+.mobile-spectator-notice {
+  margin: 0;
+  border: 1px solid rgba(242, 163, 127, 0.35);
+  border-radius: 12px;
+  padding: 10px;
+  color: #ffd1bc;
+  background: rgba(242, 163, 127, 0.09);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+}
+
 .mobile-game-header strong {
   color: #88e4c3;
   font-size: 0.72rem;
@@ -1182,6 +1263,199 @@ body.mobile-game-view .mobile-game-app {
   color: #f7fbff;
   background: rgba(255, 255, 255, 0.09);
   font-weight: 850;
+}
+
+.mobile-match-result {
+  display: grid;
+  gap: 7px;
+  border: 2px solid var(--mobile-player-color);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(5, 36, 51, 0.97);
+  text-align: center;
+}
+
+.mobile-match-result--opponent {
+  border-color: var(--mobile-opponent-color);
+}
+
+.mobile-match-result > span {
+  color: #dff376;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-match-result h2,
+.mobile-match-result p {
+  margin: 0;
+}
+
+.mobile-match-result > strong {
+  font-size: 1.35rem;
+}
+
+.mobile-match-result > p {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.mobile-match-result > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 9px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.mobile-match-result nav {
+  display: grid;
+  gap: 7px;
+}
+
+.mobile-match-result button,
+.mobile-tutorial button {
+  min-height: 48px;
+  border-radius: 11px;
+  color: #062637;
+  background: linear-gradient(125deg, #7be7c3, #dff376);
+  font-weight: 950;
+}
+
+.mobile-tutorial {
+  position: sticky;
+  bottom: max(68px, calc(env(safe-area-inset-bottom) + 62px));
+  z-index: 70;
+  display: grid;
+  gap: 8px;
+  border: 2px solid #dff376;
+  border-radius: 16px;
+  padding: 11px;
+  background: rgba(3, 24, 35, 0.98);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-tutorial header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-tutorial header img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mobile-tutorial header div {
+  display: grid;
+}
+
+.mobile-tutorial header span,
+.mobile-tutorial figcaption {
+  color: #dff376;
+  font-size: 0.58rem;
+  font-weight: 850;
+}
+
+.mobile-tutorial h2,
+.mobile-tutorial p,
+.mobile-tutorial figure {
+  margin: 0;
+}
+
+.mobile-tutorial > p {
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.mobile-tutorial figure {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.mobile-tutorial figure img {
+  width: 58px;
+  height: 82px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.mobile-tutorial-action {
+  border-radius: 9px;
+  padding: 7px;
+  color: #062637;
+  background: #dff376;
+  font-weight: 900;
+}
+
+.mobile-tutorial-error {
+  color: #ffab93;
+}
+
+.mobile-competition-summary {
+  display: grid;
+  gap: 4px;
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(94, 225, 184, 0.09);
+}
+
+.mobile-competition-summary span {
+  color: #8ce0bf;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-competition-summary p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.68rem;
+}
+
+.mobile-competition-matches {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-competition-matches li {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mobile-competition-matches li.current {
+  border-color: var(--mobile-player-color);
+}
+
+.mobile-competition-matches header,
+.mobile-competition-matches p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+}
+
+.mobile-competition-matches header span,
+.mobile-competition-matches small {
+  color: #8ce0bf;
+  font-size: 0.6rem;
+}
+
+.mobile-competition-matches p {
+  font-size: 0.7rem;
 }
 
 .mobile-card-actions {

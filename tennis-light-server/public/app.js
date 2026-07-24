@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.6";
+const GAME_VERSION = "v3.7";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7278,7 +7278,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.6");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.7");
 }
 
 function emptyMomentumState() {
@@ -16476,16 +16476,151 @@ function mobileCardPlayOptions(playerIndex, card) {
         : [],
     };
   };
-  if (isRemise(card)) {
-    return [
+  const options = isRemise(card)
+    ? [
       canPlayEffectMode(playerIndex, card) ? option("effect", "Jouer en Effet") : null,
       canPlayNormal(playerIndex, card) ? option("placement", "Jouer en Remise") : null,
-    ].filter(Boolean);
+    ]
+    : [
+      canPlayNormal(playerIndex, card) ? option("normal", "Jouer le coup") : null,
+      canPlayBoost(playerIndex, card) ? option("boost", "Jouer en Boost", true) : null,
+    ];
+  return options.filter((candidate) => {
+    if (!candidate) return false;
+    const mode = candidate.mode === "placement" || candidate.mode === "effect" ? candidate.mode : "normal";
+    return tutorialAllowsPlay(playerIndex, card, mode, candidate.mode === "boost");
+  });
+}
+
+function mobileModeContext() {
+  return {
+    label: currentModeLabel(),
+    score: currentMatchScoreText(),
+    competition: state.tournament?.active ? {
+      title: state.tournament.competitionName || "Compétition",
+      stage: tournamentStageLabel(),
+      round: humanTournamentRoundLabel() || tournamentStageLabel(),
+      surface: state.tournament.competitionSurfaceLabel || "",
+      points: state.tournament.weekly ? humanTournamentPoints().points : null,
+      champion: state.tournament.championCharacterId
+        ? tournamentPlayerLabel(state.tournament.championCharacterId)
+        : "",
+      league: Boolean(state.tournament.league),
+      standing: leagueHumanStandingReminder(),
+      matches: (state.tournament.matches || []).map((match) => ({
+        id: match.id,
+        label: match.label,
+        playerA: tournamentPlayerLabel(match.playerA),
+        playerB: tournamentPlayerLabel(match.playerB),
+        score: match.liveScore || match.score || "",
+        status: match.winner ? "Terminé" : state.tournament.currentMatch === match.id ? "En direct" : match.playerA && match.playerB ? "À jouer" : "À venir",
+        current: state.tournament.currentMatch === match.id,
+      })),
+    } : null,
+  };
+}
+
+function mobileTutorialState() {
+  const step = tutorialStep();
+  if (!state.tutorial.active || !step) return null;
+  const module = tutorialModule();
+  const narrator = TUTORIAL_NARRATORS[step.narrator ?? module.narrator] ?? TUTORIAL_NARRATORS.coachJu;
+  const showcaseCard = step.showcase?.cardId
+    ? CARD_LIBRARY.find((card) => card.id === step.showcase.cardId)
+    : null;
+  return {
+    title: step.title,
+    text: tutorialPlainText(step.text),
+    lesson: module.lesson,
+    progress: step.displayStep ? `Étape ${step.displayStep}/${module.totalDisplaySteps}` : "",
+    narrator: { name: narrator.name, role: narrator.role, artwork: narrator.image },
+    actionLabel: step.action ? tutorialActionLabel(step.action) : "",
+    error: state.tutorial.error || "",
+    waiting: state.tutorial.pendingAutoStepId === step.id,
+    canContinue: !step.action && state.tutorial.pendingAutoStepId !== step.id,
+    continueLabel: step.final ? "Terminer la leçon" : "Suivant",
+    showcase: showcaseCard ? {
+      name: showcaseCard.name,
+      artwork: CARD_IMAGES[showcaseCard.id] || CARD_BACK_IMAGE,
+      label: step.showcase.label || "",
+    } : null,
+  };
+}
+
+function continueMobileTutorial() {
+  const step = tutorialStep();
+  if (!state.tutorial.active || !step || step.action || state.tutorial.pendingAutoStepId === step.id) return { ok: false };
+  if (step.final) finishTutorial();
+  else advanceTutorial();
+  return { ok: true };
+}
+
+function mobileProgressionActions() {
+  const markup = renderProgressionButtons();
+  const definitions = [
+    ["next-solo-exchange", "data-next-solo-exchange", "Échange suivant"],
+    ["next-set-exchange", "data-next-set-exchange", "Échange suivant"],
+    ["next-full-set", "data-next-full-set", "Set suivant"],
+    ["tournament-next", "data-start-tournament-next-match", state.tournament.stage === "readyFinal" ? "Finale" : state.tournament.stage === "readySemi" ? "Demi-finale" : "Match suivant"],
+    ["exit-tournament", "data-exit-tournament", "Sortir du tournoi"],
+    ["return-club-house", "data-return-club-house", "Retour Club House"],
+  ];
+  const actions = definitions
+    .filter(([, attribute]) => markup.includes(attribute))
+    .map(([id, , label]) => ({ id, label }));
+  const replayAvailable = state.resultInfo?.setMatch?.matchOver
+    && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled
+    && [2, 3].includes(Number(state.setMatch?.targetSets));
+  if (replayAvailable) actions.push({ id: "replay-match", label: "Rejouer le match" });
+  return actions;
+}
+
+function runMobileProgressionAction(actionId) {
+  const available = new Set(mobileProgressionActions().map((action) => action.id));
+  if (!available.has(actionId)) return { ok: false };
+  if (actionId === "next-solo-exchange") nextSoloExchange();
+  else if (actionId === "next-set-exchange") nextSetExchange();
+  else if (actionId === "next-full-set") nextFullSet();
+  else if (actionId === "tournament-next") startTournamentNextMatchFromCenter();
+  else if (actionId === "exit-tournament") exitTournamentToLobby();
+  else if (actionId === "return-club-house") returnFriendlyMatchToClubHouse();
+  else if (actionId === "replay-match") startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+  return { ok: true };
+}
+
+function mobileResultState(playerIndex) {
+  if (!state.gameOver || !state.resultInfo) return null;
+  const winner = state.resultInfo.winner;
+  return {
+    winner: winner === playerIndex ? "PLAYER" : "OPPONENT",
+    winnerName: playerName(winner),
+    title: state.setMatch.matchOver ? "Match terminé" : state.setMatch.setOver ? "Set terminé" : "Échange terminé",
+    condition: rallyEndReasonLabel(),
+    reason: state.resultInfo.reason || "",
+    score: currentMatchScoreText(),
+    setsWon: state.setMatch.enabled
+      ? [Number(state.setMatch.setsWon?.[playerIndex] || 0), Number(state.setMatch.setsWon?.[opponentOf(playerIndex)] || 0)]
+      : null,
+    actions: SPECTATOR_MODE.enabled ? [] : mobileProgressionActions(),
+  };
+}
+
+function mobileConnectionState(playerIndex) {
+  if (SPECTATOR_MODE.enabled) {
+    return {
+      kind: "spectator",
+      label: "Mode spectateur",
+      detail: `${SPECTATOR_MODE.matchLabel || "Match en cours"} · lecture seule`,
+      synchronized: true,
+    };
   }
-  return [
-    canPlayNormal(playerIndex, card) ? option("normal", "Jouer le coup") : null,
-    canPlayBoost(playerIndex, card) ? option("boost", "Jouer en Boost", true) : null,
-  ].filter(Boolean);
+  if (!SERVER_SYNC.enabled) return null;
+  return {
+    kind: "online",
+    label: SERVER_SYNC.friendlyMatch ? "Match humain" : "Partie en ligne",
+    detail: `Salon ${SERVER_SYNC.roomId || ""} · siège ${playerIndex + 1}`,
+    synchronized: Boolean(SERVER_SYNC.ready),
+  };
 }
 
 function selectMobileCard(cardUid) {
@@ -16728,7 +16863,9 @@ function getMobileMatchViewState() {
   if (selectedCard && mobileCardUnavailableReason(playerIndex, selectedCard)) selectedCard = null;
   if (!selectedCard) mobileSelectedCardUid = null;
   return {
-    phase: state.gameOver
+    phase: SPECTATOR_MODE.enabled
+      ? state.gameOver ? "SPECTATOR_COMPLETE" : "SPECTATOR"
+      : state.gameOver
       ? "MATCH_COMPLETE"
       : selectedCard ? "CARD_SELECTED"
         : state.activePlayer === playerIndex ? "PLAYER_TURN" : "OPPONENT_CARD_REVEAL",
@@ -16748,7 +16885,7 @@ function getMobileMatchViewState() {
         ? state.resultInfo.winner === playerIndex ? "PLAYER" : "OPPONENT"
         : null,
     },
-    hand: (player?.hand || []).map((card) => {
+    hand: (SPECTATOR_MODE.enabled ? [] : player?.hand || []).map((card) => {
       const unavailableReason = mobileCardUnavailableReason(playerIndex, card);
       return {
         id: card.uid,
@@ -16764,13 +16901,18 @@ function getMobileMatchViewState() {
     selectedCardPreview: selectedCard ? mobileCardPreview(playerIndex, selectedCard) : null,
     playSubmissionLocked: mobilePlaySubmissionLocked,
     turnActions: {
-      canPass: !state.gameOver
+      canPass: !SPECTATOR_MODE.enabled && !state.gameOver
         && state.activePlayer === playerIndex
         && canUseSeat(playerIndex)
         && tutorialAllowsPass()
         && (!hasPlayedThisTurn(playerIndex) || canEndTurn(playerIndex)),
-      canEndTurn: canEndTurn(playerIndex),
+      canEndTurn: !SPECTATOR_MODE.enabled && canEndTurn(playerIndex),
     },
+    spectator: SPECTATOR_MODE.enabled,
+    modeContext: mobileModeContext(),
+    tutorial: mobileTutorialState(),
+    result: mobileResultState(playerIndex),
+    connection: mobileConnectionState(playerIndex),
     activeCard: activeCardSummary ? {
       ...activeCardSummary,
       resolutionMessage: state.effectNotice?.message || "",
@@ -16792,6 +16934,8 @@ window.tennisLightMobileAdapter = {
   endTurn: endMobileTurn,
   acknowledgeOpponentCard: acknowledgeMobileOpponentCard,
   confirmReturnToMenu: confirmMobileReturnToMenu,
+  continueTutorial: continueMobileTutorial,
+  runProgressionAction: runMobileProgressionAction,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;

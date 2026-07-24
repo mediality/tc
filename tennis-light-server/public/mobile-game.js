@@ -241,6 +241,67 @@
     `).join("")}</ol>`;
   }
 
+  function competitionMarkup(competition) {
+    if (!competition) return '<p class="mobile-sheet-empty">Aucune compétition active.</p>';
+    return `
+      <div class="mobile-competition-summary">
+        <span>${escapeText(competition.stage)}</span>
+        <strong>${escapeText(competition.title)}</strong>
+        <p>${escapeText([competition.round, competition.surface, competition.standing].filter(Boolean).join(" · "))}</p>
+        ${competition.points != null ? `<p><b>${competition.points}</b> points acquis</p>` : ""}
+        ${competition.champion ? `<p>Vainqueur : <b>${escapeText(competition.champion)}</b></p>` : ""}
+      </div>
+      <ol class="mobile-competition-matches">
+        ${competition.matches.map((match) => `
+          <li class="${match.current ? "current" : ""}">
+            <header><strong>${escapeText(match.label)}</strong><span>${escapeText(match.status)}</span></header>
+            <p>${escapeText(match.playerA || "À déterminer")} <i>—</i> ${escapeText(match.playerB || "À déterminer")}</p>
+            ${match.score ? `<small>${escapeText(match.score)}</small>` : ""}
+          </li>
+        `).join("")}
+      </ol>
+    `;
+  }
+
+  function tutorialMarkup(tutorial) {
+    if (!tutorial) return "";
+    return `
+      <aside class="mobile-tutorial" role="dialog" aria-modal="false" aria-labelledby="mobileTutorialTitle">
+        <header>
+          <img src="${tutorial.narrator.artwork}" alt="" />
+          <div><span>${escapeText(tutorial.lesson)}${tutorial.progress ? ` · ${escapeText(tutorial.progress)}` : ""}</span><strong>${escapeText(tutorial.narrator.name)}</strong></div>
+        </header>
+        ${tutorial.showcase ? `<figure><img src="${tutorial.showcase.artwork}" alt="${escapeText(tutorial.showcase.name)}" /><figcaption>${escapeText(tutorial.showcase.label)}</figcaption></figure>` : ""}
+        <h2 id="mobileTutorialTitle">${escapeText(tutorial.title)}</h2>
+        <p>${escapeText(tutorial.text)}</p>
+        ${tutorial.error ? `<p class="mobile-tutorial-error" role="alert">${escapeText(tutorial.error)}</p>` : ""}
+        ${tutorial.actionLabel ? `<p class="mobile-tutorial-action">${escapeText(tutorial.actionLabel)}</p>` : ""}
+        ${tutorial.waiting ? '<p class="mobile-tutorial-wait" role="status">Le coach prépare la suite…</p>' : ""}
+        ${tutorial.canContinue ? `<button type="button" data-mobile-tutorial-next>${escapeText(tutorial.continueLabel)}</button>` : ""}
+      </aside>
+    `;
+  }
+
+  function resultMarkup(result) {
+    if (!result) return "";
+    return `
+      <section class="mobile-match-result mobile-match-result--${result.winner.toLowerCase()}" aria-live="polite">
+        <span>${escapeText(result.condition)}</span>
+        <h2>${escapeText(result.title)}</h2>
+        <strong>${escapeText(result.winnerName)}</strong>
+        <p>${escapeText(result.reason)}</p>
+        <div><small>Score</small><b>${escapeText(result.score)}</b></div>
+        ${result.setsWon ? `<div><small>Sets gagnés</small><b>${result.setsWon[0]}–${result.setsWon[1]}</b></div>` : ""}
+        ${result.actions.length ? `<nav aria-label="Progression">${result.actions.map((action) => `<button type="button" data-mobile-progression="${action.id}">${escapeText(action.label)}</button>`).join("")}</nav>` : ""}
+      </section>
+    `;
+  }
+
+  function connectionMarkup(connection) {
+    if (!connection) return "";
+    return `<div class="mobile-connection mobile-connection--${connection.kind}" role="status"><strong>${escapeText(connection.label)}</strong><span>${escapeText(connection.detail)}</span><i>${connection.synchronized ? "Synchronisé" : "Connexion…"}</i></div>`;
+  }
+
   function mobileSheetMarkup(name, title, content) {
     const open = openMobilePanel === name;
     return `
@@ -318,8 +379,14 @@
       <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-auto-continue-opponent="${AUTO_CONTINUE_OPPONENT_REVEAL}">
         <header class="mobile-game-header">
           <span>Tennis Courts</span>
-          <strong>${viewState.phase === "MATCH_COMPLETE" ? "Match terminé" : "Match en cours"}</strong>
+          <strong>${viewState.result ? viewState.result.title : viewState.spectator ? "Lecture seule" : "Match en cours"}</strong>
         </header>
+        <section class="mobile-mode-context" aria-label="Contexte du match">
+          <div><span>Mode</span><strong>${escapeText(viewState.modeContext.label)}</strong></div>
+          <div><span>Score</span><strong>${escapeText(viewState.modeContext.score)}</strong></div>
+          ${viewState.modeContext.competition ? '<button type="button" data-mobile-open-competition aria-haspopup="dialog">Compétition</button>' : ""}
+        </section>
+        ${connectionMarkup(viewState.connection)}
         <ol class="mobile-set-scores" aria-label="Score des sets">${scoreMarkup(viewState.score)}</ol>
         <section class="mobile-player-pair" aria-label="Joueurs">
           ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT")}
@@ -339,15 +406,17 @@
           <header><strong>Dernière carte jouée</strong></header>
           ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
         </section>
-        ${selectedPreviewMarkup(viewState)}
-        <div class="mobile-turn-actions" aria-label="Actions du tour">
+        ${viewState.spectator ? "" : selectedPreviewMarkup(viewState)}
+        ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
           <button type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"}>Passer</button>
           <button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>Terminer le tour</button>
-        </div>
-        <section class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}">
+        </div>`}
+        ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}">
           <header><strong>Votre main</strong><span>${opponentInteractionLocked ? "Tour adverse en cours" : viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
-        </section>
+        </section>`}
+        ${resultMarkup(viewState.result)}
+        ${tutorialMarkup(viewState.tutorial)}
         <div class="mobile-card-explanation hidden" role="dialog" aria-modal="true" aria-labelledby="mobileCardExplanationTitle">
           <button class="mobile-card-explanation-backdrop" type="button" data-mobile-close-explanation aria-label="Fermer"></button>
           <section>
@@ -386,6 +455,7 @@
         </nav>
         ${mobileSheetMarkup("bonuses", "Bonus actifs", bonusesMarkup(viewState.bonuses))}
         ${mobileSheetMarkup("history", "Historique du match", historyMarkup(viewState.history))}
+        ${viewState.modeContext.competition ? mobileSheetMarkup("competition", "Compétition", competitionMarkup(viewState.modeContext.competition)) : ""}
         ${returnConfirmationMarkup(viewState.returnToMenu)}
       </div>
     `;
@@ -697,6 +767,18 @@
     });
     root?.querySelector("[data-mobile-open-bonuses]")?.addEventListener("click", (event) => {
       showMobilePanel("bonuses", event.currentTarget);
+    });
+    root?.querySelector("[data-mobile-open-competition]")?.addEventListener("click", (event) => {
+      showMobilePanel("competition", event.currentTarget);
+    });
+    root?.querySelector("[data-mobile-tutorial-next]")?.addEventListener("click", () => {
+      window.tennisLightMobileAdapter?.continueTutorial();
+    });
+    root?.querySelectorAll("[data-mobile-progression]").forEach((button) => {
+      button.addEventListener("click", () => {
+        button.disabled = true;
+        window.tennisLightMobileAdapter?.runProgressionAction(button.dataset.mobileProgression);
+      });
     });
     const historyButton = root?.querySelector("[data-mobile-open-history]");
     historyButton?.addEventListener("click", (event) => showMobilePanel("history", event.currentTarget));
