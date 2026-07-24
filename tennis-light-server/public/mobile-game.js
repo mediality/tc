@@ -25,6 +25,7 @@
   let transientDialogTrigger = null;
   let opponentAutoContinueTimer = null;
   let playerHadControlOnPreviousRender = false;
+  let passWasVisibleOnPreviousRender = false;
   let passConfirmationOpen = false;
 
   function acknowledgedOpponentCardIds() {
@@ -259,16 +260,25 @@
   function historyMarkup(history) {
     if (!history.length) return '<p class="mobile-sheet-empty">L’échange va commencer.</p>';
     return `<ol class="mobile-history-list">${history.map((entry) => `
-      <li class="mobile-history-entry mobile-history-entry--${escapeText(entry.type)}">
+      <li class="mobile-history-entry mobile-history-entry--${escapeText(entry.type)} mobile-history-entry--side-${escapeText(entry.playerSide)}">
         <div>
           <span>${escapeText(entry.label)}</span>
           ${entry.variationTypes.map((type) => `<small>${escapeText(type)}</small>`).join("")}
         </div>
         ${entry.card ? `<button type="button" data-mobile-history-card="${escapeText(entry.id)}" aria-label="Agrandir ${escapeText(entry.card.name)}"><img src="${entry.card.artwork}" alt="" loading="lazy" decoding="async" /></button>` : ""}
-        <p>${escapeText(entry.message)}</p>
+        <p>${historyMessageMarkup(entry)}</p>
         ${entry.variations.length ? `<ul>${entry.variations.map((variation) => `<li>${escapeText(variation)}</li>`).join("")}</ul>` : ""}
       </li>
     `).join("")}</ol>`;
+  }
+
+  function historyMessageMarkup(entry) {
+    const message = String(entry.message || "");
+    const playerName = String(entry.playerName || "");
+    if (!playerName) return escapeText(message);
+    const index = message.toLocaleLowerCase("fr").indexOf(playerName.toLocaleLowerCase("fr"));
+    if (index < 0) return escapeText(message);
+    return `${escapeText(message.slice(0, index))}<strong class="mobile-history-player-name">${escapeText(message.slice(index, index + playerName.length))}</strong>${escapeText(message.slice(index + playerName.length))}`;
   }
 
   function competitionMarkup(competition) {
@@ -328,10 +338,10 @@
       <p class="mobile-assistance-note">${assistance.stopOpponentCard
     ? "Activé : utilisez Continuer pour chaque carte adverse."
     : "Désactivé : chaque carte adverse reste visible une seconde puis la partie continue."}</p>
-      <div class="mobile-assistance-option">
+      <label class="mobile-assistance-option">
         <span><strong>Plein écran</strong><small>Masquer l’interface du navigateur pendant le match.</small></span>
-        <button type="button" data-mobile-fullscreen aria-pressed="${assistance.fullscreenActive}" ${assistance.fullscreenAvailable ? "" : "disabled"}>${assistance.fullscreenActive ? "Quitter" : "Activer"}</button>
-      </div>
+        <input type="checkbox" data-mobile-fullscreen ${assistance.fullscreenActive ? "checked" : ""} ${assistance.fullscreenAvailable ? "" : "disabled"} />
+      </label>
       <p class="mobile-assistance-note">${assistance.fullscreenAvailable
     ? assistance.fullscreenActive ? "Activé : le match occupe tout l’écran." : "Désactivé par défaut."
     : "Le plein écran n’est pas disponible dans ce navigateur."}</p>
@@ -570,6 +580,7 @@
     if (nextHand) nextHand.scrollLeft = previousHandScrollLeft;
     if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
     anchorMobileGameToBottom(viewState);
+    anchorPassButtonWhenItAppears(viewState);
   }
 
   function anchorMobileGameToBottom(viewState) {
@@ -582,6 +593,21 @@
     if (!shouldAnchor) return;
     window.requestAnimationFrame(() => {
       root?.querySelector("#mobileGameHand")?.scrollIntoView({ block: "end", behavior: "auto" });
+    });
+  }
+
+  function anchorPassButtonWhenItAppears(viewState) {
+    const passIsVisible = Boolean(
+      viewState.turnActions.canPass
+      && !viewState.turnActions.canUndo
+      && !pendingOpponentReveal
+      && !viewState.selectedCardId
+    );
+    const shouldAnchor = passIsVisible && !passWasVisibleOnPreviousRender && !openMobilePanel;
+    passWasVisibleOnPreviousRender = passIsVisible;
+    if (!shouldAnchor) return;
+    window.requestAnimationFrame(() => {
+      root?.querySelector("[data-mobile-pass]")?.scrollIntoView({ block: "end", behavior: "auto" });
     });
   }
 
@@ -974,21 +1000,21 @@
       if (!(input instanceof HTMLInputElement)) return;
       window.tennisLightMobileAdapter?.setAssistance({ stopOpponentCard: input.checked });
     });
-    root?.querySelector("[data-mobile-fullscreen]")?.addEventListener("click", async (event) => {
-      const button = event.currentTarget;
-      if (!(button instanceof HTMLButtonElement)) return;
+    root?.querySelector("[data-mobile-fullscreen]")?.addEventListener("change", async (event) => {
+      const input = event.currentTarget;
+      if (!(input instanceof HTMLInputElement)) return;
       const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
       try {
-        if (!active) {
+        if (input.checked && !active) {
           const request = document.documentElement.requestFullscreen
             || document.documentElement.webkitRequestFullscreen;
           await request?.call(document.documentElement);
-        } else {
+        } else if (!input.checked && active) {
           const exit = document.exitFullscreen || document.webkitExitFullscreen;
           await exit?.call(document);
         }
       } catch (error) {
-        button.setAttribute("aria-pressed", String(Boolean(document.fullscreenElement || document.webkitFullscreenElement)));
+        input.checked = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
       }
       renderMobileGame(true);
     });

@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.16";
+const GAME_VERSION = "v3.17";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1504,6 +1504,102 @@ const GAMEPLAY_ASSIST = {
   stopOpponentCard: localStorage.getItem("tennisLightMobileStopOpponentCard") !== "false",
   panelOpen: false,
 };
+const LOCAL_MOBILE_MATCH_STORAGE_PREFIX = "tennisLightLocalMobileMatch:";
+const LOCAL_MOBILE_MATCH_QUERY = "localMatch";
+const LOCAL_MOBILE_MATCH_EXIT_GRACE_MS = 20000;
+let localMobileMatchSaveTimer = null;
+
+function localMobileMatchId() {
+  return new URLSearchParams(window.location.search).get(LOCAL_MOBILE_MATCH_QUERY);
+}
+
+function localMobileMatchStorageKey(matchId) {
+  return `${LOCAL_MOBILE_MATCH_STORAGE_PREFIX}${matchId}`;
+}
+
+function ensureLocalMobileMatchSession() {
+  if (!document.body.classList.contains("mobile-game-view")
+    || SERVER_SYNC.enabled
+    || FRIENDLY_TOURNAMENT.enabled
+    || SPECTATOR_MODE.enabled
+    || !state.players?.length) return null;
+  let matchId = localMobileMatchId();
+  if (!matchId) {
+    matchId = crypto.randomUUID();
+    const params = new URLSearchParams(window.location.search);
+    params.set(LOCAL_MOBILE_MATCH_QUERY, matchId);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+  }
+  return matchId;
+}
+
+function saveLocalMobileMatchSession() {
+  const matchId = ensureLocalMobileMatchSession();
+  if (!matchId) return;
+  const record = {
+    schemaVersion: 1,
+    gameVersion: GAME_VERSION,
+    matchId,
+    status: state.gameOver ? "completed" : "active",
+    savedAt: new Date().toISOString(),
+    expiresAt: state.gameOver ? Date.now() + (7 * 24 * 60 * 60 * 1000) : null,
+    snapshot: {
+      state: cloneData(state),
+      soloAi: cloneData(SOLO_AI),
+      humanMatchTelemetry: cloneData(HUMAN_MATCH_TELEMETRY.active),
+    },
+  };
+  try {
+    localStorage.setItem(localMobileMatchStorageKey(matchId), JSON.stringify(record));
+  } catch (error) {
+    // La partie reste jouable si le stockage local est indisponible.
+  }
+}
+
+function scheduleLocalMobileMatchSave() {
+  if (!document.body.classList.contains("mobile-game-view") || SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return;
+  window.clearTimeout(localMobileMatchSaveTimer);
+  localMobileMatchSaveTimer = window.setTimeout(saveLocalMobileMatchSession, 80);
+}
+
+function expireLocalMobileMatchSessionAfterExit() {
+  const matchId = localMobileMatchId();
+  if (!matchId) return;
+  try {
+    const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
+    if (record) {
+      record.status = state.gameOver ? "completed" : "paused";
+      record.expiresAt = state.gameOver ? record.expiresAt : Date.now() + LOCAL_MOBILE_MATCH_EXIT_GRACE_MS;
+      record.savedAt = new Date().toISOString();
+      localStorage.setItem(localMobileMatchStorageKey(matchId), JSON.stringify(record));
+    }
+  } catch (error) {
+    // La sortie du match ne doit jamais être bloquée par le stockage.
+  }
+  const params = new URLSearchParams(window.location.search);
+  params.delete(LOCAL_MOBILE_MATCH_QUERY);
+  const nextQuery = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
+}
+
+function restoreLocalMobileMatchFromUrl() {
+  const matchId = localMobileMatchId();
+  if (!matchId || SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return false;
+  try {
+    const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
+    if (!record?.snapshot || (record.expiresAt && Number(record.expiresAt) <= Date.now())) {
+      localStorage.removeItem(localMobileMatchStorageKey(matchId));
+      return false;
+    }
+    if (!restoreStateSnapshot(record.snapshot)) return false;
+    showGameScreen();
+    applySurfaceBackground(state.tournament?.competitionSurface);
+    render();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
 
 const state = {
   players: [],
@@ -2196,6 +2292,7 @@ function showGameNewsDialog(newsId) {
   backdrop.className = "modal-backdrop pro-news-backdrop";
   backdrop.innerHTML = `
     <article class="modal pro-news-modal" role="dialog" aria-modal="true" aria-labelledby="proNewsTitle" aria-describedby="proNewsMessage">
+      <button class="pro-news-close" type="button" data-close-pro-news aria-label="Fermer l’actualité">×</button>
       <div class="pro-news-card-frame">
         <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Carte de ${characterNameFromId(characterId)}`)}" />
       </div>
@@ -3979,6 +4076,7 @@ function showGameScreen() {
   els.aiClubHouseScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
   window.TennisLightMobileGame?.selectViewForMatch();
+  ensureLocalMobileMatchSession();
 }
 
 function hideGameScreen() {
@@ -4809,6 +4907,7 @@ async function confirmReturnToLobby() {
   } catch (error) {
     state.log.unshift(`Sortie du salon en ligne impossible : ${error.message}`);
   }
+  expireLocalMobileMatchSessionAfterExit();
   SOLO_AI.enabled = false;
   stopSoloTimers();
   leaveOnlineRoom();
@@ -7279,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.16");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.17");
 }
 
 function emptyMomentumState() {
@@ -12851,7 +12950,9 @@ function wrappedRandomBonus(player, label, reason, remainingExchanges = null) {
     ...source,
     id: `${label.toLowerCase().replace(/\s+/g, "-")}-${crypto.randomUUID()}`,
     sourceBonusId: source.id,
-    label: `${label} · ${source.label}`,
+    label: String(source.label || "").toLocaleLowerCase("fr").startsWith(label.toLocaleLowerCase("fr"))
+      ? source.label
+      : `${label} · ${source.label}`,
     reason,
     remainingExchanges,
   };
@@ -14278,6 +14379,7 @@ function render() {
     maybeRunSoloAI();
   }
   window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
+  scheduleLocalMobileMatchSave();
 }
 
 function adjustCardMagnificationOrigins(root = document) {
@@ -15979,9 +16081,12 @@ function renderCoachChoiceModal() {
   const player = state.players[playerIndex];
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop coach-choice-backdrop";
+  const choiceTitle = mode === "discardHandForPower"
+    ? "Supprimer une carte pour gagner en puissance"
+    : "Piocher une carte non distribuée";
   backdrop.innerHTML = `
-    <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir une carte non distribuée">
-      <h2>${characterOf(player).name}</h2>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="coachChoiceTitle">
+      <h2 id="coachChoiceTitle">${choiceTitle}</h2>
       <p>${mode === "discardHandForPower" ? `Choisis une carte de la main de ${escapeHtml(displayPlayerName(player))} à supprimer pour gagner 3 puissance.` : `Choisis une carte non distribuée à ajouter à la main de ${escapeHtml(displayPlayerName(player))}.`}</p>
       <button class="small-button" type="button" data-cancel-choice>Annuler et revenir au début du tour</button>
       <div class="choice-grid">
@@ -16801,6 +16906,13 @@ function mobilePassProjection(playerIndex) {
 function mobileHistoryEntries() {
   return state.log.map((line, index) => {
     const normalized = String(line || "").toLocaleLowerCase("fr");
+    const actorIndex = state.players.findIndex((player) => {
+      const names = [displayPlayerName(player), player?.name, player?.nickname]
+        .filter(Boolean)
+        .map((name) => String(name).toLocaleLowerCase("fr"));
+      return names.some((name) => normalized.includes(name));
+    });
+    const localPlayerIndex = mobileLocalPlayerIndex();
     const card = CARD_LIBRARY.find((item) => normalized.includes(String(item.name || "").toLocaleLowerCase("fr")));
     const isPlayedLine = /^.+ joue .+ :/.test(String(line || ""));
     const playedAction = card && isPlayedLine
@@ -16826,6 +16938,8 @@ function mobileHistoryEntries() {
       type: actionLogEntryType(line),
       label: actionLogEntryLabel(actionLogEntryType(line)),
       message: String(line || ""),
+      playerName: actorIndex >= 0 ? displayPlayerName(state.players[actorIndex]) : "",
+      playerSide: actorIndex < 0 ? "information" : actorIndex === localPlayerIndex ? "player" : "opponent",
       variationTypes,
       variations,
       card: card ? {
@@ -17074,6 +17188,7 @@ restoreLocalTutorialProgress(null);
 initMenu();
 initFriendlyTournament();
 initServerSync();
+restoreLocalMobileMatchFromUrl();
 window.clearInterval(PROFILE_ACTIVITY.timer);
 PROFILE_ACTIVITY.timer = window.setInterval(publishProfileActivity, 1200);
 publishProfileActivity();

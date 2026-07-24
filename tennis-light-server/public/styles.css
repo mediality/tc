@@ -3262,12 +3262,6 @@ h1 {
 
 .character-card.exchange-winner {
   z-index: 2;
-  animation: exchange-winner-halo .55s ease-in-out infinite alternate;
-}
-
-@keyframes exchange-winner-halo {
-  from { box-shadow: 0 0 0 3px rgba(255, 255, 255, .72), 0 0 18px rgba(255, 255, 255, .62); }
-  to { box-shadow: 0 0 0 5px rgba(255, 255, 255, .98), 0 0 40px rgba(255, 255, 255, .98); }
 }
 
 .character-card img,
@@ -4908,6 +4902,7 @@ h1 {
 }
 
 .pro-news-modal {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(170px, 0.72fr) minmax(260px, 1.28fr);
   align-items: center;
@@ -4917,6 +4912,29 @@ h1 {
   border-radius: 18px;
   padding: clamp(18px, 4vw, 30px);
   background: linear-gradient(145deg, #f9fffc 0%, #eef8f5 58%, #fcecf2 100%);
+}
+
+.pro-news-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 1.65rem;
+  line-height: 1;
+  background: rgba(5, 20, 31, 0.82);
+}
+
+.pro-news-copy {
+  max-height: min(72vh, 680px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .pro-news-card-frame {
@@ -4961,11 +4979,18 @@ h1 {
     grid-template-columns: 1fr;
     max-height: calc(100vh - 24px);
     padding: 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .pro-news-card-frame {
     width: min(190px, 52vw);
     margin: 0 auto;
+  }
+
+  .pro-news-copy {
+    max-height: none;
+    overflow: visible;
   }
 }
 
