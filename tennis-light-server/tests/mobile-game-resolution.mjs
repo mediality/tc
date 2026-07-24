@@ -12,7 +12,7 @@ assert.match(app, /function mobileResolutionValues\(playerIndex\)/);
 assert.match(app, /function mobileResolutionDeltas\(before, after\)/);
 assert.match(app, /function mobileNewResolutionMessages\(previousFirstLog\)/);
 assert.match(app, /const before = mobileResolutionValues\(playerIndex\)/);
-assert.match(app, /playCard\(playerIndex, card\.uid, false, null, mode\)/);
+assert.match(app, /playCard\(playerIndex, card\.uid, boosted, sacrificeUid, mode\)/);
 assert.match(app, /const after = mobileResolutionValues\(playerIndex\)/);
 assert.match(app, /resolutionId: resolvedCard\?\.playedUid/);
 assert.match(app, /deltas: mobileResolutionDeltas\(before, after\)/);
@@ -43,7 +43,7 @@ assert.deepEqual(
 
 assert.match(mobileApp, /if \(resolutionSequence \|\| playButton\.disabled \|\| !viewState\.selectedCardId\) return/);
 assert.match(mobileApp, /setResolutionLock\(true\)/);
-assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.playSelectedCard\(\)/);
+assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.playSelectedCard\(\{/);
 assert.match(mobileApp, /animateCardBetween\(selectedImage, fromBounds, targetBounds, 320, token\)/);
 assert.match(mobileApp, /waitForResolutionStep\(700, token\)/);
 assert.match(mobileApp, /animateCardBetween\(sceneImage, sceneCardBounds, lastBounds, 240, token\)/);

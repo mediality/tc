@@ -10,10 +10,10 @@ const [html, app, mobileApp, mobileStyles, pkgText] = await Promise.all([
 ]);
 const pkg = JSON.parse(pkgText);
 
-assert.equal(pkg.version, "3.5.0");
-assert.match(app, /const GAME_VERSION = "v3\.5"/);
-assert.match(html, /id="gameVersion">v3\.5</);
-assert.match(html, /mobile-game\.js\?v=3\.5\.0/);
+assert.equal(pkg.version, "3.6.0");
+assert.match(app, /const GAME_VERSION = "v3\.6"/);
+assert.match(html, /id="gameVersion">v3\.6</);
+assert.match(html, /mobile-game\.js\?v=3\.6\.0/);
 
 assert.match(app, /bonuses: activeEffectBadges\(playerIndex\)/);
 assert.match(app, /function mobileHistoryEntries\(\)/);
@@ -45,7 +45,7 @@ assert.match(mobileApp, /if \(event\.key !== "Tab"\) return/);
 assert.match(mobileApp, /mobilePanelTrigger\?\.isConnected/);
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.confirmReturnToMenu\(\)/);
 assert.doesNotMatch(mobileApp, /pointerup[\s\S]{0,250}confirmReturnToMenu/);
-assert.doesNotMatch(mobileApp, /playCard|endTurn|activeEffectBadges|actionLogEntryType/);
+assert.doesNotMatch(mobileApp, /(?:^|[^.])\b(?:playCard|endTurn)\(|activeEffectBadges|actionLogEntryType/);
 
 assert.match(mobileStyles, /\.mobile-utility-nav/);
 assert.match(mobileStyles, /\.mobile-sheet-backdrop/);

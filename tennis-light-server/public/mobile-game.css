@@ -17,6 +17,8 @@ body.mobile-game-view .mobile-game-app {
 }
 
 .mobile-game-shell {
+  --mobile-player-color: #5ee1b8;
+  --mobile-opponent-color: #f2a37f;
   display: grid;
   gap: 10px;
   width: 100%;
@@ -77,9 +79,13 @@ body.mobile-game-view .mobile-game-app {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.mobile-set-score--player span:first-child,
+.mobile-set-score--player span:first-child {
+  color: var(--mobile-player-color);
+  font-weight: 900;
+}
+
 .mobile-set-score--opponent span:last-child {
-  color: #9ef0ce;
+  color: var(--mobile-opponent-color);
   font-weight: 900;
 }
 
@@ -105,6 +111,14 @@ body.mobile-game-view .mobile-game-app {
   background: rgba(4, 28, 42, 0.74);
 }
 
+.mobile-player--player {
+  border-left: 4px solid var(--mobile-player-color);
+}
+
+.mobile-player--opponent {
+  border-left: 4px solid var(--mobile-opponent-color);
+}
+
 .mobile-bonus-button {
   position: absolute;
   left: 60px;
@@ -126,7 +140,14 @@ body.mobile-game-view .mobile-game-app {
 
 .mobile-player--active {
   border-color: rgba(94, 225, 184, 0.5);
-  box-shadow: inset 3px 0 #5ee1b8;
+}
+
+.mobile-player--active.mobile-player--player {
+  border-left-color: var(--mobile-player-color);
+}
+
+.mobile-player--active.mobile-player--opponent {
+  border-left-color: var(--mobile-opponent-color);
 }
 
 .mobile-player-avatar {
@@ -228,10 +249,20 @@ body.mobile-game-view .mobile-game-app {
 }
 
 .mobile-power i {
-  font-size: 0.65rem;
+  font-size: 1.25rem;
   font-style: normal;
   font-weight: 950;
   opacity: 0.5;
+}
+
+.mobile-power--winner-player {
+  background: var(--mobile-player-color);
+  box-shadow: inset 0 0 0 4px var(--mobile-player-color);
+}
+
+.mobile-power--winner-opponent {
+  background: var(--mobile-opponent-color);
+  box-shadow: inset 0 0 0 4px var(--mobile-opponent-color);
 }
 
 .mobile-power p {
@@ -1064,6 +1095,93 @@ body.mobile-game-view .mobile-game-app {
 
 .mobile-selection-detail ul {
   padding-left: 17px;
+}
+
+.mobile-play-modes,
+.mobile-boost-sacrifices {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.mobile-play-modes legend,
+.mobile-boost-sacrifices legend {
+  margin-bottom: 4px;
+  color: #a9efd7;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mobile-play-modes button {
+  display: grid;
+  gap: 2px;
+  min-height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 11px;
+  padding: 7px 10px;
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: left;
+}
+
+.mobile-play-modes button[aria-pressed="true"],
+.mobile-boost-sacrifices button[aria-pressed="true"] {
+  border-color: var(--mobile-player-color);
+  background: rgba(94, 225, 184, 0.16);
+}
+
+.mobile-play-modes span {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.64rem;
+}
+
+.mobile-boost-sacrifices {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mobile-boost-sacrifices legend {
+  grid-column: 1 / -1;
+}
+
+.mobile-boost-sacrifices button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 5px;
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: left;
+}
+
+.mobile-boost-sacrifices img {
+  width: 34px;
+  height: 42px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.mobile-turn-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mobile-turn-actions button {
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 11px;
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.09);
+  font-weight: 850;
 }
 
 .mobile-card-actions {

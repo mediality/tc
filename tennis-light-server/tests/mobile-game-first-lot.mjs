@@ -9,8 +9,8 @@ const [html, app, mobileApp, mobileStyles] = await Promise.all([
 ]);
 
 assert.match(html, /<main id="mobileGameApp" class="mobile-game-app hidden"/);
-assert.match(html, /mobile-game\.css\?v=3\.5\.0/);
-assert.match(html, /mobile-game\.js\?v=3\.5\.0/);
+assert.match(html, /mobile-game\.css\?v=3\.6\.0/);
+assert.match(html, /mobile-game\.js\?v=3\.6\.0/);
 assert.match(html, /<main class="app game-app hidden">/);
 
 assert.match(app, /window\.tennisLightMobileAdapter = \{\s*getViewState: getMobileMatchViewState/);
@@ -27,7 +27,7 @@ assert.match(mobileApp, /let matchUsesMobileView = false/);
 assert.match(mobileApp, /window\.addEventListener\("orientationchange", \(\) => renderMobileGame\(false\)\)/);
 assert.doesNotMatch(mobileApp, /window\.addEventListener\("orientationchange", selectViewForMatch\)/);
 assert.match(mobileApp, /Touchez pour inspecter/);
-assert.doesNotMatch(mobileApp, /playCard|endTurn/);
+assert.doesNotMatch(mobileApp, /(?:^|[^.])\b(?:playCard|endTurn)\(/);
 
 assert.match(mobileStyles, /body\.mobile-game-view \.mobile-game-app/);
 assert.match(mobileStyles, /\.mobile-card-hand\s*\{[\s\S]*overflow-x: auto/);

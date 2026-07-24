@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.5";
+const GAME_VERSION = "v3.6";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7278,7 +7278,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.5");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.6");
 }
 
 function emptyMomentumState() {
@@ -16451,7 +16451,41 @@ function mobileCardPreview(playerIndex, card) {
     effects: [card.effect || "Aucun effet"].filter(Boolean),
     resultingPlacement,
     appliedBonuses,
+    playOptions: mobileCardPlayOptions(playerIndex, card),
   };
+}
+
+function mobileCardPlayOptions(playerIndex, card) {
+  const player = state.players[playerIndex];
+  if (!player || !card) return [];
+  const option = (mode, label, boosted = false) => {
+    const stats = getCardStats(player, card, boosted);
+    return {
+      mode,
+      label,
+      realCost: effectiveCost(player, card),
+      realPower: stats.power,
+      resultingPlacement: totalTurnPlacement(playerIndex, card, boosted),
+      requiresSacrifice: boosted,
+      sacrifices: boosted
+        ? player.hand.filter((candidate) => candidate.uid !== card.uid).map((candidate) => ({
+          id: candidate.uid,
+          name: candidate.name,
+          artwork: CARD_IMAGES[candidate.id] || CARD_BACK_IMAGE,
+        }))
+        : [],
+    };
+  };
+  if (isRemise(card)) {
+    return [
+      canPlayEffectMode(playerIndex, card) ? option("effect", "Jouer en Effet") : null,
+      canPlayNormal(playerIndex, card) ? option("placement", "Jouer en Remise") : null,
+    ].filter(Boolean);
+  }
+  return [
+    canPlayNormal(playerIndex, card) ? option("normal", "Jouer le coup") : null,
+    canPlayBoost(playerIndex, card) ? option("boost", "Jouer en Boost", true) : null,
+  ].filter(Boolean);
 }
 
 function selectMobileCard(cardUid) {
@@ -16618,13 +16652,21 @@ function acknowledgeMobileOpponentCard(cardId) {
   };
 }
 
-function playSelectedMobileCard() {
+function playSelectedMobileCard(intent = {}) {
   if (mobilePlaySubmissionLocked || !mobileSelectedCardUid) return false;
   const playerIndex = mobileLocalPlayerIndex();
   const card = state.players[playerIndex]?.hand.find((candidate) => candidate.uid === mobileSelectedCardUid);
   if (!card || mobileCardUnavailableReason(playerIndex, card)) return false;
-  const mode = isRemise(card) ? "effect" : "normal";
-  if (!tutorialAllowsPlay(playerIndex, card, mode, false)) return false;
+  const availableOption = mobileCardPlayOptions(playerIndex, card)
+    .find((option) => option.mode === intent.mode);
+  if (!availableOption) return { ok: false, reason: "Ce mode de jeu n’est pas disponible." };
+  const boosted = availableOption.mode === "boost";
+  const sacrificeUid = boosted ? intent.sacrificeUid : null;
+  if (boosted && !availableOption.sacrifices.some((candidate) => candidate.id === sacrificeUid)) {
+    return { ok: false, reason: "Choisissez une carte à sacrifier pour le Boost." };
+  }
+  const mode = availableOption.mode === "placement" ? "placement" : availableOption.mode === "effect" ? "effect" : "normal";
+  if (!tutorialAllowsPlay(playerIndex, card, mode, boosted)) return false;
   const before = mobileResolutionValues(playerIndex);
   const previousFirstLog = state.log[0] || null;
   const submittedCard = {
@@ -16635,7 +16677,7 @@ function playSelectedMobileCard() {
   mobilePlaySubmissionLocked = true;
   mobileSelectedCardUid = null;
   try {
-    playCard(playerIndex, card.uid, false, null, mode);
+    playCard(playerIndex, card.uid, boosted, sacrificeUid, mode);
     completeTutorialAction({ kind: "play", playerIndex, cardId: card.id, mode });
     const resolvedCard = state.latestPlayedCard?.owner === playerIndex
       ? state.latestPlayedCard
@@ -16659,6 +16701,21 @@ function playSelectedMobileCard() {
   } finally {
     mobilePlaySubmissionLocked = false;
   }
+}
+
+function passMobileTurn() {
+  const playerIndex = mobileLocalPlayerIndex();
+  if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return { ok: false };
+  if (!tutorialAllowsPass()) return { ok: false, reason: "Le tutoriel demande une autre action." };
+  pass(playerIndex);
+  return { ok: true };
+}
+
+function endMobileTurn() {
+  const playerIndex = mobileLocalPlayerIndex();
+  if (!canEndTurn(playerIndex)) return { ok: false };
+  endTurn(playerIndex);
+  return { ok: true };
 }
 
 function getMobileMatchViewState() {
@@ -16687,6 +16744,9 @@ function getMobileMatchViewState() {
       contextMessage: state.gameOver
         ? `Échange remporté par ${playerName(state.resultInfo?.winner)}`
         : `${displayPlayerName(activePlayer())} doit jouer`,
+      winner: state.gameOver && Number.isInteger(state.resultInfo?.winner)
+        ? state.resultInfo.winner === playerIndex ? "PLAYER" : "OPPONENT"
+        : null,
     },
     hand: (player?.hand || []).map((card) => {
       const unavailableReason = mobileCardUnavailableReason(playerIndex, card);
@@ -16703,6 +16763,14 @@ function getMobileMatchViewState() {
     selectedCardId: selectedCard?.uid || null,
     selectedCardPreview: selectedCard ? mobileCardPreview(playerIndex, selectedCard) : null,
     playSubmissionLocked: mobilePlaySubmissionLocked,
+    turnActions: {
+      canPass: !state.gameOver
+        && state.activePlayer === playerIndex
+        && canUseSeat(playerIndex)
+        && tutorialAllowsPass()
+        && (!hasPlayedThisTurn(playerIndex) || canEndTurn(playerIndex)),
+      canEndTurn: canEndTurn(playerIndex),
+    },
     activeCard: activeCardSummary ? {
       ...activeCardSummary,
       resolutionMessage: state.effectNotice?.message || "",
@@ -16720,6 +16788,8 @@ window.tennisLightMobileAdapter = {
   selectCard: selectMobileCard,
   cancelCardSelection: cancelMobileCardSelection,
   playSelectedCard: playSelectedMobileCard,
+  passTurn: passMobileTurn,
+  endTurn: endMobileTurn,
   acknowledgeOpponentCard: acknowledgeMobileOpponentCard,
   confirmReturnToMenu: confirmMobileReturnToMenu,
 };

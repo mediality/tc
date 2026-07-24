@@ -20,6 +20,8 @@
   let detailedMobileCard = null;
   let cardDetailParentPanel = null;
   let cardDetailParentTrigger = null;
+  let selectedPlayMode = null;
+  let selectedBoostSacrificeId = null;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -114,6 +116,13 @@
   function selectedPreviewMarkup(viewState) {
     const preview = viewState.selectedCardPreview;
     if (!preview) return "";
+    const options = preview.playOptions || [];
+    const activeOption = options.find((option) => option.mode === selectedPlayMode)
+      || (options.length === 1 ? options[0] : null);
+    const selectedSacrifice = activeOption?.sacrifices?.find((card) => card.id === selectedBoostSacrificeId);
+    const validationDisabled = viewState.playSubmissionLocked
+      || !activeOption
+      || (activeOption.requiresSacrifice && !selectedSacrifice);
     return `
       <section class="mobile-selection-preview" aria-label="Aperçu de la carte sélectionnée">
         <dl>
@@ -131,10 +140,29 @@
     ? `<ul>${preview.appliedBonuses.map((bonus) => `<li>${escapeText(bonus)}</li>`).join("")}</ul>`
     : "<p>Aucun bonus appliqué</p>"}
         </div>
+        <fieldset class="mobile-play-modes">
+          <legend>Comment jouer cette carte ?</legend>
+          ${options.map((option) => `
+            <button type="button" data-mobile-play-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}">
+              <strong>${escapeText(option.label)}</strong>
+              <span>-${option.realCost} END · +${option.realPower} puissance · placement ${option.resultingPlacement}</span>
+            </button>
+          `).join("")}
+        </fieldset>
+        ${activeOption?.requiresSacrifice ? `
+          <fieldset class="mobile-boost-sacrifices">
+            <legend>Carte à sacrifier pour le Boost</legend>
+            ${activeOption.sacrifices.map((card) => `
+              <button type="button" data-mobile-boost-sacrifice="${escapeText(card.id)}" aria-pressed="${card.id === selectedBoostSacrificeId}">
+                <img src="${card.artwork}" alt="" /><span>${escapeText(card.name)}</span>
+              </button>
+            `).join("")}
+          </fieldset>
+        ` : ""}
       </section>
       <div class="mobile-card-actions" aria-label="Actions de la carte sélectionnée">
         <button class="mobile-cancel-card" type="button" data-mobile-cancel>Annuler</button>
-        <button class="mobile-play-card" type="button" data-mobile-play ${viewState.playSubmissionLocked ? "disabled" : ""}>Jouer (-${preview.realCost} endurance)</button>
+        <button class="mobile-play-card" type="button" data-mobile-play ${validationDisabled ? "disabled" : ""}>${activeOption ? `${escapeText(activeOption.label)} (-${activeOption.realCost} endurance)` : "Choisissez Effet ou Remise"}</button>
       </div>
     `;
   }
@@ -297,9 +325,9 @@
           ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT")}
           ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER", viewState.bonuses.length)}
         </section>
-        <section class="mobile-power" aria-label="Confrontation de puissance">
+        <section class="mobile-power${viewState.confrontation.winner ? ` mobile-power--winner-${viewState.confrontation.winner.toLowerCase()}` : ""}" aria-label="Confrontation de puissance">
           <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
-          <i aria-hidden="true">VS</i>
+          <i class="mobile-power-bolt" aria-hidden="true">⚡</i>
           <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
@@ -312,6 +340,10 @@
           ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
         </section>
         ${selectedPreviewMarkup(viewState)}
+        <div class="mobile-turn-actions" aria-label="Actions du tour">
+          <button type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"}>Passer</button>
+          <button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>Terminer le tour</button>
+        </div>
         <section class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}">
           <header><strong>Votre main</strong><span>${opponentInteractionLocked ? "Tour adverse en cours" : viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
@@ -426,7 +458,10 @@
     const token = ++resolutionSequenceToken;
     resolutionSequence = { token, phase: "hand-to-scene", flyer: null };
     setResolutionLock(true);
-    const receipt = window.tennisLightMobileAdapter?.playSelectedCard();
+    const receipt = window.tennisLightMobileAdapter?.playSelectedCard({
+      mode: selectedPlayMode || viewState.selectedCardPreview?.playOptions?.[0]?.mode,
+      sacrificeUid: selectedBoostSacrificeId,
+    });
     if (!receipt?.ok) {
       resolutionSequence = null;
       setResolutionLock(false);
@@ -447,6 +482,8 @@
     const lastBounds = lastTarget?.getBoundingClientRect();
     if (!await animateCardBetween(sceneImage, sceneCardBounds, lastBounds, 240, token)) return;
     settledLocalCardId = receipt.card.id;
+    selectedPlayMode = null;
+    selectedBoostSacrificeId = null;
     activeResolutionReceipt = null;
     resolutionSequence = null;
     setResolutionLock(false);
@@ -599,16 +636,47 @@
         }
         lastResolutionReceipt = null;
         settledLocalCardId = null;
+        selectedPlayMode = null;
+        selectedBoostSacrificeId = null;
         window.tennisLightMobileAdapter?.selectCard(card.id);
       });
     });
     root?.querySelector("[data-mobile-cancel]")?.addEventListener("click", () => {
+      selectedPlayMode = null;
+      selectedBoostSacrificeId = null;
       window.tennisLightMobileAdapter?.cancelCardSelection();
+    });
+    root?.querySelectorAll("[data-mobile-play-mode]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedPlayMode = button.dataset.mobilePlayMode;
+        selectedBoostSacrificeId = null;
+        renderMobileGame(true);
+      });
+    });
+    root?.querySelectorAll("[data-mobile-boost-sacrifice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedBoostSacrificeId = button.dataset.mobileBoostSacrifice;
+        renderMobileGame(true);
+      });
     });
     root?.querySelector("[data-mobile-play]")?.addEventListener("click", (event) => {
       const button = event.currentTarget;
       if (!(button instanceof HTMLButtonElement) || button.disabled) return;
       runMobileResolution(button, viewState);
+    });
+    root?.querySelector("[data-mobile-pass]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      selectedPlayMode = null;
+      selectedBoostSacrificeId = null;
+      window.tennisLightMobileAdapter?.passTurn();
+    });
+    root?.querySelector("[data-mobile-end-turn]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      selectedPlayMode = null;
+      selectedBoostSacrificeId = null;
+      window.tennisLightMobileAdapter?.endTurn();
     });
     root?.querySelectorAll("[data-mobile-close-explanation]").forEach((button) => {
       button.addEventListener("click", closeUnavailableExplanation);
