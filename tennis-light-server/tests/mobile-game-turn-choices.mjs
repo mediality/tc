@@ -12,14 +12,22 @@ assert.match(app, /canPlayBoost\(playerIndex, card\) \? option\("boost"/);
 assert.match(app, /playCard\(playerIndex, card\.uid, boosted, sacrificeUid, mode\)/);
 assert.match(app, /function passMobileTurn\(\)/);
 assert.match(app, /function endMobileTurn\(\)/);
+assert.match(app, /function mobilePassProjection\(playerIndex\)/);
+assert.match(app, /function undoMobileTurn\(\)/);
 assert.match(app, /passTurn: passMobileTurn/);
 assert.match(app, /endTurn: endMobileTurn/);
+assert.match(app, /undoTurn: undoMobileTurn/);
 
-assert.match(mobile, /data-mobile-play-mode=/);
+assert.match(mobile, /data-mobile-action-mode=/);
 assert.match(mobile, /data-mobile-boost-sacrifice=/);
 assert.match(mobile, /data-mobile-pass/);
 assert.match(mobile, /data-mobile-end-turn/);
-assert.match(mobile, /Choisissez un mode de jeu/);
+assert.match(mobile, /data-mobile-undo-turn/);
+assert.match(mobile, /EFFET/);
+assert.match(mobile, /REMISE/);
+assert.match(mobile, /JOUER/);
+assert.match(mobile, /BOOST/);
+assert.doesNotMatch(mobile, /Comment jouer cette carte/);
 assert.match(mobile, /class="mobile-power-bolt"[^>]*>⚡</);
 assert.doesNotMatch(mobile, />VS</);
 

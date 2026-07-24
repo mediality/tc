@@ -24,11 +24,12 @@ assert.match(app, /playSelectedCard: playSelectedMobileCard/);
 
 assert.match(mobileApp, /data-mobile-card=/);
 assert.match(mobileApp, /data-mobile-cancel/);
-assert.match(mobileApp, /data-mobile-play/);
-assert.match(mobileApp, /activeOption\.label\)} \(-\$\{activeOption\.realCost\} endurance\)/);
+assert.match(mobileApp, /data-mobile-action-mode=/);
+assert.match(mobileApp, /data-mobile-action-mode="\$\{option\.mode\}"/);
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.selectCard\(card\.id\)/);
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.cancelCardSelection\(\)/);
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.playSelectedCard\(\{/);
+assert.doesNotMatch(mobileApp, /Comment jouer cette carte/);
 assert.match(mobileApp, /if \(!card\.playable\)[\s\S]*showUnavailableExplanation\(card, button\)/);
 assert.doesNotMatch(mobileApp, /effectiveCost|getCardStats|totalTurnPlacement|canPlayNormal/);
 

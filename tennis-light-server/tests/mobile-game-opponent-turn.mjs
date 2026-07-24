@@ -8,9 +8,9 @@ const [html, app, mobileApp, mobileStyles] = await Promise.all([
   readFile(new URL("../public/mobile-game.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(app, /const GAME_VERSION = "v3\.8"/);
-assert.match(html, /id="gameVersion">v3\.8</);
-assert.match(html, /app\.js\?v=3\.8\.3/);
+assert.match(app, /const GAME_VERSION = "v3\.9"/);
+assert.match(html, /id="gameVersion">v3\.9</);
+assert.match(html, /app\.js\?v=3\.9\.0/);
 assert.match(app, /function mobilePlayedCardSummary\(card, playerIndex\)/);
 assert.match(app, /if \(SERVER_SYNC\.enabled && Number\.isInteger\(SERVER_SYNC\.seat\)\) return SERVER_SYNC\.seat/);
 assert.match(app, /cost: Number\(card\.costPaid \?\? card\.cost \?\? 0\)/);
@@ -21,7 +21,10 @@ assert.match(app, /currentCardId: state\.latestPlayedCard\?\.playedUid/);
 assert.match(app, /synchronizedRevision: Number\(SERVER_SYNC\.revision \|\| 0\)/);
 assert.match(app, /importSyncState\(data\.state\)/);
 
-assert.match(mobileApp, /const AUTO_CONTINUE_OPPONENT_REVEAL = false/);
+assert.match(app, /stopOpponentCard: localStorage\.getItem\("tennisLightMobileStopOpponentCard"\) !== "false"/);
+assert.match(app, /function setMobileAssistance\(options = \{\}\)/);
+assert.match(mobileApp, /function scheduleOpponentAutoContinue\(viewState\)/);
+assert.match(mobileApp, /window\.setTimeout\(\(\) => \{[\s\S]*continueOpponentReveal\(button\);[\s\S]*\}, 1000\)/);
 assert.match(mobileApp, /sessionStorage\.getItem\(ACKNOWLEDGED_OPPONENT_CARDS_KEY\)/);
 assert.match(mobileApp, /data-mobile-opponent-reveal=/);
 assert.match(mobileApp, /data-mobile-opponent-continue>Continuer/);
@@ -33,7 +36,6 @@ assert.match(mobileApp, /rememberAcknowledgedOpponentCard\(card\.id\)/);
 assert.match(mobileApp, /acknowledgeOpponentCard\(card\.id\)/);
 assert.match(mobileApp, /viewState\.phase === "OPPONENT_CARD_REVEAL"/);
 assert.match(mobileApp, /interactionLocked \? "disabled" : ""/);
-assert.doesNotMatch(mobileApp, /setTimeout\([^)]*continueOpponentReveal/);
 assert.doesNotMatch(mobileApp, /(?:^|[^.])\b(?:playCard|endTurn)\(/);
 
 assert.match(mobileStyles, /\.mobile-scene--opponent-reveal/);

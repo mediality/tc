@@ -107,7 +107,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 
 .mobile-mode-context {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(72px, 0.7fr) auto;
+  grid-template-columns: minmax(0, 1fr) 48px;
   gap: 6px;
 }
 
@@ -143,6 +143,21 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   background: rgba(223, 243, 118, 0.08);
   font-size: 0.62rem;
   font-weight: 900;
+}
+
+.mobile-match-menu-button {
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  padding: 0;
+}
+
+.mobile-match-menu-button span {
+  display: block;
+  width: 22px;
+  height: 3px;
+  border-radius: 3px;
+  background: currentColor;
 }
 
 .mobile-connection {
@@ -220,14 +235,18 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.mobile-set-score--player span:first-child {
-  color: var(--mobile-player-color);
-  font-weight: 900;
+.mobile-set-score--player {
+  background: #197d68;
 }
 
-.mobile-set-score--opponent span:last-child {
-  color: var(--mobile-opponent-color);
-  font-weight: 900;
+.mobile-set-score--opponent {
+  background: #a9563f;
+}
+
+.mobile-set-score--player span,
+.mobile-set-score--opponent span {
+  color: #fff;
+  font-weight: 950;
 }
 
 .mobile-set-score--pending {
@@ -254,8 +273,6 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 
 .mobile-player--player {
   border-left: 4px solid var(--mobile-player-color);
-  min-height: 100px;
-  padding-bottom: 52px;
 }
 
 .mobile-player--opponent {
@@ -263,22 +280,24 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 }
 
 .mobile-bonus-button {
-  position: absolute;
-  left: 60px;
-  bottom: 4px;
-  min-width: 58px;
-  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(223, 243, 118, 0.32);
-  border-radius: 999px;
-  padding: 10px 9px;
+  border-radius: 50%;
+  padding: 0;
   color: #dff376;
   background: rgba(223, 243, 118, 0.08);
-  font-size: 0.56rem;
+  font-size: 0.7rem;
   font-weight: 900;
 }
 
-.mobile-bonus-button span {
-  margin-right: 3px;
+.mobile-bonus-button span,
+.mobile-bonus-button b {
+  font-size: 0.68rem;
 }
 
 .mobile-player--active {
@@ -344,6 +363,12 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   margin: 0;
 }
 
+.mobile-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .mobile-player-stats div {
   position: relative;
   display: grid;
@@ -361,6 +386,25 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 900;
+}
+
+.mobile-player-stat--critical dt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.mobile-player-stat--critical dd {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 999px;
+  color: #fff;
+  background: #a83445;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
 }
 
 .mobile-power {
@@ -392,10 +436,12 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 }
 
 .mobile-power i {
-  font-size: 1.25rem;
+  color: #082738;
+  font-size: 1.8rem;
   font-style: normal;
   font-weight: 950;
-  opacity: 0.5;
+  opacity: 1;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.3));
 }
 
 .mobile-power--winner-player {
@@ -634,7 +680,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 
 .mobile-last-card-button {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   min-height: 52px;
@@ -1759,4 +1805,178 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
     opacity: 1;
     transform: none;
   }
+}
+
+/* Lot de finition des commandes tactiques et du menu de match. */
+.mobile-card-actions {
+  display: flex;
+  grid-template-columns: none;
+  align-items: stretch;
+}
+
+.mobile-mode-action {
+  flex: 1 1 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.mobile-mode-action--cancel {
+  flex: 0 0 48px;
+  width: 48px;
+  padding: 0 !important;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 1.25rem;
+}
+
+.mobile-mode-action--play,
+.mobile-mode-action--effect {
+  background: linear-gradient(135deg, #197d68, #126452);
+}
+
+.mobile-mode-action--boost,
+.mobile-mode-action--placement {
+  background: linear-gradient(135deg, #b78823, #8f6817);
+}
+
+.mobile-mode-action--risk {
+  border-color: rgba(255, 142, 122, 0.85);
+  background: linear-gradient(135deg, #a94d3c, #813528);
+}
+
+.mobile-pass-button--player {
+  border-color: rgba(111, 226, 174, 0.75) !important;
+  background: linear-gradient(135deg, #197d68, #126452) !important;
+}
+
+.mobile-pass-button--opponent {
+  border-color: rgba(255, 142, 122, 0.85) !important;
+  background: linear-gradient(135deg, #a94d3c, #813528) !important;
+}
+
+.mobile-undo-turn {
+  grid-column: 1 / -1;
+  border-color: rgba(255, 206, 92, 0.55) !important;
+  background: rgba(183, 136, 35, 0.22) !important;
+  color: #ffe5a4 !important;
+}
+
+.mobile-last-card-button--boost {
+  border-color: rgba(255, 206, 92, 0.72);
+  background:
+    linear-gradient(135deg, rgba(183, 136, 35, 0.32), rgba(93, 57, 136, 0.26)),
+    rgba(10, 18, 29, 0.92);
+}
+
+.mobile-last-card-boost {
+  align-self: center;
+  justify-self: end;
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: #f0c451;
+  color: #251c08;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+}
+
+.mobile-scene .mobile-match-result {
+  width: 100%;
+  min-height: 100%;
+  align-content: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mobile-scene .mobile-match-result > span {
+  color: #f5f7fb;
+  font-size: 0.82rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.mobile-scene .mobile-match-result > strong {
+  color: #fff;
+  font-size: clamp(1.2rem, 6vw, 1.6rem);
+}
+
+.mobile-match-menu-list {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-match-menu-list button {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  padding: 10px 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: left;
+  font-weight: 850;
+}
+
+.mobile-league-standing {
+  margin-bottom: 16px;
+}
+
+.mobile-league-standing h3 {
+  margin: 0 0 8px;
+}
+
+.mobile-league-standing [role="row"] {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 30px 30px 38px;
+  align-items: center;
+  min-height: 40px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.mobile-league-standing [role="row"] > :nth-child(2) {
+  text-align: left;
+}
+
+.mobile-standing-head {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.mobile-assistance-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+}
+
+.mobile-assistance-option strong,
+.mobile-assistance-option small {
+  display: block;
+}
+
+.mobile-assistance-option small,
+.mobile-assistance-note {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.mobile-assistance-option input {
+  width: 44px;
+  height: 28px;
+  accent-color: #3fb091;
+}
+
+.mobile-player-bonus-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mobile-player-bonus-section h3 {
+  margin: 0;
+  font-size: 0.85rem;
 }

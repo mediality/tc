@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.8";
+const GAME_VERSION = "v3.9";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1501,6 +1501,7 @@ let soloTournamentCountdownTimer = null;
 const GAMEPLAY_ASSIST = {
   preview: localStorage.getItem("tennisLightAssistPreview") === "true",
   information: localStorage.getItem("tennisLightAssistInformation") === "true",
+  stopOpponentCard: localStorage.getItem("tennisLightMobileStopOpponentCard") !== "false",
   panelOpen: false,
 };
 
@@ -7278,7 +7279,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.8");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.9");
 }
 
 function emptyMomentumState() {
@@ -15543,6 +15544,25 @@ function activeEffectBadges(playerIndex) {
     if (bonus.type === "doubleLastShot") badges.push({ text: "Fin échange: Double", type: "effect", sourceUid: bonus.sourceUid });
     if (bonus.type === "boostedBonus") badges.push({ text: `Fin échange: +${bonus.value}/boost`, type: "effect", sourceUid: bonus.sourceUid });
   }
+  const persistentBonuses = [
+    ...(player.surfaceBonuses || (player.surfaceBonus ? [player.surfaceBonus] : [])),
+    ...(player.permanentBonuses || []),
+    ...(player.temporaryBonuses || []),
+  ];
+  const seenPersistentBonuses = new Set();
+  for (const bonus of persistentBonuses) {
+    const identity = bonus?.sourceBonusId || bonus?.id || bonus?.label;
+    if (!identity || seenPersistentBonuses.has(identity)) continue;
+    seenPersistentBonuses.add(identity);
+    const duration = bonus?.remainingExchanges
+      ? `${bonus.remainingExchanges} échange${bonus.remainingExchanges > 1 ? "s" : ""}`
+      : (player.temporaryBonuses || []).includes(bonus) ? "Provisoire" : "Match";
+    badges.push({
+      text: `${duration}: ${bonus.label || bonus.reason || "Bonus actif"}`,
+      type: "effect",
+      description: bonus.reason || bonus.description || bonus.effect || "",
+    });
+  }
   return badges.map((badge) => {
     const separator = badge.text.indexOf(":");
     const duration = separator > 0 ? badge.text.slice(0, separator) : badge.type === "constraint" ? "Ce tour" : "Actif";
@@ -15557,7 +15577,7 @@ function activeEffectBadges(playerIndex) {
       label: starBonus ? `Bonus étoile · ${label}` : label,
       duration: starBonus ? "Bonus étoile" : duration,
       icon: badge.type === "constraint" ? "!" : "✦",
-      description: `${starLabel ? `${starLabel}. ` : ""}${badge.text}. Cet état est appliqué tant que la carte est visible.`,
+      description: badge.description || `${starLabel ? `${starLabel}. ` : ""}${badge.text}. Cet état est appliqué tant que la carte est visible.`,
     };
   });
 }
@@ -16466,6 +16486,13 @@ function mobileCardPlayOptions(playerIndex, card) {
       realCost: effectiveCost(player, card),
       realPower: stats.power,
       resultingPlacement: totalTurnPlacement(playerIndex, card, boosted),
+      boostRisk: Boolean(
+        mode === "placement"
+        && state.lastCard
+        && totalTurnPlacement(playerIndex, card, boosted) < Number(state.lastCard.precision || 0)
+        && !state.turnIgnoresPlacement[playerIndex]
+        && !state.turnCannotOpenBoost[playerIndex]
+      ),
       requiresSacrifice: boosted,
       sacrifices: boosted
         ? player.hand.filter((candidate) => candidate.uid !== card.uid).map((candidate) => ({
@@ -16493,6 +16520,19 @@ function mobileCardPlayOptions(playerIndex, card) {
 }
 
 function mobileModeContext() {
+  const leagueStandingsState = state.tournament?.active && state.tournament.league
+    ? Object.keys(state.tournament.leagueGroups || {}).map((group) => ({
+      group,
+      rows: leagueStandings(group, Math.max(1, leagueCompletedGroupDays())).map((row, index) => ({
+        position: index + 1,
+        player: tournamentPlayerLabel(row.entry),
+        played: row.played,
+        wins: row.wins,
+        points: row.points,
+        sets: `${row.setsWon}–${row.setsLost}`,
+      })),
+    }))
+    : [];
   return {
     label: currentModeLabel(),
     score: currentMatchScoreText(),
@@ -16507,6 +16547,7 @@ function mobileModeContext() {
         : "",
       league: Boolean(state.tournament.league),
       standing: leagueHumanStandingReminder(),
+      standings: leagueStandingsState,
       matches: (state.tournament.matches || []).map((match) => ({
         id: match.id,
         label: match.label,
@@ -16704,7 +16745,34 @@ function mobilePlayedCardSummary(card, playerIndex) {
       ? `${card.effect || "Aucun effet"} (annulé)`
       : card.effect || "Aucun effet",
     placement,
-    consequence: consequenceParts.join(" · ") || "La confrontation est actualisée.",
+    consequence: consequenceParts.join(" · "),
+    boosted: Boolean(card.boosted),
+  };
+}
+
+function mobilePassProjection(playerIndex) {
+  if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex) || hasPlayedThisTurn(playerIndex)) return null;
+  const opponentIndex = opponentOf(playerIndex);
+  if (state.mandatoryPlacement) {
+    return {
+      winner: "OPPONENT",
+      label: state.mandatoryPlacementReason === "smash"
+        ? "Passer donne l’échange après le Smash"
+        : "Passer donne l’échange après le Boost",
+    };
+  }
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentIndex];
+  const passBonus = Math.max(2, Number(player.endurance || 0));
+  const rosaBonus = opponent.characterId === "rosaBenavente" ? Number(opponent.rosaPassPowerBonus || 0) : 0;
+  const playerPower = Number(player.power || 0) + projectedEndBonuses(player);
+  const opponentPower = Number(opponent.power || 0) + passBonus + rosaBonus + projectedEndBonuses(opponent);
+  const winner = playerPower > opponentPower ? playerIndex : playerPower < opponentPower ? opponentIndex : state.server;
+  return {
+    winner: winner === playerIndex ? "PLAYER" : "OPPONENT",
+    label: winner === playerIndex
+      ? `Passer · échange gagné ${playerPower}–${opponentPower}`
+      : `Passer · échange perdu ${playerPower}–${opponentPower}`,
   };
 }
 
@@ -16853,6 +16921,22 @@ function endMobileTurn() {
   return { ok: true };
 }
 
+function undoMobileTurn() {
+  const playerIndex = mobileLocalPlayerIndex();
+  if (!canUndoTurn(playerIndex)) return { ok: false };
+  restoreTurnSnapshot();
+  return { ok: true };
+}
+
+function setMobileAssistance(options = {}) {
+  if (typeof options.stopOpponentCard === "boolean") {
+    GAMEPLAY_ASSIST.stopOpponentCard = options.stopOpponentCard;
+    localStorage.setItem("tennisLightMobileStopOpponentCard", String(options.stopOpponentCard));
+  }
+  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
+  return { ok: true };
+}
+
 function getMobileMatchViewState() {
   const playerIndex = mobileLocalPlayerIndex();
   const opponentIndex = opponentOf(playerIndex);
@@ -16905,8 +16989,11 @@ function getMobileMatchViewState() {
         && state.activePlayer === playerIndex
         && canUseSeat(playerIndex)
         && tutorialAllowsPass()
-        && (!hasPlayedThisTurn(playerIndex) || canEndTurn(playerIndex)),
+        && !hasPlayedThisTurn(playerIndex),
       canEndTurn: !SPECTATOR_MODE.enabled && canEndTurn(playerIndex),
+      hideEndTurn: Boolean(state.mandatoryPlacement && !canEndTurn(playerIndex)),
+      canUndo: !SPECTATOR_MODE.enabled && canUndoTurn(playerIndex),
+      passProjection: mobilePassProjection(playerIndex),
     },
     spectator: SPECTATOR_MODE.enabled,
     modeContext: mobileModeContext(),
@@ -16919,6 +17006,10 @@ function getMobileMatchViewState() {
       synchronizedRevision: Number(SERVER_SYNC.revision || 0),
     } : null,
     bonuses: activeEffectBadges(playerIndex),
+    opponentBonuses: activeEffectBadges(opponentIndex),
+    assistance: {
+      stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
+    },
     history: mobileHistoryEntries(),
     returnToMenu: mobileReturnToMenuInfo(),
     lastPlayedCard: activeCardSummary,
@@ -16932,6 +17023,8 @@ window.tennisLightMobileAdapter = {
   playSelectedCard: playSelectedMobileCard,
   passTurn: passMobileTurn,
   endTurn: endMobileTurn,
+  undoTurn: undoMobileTurn,
+  setAssistance: setMobileAssistance,
   acknowledgeOpponentCard: acknowledgeMobileOpponentCard,
   confirmReturnToMenu: confirmMobileReturnToMenu,
   continueTutorial: continueMobileTutorial,

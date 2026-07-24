@@ -1,6 +1,5 @@
 (function mobileGameBootstrap() {
   const MOBILE_MAX_WIDTH = 600;
-  const AUTO_CONTINUE_OPPONENT_REVEAL = false;
   const ACKNOWLEDGED_OPPONENT_CARDS_KEY = "tennisLightMobileAcknowledgedOpponentCards";
   const root = document.querySelector("#mobileGameRoot");
   const mobileApp = document.querySelector("#mobileGameApp");
@@ -24,6 +23,7 @@
   let selectedBoostSacrificeId = null;
   let scheduledMobileRender = null;
   let transientDialogTrigger = null;
+  let opponentAutoContinueTimer = null;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -89,7 +89,8 @@
     return `<span class="mobile-value-delta mobile-value-delta--${delta.delta > 0 ? "gain" : "loss"}" role="status">${delta.delta > 0 ? "+" : ""}${delta.delta}</span>`;
   }
 
-  function playerMarkup(player, side, isServer, bonusCount = 0) {
+  function playerMarkup(player, side, isServer, bonuses = []) {
+    const bonusCount = bonuses.length;
     return `
       <article class="mobile-player mobile-player--${side}${player.isActive ? " mobile-player--active" : ""}">
         <div class="mobile-player-avatar">
@@ -100,11 +101,13 @@
           <strong>${escapeText(player.name)}</strong>
           <span>${escapeText(player.characterName)}</span>
         </div>
-        <dl class="mobile-player-stats">
-          <div data-mobile-value="${side}-endurance"><dt>END</dt><dd>${player.endurance}</dd>${deltaMarkup(side, "endurance")}</div>
-          <div data-mobile-value="${side}-handCount"><dt>Cartes</dt><dd>${player.handCount}</dd>${deltaMarkup(side, "handCount")}</div>
-        </dl>
-        ${side === "player" ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses aria-haspopup="dialog"><span aria-hidden="true">✦</span>${bonusCount ? `${bonusCount} bonus` : "Bonus"}</button>` : ""}
+        <div class="mobile-player-meta">
+          ${bonusCount ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses="${side}" aria-haspopup="dialog" aria-label="${bonusCount} bonus actifs pour ${escapeText(player.name)}"><span aria-hidden="true">✦</span><b>${bonusCount}</b></button>` : ""}
+          <dl class="mobile-player-stats">
+            <div class="${player.endurance <= 2 ? " mobile-player-stat--critical" : ""}" data-mobile-value="${side}-endurance"><dt>END</dt><dd>${player.endurance}</dd>${deltaMarkup(side, "endurance")}</div>
+            <div class="${player.handCount === 0 ? " mobile-player-stat--critical" : ""}" data-mobile-value="${side}-handCount"><dt>Cartes</dt><dd>${player.handCount}</dd>${deltaMarkup(side, "handCount")}</div>
+          </dl>
+        </div>
       </article>
     `;
   }
@@ -114,7 +117,6 @@
     return hand.map((card) => `
       <button class="mobile-hand-card${card.playable && !interactionLocked ? "" : " mobile-hand-card--locked"}${card.id === selectedCardId ? " mobile-hand-card--selected" : ""}" type="button" data-mobile-card="${escapeText(card.id)}" aria-pressed="${card.id === selectedCardId}" aria-label="${escapeText(card.name)}${interactionLocked ? ", indisponible pendant le tour adverse" : card.playable ? "" : `, indisponible : ${card.unavailableReason}`}" ${interactionLocked ? "disabled" : ""}>
         <img src="${card.artwork}" alt="${escapeText(card.name)}" loading="lazy" decoding="async" />
-        ${card.requiredPlacement ? '<span>Placement requis</span>' : ""}
         ${card.playable ? "" : '<i aria-hidden="true">🔒</i>'}
       </button>
     `).join("");
@@ -127,9 +129,7 @@
     const activeOption = options.find((option) => option.mode === selectedPlayMode)
       || (options.length === 1 ? options[0] : null);
     const selectedSacrifice = activeOption?.sacrifices?.find((card) => card.id === selectedBoostSacrificeId);
-    const validationDisabled = viewState.playSubmissionLocked
-      || !activeOption
-      || (activeOption.requiresSacrifice && !selectedSacrifice);
+    const shortLabel = (mode) => ({ effect: "EFFET", placement: "REMISE", normal: "JOUER", boost: "BOOST" }[mode] || mode);
     return `
       <section class="mobile-selection-preview" aria-label="Aperçu de la carte sélectionnée">
         <dl>
@@ -147,15 +147,6 @@
     ? `<ul>${preview.appliedBonuses.map((bonus) => `<li>${escapeText(bonus)}</li>`).join("")}</ul>`
     : "<p>Aucun bonus appliqué</p>"}
         </div>
-        <fieldset class="mobile-play-modes">
-          <legend>Comment jouer cette carte ?</legend>
-          ${options.map((option) => `
-            <button type="button" data-mobile-play-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}">
-              <strong>${escapeText(option.label)}</strong>
-              <span>-${option.realCost} END · +${option.realPower} puissance · placement ${option.resultingPlacement}</span>
-            </button>
-          `).join("")}
-        </fieldset>
         ${activeOption?.requiresSacrifice ? `
           <fieldset class="mobile-boost-sacrifices">
             <legend>Carte à sacrifier pour le Boost</legend>
@@ -168,15 +159,18 @@
         ` : ""}
       </section>
       <div class="mobile-card-actions" aria-label="Actions de la carte sélectionnée">
-        <button class="mobile-cancel-card" type="button" data-mobile-cancel>Annuler</button>
-        <button class="mobile-play-card" type="button" data-mobile-play ${validationDisabled ? "disabled" : ""}>${activeOption ? `${escapeText(activeOption.label)} (-${activeOption.realCost} endurance)` : "Choisissez un mode de jeu"}</button>
+        <button class="mobile-cancel-card mobile-mode-action--cancel" type="button" data-mobile-cancel aria-label="Annuler la sélection et revenir à la main"><span aria-hidden="true">↓</span></button>
+        ${options.map((option) => {
+          const requiresChoice = option.requiresSacrifice && activeOption?.mode === option.mode && !selectedSacrifice;
+          return `<button class="mobile-mode-action mobile-mode-action--${option.mode}${option.boostRisk ? " mobile-mode-action--risk" : ""}" type="button" data-mobile-action-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}" ${viewState.playSubmissionLocked || requiresChoice ? "aria-disabled=\"true\"" : ""}>${shortLabel(option.mode)}</button>`;
+        }).join("")}
       </div>
     `;
   }
 
   function activeCardMarkup(card) {
     if (!card) {
-      return '<div class="mobile-active-card mobile-active-card--empty"><span>En attente du premier coup</span></div>';
+      return '<div class="mobile-active-card mobile-active-card--empty"><span>En attente de votre coup</span></div>';
     }
     return `
       <article class="mobile-active-card">
@@ -206,7 +200,7 @@
             <div><dt>Placement</dt><dd>${card.placement}</dd></div>
           </dl>
           <p><strong>Effet</strong>${escapeText(card.effect)}</p>
-          <p><strong>Conséquence</strong>${escapeText(card.consequence)}</p>
+          ${card.consequence ? `<p><strong>Conséquence</strong>${escapeText(card.consequence)}</p>` : ""}
         </div>
         <button class="mobile-opponent-continue" type="button" data-mobile-opponent-continue>Continuer</button>
       </article>
@@ -216,9 +210,10 @@
   function lastPlayedCardMarkup(card) {
     if (!card) return '<span class="mobile-last-card-empty">Aucune carte jouée</span>';
     return `
-      <button class="mobile-last-card-button" type="button" data-mobile-last-card aria-label="Agrandir ${escapeText(card.name)}">
+      <button class="mobile-last-card-button${card.boosted ? " mobile-last-card-button--boost" : ""}" type="button" data-mobile-last-card aria-label="Agrandir ${escapeText(card.name)}${card.boosted ? ", jouée en Boost" : ""}">
         <img src="${card.artwork}" alt="${escapeText(card.name)}" loading="lazy" decoding="async" />
         <span><strong>${escapeText(card.name)}</strong><small>Toucher pour agrandir</small></span>
+        ${card.boosted ? '<b class="mobile-last-card-boost">BOOST</b>' : ""}
       </button>
     `;
   }
@@ -231,6 +226,20 @@
         <div><small>${escapeText(bonus.duration)}</small><strong>${escapeText(bonus.label)}</strong><p>${escapeText(bonus.description)}</p></div>
       </li>
     `).join("")}</ul>`;
+  }
+
+  function playersBonusesMarkup(viewState) {
+    const sections = [
+      { title: viewState.player.name, bonuses: viewState.bonuses },
+      { title: viewState.opponent.name, bonuses: viewState.opponentBonuses },
+    ].filter((entry) => entry.bonuses.length);
+    if (!sections.length) return '<p class="mobile-sheet-empty">Aucun bonus actif actuellement.</p>';
+    return sections.map((entry) => `
+      <section class="mobile-player-bonus-section">
+        <h3>${escapeText(entry.title)}</h3>
+        ${bonusesMarkup(entry.bonuses)}
+      </section>
+    `).join("");
   }
 
   function historyMarkup(history) {
@@ -270,6 +279,43 @@
     `;
   }
 
+  function standingsMarkup(competition) {
+    if (!competition?.league || !competition.standings?.length) {
+      return '<p class="mobile-sheet-empty">Aucun classement de League disponible.</p>';
+    }
+    return competition.standings.map((standing) => `
+      <section class="mobile-league-standing">
+        <h3>Groupe ${escapeText(standing.group)}</h3>
+        <div role="table" aria-label="Classement du groupe ${escapeText(standing.group)}">
+          <div role="row" class="mobile-standing-head"><span role="columnheader">#</span><span role="columnheader">Joueur</span><span role="columnheader">J</span><span role="columnheader">V</span><span role="columnheader">Pts</span></div>
+          ${standing.rows.map((row) => `<div role="row"><b role="cell">${row.position}</b><span role="cell">${escapeText(row.player)}</span><span role="cell">${row.played}</span><span role="cell">${row.wins}</span><strong role="cell">${row.points}</strong></div>`).join("")}
+        </div>
+      </section>
+    `).join("");
+  }
+
+  function matchMenuMarkup(viewState) {
+    return `
+      <nav class="mobile-match-menu-list" aria-label="Menu du match">
+        ${viewState.modeContext.competition ? '<button type="button" data-mobile-menu-destination="competition">Compétition</button>' : ""}
+        ${viewState.modeContext.competition?.league ? '<button type="button" data-mobile-menu-destination="standings">Classement</button>' : ""}
+        <button type="button" data-mobile-menu-destination="assistance">Assistance</button>
+      </nav>
+    `;
+  }
+
+  function assistanceMarkup(assistance) {
+    return `
+      <label class="mobile-assistance-option">
+        <span><strong>Stop carte adverse</strong><small>Attendre votre validation avant la carte suivante.</small></span>
+        <input type="checkbox" data-mobile-stop-opponent-card ${assistance.stopOpponentCard ? "checked" : ""} />
+      </label>
+      <p class="mobile-assistance-note">${assistance.stopOpponentCard
+    ? "Activé : utilisez Continuer pour chaque carte adverse."
+    : "Désactivé : chaque carte adverse reste visible une seconde puis la partie continue."}</p>
+    `;
+  }
+
   function tutorialMarkup(tutorial) {
     if (!tutorial) return "";
     return `
@@ -294,11 +340,7 @@
     return `
       <section class="mobile-match-result mobile-match-result--${result.winner.toLowerCase()}" aria-live="polite">
         <span>${escapeText(result.condition)}</span>
-        <h2>${escapeText(result.title)}</h2>
-        <strong>${escapeText(result.winnerName)}</strong>
-        <p>${escapeText(result.reason)}</p>
-        <div><small>Score</small><b>${escapeText(result.score)}</b></div>
-        ${result.setsWon ? `<div><small>Sets gagnés</small><b>${result.setsWon[0]}–${result.setsWon[1]}</b></div>` : ""}
+        <strong>${escapeText(result.score)}</strong>
         ${result.actions.length ? `<nav aria-label="Progression">${result.actions.map((action) => `<button type="button" data-mobile-progression="${action.id}">${escapeText(action.label)}</button>`).join("")}</nav>` : ""}
       </section>
     `;
@@ -394,7 +436,7 @@
         ? acknowledgedOpponentCardIds().has(viewState.activeCard.id) ? null : viewState.activeCard
         : viewState.activeCard?.id === settledLocalCardId ? null : viewState.activeCard;
     root.innerHTML = `
-      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-auto-continue-opponent="${AUTO_CONTINUE_OPPONENT_REVEAL}">
+      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-stop-opponent="${viewState.assistance.stopOpponentCard}">
         <a class="mobile-skip-link" href="#mobileGameHand">Aller à la main</a>
         ${resolutionAnnouncementMarkup()}
         <header class="mobile-game-header">
@@ -403,14 +445,13 @@
         </header>
         <section class="mobile-mode-context" aria-label="Contexte du match">
           <div><span>Mode</span><strong>${escapeText(viewState.modeContext.label)}</strong></div>
-          <div><span>Score</span><strong>${escapeText(viewState.modeContext.score)}</strong></div>
-          ${viewState.modeContext.competition ? '<button type="button" data-mobile-open-competition aria-haspopup="dialog">Compétition</button>' : ""}
+          <button class="mobile-match-menu-button" type="button" data-mobile-open-match-menu aria-haspopup="dialog" aria-label="Ouvrir le menu du match"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></button>
         </section>
         ${connectionMarkup(viewState.connection)}
         <ol class="mobile-set-scores" aria-label="Score des sets">${scoreMarkup(viewState.score)}</ol>
         <section class="mobile-player-pair" aria-label="Joueurs">
-          ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT")}
-          ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER", viewState.bonuses.length)}
+          ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT", viewState.opponentBonuses)}
+          ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER", viewState.bonuses)}
         </section>
         <section class="mobile-power${viewState.confrontation.winner ? ` mobile-power--winner-${viewState.confrontation.winner.toLowerCase()}` : ""}" aria-label="Confrontation de puissance">
           <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
@@ -419,8 +460,7 @@
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
         <section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
-          ${pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
-          ${importantMessagesMarkup(viewState)}
+          ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
         </section>
         <section class="mobile-last-card" aria-label="Dernière carte jouée">
           <header><strong>Dernière carte jouée</strong></header>
@@ -428,14 +468,15 @@
         </section>
         ${viewState.spectator ? "" : selectedPreviewMarkup(viewState)}
         ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
-          <button type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"}>Passer</button>
-          <button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>Terminer le tour</button>
+          ${viewState.turnActions.canUndo
+    ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>Annuler le tour</button>'
+    : `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"} aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">Passer</button>`}
+          ${viewState.turnActions.hideEndTurn ? "" : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>Terminer le tour</button>`}
         </div>`}
         ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section id="mobileGameHand" class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}" tabindex="-1">
           <header><strong>Votre main</strong><span>${opponentInteractionLocked ? "Tour adverse en cours" : viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
         </section>`}
-        ${resultMarkup(viewState.result)}
         ${tutorialMarkup(viewState.tutorial)}
         <div class="mobile-card-explanation hidden" role="dialog" aria-modal="true" aria-labelledby="mobileCardExplanationTitle">
           <button class="mobile-card-explanation-backdrop" type="button" data-mobile-close-explanation aria-label="Fermer"></button>
@@ -473,9 +514,12 @@
           <button type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>
           <button type="button" data-mobile-open-return aria-haspopup="dialog">Menu<span aria-hidden="true">↗</span></button>
         </nav>
-        ${mobileSheetMarkup("bonuses", "Bonus actifs", bonusesMarkup(viewState.bonuses))}
+        ${mobileSheetMarkup("bonuses", "Bonus actifs", playersBonusesMarkup(viewState))}
         ${mobileSheetMarkup("history", "Historique du match", historyMarkup(viewState.history))}
+        ${mobileSheetMarkup("match-menu", "Menu du match", matchMenuMarkup(viewState))}
         ${viewState.modeContext.competition ? mobileSheetMarkup("competition", "Compétition", competitionMarkup(viewState.modeContext.competition)) : ""}
+        ${viewState.modeContext.competition?.league ? mobileSheetMarkup("standings", "Classement", standingsMarkup(viewState.modeContext.competition)) : ""}
+        ${mobileSheetMarkup("assistance", "Assistance", assistanceMarkup(viewState.assistance))}
         ${returnConfirmationMarkup(viewState.returnToMenu)}
       </div>
     `;
@@ -590,6 +634,8 @@
 
   async function continueOpponentReveal(button) {
     if (!pendingOpponentReveal || opponentRevealSequence || button.disabled) return;
+    window.clearTimeout(opponentAutoContinueTimer);
+    opponentAutoContinueTimer = null;
     const card = pendingOpponentReveal;
     const token = ++resolutionSequenceToken;
     opponentRevealSequence = { token, flyer: null };
@@ -606,6 +652,17 @@
     pendingOpponentReveal = null;
     opponentRevealSequence = null;
     renderMobileGame(true);
+  }
+
+  function scheduleOpponentAutoContinue(viewState) {
+    window.clearTimeout(opponentAutoContinueTimer);
+    opponentAutoContinueTimer = null;
+    if (!pendingOpponentReveal || viewState.assistance.stopOpponentCard) return;
+    opponentAutoContinueTimer = window.setTimeout(() => {
+      opponentAutoContinueTimer = null;
+      const button = root?.querySelector("[data-mobile-opponent-continue]");
+      if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
+    }, 1000);
   }
 
   function interruptMobileResolution() {
@@ -747,11 +804,20 @@
       selectedBoostSacrificeId = null;
       window.tennisLightMobileAdapter?.cancelCardSelection();
     });
-    root?.querySelectorAll("[data-mobile-play-mode]").forEach((button) => {
+    root?.querySelectorAll("[data-mobile-action-mode]").forEach((button) => {
       button.addEventListener("click", () => {
-        selectedPlayMode = button.dataset.mobilePlayMode;
-        selectedBoostSacrificeId = null;
-        renderMobileGame(true);
+        const option = viewState.selectedCardPreview?.playOptions?.find((candidate) => candidate.mode === button.dataset.mobileActionMode);
+        if (!option || viewState.playSubmissionLocked) return;
+        if (selectedPlayMode !== option.mode) {
+          selectedPlayMode = option.mode;
+          selectedBoostSacrificeId = null;
+          if (option.requiresSacrifice) {
+            renderMobileGame(true);
+            return;
+          }
+        }
+        if (option.requiresSacrifice && !selectedBoostSacrificeId) return;
+        runMobileResolution(button, viewState);
       });
     });
     root?.querySelectorAll("[data-mobile-boost-sacrifice]").forEach((button) => {
@@ -779,6 +845,13 @@
       selectedBoostSacrificeId = null;
       window.tennisLightMobileAdapter?.endTurn();
     });
+    root?.querySelector("[data-mobile-undo-turn]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      selectedPlayMode = null;
+      selectedBoostSacrificeId = null;
+      window.tennisLightMobileAdapter?.undoTurn();
+    });
     root?.querySelectorAll("[data-mobile-close-explanation]").forEach((button) => {
       button.addEventListener("click", closeUnavailableExplanation);
     });
@@ -800,11 +873,24 @@
       const button = event.currentTarget;
       if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
     });
-    root?.querySelector("[data-mobile-open-bonuses]")?.addEventListener("click", (event) => {
-      showMobilePanel("bonuses", event.currentTarget);
+    root?.querySelectorAll("[data-mobile-open-bonuses]").forEach((button) => {
+      button.addEventListener("click", (event) => showMobilePanel("bonuses", event.currentTarget));
+    });
+    root?.querySelector("[data-mobile-open-match-menu]")?.addEventListener("click", (event) => {
+      showMobilePanel("match-menu", event.currentTarget);
+    });
+    root?.querySelectorAll("[data-mobile-menu-destination]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        showMobilePanel(button.dataset.mobileMenuDestination, event.currentTarget);
+      });
     });
     root?.querySelector("[data-mobile-open-competition]")?.addEventListener("click", (event) => {
       showMobilePanel("competition", event.currentTarget);
+    });
+    root?.querySelector("[data-mobile-stop-opponent-card]")?.addEventListener("change", (event) => {
+      const input = event.currentTarget;
+      if (!(input instanceof HTMLInputElement)) return;
+      window.tennisLightMobileAdapter?.setAssistance({ stopOpponentCard: input.checked });
     });
     root?.querySelector("[data-mobile-tutorial-next]")?.addEventListener("click", () => {
       window.tennisLightMobileAdapter?.continueTutorial();
@@ -830,6 +916,7 @@
     root?.querySelector("[data-mobile-open-return]")?.addEventListener("click", (event) => {
       showMobilePanel("return", event.currentTarget);
     });
+    scheduleOpponentAutoContinue(viewState);
     root?.querySelectorAll("[data-mobile-close-panel], [data-mobile-cancel-return]").forEach((button) => {
       button.addEventListener("click", () => closeMobilePanel());
     });
