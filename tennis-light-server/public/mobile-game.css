@@ -343,6 +343,12 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 .mobile-player-copy {
   display: grid;
   min-width: 0;
+  min-height: 44px;
+  border: 0;
+  padding: 4px 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
 }
 
 .mobile-player-copy strong,
@@ -350,6 +356,50 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   overflow: hidden;
   overflow-wrap: anywhere;
   line-height: 1.15;
+}
+
+.mobile-star-card {
+  display: grid;
+  grid-template-columns: minmax(92px, 36%) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  border: 2px solid #57aee8;
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(87, 174, 232, 0.12);
+}
+
+.mobile-star-card--rose {
+  border-color: #e778a4;
+  background: rgba(231, 120, 164, 0.13);
+}
+
+.mobile-star-card img {
+  width: 100%;
+  max-height: 260px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.mobile-star-card div {
+  display: grid;
+  gap: 7px;
+}
+
+.mobile-star-card span {
+  color: #8ed2ff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-star-card--rose span {
+  color: #ffadd0;
+}
+
+.mobile-star-card strong,
+.mobile-star-card p {
+  margin: 0;
 }
 
 .mobile-player-copy span {
@@ -1852,7 +1902,6 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 }
 
 .mobile-undo-turn {
-  grid-column: 1 / -1;
   border-color: rgba(255, 206, 92, 0.55) !important;
   background: rgba(183, 136, 35, 0.22) !important;
   color: #ffe5a4 !important;

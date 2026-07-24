@@ -24,7 +24,7 @@
   let scheduledMobileRender = null;
   let transientDialogTrigger = null;
   let opponentAutoContinueTimer = null;
-  let mobileMatchHasStarted = false;
+  let playerHadControlOnPreviousRender = false;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -98,10 +98,10 @@
           <img src="${escapeText(mobilePlayerArtwork(player.artwork))}" alt="" decoding="async" fetchpriority="high" />
           ${isServer ? '<span class="mobile-server" aria-label="Au service">●</span>' : ""}
         </div>
-        <div class="mobile-player-copy">
+        <button class="mobile-player-copy" type="button" data-mobile-player-star="${side}" aria-haspopup="dialog" aria-label="Voir le prochain pouvoir étoile de ${escapeText(player.name)}">
           <strong>${escapeText(player.name)}</strong>
           <span>${escapeText(player.characterName)}</span>
-        </div>
+        </button>
         <div class="mobile-player-meta">
           ${bonusCount ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses="${side}" aria-haspopup="dialog" aria-label="${bonusCount} bonus actifs pour ${escapeText(player.name)}"><span aria-hidden="true">✦</span><b>${bonusCount}</b></button>` : ""}
           <dl class="mobile-player-stats">
@@ -227,6 +227,19 @@
         <div><small>${escapeText(bonus.duration)}</small><strong>${escapeText(bonus.label)}</strong><p>${escapeText(bonus.description)}</p></div>
       </li>
     `).join("")}</ul>`;
+  }
+
+  function starCardMarkup(card) {
+    return `
+      <article class="mobile-star-card mobile-star-card--${String(card.side || "").toLowerCase()}">
+        <img src="${card.artwork}" alt="${escapeText(card.name)}, côté ${escapeText(card.side)}" decoding="async" />
+        <div>
+          <span>Prochaine étoile · ${escapeText(card.side)}</span>
+          <strong>${escapeText(card.name)}</strong>
+          <p>${escapeText(card.effect)}</p>
+        </div>
+      </article>
+    `;
   }
 
   function historyMarkup(history) {
@@ -447,22 +460,22 @@
           <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
-        <section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
+        ${viewState.selectedCardId && !viewState.spectator
+    ? selectedPreviewMarkup(viewState)
+    : `<section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
           ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
         </section>
         <section class="mobile-last-card" aria-label="Dernière carte jouée">
           <header><strong>Dernière carte jouée</strong></header>
           ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
         </section>
-        ${viewState.spectator ? "" : selectedPreviewMarkup(viewState)}
         ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
           ${viewState.turnActions.canUndo
-    ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>Annuler le tour</button>'
+    ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>ANNULER</button>'
     : `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"} aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">Passer</button>`}
-          ${viewState.turnActions.hideEndTurn ? "" : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>Terminer le tour</button>`}
-        </div>`}
+          ${viewState.turnActions.hideEndTurn ? "" : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>TERMINER LE TOUR</button>`}
+        </div>`}`}
         ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section id="mobileGameHand" class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}" tabindex="-1">
-          <header><strong>Votre main</strong><span>${opponentInteractionLocked ? "Tour adverse en cours" : viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
         </section>`}
         ${tutorialMarkup(viewState.tutorial)}
@@ -498,12 +511,14 @@
           <strong>Revenez en mode portrait</strong>
           <span>La partie mobile reste ouverte pendant la rotation.</span>
         </div>
-        <nav class="mobile-utility-nav" aria-label="Informations et navigation">
+        ${viewState.lastPlayedCard ? `<nav class="mobile-utility-nav" aria-label="Informations et navigation">
           <button type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>
-        </nav>
+        </nav>` : ""}
         ${mobileSheetMarkup("bonuses-player", `Bonus · ${escapeText(viewState.player.name)}`, bonusesMarkup(viewState.bonuses))}
         ${mobileSheetMarkup("bonuses-opponent", `Bonus · ${escapeText(viewState.opponent.name)}`, bonusesMarkup(viewState.opponentBonuses))}
-        ${mobileSheetMarkup("history", "Historique du match", historyMarkup(viewState.history))}
+        ${mobileSheetMarkup("star-player", "Pouvoir étoile", starCardMarkup(viewState.playerStarCard))}
+        ${mobileSheetMarkup("star-opponent", "Pouvoir étoile", starCardMarkup(viewState.opponentStarCard))}
+        ${mobileSheetMarkup("history", "Déroulé de l’échange", historyMarkup(viewState.history))}
         ${mobileSheetMarkup("match-menu", "Menu du match", matchMenuMarkup(viewState))}
         ${viewState.modeContext.competition ? mobileSheetMarkup("competition", "Compétition", competitionMarkup(viewState.modeContext.competition)) : ""}
         ${viewState.modeContext.competition?.league ? mobileSheetMarkup("standings", "Classement", standingsMarkup(viewState.modeContext.competition)) : ""}
@@ -517,10 +532,15 @@
   }
 
   function anchorMobileGameToBottom(viewState) {
-    mobileMatchHasStarted = mobileMatchHasStarted || Boolean(viewState.activeCard || viewState.lastPlayedCard);
-    if (!mobileMatchHasStarted || openMobilePanel) return;
+    const playerHasControl = viewState.phase === "PLAYER_TURN"
+      && !pendingOpponentReveal
+      && !resolutionSequence
+      && !viewState.spectator;
+    const shouldAnchor = playerHasControl && !playerHadControlOnPreviousRender && !openMobilePanel;
+    playerHadControlOnPreviousRender = playerHasControl;
+    if (!shouldAnchor) return;
     window.requestAnimationFrame(() => {
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" });
+      root?.querySelector("#mobileGameHand")?.scrollIntoView({ block: "end", behavior: "auto" });
     });
   }
 
@@ -585,7 +605,8 @@
     if (resolutionSequence || playButton.disabled || !viewState.selectedCardId) return;
     const selectedButton = root?.querySelector(".mobile-hand-card--selected");
     const selectedImage = selectedButton?.querySelector("img");
-    const scene = root?.querySelector(".mobile-scene");
+    const scene = root?.querySelector(".mobile-scene")
+      || root?.querySelector(".mobile-selection-preview");
     const fromBounds = selectedImage?.getBoundingClientRect();
     const sceneBounds = scene?.getBoundingClientRect();
     const targetBounds = sceneBounds ? {
@@ -875,6 +896,11 @@
         showMobilePanel(`bonuses-${event.currentTarget.dataset.mobileOpenBonuses}`, event.currentTarget);
       });
     });
+    root?.querySelectorAll("[data-mobile-player-star]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        showMobilePanel(`star-${event.currentTarget.dataset.mobilePlayerStar}`, event.currentTarget);
+      });
+    });
     root?.querySelector("[data-mobile-open-match-menu]")?.addEventListener("click", (event) => {
       showMobilePanel("match-menu", event.currentTarget);
     });
@@ -942,7 +968,7 @@
 
   function applySelectedView() {
     desktopApp?.classList.toggle("hidden", matchUsesMobileView);
-    if (!matchUsesMobileView) mobileMatchHasStarted = false;
+    if (!matchUsesMobileView) playerHadControlOnPreviousRender = false;
     mobileApp?.classList.toggle("hidden", !matchUsesMobileView);
     document.body.classList.toggle("mobile-game-view", matchUsesMobileView);
     if (matchUsesMobileView) renderMobileGame();

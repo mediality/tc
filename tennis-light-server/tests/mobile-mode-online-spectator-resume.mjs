@@ -16,7 +16,7 @@ assert.match(app, /canPass: !SPECTATOR_MODE\.enabled/);
 assert.match(app, /canEndTurn: !SPECTATOR_MODE\.enabled/);
 assert.match(app, /phase: SPECTATOR_MODE\.enabled/);
 assert.match(mobile, /mains masquées · aucune action de jeu autorisée/);
-assert.match(mobile, /viewState\.spectator \? "" : selectedPreviewMarkup/);
+assert.match(mobile, /viewState\.selectedCardId && !viewState\.spectator[\s\S]*selectedPreviewMarkup\(viewState\)/);
 assert.match(matrix, /Sauvegarde \/ reprise/);
 assert.match(matrix, /reconnexion réelle de deux navigateurs/);
 

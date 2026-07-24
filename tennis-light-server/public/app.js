@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.11";
+const GAME_VERSION = "v3.12";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7279,7 +7279,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.11");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.12");
 }
 
 function emptyMomentumState() {
@@ -7664,7 +7664,12 @@ function showConfrontationIntro() {
     </section>
   `;
   document.body.append(backdrop);
-  backdrop.querySelector("[data-start-confrontation]")?.addEventListener("click", closeConfrontationIntro);
+  backdrop.querySelector("[data-start-confrontation]")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.disabled = true;
+    closeConfrontationIntro();
+  }, { once: true });
   const sequenceItems = [...backdrop.querySelectorAll("[data-confrontation-stage]")];
   const sequenceDuration = 3_000;
   sequenceItems.forEach((item, index) => {
@@ -15582,6 +15587,20 @@ function activeEffectBadges(playerIndex) {
   });
 }
 
+function mobileCharacterStarCard(player) {
+  const character = characterOf(player);
+  const effect = currentCharacterEffect(player);
+  return {
+    name: character?.name || displayPlayerName(player),
+    artwork: CHARACTER_IMAGES[player.characterId]?.[player.characterSide]
+      || CHARACTER_IMAGES[player.characterId]?.[0]
+      || PROFILE_CHARACTER_IMAGES[player.characterId]
+      || "",
+    side: effect?.side || (player.characterSide === 1 ? "Rose" : "Bleu"),
+    effect: effect?.label || "Aucun pouvoir étoile disponible.",
+  };
+}
+
 function closeEffectHelpDialog() {
   document.querySelector(".effect-help-backdrop")?.remove();
 }
@@ -16991,7 +17010,8 @@ function getMobileMatchViewState() {
         && tutorialAllowsPass()
         && !hasPlayedThisTurn(playerIndex),
       canEndTurn: !SPECTATOR_MODE.enabled && canEndTurn(playerIndex),
-      hideEndTurn: Boolean(state.mandatoryPlacement && !canEndTurn(playerIndex)),
+      hideEndTurn: !state.turnDirty
+        || Boolean(state.mandatoryPlacement && !canEndTurn(playerIndex)),
       canUndo: !SPECTATOR_MODE.enabled && canUndoTurn(playerIndex),
       passProjection: mobilePassProjection(playerIndex),
     },
@@ -17007,6 +17027,8 @@ function getMobileMatchViewState() {
     } : null,
     bonuses: activeEffectBadges(playerIndex),
     opponentBonuses: activeEffectBadges(opponentIndex),
+    playerStarCard: mobileCharacterStarCard(player),
+    opponentStarCard: mobileCharacterStarCard(opponent),
     assistance: {
       stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
     },
