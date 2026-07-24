@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.30";
+const GAME_VERSION = "v2.169.31";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -354,7 +354,7 @@ const GAME_NEWS = [
     title: "Bienvenue dans la Prestige League et l’Ultimate League",
     image: "assets/prestige-ultimate-league.jpeg",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. À noter cependant que, contrairement aux autres tournois, les Leagues ne sont pas rejouables dans la semaine. Bons matchs !",
   },
   {
     id: "v16921-rosa-benavente-espana",
@@ -1627,6 +1627,7 @@ const els = {
   deleteAiClubHouseSaveButton: document.querySelector("#deleteAiClubHouseSaveButton"),
   aiClubSettingButtons: document.querySelectorAll("[data-ai-club-setting]"),
   gameApp: document.querySelector(".game-app"),
+  mobileGameApp: document.querySelector("#mobileGameApp"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
   authEmailInput: document.querySelector("#authEmailInput"),
@@ -1887,7 +1888,7 @@ function currentUserRole() {
 const PAGE_NAVIGATION_STATE = { profileReturn: "home" };
 
 function visibleScreenDestination() {
-  if (!els.gameApp?.classList.contains("hidden")) return "game";
+  if (!els.gameApp?.classList.contains("hidden") || !els.mobileGameApp?.classList.contains("hidden")) return "game";
   if (!els.friendlyLobbyScreen?.classList.contains("hidden")) return "online-room";
   if (!els.aiClubHouseScreen?.classList.contains("hidden")) return "solo";
   if (!els.rankingScreen?.classList.contains("hidden")) return "ranking";
@@ -3572,8 +3573,11 @@ function renderCompetitions() {
     </div>
     ${competitions.map((competition) => {
       const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competition.id);
-      const canReplay = !alreadyPlayed || retriesUsed < retryLimit;
-      const label = alreadyPlayed ? "Rejouer" : "Jouer";
+      const singleEntryLeague = competition.eventType === "League"
+        || ["Prestige League", "Ultimate League"].includes(competition.level);
+      const replayLocked = alreadyPlayed && singleEntryLeague;
+      const canReplay = !alreadyPlayed || (!replayLocked && retriesUsed < retryLimit);
+      const label = replayLocked ? "Terminé" : alreadyPlayed ? "Rejouer" : "Jouer";
       const replayClass = alreadyPlayed ? "replay-button" : "";
       const saved = savedTournamentProgress(competition.id);
       const performance = bestPerformances[competition.id] || null;
@@ -3592,7 +3596,7 @@ function renderCompetitions() {
       <article class="weekly-competition circuit-competition-card" data-competition-category="${escapeHtml(categoryKey)}">
         <div class="circuit-competition-head">
           <span class="circuit-competition-category">${escapeHtml(category)}</span>
-          <span class="circuit-competition-state ${saved ? "saved" : alreadyPlayed ? "played" : "new"}">${saved ? "Sauvegardé" : alreadyPlayed ? "Déjà joué" : "À jouer"}</span>
+          <span class="circuit-competition-state ${saved ? "saved" : alreadyPlayed ? "played" : "new"}">${saved ? "Sauvegardé" : replayLocked ? "Participation terminée" : alreadyPlayed ? "Déjà joué" : "À jouer"}</span>
         </div>
         <div class="circuit-competition-copy">
           <h3>${escapeHtml(competition.name)}</h3>
@@ -3600,12 +3604,13 @@ function renderCompetitions() {
           <div class="circuit-competition-meta">
             <span>${escapeHtml(competition.surfaceLabel)}</span>
             <span>${Number(competition.targetSets || 2)} sets gagnants</span>
+            ${singleEntryLeague ? '<span class="single-entry-league-badge">Non rejouable</span>' : ""}
           </div>
         </div>
         <div class="circuit-competition-footer">
           ${performanceMarkup}
           <div class="weekly-competition-actions">
-            ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"}>${label}</button>`}
+            ${saved ? "" : `<button class="small-button ${replayClass}" type="button" data-start-weekly-competition="${escapeHtml(competition.id)}" ${canReplay ? "" : "disabled"} title="${replayLocked ? "Une seule participation est autorisée pour cette League." : ""}">${label}</button>`}
             ${saved ? `<button class="small-button resume-button" type="button" data-resume-weekly-competition="${escapeHtml(competition.id)}">Reprendre</button>` : ""}
           </div>
         </div>
@@ -3915,6 +3920,7 @@ function hideLobbySectionScreen() {
 function hideStandaloneScreens() {
   [
     els.gameApp,
+    els.mobileGameApp,
     els.friendlyLobbyScreen,
     els.aiClubHouseScreen,
     els.adminScreen,
@@ -3927,6 +3933,7 @@ function hideStandaloneScreens() {
     els.characterScreen,
     els.resetPasswordScreen,
   ].forEach((screen) => screen?.classList.add("hidden"));
+  window.TennisLightMobileGame?.clearSelectedView();
 }
 
 function showLobbySection(sectionName) {
@@ -3970,6 +3977,13 @@ function showGameScreen() {
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
   els.gameApp?.classList.remove("hidden");
+  window.TennisLightMobileGame?.selectViewForMatch();
+}
+
+function hideGameScreen() {
+  els.gameApp?.classList.add("hidden");
+  els.mobileGameApp?.classList.add("hidden");
+  window.TennisLightMobileGame?.clearSelectedView();
 }
 
 function showFriendlyLobbyScreen() {
@@ -3982,7 +3996,7 @@ function showFriendlyLobbyScreen() {
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.aiClubHouseScreen?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.remove("hidden");
 }
@@ -3999,7 +4013,7 @@ function showAiClubHouseScreen() {
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.aiClubHouseScreen?.classList.remove("hidden");
   renderAiClubHouse();
 }
@@ -4010,7 +4024,7 @@ function showRankingScreen() {
   els.adminScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.rankingScreen?.classList.remove("hidden");
@@ -4020,7 +4034,7 @@ function showRankingScreen() {
 function showMenuScreen() {
   resetTutorialMode();
   setLobbyAccountPanelOpen(false);
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   hideLobbySectionScreen();
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
@@ -4049,7 +4063,7 @@ function showProfileScreen(userId = null) {
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
   els.tutorialModulesScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.aiClubHouseScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
@@ -4065,7 +4079,7 @@ function showCharacterScreen() {
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.resetPasswordScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.remove("hidden");
@@ -4081,7 +4095,7 @@ function showResetPasswordScreen() {
   els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.resetPasswordScreen?.classList.remove("hidden");
 }
 
@@ -4089,7 +4103,7 @@ function showAdminScreen() {
   if (!canAccessAdminFeatures()) return;
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
@@ -4110,7 +4124,7 @@ function showCircuitInfoScreen() {
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
   els.resetPasswordScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.circuitInfoScreen?.classList.remove("hidden");
   applySurfaceBackground(null);
   window.scrollTo({ top: 0, behavior: "auto" });
@@ -4127,7 +4141,7 @@ function showAcademyInfoScreen() {
   els.resetPasswordScreen?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
-  els.gameApp?.classList.add("hidden");
+  hideGameScreen();
   els.academyInfoScreen?.classList.remove("hidden");
   els.tutorialModulesScreen?.classList.add("hidden");
   applySurfaceBackground(null);
@@ -7264,7 +7278,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.30");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.31");
 }
 
 function emptyMomentumState() {
@@ -14255,6 +14269,7 @@ function render() {
     scheduleSoloAINudge();
     maybeRunSoloAI();
   }
+  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
 }
 
 function adjustCardMagnificationOrigins(root = document) {
@@ -16259,7 +16274,7 @@ function initMenu() {
   });
   document.querySelectorAll(".direct-home-button").forEach((button) => button.addEventListener("click", showMenuScreen));
   const navigationObserver = new MutationObserver(updateGlobalPlayerDock);
-  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp]
+  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.gameApp, els.mobileGameApp]
     .filter(Boolean)
     .forEach((screen) => navigationObserver.observe(screen, { attributes: true, attributeFilter: ["class"] }));
   updateGlobalPlayerDock();
@@ -16337,6 +16352,101 @@ document.addEventListener("click", (event) => {
     forceSoloAITurn();
   }
 });
+
+function mobileLocalPlayerIndex() {
+  if (SERVER_SYNC.enabled && Number.isInteger(SERVER_SYNC.seat)) return SERVER_SYNC.seat;
+  if (SOLO_AI.enabled) return opponentOf(SOLO_AI.playerIndex);
+  return 0;
+}
+
+function mobileSetScoreState(playerIndex) {
+  const opponentIndex = opponentOf(playerIndex);
+  const completed = Array.isArray(state.setMatch?.completedScores) ? state.setMatch.completedScores : [];
+  const targetSets = Math.max(1, Number(state.setMatch?.targetSets || 1));
+  const maximumSets = (targetSets * 2) - 1;
+  const sets = completed.map((score) => {
+    const playerScore = Number(score?.[playerIndex] || 0);
+    const opponentScore = Number(score?.[opponentIndex] || 0);
+    return {
+      player: playerScore,
+      opponent: opponentScore,
+      winner: playerScore > opponentScore ? "PLAYER" : "OPPONENT",
+    };
+  });
+  if (!state.setMatch?.setOver && Array.isArray(state.setMatch?.score)) {
+    sets.push({
+      player: Number(state.setMatch.score[playerIndex] || 0),
+      opponent: Number(state.setMatch.score[opponentIndex] || 0),
+      winner: null,
+    });
+  }
+  while (sets.length < maximumSets) sets.push({ player: null, opponent: null, winner: null });
+  return sets.slice(0, maximumSets);
+}
+
+function mobilePlayerSummary(playerIndex) {
+  const player = state.players[playerIndex];
+  return {
+    name: displayPlayerName(player),
+    characterName: player?.name || "",
+    artwork: PROFILE_CHARACTER_IMAGES[player?.characterId]
+      || CHARACTER_IMAGES[player?.characterId]?.[player?.characterSide || 0]
+      || CHARACTER_IMAGES.coachUnknown[0],
+    power: Number(player?.power || 0),
+    endurance: Number(player?.endurance || 0),
+    handCount: Number(player?.hand?.length || 0),
+    isActive: state.activePlayer === playerIndex && !state.gameOver,
+  };
+}
+
+function getMobileMatchViewState() {
+  const playerIndex = mobileLocalPlayerIndex();
+  const opponentIndex = opponentOf(playerIndex);
+  const player = state.players[playerIndex];
+  const activeCard = state.latestPlayedCard;
+  return {
+    phase: state.gameOver ? "MATCH_COMPLETE" : state.activePlayer === playerIndex ? "PLAYER_TURN" : "OPPONENT_CARD_REVEAL",
+    score: {
+      sets: mobileSetScoreState(playerIndex),
+      server: state.server === playerIndex ? "PLAYER" : "OPPONENT",
+    },
+    player: mobilePlayerSummary(playerIndex),
+    opponent: mobilePlayerSummary(opponentIndex),
+    confrontation: {
+      playerPower: Number(player?.power || 0),
+      opponentPower: Number(state.players[opponentIndex]?.power || 0),
+      contextMessage: state.gameOver
+        ? `Échange remporté par ${playerName(state.resultInfo?.winner)}`
+        : `${displayPlayerName(activePlayer())} doit jouer`,
+    },
+    hand: (player?.hand || []).map((card) => ({
+      id: card.uid,
+      artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+      name: card.name,
+      playable: canPlayNormal(playerIndex, card) || canPlayEffectMode(playerIndex, card),
+      recommendedPlacement: false,
+      requiredPlacement: Boolean(state.mandatoryPlacement && state.activePlayer === playerIndex),
+    })),
+    activeCard: activeCard ? {
+      id: activeCard.playedUid || activeCard.uid,
+      artwork: CARD_IMAGES[activeCard.id] || CARD_BACK_IMAGE,
+      name: activeCard.name,
+      owner: activeCard.owner === playerIndex ? "PLAYER" : "OPPONENT",
+      power: Number(activeCard.cardPowerGained ?? activeCard.powerGained ?? 0),
+      effect: activeCard.effect || "",
+    } : null,
+    lastPlayedCard: activeCard ? {
+      id: activeCard.playedUid || activeCard.uid,
+      artwork: CARD_IMAGES[activeCard.id] || CARD_BACK_IMAGE,
+      name: activeCard.name,
+    } : null,
+  };
+}
+
+window.tennisLightMobileAdapter = {
+  getViewState: getMobileMatchViewState,
+};
+
 window.forceSoloAITurn = forceSoloAITurn;
 window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, getStoredHumanMatchLogs, exportLogsFile, exportHumanMatchLogsFile, render, state };
 window.addEventListener("pagehide", signalFriendlyTournamentPageExit);

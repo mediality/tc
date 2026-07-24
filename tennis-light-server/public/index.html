@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=170.30" />
+    <link rel="stylesheet" href="./styles.css?v=170.31" />
+    <link rel="stylesheet" href="./mobile-game.css?v=170.31" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -123,7 +124,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <span>Tennis Courts Academy · 2.169.30</span>
+          <span>Tennis Courts Academy · 2.169.31</span>
           <span>Mediality Games</span>
         </footer>
       </div>
@@ -843,6 +844,10 @@
       </section>
     </main>
 
+    <main id="mobileGameApp" class="mobile-game-app hidden" aria-label="Match de tennis">
+      <div id="mobileGameRoot"></div>
+    </main>
+
     <div id="tournamentLoadingDialog" class="tournament-loading-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="tournamentLoadingTitle" aria-describedby="tournamentLoadingMessage">
       <div class="tournament-loading-panel">
         <span class="tournament-loading-kicker">TENNIS COURTS</span>
@@ -852,7 +857,8 @@
       </div>
     </div>
 
-    <script src="./tutorial-engine.js?v=2.169.30"></script>
-    <script src="./app.js?v=170.30"></script>
+    <script src="./tutorial-engine.js?v=2.169.31"></script>
+    <script src="./app.js?v=170.31"></script>
+    <script src="./mobile-game.js?v=170.31"></script>
   </body>
 </html>

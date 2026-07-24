@@ -50,7 +50,7 @@ const GAME_NEWS = [
     title: "Bienvenue dans la Prestige League et l’Ultimate League",
     image: "assets/prestige-ultimate-league.jpeg",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. Bons matchs !",
+    message: "Un nouveau format pour marquer des points… et votre empreinte ! La Prestige League et l’Ultimate League s’ajoutent désormais en tant que sixième tournoi de la semaine. Ces tournois se jouent au format League : huit joueurs s’affrontent dans deux poules de quatre. Votre objectif est de terminer parmi les deux premiers de votre poule afin de poursuivre votre parcours jusqu’à la victoire. La Prestige League se joue en deux sets gagnants et l’Ultimate League en trois sets gagnants. Cette dernière a lieu toutes les quatre semaines et rapporte davantage de points. Ces tournois sont adaptés à votre niveau : vous rencontrerez des joueurs correspondant à votre classement actuel. À noter cependant que, contrairement aux autres tournois, les Leagues ne sont pas rejouables dans la semaine. Bons matchs !",
   },
   {
     id: "v16921-rosa-benavente-espana", publishedAt: "2026-07-21", availableAt: "2026-07-21T18:00:00+02:00",
@@ -3386,6 +3386,14 @@ async function handleAuth(req, res, url) {
     const scoreKey = circuitScoreKey(current);
     const bestScores = await currentTournamentScoreMap(user.id);
     const alreadyPlayed = Object.prototype.hasOwnProperty.call(bestScores, competitionId);
+    const singleEntryLeague = competition.eventType === "League"
+      || ["Prestige League", "Ultimate League"].includes(competition.level);
+    if (alreadyPlayed && singleEntryLeague) {
+      sendJson(res, 403, {
+        error: "La Prestige League et l’Ultimate League sont limitées à une seule participation. Ce tournoi ne peut pas être retenté.",
+      });
+      return true;
+    }
     const retryInfo = await currentRetryInfo(user.id);
     if (alreadyPlayed && retryInfo.retriesUsed >= DAILY_RETRY_LIMIT) {
       sendJson(res, 403, { error: "Vous avez utilisé vos 5 nouvelles tentatives de la semaine." });
