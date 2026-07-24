@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v2.169.31";
+const GAME_VERSION = "v3.4";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7278,7 +7278,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v2.169.31");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.4");
 }
 
 function emptyMomentumState() {
@@ -16514,6 +16514,41 @@ function mobileNewResolutionMessages(previousFirstLog) {
   return messages.slice(0, 3);
 }
 
+function mobilePlayedCardSummary(card, playerIndex) {
+  if (!card) return null;
+  const placement = Number(card.turnEndPlacement ?? card.turnPlacement ?? card.placement ?? 0);
+  const consequenceParts = [];
+  if (card.boosted) consequenceParts.push("Carte jouée en Boost");
+  if (card.remiseMode === "effect") consequenceParts.push("Effet joué sans terminer le tour");
+  if (card.remiseMode === "placement") consequenceParts.push("Placement préparé pour la fin du tour");
+  if (placement) consequenceParts.push(`${placement} placement au total`);
+  if (card.answeredBoostConstraint) consequenceParts.push("Réponse à un Boost");
+  return {
+    id: card.playedUid || card.uid,
+    artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+    name: card.name,
+    owner: card.owner === playerIndex ? "PLAYER" : "OPPONENT",
+    cost: Number(card.costPaid ?? card.cost ?? 0),
+    power: Number(card.cardPowerGained ?? card.powerGained ?? 0),
+    effect: card.effectApplied === false
+      ? `${card.effect || "Aucun effet"} (annulé)`
+      : card.effect || "Aucun effet",
+    placement,
+    consequence: consequenceParts.join(" · ") || "La confrontation est actualisée.",
+  };
+}
+
+function acknowledgeMobileOpponentCard(cardId) {
+  if (!cardId) return { ok: false };
+  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
+  return {
+    ok: true,
+    cardId,
+    currentCardId: state.latestPlayedCard?.playedUid || state.latestPlayedCard?.uid || null,
+    synchronizedRevision: Number(SERVER_SYNC.revision || 0),
+  };
+}
+
 function playSelectedMobileCard() {
   if (mobilePlaySubmissionLocked || !mobileSelectedCardUid) return false;
   const playerIndex = mobileLocalPlayerIndex();
@@ -16562,6 +16597,7 @@ function getMobileMatchViewState() {
   const opponentIndex = opponentOf(playerIndex);
   const player = state.players[playerIndex];
   const activeCard = state.latestPlayedCard;
+  const activeCardSummary = mobilePlayedCardSummary(activeCard, playerIndex);
   let selectedCard = player?.hand?.find((card) => card.uid === mobileSelectedCardUid) || null;
   if (selectedCard && mobileCardUnavailableReason(playerIndex, selectedCard)) selectedCard = null;
   if (!selectedCard) mobileSelectedCardUid = null;
@@ -16598,14 +16634,10 @@ function getMobileMatchViewState() {
     selectedCardId: selectedCard?.uid || null,
     selectedCardPreview: selectedCard ? mobileCardPreview(playerIndex, selectedCard) : null,
     playSubmissionLocked: mobilePlaySubmissionLocked,
-    activeCard: activeCard ? {
-      id: activeCard.playedUid || activeCard.uid,
-      artwork: CARD_IMAGES[activeCard.id] || CARD_BACK_IMAGE,
-      name: activeCard.name,
-      owner: activeCard.owner === playerIndex ? "PLAYER" : "OPPONENT",
-      power: Number(activeCard.cardPowerGained ?? activeCard.powerGained ?? 0),
-      effect: activeCard.effect || "",
+    activeCard: activeCardSummary ? {
+      ...activeCardSummary,
       resolutionMessage: state.effectNotice?.message || "",
+      synchronizedRevision: Number(SERVER_SYNC.revision || 0),
     } : null,
     lastPlayedCard: activeCard ? {
       id: activeCard.playedUid || activeCard.uid,
@@ -16620,6 +16652,7 @@ window.tennisLightMobileAdapter = {
   selectCard: selectMobileCard,
   cancelCardSelection: cancelMobileCardSelection,
   playSelectedCard: playSelectedMobileCard,
+  acknowledgeOpponentCard: acknowledgeMobileOpponentCard,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;

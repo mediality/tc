@@ -1,5 +1,7 @@
 (function mobileGameBootstrap() {
   const MOBILE_MAX_WIDTH = 600;
+  const AUTO_CONTINUE_OPPONENT_REVEAL = false;
+  const ACKNOWLEDGED_OPPONENT_CARDS_KEY = "tennisLightMobileAcknowledgedOpponentCards";
   const root = document.querySelector("#mobileGameRoot");
   const mobileApp = document.querySelector("#mobileGameApp");
   const desktopApp = document.querySelector(".game-app");
@@ -9,6 +11,29 @@
   let lastResolutionReceipt = null;
   let settledLocalCardId = null;
   let resolutionSequenceToken = 0;
+  let pendingOpponentReveal = null;
+  let opponentRevealSequence = null;
+  const acknowledgedOpponentCards = new Set();
+
+  function acknowledgedOpponentCardIds() {
+    try {
+      JSON.parse(sessionStorage.getItem(ACKNOWLEDGED_OPPONENT_CARDS_KEY) || "[]")
+        .forEach((cardId) => acknowledgedOpponentCards.add(cardId));
+    } catch (error) {
+      // La mémoire de la page reste la source de secours.
+    }
+    return acknowledgedOpponentCards;
+  }
+
+  function rememberAcknowledgedOpponentCard(cardId) {
+    const acknowledged = acknowledgedOpponentCardIds();
+    acknowledged.add(cardId);
+    try {
+      sessionStorage.setItem(ACKNOWLEDGED_OPPONENT_CARDS_KEY, JSON.stringify([...acknowledged].slice(-40)));
+    } catch (error) {
+      // L'accusé reste valable en mémoire même si le stockage de session est indisponible.
+    }
+  }
 
   function hasTouchCapability() {
     return navigator.maxTouchPoints > 0 || "ontouchstart" in window;
@@ -68,10 +93,10 @@
     `;
   }
 
-  function handMarkup(hand, selectedCardId) {
+  function handMarkup(hand, selectedCardId, interactionLocked = false) {
     if (!hand.length) return '<p class="mobile-empty-hand">Aucune carte en main</p>';
     return hand.map((card) => `
-      <button class="mobile-hand-card${card.playable ? "" : " mobile-hand-card--locked"}${card.id === selectedCardId ? " mobile-hand-card--selected" : ""}" type="button" data-mobile-card="${escapeText(card.id)}" aria-pressed="${card.id === selectedCardId}" aria-label="${escapeText(card.name)}${card.playable ? "" : `, indisponible : ${card.unavailableReason}`}">
+      <button class="mobile-hand-card${card.playable && !interactionLocked ? "" : " mobile-hand-card--locked"}${card.id === selectedCardId ? " mobile-hand-card--selected" : ""}" type="button" data-mobile-card="${escapeText(card.id)}" aria-pressed="${card.id === selectedCardId}" aria-label="${escapeText(card.name)}${interactionLocked ? ", indisponible pendant le tour adverse" : card.playable ? "" : `, indisponible : ${card.unavailableReason}`}" ${interactionLocked ? "disabled" : ""}>
         <img src="${card.artwork}" alt="${escapeText(card.name)}" />
         ${card.requiredPlacement ? '<span>Placement requis</span>' : ""}
         ${card.playable ? "" : '<i aria-hidden="true">🔒</i>'}
@@ -123,6 +148,29 @@
     `;
   }
 
+  function opponentRevealMarkup(card) {
+    if (!card) return "";
+    return `
+      <article class="mobile-opponent-reveal" data-mobile-opponent-reveal="${escapeText(card.id)}">
+        <button class="mobile-opponent-card-visual" type="button" data-mobile-opponent-card aria-label="Agrandir la carte adverse ${escapeText(card.name)}">
+          <img src="${card.artwork}" alt="${escapeText(card.name)}" />
+        </button>
+        <div class="mobile-opponent-card-details">
+          <span>Carte adverse</span>
+          <strong>${escapeText(card.name)}</strong>
+          <dl>
+            <div><dt>Coût</dt><dd>-${card.cost} END</dd></div>
+            <div><dt>Puissance</dt><dd>+${card.power}</dd></div>
+            <div><dt>Placement</dt><dd>${card.placement}</dd></div>
+          </dl>
+          <p><strong>Effet</strong>${escapeText(card.effect)}</p>
+          <p><strong>Conséquence</strong>${escapeText(card.consequence)}</p>
+        </div>
+        <button class="mobile-opponent-continue" type="button" data-mobile-opponent-continue>Continuer</button>
+      </article>
+    `;
+  }
+
   function lastPlayedCardMarkup(card) {
     if (!card) return '<span class="mobile-last-card-empty">Aucune carte jouée</span>';
     return `
@@ -150,6 +198,13 @@
       .replaceAll("'", "&#039;");
   }
 
+  function synchronizeOpponentReveal(viewState) {
+    const opponentCard = viewState.activeCard?.owner === "OPPONENT" ? viewState.activeCard : null;
+    if (pendingOpponentReveal || !opponentCard) return;
+    if (acknowledgedOpponentCardIds().has(opponentCard.id)) return;
+    pendingOpponentReveal = { ...opponentCard };
+  }
+
   function renderMobileGame(force = false) {
     if (!matchUsesMobileView || !root) return;
     if (resolutionSequence && !force) return;
@@ -158,8 +213,16 @@
       root.innerHTML = '<p class="mobile-game-fallback" role="status">Chargement du match…</p>';
       return;
     }
+    synchronizeOpponentReveal(viewState);
+    const opponentInteractionLocked = Boolean(pendingOpponentReveal)
+      || viewState.phase === "OPPONENT_CARD_REVEAL";
+    const sceneCard = pendingOpponentReveal
+      ? null
+      : viewState.activeCard?.owner === "OPPONENT"
+        ? acknowledgedOpponentCardIds().has(viewState.activeCard.id) ? null : viewState.activeCard
+        : viewState.activeCard?.id === settledLocalCardId ? null : viewState.activeCard;
     root.innerHTML = `
-      <div class="mobile-game-shell" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}">
+      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-auto-continue-opponent="${AUTO_CONTINUE_OPPONENT_REVEAL}">
         <header class="mobile-game-header">
           <span>Tennis Courts</span>
           <strong>${viewState.phase === "MATCH_COMPLETE" ? "Match terminé" : "Match en cours"}</strong>
@@ -175,8 +238,8 @@
           <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
-        <section class="mobile-scene${resolutionSequence ? " mobile-scene--resolving" : ""}" aria-label="Carte active">
-          ${activeCardMarkup(viewState.activeCard?.owner === "PLAYER" && viewState.activeCard.id === settledLocalCardId ? null : viewState.activeCard)}
+        <section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
+          ${pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
           ${importantMessagesMarkup(viewState)}
         </section>
         <section class="mobile-last-card" aria-label="Dernière carte jouée">
@@ -184,9 +247,9 @@
           ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
         </section>
         ${selectedPreviewMarkup(viewState)}
-        <section class="mobile-hand-section" aria-label="Votre main">
-          <header><strong>Votre main</strong><span>${viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
-          <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId)}</div>
+        <section class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}">
+          <header><strong>Votre main</strong><span>${opponentInteractionLocked ? "Tour adverse en cours" : viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
+          <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
         </section>
         <div class="mobile-card-explanation hidden" role="dialog" aria-modal="true" aria-labelledby="mobileCardExplanationTitle">
           <button class="mobile-card-explanation-backdrop" type="button" data-mobile-close-explanation aria-label="Fermer"></button>
@@ -200,6 +263,10 @@
         <div class="mobile-last-card-zoom hidden" role="dialog" aria-modal="true" aria-label="Dernière carte jouée agrandie">
           <button type="button" data-mobile-close-card-zoom aria-label="Fermer l’agrandissement">×</button>
           ${viewState.lastPlayedCard ? `<img src="${viewState.lastPlayedCard.artwork}" alt="${escapeText(viewState.lastPlayedCard.name)}" />` : ""}
+        </div>
+        <div class="mobile-opponent-card-zoom hidden" role="dialog" aria-modal="true" aria-label="Carte adverse agrandie">
+          <button type="button" data-mobile-close-opponent-zoom aria-label="Fermer l’agrandissement">×</button>
+          ${pendingOpponentReveal ? `<img src="${pendingOpponentReveal.artwork}" alt="${escapeText(pendingOpponentReveal.name)}" />` : ""}
         </div>
         <div class="mobile-portrait-lock" role="status">
           <strong>Revenez en mode portrait</strong>
@@ -302,6 +369,26 @@
     renderMobileGame(true);
   }
 
+  async function continueOpponentReveal(button) {
+    if (!pendingOpponentReveal || opponentRevealSequence || button.disabled) return;
+    const card = pendingOpponentReveal;
+    const token = ++resolutionSequenceToken;
+    opponentRevealSequence = { token, flyer: null };
+    button.disabled = true;
+    const sceneImage = root?.querySelector(".mobile-opponent-card-visual img");
+    const lastImage = root?.querySelector(".mobile-last-card-button img");
+    const fromBounds = sceneImage?.getBoundingClientRect();
+    const toBounds = lastImage?.getBoundingClientRect();
+    resolutionSequence = opponentRevealSequence;
+    if (!await animateCardBetween(sceneImage, fromBounds, toBounds, 240, token)) return;
+    resolutionSequence = null;
+    rememberAcknowledgedOpponentCard(card.id);
+    window.tennisLightMobileAdapter?.acknowledgeOpponentCard(card.id);
+    pendingOpponentReveal = null;
+    opponentRevealSequence = null;
+    renderMobileGame(true);
+  }
+
   function interruptMobileResolution() {
     resolutionSequenceToken += 1;
     resolutionSequence?.flyer?.remove();
@@ -357,6 +444,16 @@
     root?.querySelector("[data-mobile-close-card-zoom]")?.addEventListener("click", () => {
       root.querySelector(".mobile-last-card-zoom")?.classList.add("hidden");
     });
+    root?.querySelector("[data-mobile-opponent-card]")?.addEventListener("click", () => {
+      root.querySelector(".mobile-opponent-card-zoom")?.classList.remove("hidden");
+    });
+    root?.querySelector("[data-mobile-close-opponent-zoom]")?.addEventListener("click", () => {
+      root.querySelector(".mobile-opponent-card-zoom")?.classList.add("hidden");
+    });
+    root?.querySelector("[data-mobile-opponent-continue]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
+    });
   }
 
   function applySelectedView() {
@@ -373,6 +470,8 @@
 
   function clearSelectedView() {
     interruptMobileResolution();
+    pendingOpponentReveal = null;
+    opponentRevealSequence = null;
     matchUsesMobileView = false;
     document.body.classList.remove("mobile-game-view");
     mobileApp?.classList.add("hidden");

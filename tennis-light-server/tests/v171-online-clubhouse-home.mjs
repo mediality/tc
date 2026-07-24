@@ -25,9 +25,9 @@ for (const icon of ["MATCH.svg", "LEAGUE.svg", "JOIN.svg", "JUST-WATCH.svg", "VA
   await access(new URL(`../public/assets/icons/${icon}`, import.meta.url));
 }
 
-assert.match(html, /Tennis Courts Academy · 2\.169\.21/);
-assert.match(html, /styles\.css\?v=170\.18/);
-assert.match(html, /app\.js\?v=170\.18/);
+assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.4<\/strong>/);
+assert.match(html, /styles\.css\?v=3\.4/);
+assert.match(html, /app\.js\?v=3\.4/);
 assert.match(html, /academy-upgrade-cta/);
 assert.match(html, /TENNIS COURTS — LE JEU COMPLET/);
 assert.match(html, /10 joueurs à incarner/);
@@ -68,7 +68,7 @@ assert.match(server, /circuitWorldRankForUser/);
 assert.match(server, /worldRank/);
 
 assert.doesNotMatch(app, /\(signé - Coach Ju\)/);
-assert.match(functionSource(app, "showGameNewsDialog"), /PROFILE_CHARACTER_IMAGES\[characterId\]/);
+assert.match(functionSource(app, "showGameNewsDialog"), /gameNewsImage\(news\)/);
 assert.match(styles, /\.academy-upgrade-cta/);
 assert.match(styles, /grid-template-columns: minmax\(0, 45%\) minmax\(0, 55%\)/);
 assert.match(styles, /@media \(max-width: 768px\)/);
