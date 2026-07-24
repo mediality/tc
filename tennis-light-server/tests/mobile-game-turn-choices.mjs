@@ -28,7 +28,7 @@ assert.match(mobile, /REMISE/);
 assert.match(mobile, /JOUER/);
 assert.match(mobile, /BOOST/);
 assert.doesNotMatch(mobile, /Comment jouer cette carte/);
-assert.match(mobile, /class="mobile-power-bolt"[^>]*>⚡</);
+assert.match(mobile, /class="mobile-power-bolt"[^>]*><\/i>/);
 assert.doesNotMatch(mobile, />VS</);
 
 assert.match(css, /--mobile-player-color:/);
@@ -37,5 +37,6 @@ assert.match(css, /\.mobile-player--player[\s\S]*border-left/);
 assert.match(css, /\.mobile-player--opponent[\s\S]*border-left/);
 assert.match(css, /\.mobile-power--winner-player/);
 assert.match(css, /\.mobile-power--winner-opponent/);
+assert.match(css, /mask:\s*url\("assets\/icons\/power-flash\.svg"\)/);
 
 console.log("Mobile turn choices, Boost, Remise/Effect, Pass and colors are wired.");

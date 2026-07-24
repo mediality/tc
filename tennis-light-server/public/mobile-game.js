@@ -24,6 +24,7 @@
   let scheduledMobileRender = null;
   let transientDialogTrigger = null;
   let opponentAutoContinueTimer = null;
+  let mobileMatchHasStarted = false;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -228,20 +229,6 @@
     `).join("")}</ul>`;
   }
 
-  function playersBonusesMarkup(viewState) {
-    const sections = [
-      { title: viewState.player.name, bonuses: viewState.bonuses },
-      { title: viewState.opponent.name, bonuses: viewState.opponentBonuses },
-    ].filter((entry) => entry.bonuses.length);
-    if (!sections.length) return '<p class="mobile-sheet-empty">Aucun bonus actif actuellement.</p>';
-    return sections.map((entry) => `
-      <section class="mobile-player-bonus-section">
-        <h3>${escapeText(entry.title)}</h3>
-        ${bonusesMarkup(entry.bonuses)}
-      </section>
-    `).join("");
-  }
-
   function historyMarkup(history) {
     if (!history.length) return '<p class="mobile-sheet-empty">L’échange va commencer.</p>';
     return `<ol class="mobile-history-list">${history.map((entry) => `
@@ -300,6 +287,7 @@
         ${viewState.modeContext.competition ? '<button type="button" data-mobile-menu-destination="competition">Compétition</button>' : ""}
         ${viewState.modeContext.competition?.league ? '<button type="button" data-mobile-menu-destination="standings">Classement</button>' : ""}
         <button type="button" data-mobile-menu-destination="assistance">Assistance</button>
+        <button type="button" data-mobile-open-return>Quitter le match</button>
       </nav>
     `;
   }
@@ -455,7 +443,7 @@
         </section>
         <section class="mobile-power${viewState.confrontation.winner ? ` mobile-power--winner-${viewState.confrontation.winner.toLowerCase()}` : ""}" aria-label="Confrontation de puissance">
           <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
-          <i class="mobile-power-bolt" aria-hidden="true">⚡</i>
+          <i class="mobile-power-bolt" aria-hidden="true"></i>
           <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
@@ -512,9 +500,9 @@
         </div>
         <nav class="mobile-utility-nav" aria-label="Informations et navigation">
           <button type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>
-          <button type="button" data-mobile-open-return aria-haspopup="dialog">Menu<span aria-hidden="true">↗</span></button>
         </nav>
-        ${mobileSheetMarkup("bonuses", "Bonus actifs", playersBonusesMarkup(viewState))}
+        ${mobileSheetMarkup("bonuses-player", `Bonus · ${escapeText(viewState.player.name)}`, bonusesMarkup(viewState.bonuses))}
+        ${mobileSheetMarkup("bonuses-opponent", `Bonus · ${escapeText(viewState.opponent.name)}`, bonusesMarkup(viewState.opponentBonuses))}
         ${mobileSheetMarkup("history", "Historique du match", historyMarkup(viewState.history))}
         ${mobileSheetMarkup("match-menu", "Menu du match", matchMenuMarkup(viewState))}
         ${viewState.modeContext.competition ? mobileSheetMarkup("competition", "Compétition", competitionMarkup(viewState.modeContext.competition)) : ""}
@@ -525,6 +513,15 @@
     `;
     bindMobileGameInteractions(viewState);
     if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
+    anchorMobileGameToBottom(viewState);
+  }
+
+  function anchorMobileGameToBottom(viewState) {
+    mobileMatchHasStarted = mobileMatchHasStarted || Boolean(viewState.activeCard || viewState.lastPlayedCard);
+    if (!mobileMatchHasStarted || openMobilePanel) return;
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "auto" });
+    });
   }
 
   function scheduleMobileRender() {
@@ -874,7 +871,9 @@
       if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
     });
     root?.querySelectorAll("[data-mobile-open-bonuses]").forEach((button) => {
-      button.addEventListener("click", (event) => showMobilePanel("bonuses", event.currentTarget));
+      button.addEventListener("click", (event) => {
+        showMobilePanel(`bonuses-${event.currentTarget.dataset.mobileOpenBonuses}`, event.currentTarget);
+      });
     });
     root?.querySelector("[data-mobile-open-match-menu]")?.addEventListener("click", (event) => {
       showMobilePanel("match-menu", event.currentTarget);
@@ -943,6 +942,7 @@
 
   function applySelectedView() {
     desktopApp?.classList.toggle("hidden", matchUsesMobileView);
+    if (!matchUsesMobileView) mobileMatchHasStarted = false;
     mobileApp?.classList.toggle("hidden", !matchUsesMobileView);
     document.body.classList.toggle("mobile-game-view", matchUsesMobileView);
     if (matchUsesMobileView) renderMobileGame();

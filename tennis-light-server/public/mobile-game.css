@@ -436,11 +436,12 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 }
 
 .mobile-power i {
-  color: #082738;
-  font-size: 1.8rem;
-  font-style: normal;
-  font-weight: 950;
-  opacity: 1;
+  width: 34px;
+  height: 42px;
+  color: inherit;
+  background: currentColor;
+  mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
+  -webkit-mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
   filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.3));
 }
 
@@ -842,7 +843,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   bottom: max(8px, env(safe-area-inset-bottom));
   left: max(10px, env(safe-area-inset-left));
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   pointer-events: none;
 }
 
@@ -1719,13 +1720,6 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
     overflow-wrap: anywhere;
   }
 
-  .mobile-mode-context:has(> button) {
-    grid-template-columns: minmax(0, 1fr) minmax(68px, 0.55fr);
-  }
-
-  .mobile-mode-context > button {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 430px) and (min-resolution: 1dppx) {
@@ -1830,9 +1824,11 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   font-size: 1.25rem;
 }
 
-.mobile-mode-action--play,
+.mobile-mode-action--normal,
 .mobile-mode-action--effect {
-  background: linear-gradient(135deg, #197d68, #126452);
+  border-color: color-mix(in srgb, var(--mobile-player-color) 72%, white);
+  color: #062637;
+  background: var(--mobile-player-color);
 }
 
 .mobile-mode-action--boost,

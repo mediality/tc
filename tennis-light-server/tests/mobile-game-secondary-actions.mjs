@@ -10,10 +10,10 @@ const [html, app, mobileApp, mobileStyles, pkgText] = await Promise.all([
 ]);
 const pkg = JSON.parse(pkgText);
 
-assert.equal(pkg.version, "3.9.0");
-assert.match(app, /const GAME_VERSION = "v3\.9"/);
-assert.match(html, /id="gameVersion">v3\.9</);
-assert.match(html, /mobile-game\.js\?v=3\.9\.0/);
+assert.equal(pkg.version, "3.11.0");
+assert.match(app, /const GAME_VERSION = "v3\.11"/);
+assert.match(html, /id="gameVersion">v3\.11</);
+assert.match(html, /mobile-game\.js\?v=3\.11\.0/);
 
 assert.match(app, /bonuses: activeEffectBadges\(playerIndex\)/);
 assert.match(app, /function mobileHistoryEntries\(\)/);
@@ -32,7 +32,8 @@ assert.match(app, /confirmReturnToMenu: confirmMobileReturnToMenu/);
 assert.match(mobileApp, /data-mobile-open-bonuses/);
 assert.match(mobileApp, /data-mobile-open-history/);
 assert.match(mobileApp, /data-mobile-open-return/);
-assert.match(mobileApp, /mobileSheetMarkup\("bonuses"/);
+assert.match(mobileApp, /mobileSheetMarkup\("bonuses-player"/);
+assert.match(mobileApp, /mobileSheetMarkup\("bonuses-opponent"/);
 assert.match(mobileApp, /mobileSheetMarkup\("history"/);
 assert.match(mobileApp, /data-mobile-confirm-return/);
 assert.match(mobileApp, /data-mobile-cancel-return/);
