@@ -9,8 +9,8 @@ const [html, app, mobileApp, mobileStyles] = await Promise.all([
 ]);
 
 assert.match(html, /<main id="mobileGameApp" class="mobile-game-app hidden"/);
-assert.match(html, /mobile-game\.css\?v=3\.7\.0/);
-assert.match(html, /mobile-game\.js\?v=3\.7\.0/);
+assert.match(html, /mobile-game\.css\?v=3\.8\.0/);
+assert.match(html, /mobile-game\.js\?v=3\.8\.0/);
 assert.match(html, /<main class="app game-app hidden">/);
 
 assert.match(app, /window\.tennisLightMobileAdapter = \{\s*getViewState: getMobileMatchViewState/);
@@ -21,10 +21,10 @@ assert.match(app, /function mobilePlayerSummary\(playerIndex\)/);
 
 assert.match(mobileApp, /const MOBILE_MAX_WIDTH = 600/);
 assert.match(mobileApp, /navigator\.maxTouchPoints/);
-assert.match(mobileApp, /matchMedia\("\(orientation: portrait\)"\)/);
+assert.match(mobileApp, /Math\.min\(window\.innerWidth, window\.innerHeight\) <= MOBILE_MAX_WIDTH/);
 assert.match(mobileApp, /mobileGamePreview/);
 assert.match(mobileApp, /let matchUsesMobileView = false/);
-assert.match(mobileApp, /window\.addEventListener\("orientationchange", \(\) => renderMobileGame\(false\)\)/);
+assert.match(mobileApp, /window\.addEventListener\("orientationchange", scheduleMobileRender\)/);
 assert.doesNotMatch(mobileApp, /window\.addEventListener\("orientationchange", selectViewForMatch\)/);
 assert.match(mobileApp, /Touchez pour inspecter/);
 assert.doesNotMatch(mobileApp, /(?:^|[^.])\b(?:playCard|endTurn)\(/);

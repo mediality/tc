@@ -53,7 +53,7 @@ assert.match(mobileApp, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)
 assert.match(mobileApp, /get\("reduceMotion"\) === "1"/);
 assert.match(mobileApp, /resolutionSequenceToken \+= 1/);
 assert.match(mobileApp, /if \(resolutionSequence && !force\) return/);
-assert.match(mobileApp, /window\.addEventListener\("tennis-light:match-render", \(\) => renderMobileGame\(false\)\)/);
+assert.match(mobileApp, /window\.addEventListener\("tennis-light:match-render", scheduleMobileRender\)/);
 assert.match(mobileApp, /data-mobile-last-card/);
 assert.match(mobileApp, /data-mobile-close-card-detail/);
 

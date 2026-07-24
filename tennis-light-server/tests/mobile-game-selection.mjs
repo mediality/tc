@@ -29,7 +29,7 @@ assert.match(mobileApp, /activeOption\.label\)} \(-\$\{activeOption\.realCost\} 
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.selectCard\(card\.id\)/);
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.cancelCardSelection\(\)/);
 assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.playSelectedCard\(\{/);
-assert.match(mobileApp, /if \(!card\.playable\)[\s\S]*showUnavailableExplanation\(card\)/);
+assert.match(mobileApp, /if \(!card\.playable\)[\s\S]*showUnavailableExplanation\(card, button\)/);
 assert.doesNotMatch(mobileApp, /effectiveCost|getCardStats|totalTurnPlacement|canPlayNormal/);
 
 assert.match(mobileStyles, /\.mobile-hand-card--locked img\s*\{[\s\S]*filter: grayscale\(1\)/);

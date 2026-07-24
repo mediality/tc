@@ -3,8 +3,11 @@
 }
 
 body.mobile-game-view {
+  width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
   color: #f7fbff;
   background:
     radial-gradient(circle at 50% -10%, rgba(55, 216, 178, 0.2), transparent 38%),
@@ -22,11 +25,68 @@ body.mobile-game-view .mobile-game-app {
   display: grid;
   gap: 10px;
   width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
   padding:
     max(10px, env(safe-area-inset-top))
-    12px
-    max(72px, calc(env(safe-area-inset-bottom) + 62px));
+    max(12px, env(safe-area-inset-right))
+    max(72px, calc(env(safe-area-inset-bottom) + 62px))
+    max(12px, env(safe-area-inset-left));
+  overflow-x: clip;
+}
+
+.mobile-game-shell,
+.mobile-game-shell * {
+  box-sizing: border-box;
+}
+
+.mobile-game-shell > *,
+.mobile-game-shell section,
+.mobile-game-shell article,
+.mobile-game-shell nav,
+.mobile-game-shell div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.mobile-game-view .mobile-game-shell button:not(.mobile-card-explanation-backdrop) {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+body.mobile-game-view .mobile-game-shell :focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.mobile-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.mobile-skip-link {
+  position: fixed;
+  z-index: 600;
+  top: max(6px, env(safe-area-inset-top));
+  left: max(6px, env(safe-area-inset-left));
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #062637;
+  background: #fff;
+  font-weight: 900;
+  transform: translateY(-150%);
+}
+
+.mobile-skip-link:focus {
+  transform: none;
 }
 
 .mobile-game-header,
@@ -69,8 +129,8 @@ body.mobile-game-view .mobile-game-app {
 .mobile-mode-context strong {
   overflow: hidden;
   font-size: 0.68rem;
+  overflow-wrap: anywhere;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .mobile-mode-context button {
@@ -100,8 +160,8 @@ body.mobile-game-view .mobile-game-app {
 .mobile-connection span {
   overflow: hidden;
   color: rgba(255, 255, 255, 0.66);
+  overflow-wrap: anywhere;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .mobile-connection i {
@@ -194,6 +254,8 @@ body.mobile-game-view .mobile-game-app {
 
 .mobile-player--player {
   border-left: 4px solid var(--mobile-player-color);
+  min-height: 100px;
+  padding-bottom: 52px;
 }
 
 .mobile-player--opponent {
@@ -205,10 +267,10 @@ body.mobile-game-view .mobile-game-app {
   left: 60px;
   bottom: 4px;
   min-width: 58px;
-  min-height: 24px;
+  min-height: 44px;
   border: 1px solid rgba(223, 243, 118, 0.32);
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 10px 9px;
   color: #dff376;
   background: rgba(223, 243, 118, 0.08);
   font-size: 0.56rem;
@@ -267,8 +329,8 @@ body.mobile-game-view .mobile-game-app {
 .mobile-player-copy strong,
 .mobile-player-copy span {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 .mobile-player-copy span {
@@ -555,7 +617,7 @@ body.mobile-game-view .mobile-game-app {
 
 .mobile-value-delta--loss {
   color: #fff;
-  background: #d65d68;
+  background: #a83445;
 }
 
 .mobile-last-card {
@@ -730,9 +792,9 @@ body.mobile-game-view .mobile-game-app {
 .mobile-utility-nav {
   position: fixed;
   z-index: 360;
-  right: 10px;
+  right: max(10px, env(safe-area-inset-right));
   bottom: max(8px, env(safe-area-inset-bottom));
-  left: 10px;
+  left: max(10px, env(safe-area-inset-left));
   display: flex;
   justify-content: space-between;
   pointer-events: none;
@@ -762,7 +824,11 @@ body.mobile-game-view .mobile-game-app {
   inset: 0;
   display: grid;
   align-items: end;
-  padding-top: max(48px, env(safe-area-inset-top));
+  padding:
+    max(48px, env(safe-area-inset-top))
+    env(safe-area-inset-right)
+    0
+    env(safe-area-inset-left);
   background: rgba(0, 10, 17, 0.72);
 }
 
@@ -779,6 +845,18 @@ body.mobile-game-view .mobile-game-app {
   background: #062b3d;
   box-shadow: 0 -22px 60px rgba(0, 0, 0, 0.42);
   animation: mobile-sheet-enter 180ms ease-out both;
+}
+
+.mobile-sheet-content,
+.mobile-history-list,
+.mobile-competition-matches {
+  contain: layout paint;
+}
+
+.mobile-history-entry,
+.mobile-competition-matches li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
 }
 
 .mobile-sheet-grabber {
@@ -1568,12 +1646,49 @@ body.mobile-game-view .mobile-game-app {
     place-content: center;
     gap: 8px;
     min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding: 24px;
+    padding:
+      max(24px, env(safe-area-inset-top))
+      max(24px, env(safe-area-inset-right))
+      max(24px, env(safe-area-inset-bottom))
+      max(24px, env(safe-area-inset-left));
     text-align: center;
   }
 
   .mobile-portrait-lock span {
     color: rgba(255, 255, 255, 0.64);
+  }
+}
+
+@media (max-width: 430px) {
+  .mobile-game-shell {
+    font-size: max(1rem, 100%);
+  }
+
+  .mobile-player-copy strong,
+  .mobile-player-copy span,
+  .mobile-mode-context strong,
+  .mobile-connection span,
+  .mobile-power p {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-mode-context:has(> button) {
+    grid-template-columns: minmax(0, 1fr) minmax(68px, 0.55fr);
+  }
+
+  .mobile-mode-context > button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 430px) and (min-resolution: 1dppx) {
+  .mobile-selection-detail p,
+  .mobile-selection-detail li,
+  .mobile-match-result > p,
+  .mobile-tutorial > p,
+  .mobile-opponent-card-details p {
+    font-size: max(0.7rem, 11px);
   }
 }
 
@@ -1637,6 +1752,7 @@ body.mobile-game-view .mobile-game-app {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 
   .mobile-value-delta {

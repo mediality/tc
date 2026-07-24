@@ -22,6 +22,8 @@
   let cardDetailParentTrigger = null;
   let selectedPlayMode = null;
   let selectedBoostSacrificeId = null;
+  let scheduledMobileRender = null;
+  let transientDialogTrigger = null;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -53,11 +55,8 @@
   }
 
   function isSmartphonePortrait() {
-    const portrait = window.matchMedia("(orientation: portrait)").matches
-      || window.innerHeight >= window.innerWidth;
     const previewRequested = new URLSearchParams(window.location.search).get("mobileGamePreview") === "1";
-    return portrait
-      && window.innerWidth <= MOBILE_MAX_WIDTH
+    return Math.min(window.innerWidth, window.innerHeight) <= MOBILE_MAX_WIDTH
       && (previewRequested || (hasTouchCapability() && hasMobilePlatformSignal()));
   }
 
@@ -65,8 +64,9 @@
     return score.sets.map((set, index) => {
       const pending = set.player == null || set.opponent == null;
       const winner = set.winner ? ` mobile-set-score--${set.winner.toLowerCase()}` : "";
+      const winnerLabel = set.winner === "PLAYER" ? ", set remporté par vous" : set.winner === "OPPONENT" ? ", set remporté par l’adversaire" : "";
       return `
-        <li class="mobile-set-score${winner}${pending ? " mobile-set-score--pending" : ""}" aria-label="Set ${index + 1}${pending ? " non commencé" : ` : ${set.player} à ${set.opponent}`}">
+        <li class="mobile-set-score${winner}${pending ? " mobile-set-score--pending" : ""}" aria-label="Set ${index + 1}${pending ? " non commencé" : ` : ${set.player} à ${set.opponent}${winnerLabel}`}">
           <span>${pending ? "–" : set.player}</span>
           <i aria-hidden="true"></i>
           <span>${pending ? "–" : set.opponent}</span>
@@ -86,7 +86,7 @@
     return `
       <article class="mobile-player mobile-player--${side}${player.isActive ? " mobile-player--active" : ""}">
         <div class="mobile-player-avatar">
-          <img src="${player.artwork}" alt="" />
+          <img src="${player.artwork}" alt="" decoding="async" fetchpriority="high" />
           ${isServer ? '<span class="mobile-server" aria-label="Au service">●</span>' : ""}
         </div>
         <div class="mobile-player-copy">
@@ -106,7 +106,7 @@
     if (!hand.length) return '<p class="mobile-empty-hand">Aucune carte en main</p>';
     return hand.map((card) => `
       <button class="mobile-hand-card${card.playable && !interactionLocked ? "" : " mobile-hand-card--locked"}${card.id === selectedCardId ? " mobile-hand-card--selected" : ""}" type="button" data-mobile-card="${escapeText(card.id)}" aria-pressed="${card.id === selectedCardId}" aria-label="${escapeText(card.name)}${interactionLocked ? ", indisponible pendant le tour adverse" : card.playable ? "" : `, indisponible : ${card.unavailableReason}`}" ${interactionLocked ? "disabled" : ""}>
-        <img src="${card.artwork}" alt="${escapeText(card.name)}" />
+        <img src="${card.artwork}" alt="${escapeText(card.name)}" loading="lazy" decoding="async" />
         ${card.requiredPlacement ? '<span>Placement requis</span>' : ""}
         ${card.playable ? "" : '<i aria-hidden="true">🔒</i>'}
       </button>
@@ -154,7 +154,7 @@
             <legend>Carte à sacrifier pour le Boost</legend>
             ${activeOption.sacrifices.map((card) => `
               <button type="button" data-mobile-boost-sacrifice="${escapeText(card.id)}" aria-pressed="${card.id === selectedBoostSacrificeId}">
-                <img src="${card.artwork}" alt="" /><span>${escapeText(card.name)}</span>
+                <img src="${card.artwork}" alt="" loading="lazy" decoding="async" /><span>${escapeText(card.name)}</span>
               </button>
             `).join("")}
           </fieldset>
@@ -173,7 +173,7 @@
     }
     return `
       <article class="mobile-active-card">
-        <img src="${card.artwork}" alt="${escapeText(card.name)}" />
+        <img src="${card.artwork}" alt="${escapeText(card.name)}" decoding="async" />
         <div>
           <span>${card.owner === "PLAYER" ? "Votre carte" : "Carte adverse"}</span>
           <strong>${escapeText(card.name)}</strong>
@@ -188,7 +188,7 @@
     return `
       <article class="mobile-opponent-reveal" data-mobile-opponent-reveal="${escapeText(card.id)}">
         <button class="mobile-opponent-card-visual" type="button" data-mobile-opponent-card aria-label="Agrandir la carte adverse ${escapeText(card.name)}">
-          <img src="${card.artwork}" alt="${escapeText(card.name)}" />
+          <img src="${card.artwork}" alt="${escapeText(card.name)}" decoding="async" />
         </button>
         <div class="mobile-opponent-card-details">
           <span>Carte adverse</span>
@@ -210,7 +210,7 @@
     if (!card) return '<span class="mobile-last-card-empty">Aucune carte jouée</span>';
     return `
       <button class="mobile-last-card-button" type="button" data-mobile-last-card aria-label="Agrandir ${escapeText(card.name)}">
-        <img src="${card.artwork}" alt="${escapeText(card.name)}" />
+        <img src="${card.artwork}" alt="${escapeText(card.name)}" loading="lazy" decoding="async" />
         <span><strong>${escapeText(card.name)}</strong><small>Toucher pour agrandir</small></span>
       </button>
     `;
@@ -234,7 +234,7 @@
           <span>${escapeText(entry.label)}</span>
           ${entry.variationTypes.map((type) => `<small>${escapeText(type)}</small>`).join("")}
         </div>
-        ${entry.card ? `<button type="button" data-mobile-history-card="${escapeText(entry.id)}" aria-label="Agrandir ${escapeText(entry.card.name)}"><img src="${entry.card.artwork}" alt="" /></button>` : ""}
+        ${entry.card ? `<button type="button" data-mobile-history-card="${escapeText(entry.id)}" aria-label="Agrandir ${escapeText(entry.card.name)}"><img src="${entry.card.artwork}" alt="" loading="lazy" decoding="async" /></button>` : ""}
         <p>${escapeText(entry.message)}</p>
         ${entry.variations.length ? `<ul>${entry.variations.map((variation) => `<li>${escapeText(variation)}</li>`).join("")}</ul>` : ""}
       </li>
@@ -268,10 +268,10 @@
     return `
       <aside class="mobile-tutorial" role="dialog" aria-modal="false" aria-labelledby="mobileTutorialTitle">
         <header>
-          <img src="${tutorial.narrator.artwork}" alt="" />
+          <img src="${tutorial.narrator.artwork}" alt="" decoding="async" />
           <div><span>${escapeText(tutorial.lesson)}${tutorial.progress ? ` · ${escapeText(tutorial.progress)}` : ""}</span><strong>${escapeText(tutorial.narrator.name)}</strong></div>
         </header>
-        ${tutorial.showcase ? `<figure><img src="${tutorial.showcase.artwork}" alt="${escapeText(tutorial.showcase.name)}" /><figcaption>${escapeText(tutorial.showcase.label)}</figcaption></figure>` : ""}
+        ${tutorial.showcase ? `<figure><img src="${tutorial.showcase.artwork}" alt="${escapeText(tutorial.showcase.name)}" decoding="async" /><figcaption>${escapeText(tutorial.showcase.label)}</figcaption></figure>` : ""}
         <h2 id="mobileTutorialTitle">${escapeText(tutorial.title)}</h2>
         <p>${escapeText(tutorial.text)}</p>
         ${tutorial.error ? `<p class="mobile-tutorial-error" role="alert">${escapeText(tutorial.error)}</p>` : ""}
@@ -343,6 +343,17 @@
     return `<div class="mobile-resolution-messages" role="status">${messages.map((message) => `<p>${escapeText(message)}</p>`).join("")}</div>`;
   }
 
+  function resolutionAnnouncementMarkup() {
+    const receipt = activeResolutionReceipt || lastResolutionReceipt;
+    if (!receipt?.deltas?.length) return "";
+    const sideLabel = { player: "Vous", opponent: "Adversaire" };
+    const metricLabel = { power: "puissance", endurance: "endurance", handCount: "cartes en main" };
+    const announcement = receipt.deltas.map((delta) => (
+      `${sideLabel[delta.side] || delta.side} : ${delta.delta > 0 ? "gain de" : "perte de"} ${Math.abs(delta.delta)} ${metricLabel[delta.metric] || delta.metric}`
+    )).join(". ");
+    return `<p class="mobile-visually-hidden" role="status" aria-live="assertive" aria-atomic="true">${escapeText(announcement)}</p>`;
+  }
+
   function escapeText(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -377,6 +388,8 @@
         : viewState.activeCard?.id === settledLocalCardId ? null : viewState.activeCard;
     root.innerHTML = `
       <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-auto-continue-opponent="${AUTO_CONTINUE_OPPONENT_REVEAL}">
+        <a class="mobile-skip-link" href="#mobileGameHand">Aller à la main</a>
+        ${resolutionAnnouncementMarkup()}
         <header class="mobile-game-header">
           <span>Tennis Courts</span>
           <strong>${viewState.result ? viewState.result.title : viewState.spectator ? "Lecture seule" : "Match en cours"}</strong>
@@ -411,7 +424,7 @@
           <button type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"}>Passer</button>
           <button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>Terminer le tour</button>
         </div>`}
-        ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}">
+        ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section id="mobileGameHand" class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}" tabindex="-1">
           <header><strong>Votre main</strong><span>${opponentInteractionLocked ? "Tour adverse en cours" : viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
         </section>`}
@@ -428,7 +441,7 @@
         </div>
         <div class="mobile-card-detail${openMobilePanel === "card-detail" ? "" : " hidden"}" role="dialog" aria-modal="true" aria-labelledby="mobileCardDetailTitle">
           <button type="button" data-mobile-close-card-detail aria-label="Fermer le détail">×</button>
-          <img data-mobile-card-detail-image src="${detailedMobileCard?.artwork || ""}" alt="${escapeText(detailedMobileCard?.name || "")}" />
+          <img data-mobile-card-detail-image src="${detailedMobileCard?.artwork || ""}" alt="${escapeText(detailedMobileCard?.name || "")}" decoding="async" />
           <section>
             <span>Détail de la carte</span>
             <h2 id="mobileCardDetailTitle" data-mobile-card-detail-name>${escapeText(detailedMobileCard?.name || "")}</h2>
@@ -443,7 +456,7 @@
         </div>
         <div class="mobile-opponent-card-zoom hidden" role="dialog" aria-modal="true" aria-label="Carte adverse agrandie">
           <button type="button" data-mobile-close-opponent-zoom aria-label="Fermer l’agrandissement">×</button>
-          ${pendingOpponentReveal ? `<img src="${pendingOpponentReveal.artwork}" alt="${escapeText(pendingOpponentReveal.name)}" />` : ""}
+          ${pendingOpponentReveal ? `<img src="${pendingOpponentReveal.artwork}" alt="${escapeText(pendingOpponentReveal.name)}" decoding="async" />` : ""}
         </div>
         <div class="mobile-portrait-lock" role="status">
           <strong>Revenez en mode portrait</strong>
@@ -461,6 +474,14 @@
     `;
     bindMobileGameInteractions(viewState);
     if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
+  }
+
+  function scheduleMobileRender() {
+    if (!matchUsesMobileView || scheduledMobileRender != null) return;
+    scheduledMobileRender = window.requestAnimationFrame(() => {
+      scheduledMobileRender = null;
+      renderMobileGame(false);
+    });
   }
 
   function prefersReducedMotion() {
@@ -588,19 +609,22 @@
     root?.classList.remove("mobile-resolution-locked");
   }
 
-  function showUnavailableExplanation(card) {
+  function showUnavailableExplanation(card, trigger = null) {
     const dialog = root?.querySelector(".mobile-card-explanation");
     if (!dialog) return;
     const title = dialog.querySelector("#mobileCardExplanationTitle");
     const reason = dialog.querySelector("[data-mobile-explanation-reason]");
     if (title) title.textContent = card.name;
     if (reason) reason.textContent = card.unavailableReason || "Cette carte ne peut pas être jouée maintenant.";
+    transientDialogTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement;
     dialog.classList.remove("hidden");
     dialog.querySelector("section button")?.focus();
   }
 
   function closeUnavailableExplanation() {
     root?.querySelector(".mobile-card-explanation")?.classList.add("hidden");
+    if (transientDialogTrigger?.isConnected) transientDialogTrigger.focus();
+    transientDialogTrigger = null;
   }
 
   function focusableElements(container) {
@@ -701,7 +725,7 @@
         const card = viewState.hand.find((candidate) => candidate.id === button.dataset.mobileCard);
         if (!card) return;
         if (!card.playable) {
-          showUnavailableExplanation(card);
+          showUnavailableExplanation(card, button);
           return;
         }
         lastResolutionReceipt = null;
@@ -756,10 +780,14 @@
       showMobileCardDetail(viewState.lastPlayedCard, event.currentTarget);
     });
     root?.querySelector("[data-mobile-opponent-card]")?.addEventListener("click", () => {
+      transientDialogTrigger = document.activeElement;
       root.querySelector(".mobile-opponent-card-zoom")?.classList.remove("hidden");
+      root.querySelector("[data-mobile-close-opponent-zoom]")?.focus();
     });
     root?.querySelector("[data-mobile-close-opponent-zoom]")?.addEventListener("click", () => {
       root.querySelector(".mobile-opponent-card-zoom")?.classList.add("hidden");
+      if (transientDialogTrigger?.isConnected) transientDialogTrigger.focus();
+      transientDialogTrigger = null;
     });
     root?.querySelector("[data-mobile-opponent-continue]")?.addEventListener("click", (event) => {
       const button = event.currentTarget;
@@ -837,6 +865,8 @@
     opponentRevealSequence = null;
     closeMobilePanel(false);
     matchUsesMobileView = false;
+    if (scheduledMobileRender != null) window.cancelAnimationFrame(scheduledMobileRender);
+    scheduledMobileRender = null;
     document.body.classList.remove("mobile-game-view");
     mobileApp?.classList.add("hidden");
   }
@@ -848,11 +878,24 @@
     render: renderMobileGame,
   };
 
-  window.addEventListener("tennis-light:match-render", () => renderMobileGame(false));
-  window.addEventListener("orientationchange", () => renderMobileGame(false));
-  window.addEventListener("resize", () => renderMobileGame(false));
+  window.addEventListener("tennis-light:match-render", scheduleMobileRender);
+  window.addEventListener("orientationchange", scheduleMobileRender);
+  window.addEventListener("resize", scheduleMobileRender);
   document.addEventListener("keydown", (event) => {
-    if (!matchUsesMobileView || !openMobilePanel) return;
+    if (!matchUsesMobileView) return;
+    const explanation = root?.querySelector(".mobile-card-explanation:not(.hidden)");
+    const opponentZoom = root?.querySelector(".mobile-opponent-card-zoom:not(.hidden)");
+    if (event.key === "Escape" && explanation) {
+      event.preventDefault();
+      closeUnavailableExplanation();
+      return;
+    }
+    if (event.key === "Escape" && opponentZoom) {
+      event.preventDefault();
+      root.querySelector("[data-mobile-close-opponent-zoom]")?.click();
+      return;
+    }
+    if (!openMobilePanel) return;
     if (event.key === "Escape") {
       event.preventDefault();
       closeMobilePanel();

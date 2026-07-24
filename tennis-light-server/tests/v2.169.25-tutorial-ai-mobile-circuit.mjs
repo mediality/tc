@@ -25,7 +25,7 @@ function functionSource(source, name) {
   throw new Error(`Source incomplète pour ${name}`);
 }
 
-assert.equal(pkg.version, "3.7.0");
+assert.equal(pkg.version, "3.8.1");
 assert.match(html, /data-open-tutorial-modules data-required-role="admin"/);
 assert.equal((html.match(/data-open-tutorial-modules/g) || []).length, 1);
 assert.match(app, /closest\("\[data-open-tutorial-modules\]"\)/);
