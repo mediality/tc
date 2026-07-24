@@ -14,6 +14,7 @@ assert.match(app, /canPass:[\s\S]*tutorialAllowsPass\(\)[\s\S]*!hasPlayedThisTur
 assert.match(app, /canUndo: !SPECTATOR_MODE\.enabled && canUndoTurn\(playerIndex\)/);
 assert.match(app, /hideEndTurn: !state\.turnDirty[\s\S]*state\.mandatoryPlacement && !canEndTurn\(playerIndex\)/);
 assert.match(app, /const endsTurn = !isRemise\(card\)/);
+assert.match(app, /const opponent = state\.players\[opponentIndex\]/);
 assert.match(app, /function undoMobileTurn\(\)[\s\S]*restoreTurnSnapshot\(\)/);
 assert.match(app, /standings: leagueStandingsState/);
 assert.match(app, /opponentBonuses: activeEffectBadges\(opponentIndex\)/);
@@ -63,4 +64,4 @@ assert.match(css, /\.mobile-player-stat--critical dd/);
 assert.match(css, /\.mobile-last-card-button--boost/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.12 : lancement, tour allégé et pouvoir étoile : OK");
+console.log("Mobile v3.13 : lancement des matchs et tour allégé : OK");

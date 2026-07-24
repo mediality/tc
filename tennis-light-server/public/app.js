@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.12";
+const GAME_VERSION = "v3.13";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7279,7 +7279,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.12");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.13");
 }
 
 function emptyMomentumState() {
@@ -16960,6 +16960,7 @@ function getMobileMatchViewState() {
   const playerIndex = mobileLocalPlayerIndex();
   const opponentIndex = opponentOf(playerIndex);
   const player = state.players[playerIndex];
+  const opponent = state.players[opponentIndex];
   const activeCard = state.latestPlayedCard;
   const activeCardSummary = mobilePlayedCardSummary(activeCard, playerIndex);
   let selectedCard = player?.hand?.find((card) => card.uid === mobileSelectedCardUid) || null;
