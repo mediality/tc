@@ -4,6 +4,11 @@
   const mobileApp = document.querySelector("#mobileGameApp");
   const desktopApp = document.querySelector(".game-app");
   let matchUsesMobileView = false;
+  let resolutionSequence = null;
+  let activeResolutionReceipt = null;
+  let lastResolutionReceipt = null;
+  let settledLocalCardId = null;
+  let resolutionSequenceToken = 0;
 
   function hasTouchCapability() {
     return navigator.maxTouchPoints > 0 || "ontouchstart" in window;
@@ -37,6 +42,13 @@
     }).join("");
   }
 
+  function deltaMarkup(side, metric) {
+    const receipt = activeResolutionReceipt || (prefersReducedMotion() ? lastResolutionReceipt : null);
+    const delta = receipt?.deltas?.find((item) => item.side === side && item.metric === metric);
+    if (!delta) return "";
+    return `<span class="mobile-value-delta mobile-value-delta--${delta.delta > 0 ? "gain" : "loss"}" role="status">${delta.delta > 0 ? "+" : ""}${delta.delta}</span>`;
+  }
+
   function playerMarkup(player, side, isServer) {
     return `
       <article class="mobile-player mobile-player--${side}${player.isActive ? " mobile-player--active" : ""}">
@@ -49,8 +61,8 @@
           <span>${escapeText(player.characterName)}</span>
         </div>
         <dl class="mobile-player-stats">
-          <div><dt>END</dt><dd>${player.endurance}</dd></div>
-          <div><dt>Cartes</dt><dd>${player.handCount}</dd></div>
+          <div data-mobile-value="${side}-endurance"><dt>END</dt><dd>${player.endurance}</dd>${deltaMarkup(side, "endurance")}</div>
+          <div data-mobile-value="${side}-handCount"><dt>Cartes</dt><dd>${player.handCount}</dd>${deltaMarkup(side, "handCount")}</div>
         </dl>
       </article>
     `;
@@ -111,6 +123,24 @@
     `;
   }
 
+  function lastPlayedCardMarkup(card) {
+    if (!card) return '<span class="mobile-last-card-empty">Aucune carte jouée</span>';
+    return `
+      <button class="mobile-last-card-button" type="button" data-mobile-last-card aria-label="Agrandir ${escapeText(card.name)}">
+        <img src="${card.artwork}" alt="${escapeText(card.name)}" />
+        <span><strong>${escapeText(card.name)}</strong><small>Toucher pour agrandir</small></span>
+      </button>
+    `;
+  }
+
+  function importantMessagesMarkup(viewState) {
+    const messages = lastResolutionReceipt?.messages?.length
+      ? lastResolutionReceipt.messages
+      : viewState.activeCard?.resolutionMessage ? [viewState.activeCard.resolutionMessage] : [];
+    if (!messages.length) return "";
+    return `<div class="mobile-resolution-messages" role="status">${messages.map((message) => `<p>${escapeText(message)}</p>`).join("")}</div>`;
+  }
+
   function escapeText(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -120,15 +150,16 @@
       .replaceAll("'", "&#039;");
   }
 
-  function renderMobileGame() {
+  function renderMobileGame(force = false) {
     if (!matchUsesMobileView || !root) return;
+    if (resolutionSequence && !force) return;
     const viewState = window.tennisLightMobileAdapter?.getViewState();
     if (!viewState) {
       root.innerHTML = '<p class="mobile-game-fallback" role="status">Chargement du match…</p>';
       return;
     }
     root.innerHTML = `
-      <div class="mobile-game-shell">
+      <div class="mobile-game-shell" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}">
         <header class="mobile-game-header">
           <span>Tennis Courts</span>
           <strong>${viewState.phase === "MATCH_COMPLETE" ? "Match terminé" : "Match en cours"}</strong>
@@ -139,12 +170,19 @@
           ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER")}
         </section>
         <section class="mobile-power" aria-label="Confrontation de puissance">
-          <div><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong></div>
+          <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
           <i aria-hidden="true">VS</i>
-          <div><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong></div>
+          <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
-        <section class="mobile-scene" aria-label="Carte active">${activeCardMarkup(viewState.activeCard)}</section>
+        <section class="mobile-scene${resolutionSequence ? " mobile-scene--resolving" : ""}" aria-label="Carte active">
+          ${activeCardMarkup(viewState.activeCard?.owner === "PLAYER" && viewState.activeCard.id === settledLocalCardId ? null : viewState.activeCard)}
+          ${importantMessagesMarkup(viewState)}
+        </section>
+        <section class="mobile-last-card" aria-label="Dernière carte jouée">
+          <header><strong>Dernière carte jouée</strong></header>
+          ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
+        </section>
         ${selectedPreviewMarkup(viewState)}
         <section class="mobile-hand-section" aria-label="Votre main">
           <header><strong>Votre main</strong><span>${viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
@@ -159,6 +197,10 @@
             <button type="button" data-mobile-close-explanation>Compris</button>
           </section>
         </div>
+        <div class="mobile-last-card-zoom hidden" role="dialog" aria-modal="true" aria-label="Dernière carte jouée agrandie">
+          <button type="button" data-mobile-close-card-zoom aria-label="Fermer l’agrandissement">×</button>
+          ${viewState.lastPlayedCard ? `<img src="${viewState.lastPlayedCard.artwork}" alt="${escapeText(viewState.lastPlayedCard.name)}" />` : ""}
+        </div>
         <div class="mobile-portrait-lock" role="status">
           <strong>Revenez en mode portrait</strong>
           <span>La partie mobile reste ouverte pendant la rotation.</span>
@@ -166,6 +208,106 @@
       </div>
     `;
     bindMobileGameInteractions(viewState);
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      || new URLSearchParams(window.location.search).get("reduceMotion") === "1";
+  }
+
+  function waitForResolutionStep(duration, token) {
+    if (!duration || prefersReducedMotion()) return Promise.resolve(token === resolutionSequenceToken);
+    return new Promise((resolve) => {
+      window.setTimeout(() => resolve(token === resolutionSequenceToken), duration);
+    });
+  }
+
+  function createFlyingCard(image, bounds) {
+    const flyer = image.cloneNode(true);
+    flyer.className = "mobile-resolution-flyer";
+    Object.assign(flyer.style, {
+      top: `${bounds.top}px`,
+      left: `${bounds.left}px`,
+      width: `${bounds.width}px`,
+      height: `${bounds.height}px`,
+    });
+    document.body.append(flyer);
+    return flyer;
+  }
+
+  async function animateCardBetween(image, fromBounds, toBounds, duration, token) {
+    if (prefersReducedMotion() || !image || !fromBounds || !toBounds) return token === resolutionSequenceToken;
+    const flyer = createFlyingCard(image, fromBounds);
+    resolutionSequence.flyer = flyer;
+    const translateX = toBounds.left + (toBounds.width / 2) - (fromBounds.left + (fromBounds.width / 2));
+    const translateY = toBounds.top + (toBounds.height / 2) - (fromBounds.top + (fromBounds.height / 2));
+    const scale = Math.min(toBounds.width / fromBounds.width, toBounds.height / fromBounds.height);
+    const animation = flyer.animate([
+      { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" },
+      { opacity: 1, transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})` },
+    ], { duration, easing: "ease-out", fill: "forwards" });
+    await animation.finished.catch(() => {});
+    flyer.remove();
+    if (resolutionSequence) resolutionSequence.flyer = null;
+    return token === resolutionSequenceToken;
+  }
+
+  function setResolutionLock(locked) {
+    root?.classList.toggle("mobile-resolution-locked", locked);
+    root?.querySelectorAll("button").forEach((button) => {
+      if (locked) button.disabled = true;
+    });
+  }
+
+  async function runMobileResolution(playButton, viewState) {
+    if (resolutionSequence || playButton.disabled || !viewState.selectedCardId) return;
+    const selectedButton = root?.querySelector(".mobile-hand-card--selected");
+    const selectedImage = selectedButton?.querySelector("img");
+    const scene = root?.querySelector(".mobile-scene");
+    const fromBounds = selectedImage?.getBoundingClientRect();
+    const sceneBounds = scene?.getBoundingClientRect();
+    const targetBounds = sceneBounds ? {
+      left: sceneBounds.left + (sceneBounds.width - Math.min(96, sceneBounds.width * 0.32)) / 2,
+      top: sceneBounds.top + 12,
+      width: Math.min(96, sceneBounds.width * 0.32),
+      height: Math.min(136, sceneBounds.height - 24),
+    } : null;
+    const token = ++resolutionSequenceToken;
+    resolutionSequence = { token, phase: "hand-to-scene", flyer: null };
+    setResolutionLock(true);
+    const receipt = window.tennisLightMobileAdapter?.playSelectedCard();
+    if (!receipt?.ok) {
+      resolutionSequence = null;
+      setResolutionLock(false);
+      renderMobileGame(true);
+      return;
+    }
+    if (!await animateCardBetween(selectedImage, fromBounds, targetBounds, 320, token)) return;
+    activeResolutionReceipt = receipt;
+    lastResolutionReceipt = receipt;
+    resolutionSequence.phase = "values";
+    renderMobileGame(true);
+    setResolutionLock(true);
+    if (!await waitForResolutionStep(700, token)) return;
+    resolutionSequence.phase = "scene-to-last";
+    const sceneImage = root?.querySelector(".mobile-active-card img");
+    const lastTarget = root?.querySelector(".mobile-last-card-button img");
+    const sceneCardBounds = sceneImage?.getBoundingClientRect();
+    const lastBounds = lastTarget?.getBoundingClientRect();
+    if (!await animateCardBetween(sceneImage, sceneCardBounds, lastBounds, 240, token)) return;
+    settledLocalCardId = receipt.card.id;
+    activeResolutionReceipt = null;
+    resolutionSequence = null;
+    setResolutionLock(false);
+    renderMobileGame(true);
+  }
+
+  function interruptMobileResolution() {
+    resolutionSequenceToken += 1;
+    resolutionSequence?.flyer?.remove();
+    resolutionSequence = null;
+    activeResolutionReceipt = null;
+    root?.classList.remove("mobile-resolution-locked");
   }
 
   function showUnavailableExplanation(card) {
@@ -192,6 +334,8 @@
           showUnavailableExplanation(card);
           return;
         }
+        lastResolutionReceipt = null;
+        settledLocalCardId = null;
         window.tennisLightMobileAdapter?.selectCard(card.id);
       });
     });
@@ -201,13 +345,18 @@
     root?.querySelector("[data-mobile-play]")?.addEventListener("click", (event) => {
       const button = event.currentTarget;
       if (!(button instanceof HTMLButtonElement) || button.disabled) return;
-      button.disabled = true;
-      window.tennisLightMobileAdapter?.playSelectedCard();
+      runMobileResolution(button, viewState);
     });
     root?.querySelectorAll("[data-mobile-close-explanation]").forEach((button) => {
       button.addEventListener("click", closeUnavailableExplanation);
     });
     root?.querySelector(".mobile-hand-card--selected")?.scrollIntoView({ block: "nearest", inline: "center" });
+    root?.querySelector("[data-mobile-last-card]")?.addEventListener("click", () => {
+      root.querySelector(".mobile-last-card-zoom")?.classList.remove("hidden");
+    });
+    root?.querySelector("[data-mobile-close-card-zoom]")?.addEventListener("click", () => {
+      root.querySelector(".mobile-last-card-zoom")?.classList.add("hidden");
+    });
   }
 
   function applySelectedView() {
@@ -223,6 +372,7 @@
   }
 
   function clearSelectedView() {
+    interruptMobileResolution();
     matchUsesMobileView = false;
     document.body.classList.remove("mobile-game-view");
     mobileApp?.classList.add("hidden");
@@ -235,9 +385,9 @@
     render: renderMobileGame,
   };
 
-  window.addEventListener("tennis-light:match-render", renderMobileGame);
-  window.addEventListener("orientationchange", renderMobileGame);
-  window.addEventListener("resize", renderMobileGame);
+  window.addEventListener("tennis-light:match-render", () => renderMobileGame(false));
+  window.addEventListener("orientationchange", () => renderMobileGame(false));
+  window.addEventListener("resize", () => renderMobileGame(false));
 
   if (desktopApp && !desktopApp.classList.contains("hidden")) selectViewForMatch();
 })();

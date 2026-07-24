@@ -16474,6 +16474,46 @@ function cancelMobileCardSelection() {
   window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
 }
 
+function mobileResolutionValues(playerIndex) {
+  const opponentIndex = opponentOf(playerIndex);
+  const snapshot = (index) => ({
+    power: Number(state.players[index]?.power || 0),
+    endurance: Number(state.players[index]?.endurance || 0),
+    handCount: Number(state.players[index]?.hand?.length || 0),
+  });
+  return {
+    player: snapshot(playerIndex),
+    opponent: snapshot(opponentIndex),
+  };
+}
+
+function mobileResolutionDeltas(before, after) {
+  const labels = {
+    power: "Puissance",
+    endurance: "Endurance",
+    handCount: "Cartes",
+  };
+  return ["player", "opponent"].flatMap((side) => (
+    Object.keys(labels).map((metric) => {
+      const delta = Number(after[side][metric] || 0) - Number(before[side][metric] || 0);
+      return delta ? { side, metric, label: labels[metric], delta, value: after[side][metric] } : null;
+    }).filter(Boolean)
+  ));
+}
+
+function mobileNewResolutionMessages(previousFirstLog) {
+  const messages = [];
+  for (const line of state.log) {
+    if (line === previousFirstLog) break;
+    if (line && !messages.includes(line)) messages.push(line);
+    if (messages.length >= 3) break;
+  }
+  if (state.effectNotice?.message && !messages.includes(state.effectNotice.message)) {
+    messages.unshift(state.effectNotice.message);
+  }
+  return messages.slice(0, 3);
+}
+
 function playSelectedMobileCard() {
   if (mobilePlaySubmissionLocked || !mobileSelectedCardUid) return false;
   const playerIndex = mobileLocalPlayerIndex();
@@ -16481,12 +16521,37 @@ function playSelectedMobileCard() {
   if (!card || mobileCardUnavailableReason(playerIndex, card)) return false;
   const mode = isRemise(card) ? "effect" : "normal";
   if (!tutorialAllowsPlay(playerIndex, card, mode, false)) return false;
+  const before = mobileResolutionValues(playerIndex);
+  const previousFirstLog = state.log[0] || null;
+  const submittedCard = {
+    id: card.uid,
+    artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+    name: card.name,
+  };
   mobilePlaySubmissionLocked = true;
   mobileSelectedCardUid = null;
   try {
     playCard(playerIndex, card.uid, false, null, mode);
     completeTutorialAction({ kind: "play", playerIndex, cardId: card.id, mode });
-    return true;
+    const resolvedCard = state.latestPlayedCard?.owner === playerIndex
+      ? state.latestPlayedCard
+      : state.players[playerIndex]?.played?.find((candidate) => candidate.uid === card.uid);
+    const after = mobileResolutionValues(playerIndex);
+    return {
+      ok: true,
+      resolutionId: resolvedCard?.playedUid || `${card.uid}:${state.actionLog?.length || 0}`,
+      card: {
+        ...submittedCard,
+        id: resolvedCard?.playedUid || submittedCard.id,
+        power: Number(resolvedCard?.cardPowerGained ?? resolvedCard?.powerGained ?? 0),
+        effect: resolvedCard?.effect || card.effect || "",
+      },
+      deltas: mobileResolutionDeltas(before, after),
+      messages: mobileNewResolutionMessages(previousFirstLog),
+      before,
+      after,
+      synchronizedRevision: Number(SERVER_SYNC.revision || 0),
+    };
   } finally {
     mobilePlaySubmissionLocked = false;
   }
@@ -16540,6 +16605,7 @@ function getMobileMatchViewState() {
       owner: activeCard.owner === playerIndex ? "PLAYER" : "OPPONENT",
       power: Number(activeCard.cardPowerGained ?? activeCard.powerGained ?? 0),
       effect: activeCard.effect || "",
+      resolutionMessage: state.effectNotice?.message || "",
     } : null,
     lastPlayedCard: activeCard ? {
       id: activeCard.playedUid || activeCard.uid,

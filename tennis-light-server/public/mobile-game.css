@@ -161,6 +161,7 @@ body.mobile-game-view .mobile-game-app {
 }
 
 .mobile-player-stats div {
+  position: relative;
   display: grid;
   justify-items: center;
 }
@@ -190,6 +191,7 @@ body.mobile-game-view .mobile-game-app {
 }
 
 .mobile-power div {
+  position: relative;
   display: grid;
   justify-items: center;
 }
@@ -226,7 +228,13 @@ body.mobile-game-view .mobile-game-app {
 .mobile-scene {
   display: grid;
   place-items: center;
+  gap: 8px;
   min-height: 142px;
+}
+
+.mobile-scene--resolving {
+  border-radius: 18px;
+  background: radial-gradient(circle, rgba(102, 232, 192, 0.12), transparent 68%);
 }
 
 .mobile-active-card {
@@ -261,6 +269,156 @@ body.mobile-game-view .mobile-game-app {
   min-height: 108px;
   border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: 18px;
+}
+
+.mobile-resolution-messages {
+  display: grid;
+  gap: 4px;
+  width: min(330px, 100%);
+  text-align: center;
+}
+
+.mobile-resolution-messages p {
+  margin: 0;
+  color: #b8efd9;
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.mobile-value-delta {
+  position: absolute;
+  z-index: 4;
+  top: -8px;
+  right: -9px;
+  border-radius: 999px;
+  padding: 2px 5px;
+  color: #062637;
+  background: #dff376;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.25);
+  font-size: 0.7rem;
+  font-weight: 950;
+  pointer-events: none;
+  animation: mobile-value-delta 700ms ease-out both;
+}
+
+.mobile-value-delta--loss {
+  color: #fff;
+  background: #d65d68;
+}
+
+.mobile-last-card {
+  display: grid;
+  gap: 5px;
+}
+
+.mobile-last-card > header strong {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.mobile-last-card-button {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 5px 8px;
+  color: #f7fbff;
+  background: rgba(255, 255, 255, 0.06);
+  text-align: left;
+}
+
+.mobile-last-card-button img {
+  width: 34px;
+  max-height: 46px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.mobile-last-card-button span {
+  display: grid;
+}
+
+.mobile-last-card-button small,
+.mobile-last-card-empty {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.65rem;
+}
+
+.mobile-last-card-empty {
+  min-height: 44px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  padding: 13px;
+  text-align: center;
+}
+
+.mobile-resolution-flyer {
+  position: fixed;
+  z-index: 400;
+  border-radius: 8px;
+  object-fit: cover;
+  pointer-events: none;
+  will-change: transform, opacity;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+}
+
+.mobile-resolution-locked {
+  cursor: progress;
+}
+
+.mobile-resolution-locked button {
+  pointer-events: none;
+}
+
+.mobile-last-card-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 420;
+  display: grid;
+  place-items: center;
+  padding: max(54px, env(safe-area-inset-top)) 22px max(22px, env(safe-area-inset-bottom));
+  background: rgba(0, 10, 17, 0.9);
+}
+
+.mobile-last-card-zoom > button {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 1.5rem;
+}
+
+.mobile-last-card-zoom img {
+  width: min(78vw, 310px);
+  max-height: calc(100dvh - 90px);
+  border-radius: 14px;
+  object-fit: contain;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes mobile-value-delta {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  18%, 72% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-9px) scale(1);
+  }
 }
 
 .mobile-hand-section {
@@ -534,6 +692,10 @@ body.mobile-game-view .mobile-game-app {
     min-height: 112px;
   }
 
+  .mobile-last-card {
+    gap: 3px;
+  }
+
   .mobile-active-card img {
     width: 68px;
   }
@@ -554,5 +716,10 @@ body.mobile-game-view .mobile-game-app {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+
+  .mobile-value-delta {
+    opacity: 1;
+    transform: none;
   }
 }
