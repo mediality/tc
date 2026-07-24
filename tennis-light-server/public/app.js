@@ -16543,19 +16543,25 @@ function mobileHistoryEntries() {
   return state.log.map((line, index) => {
     const normalized = String(line || "").toLocaleLowerCase("fr");
     const card = CARD_LIBRARY.find((item) => normalized.includes(String(item.name || "").toLocaleLowerCase("fr")));
-    const playedAction = card
+    const isPlayedLine = /^.+ joue .+ :/.test(String(line || ""));
+    const playedAction = card && isPlayedLine
       ? [...(state.actionLog || [])].reverse().find((entry) => entry.kind === "play_card" && entry.card?.id === card.id)
       : null;
+    const playedCard = card && isPlayedLine
+      ? state.players.flatMap((player) => player.played || []).reverse().find((entry) => entry.id === card.id)
+      : null;
+    const actualCost = Number(playedAction?.costPaid ?? playedCard?.costPaid ?? 0);
+    const actualPower = Number(playedAction?.powerGained ?? playedCard?.powerGained ?? 0);
     const variationTypes = [
-      /endurance/.test(normalized) || playedAction?.costPaid ? "Endurance" : null,
-      /puissance/.test(normalized) || playedAction?.powerGained ? "Puissance" : null,
+      /endurance/.test(normalized) || actualCost ? "Endurance" : null,
+      /puissance/.test(normalized) || actualPower ? "Puissance" : null,
       /bonus|boost/.test(normalized) ? "Bonus" : null,
       /effet/.test(normalized) ? "Effet" : null,
     ].filter(Boolean);
-    const variations = playedAction ? [
-      Number(playedAction.costPaid || 0) ? `-${Number(playedAction.costPaid)} endurance` : null,
-      Number(playedAction.powerGained || 0) ? `+${Number(playedAction.powerGained)} puissance` : null,
-    ].filter(Boolean) : [];
+    const variations = [
+      actualCost ? `-${actualCost} endurance` : null,
+      actualPower ? `+${actualPower} puissance` : null,
+    ].filter(Boolean);
     return {
       id: `${state.actionLog?.length || 0}:${index}:${line}`,
       type: actionLogEntryType(line),

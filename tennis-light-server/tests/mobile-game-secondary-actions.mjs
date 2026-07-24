@@ -13,7 +13,7 @@ const pkg = JSON.parse(pkgText);
 assert.equal(pkg.version, "3.5.0");
 assert.match(app, /const GAME_VERSION = "v3\.5"/);
 assert.match(html, /id="gameVersion">v3\.5</);
-assert.match(html, /mobile-game\.js\?v=3\.5/);
+assert.match(html, /mobile-game\.js\?v=3\.5\.0/);
 
 assert.match(app, /bonuses: activeEffectBadges\(playerIndex\)/);
 assert.match(app, /function mobileHistoryEntries\(\)/);
@@ -21,7 +21,7 @@ assert.match(app, /return state\.log\.map\(\(line, index\) =>/);
 assert.match(app, /type: actionLogEntryType\(line\)/);
 assert.match(app, /label: actionLogEntryLabel\(actionLogEntryType\(line\)\)/);
 assert.match(app, /variationTypes/);
-assert.match(app, /playedAction\?\.costPaid/);
+assert.match(app, /playedAction\?\.costPaid \?\? playedCard\?\.costPaid/);
 assert.match(app, /variations/);
 assert.match(app, /lastPlayedCard: activeCardSummary/);
 assert.match(app, /function mobileReturnToMenuInfo\(\)/);
