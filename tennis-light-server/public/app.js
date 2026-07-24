@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.4";
+const GAME_VERSION = "v3.5";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7278,7 +7278,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.4");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.5");
 }
 
 function emptyMomentumState() {
@@ -16530,12 +16530,75 @@ function mobilePlayedCardSummary(card, playerIndex) {
     owner: card.owner === playerIndex ? "PLAYER" : "OPPONENT",
     cost: Number(card.costPaid ?? card.cost ?? 0),
     power: Number(card.cardPowerGained ?? card.powerGained ?? 0),
+    precision: Number(card.precision ?? 0),
     effect: card.effectApplied === false
       ? `${card.effect || "Aucun effet"} (annulé)`
       : card.effect || "Aucun effet",
     placement,
     consequence: consequenceParts.join(" · ") || "La confrontation est actualisée.",
   };
+}
+
+function mobileHistoryEntries() {
+  return state.log.map((line, index) => {
+    const normalized = String(line || "").toLocaleLowerCase("fr");
+    const card = CARD_LIBRARY.find((item) => normalized.includes(String(item.name || "").toLocaleLowerCase("fr")));
+    const playedAction = card
+      ? [...(state.actionLog || [])].reverse().find((entry) => entry.kind === "play_card" && entry.card?.id === card.id)
+      : null;
+    const variationTypes = [
+      /endurance/.test(normalized) || playedAction?.costPaid ? "Endurance" : null,
+      /puissance/.test(normalized) || playedAction?.powerGained ? "Puissance" : null,
+      /bonus|boost/.test(normalized) ? "Bonus" : null,
+      /effet/.test(normalized) ? "Effet" : null,
+    ].filter(Boolean);
+    const variations = playedAction ? [
+      Number(playedAction.costPaid || 0) ? `-${Number(playedAction.costPaid)} endurance` : null,
+      Number(playedAction.powerGained || 0) ? `+${Number(playedAction.powerGained)} puissance` : null,
+    ].filter(Boolean) : [];
+    return {
+      id: `${state.actionLog?.length || 0}:${index}:${line}`,
+      type: actionLogEntryType(line),
+      label: actionLogEntryLabel(actionLogEntryType(line)),
+      message: String(line || ""),
+      variationTypes,
+      variations,
+      card: card ? {
+        id: card.id,
+        name: card.name,
+        artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+        cost: Number(card.cost || 0),
+        power: Number(card.power || 0),
+        precision: Number(card.precision || 0),
+        placement: Number(card.placement || 0),
+        effect: card.effect || "Aucun effet",
+      } : null,
+    };
+  });
+}
+
+function mobileReturnToMenuInfo() {
+  if (FRIENDLY_TOURNAMENT.enabled) {
+    return {
+      title: "Retourner au Club House ?",
+      consequence: "La rencontre sera quittée. Une partie active peut être mise en pause ou compter comme forfait si elle n’est pas reprise à temps.",
+    };
+  }
+  if (SERVER_SYNC.enabled) {
+    return {
+      title: "Quitter la partie en ligne ?",
+      consequence: "Vous quitterez le salon en ligne et la partie en cours ne restera pas ouverte sur cet appareil.",
+    };
+  }
+  return {
+    title: "Retourner à l’accueil ?",
+    consequence: "La partie en cours sera quittée et l’accueil sera affiché.",
+  };
+}
+
+function confirmMobileReturnToMenu() {
+  confirmReturnToLobby();
+  return { ok: true };
 }
 
 function acknowledgeMobileOpponentCard(cardId) {
@@ -16639,11 +16702,10 @@ function getMobileMatchViewState() {
       resolutionMessage: state.effectNotice?.message || "",
       synchronizedRevision: Number(SERVER_SYNC.revision || 0),
     } : null,
-    lastPlayedCard: activeCard ? {
-      id: activeCard.playedUid || activeCard.uid,
-      artwork: CARD_IMAGES[activeCard.id] || CARD_BACK_IMAGE,
-      name: activeCard.name,
-    } : null,
+    bonuses: activeEffectBadges(playerIndex),
+    history: mobileHistoryEntries(),
+    returnToMenu: mobileReturnToMenuInfo(),
+    lastPlayedCard: activeCardSummary,
   };
 }
 
@@ -16653,6 +16715,7 @@ window.tennisLightMobileAdapter = {
   cancelCardSelection: cancelMobileCardSelection,
   playSelectedCard: playSelectedMobileCard,
   acknowledgeOpponentCard: acknowledgeMobileOpponentCard,
+  confirmReturnToMenu: confirmMobileReturnToMenu,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;

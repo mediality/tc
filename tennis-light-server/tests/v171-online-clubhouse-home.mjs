@@ -25,9 +25,9 @@ for (const icon of ["MATCH.svg", "LEAGUE.svg", "JOIN.svg", "JUST-WATCH.svg", "VA
   await access(new URL(`../public/assets/icons/${icon}`, import.meta.url));
 }
 
-assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.4<\/strong>/);
-assert.match(html, /styles\.css\?v=3\.4/);
-assert.match(html, /app\.js\?v=3\.4/);
+assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.5<\/strong>/);
+assert.match(html, /styles\.css\?v=3\.5/);
+assert.match(html, /app\.js\?v=3\.5/);
 assert.match(html, /academy-upgrade-cta/);
 assert.match(html, /TENNIS COURTS — LE JEU COMPLET/);
 assert.match(html, /10 joueurs à incarner/);

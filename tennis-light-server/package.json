@@ -1,6 +1,6 @@
 {
   "name": "tennis-courts-light-server",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {

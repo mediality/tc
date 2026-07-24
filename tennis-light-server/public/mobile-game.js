@@ -14,6 +14,12 @@
   let pendingOpponentReveal = null;
   let opponentRevealSequence = null;
   const acknowledgedOpponentCards = new Set();
+  let openMobilePanel = null;
+  let mobilePanelTrigger = null;
+  let panelGestureStartY = null;
+  let detailedMobileCard = null;
+  let cardDetailParentPanel = null;
+  let cardDetailParentTrigger = null;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -74,7 +80,7 @@
     return `<span class="mobile-value-delta mobile-value-delta--${delta.delta > 0 ? "gain" : "loss"}" role="status">${delta.delta > 0 ? "+" : ""}${delta.delta}</span>`;
   }
 
-  function playerMarkup(player, side, isServer) {
+  function playerMarkup(player, side, isServer, bonusCount = 0) {
     return `
       <article class="mobile-player mobile-player--${side}${player.isActive ? " mobile-player--active" : ""}">
         <div class="mobile-player-avatar">
@@ -89,6 +95,7 @@
           <div data-mobile-value="${side}-endurance"><dt>END</dt><dd>${player.endurance}</dd>${deltaMarkup(side, "endurance")}</div>
           <div data-mobile-value="${side}-handCount"><dt>Cartes</dt><dd>${player.handCount}</dd>${deltaMarkup(side, "handCount")}</div>
         </dl>
+        ${side === "player" ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses aria-haspopup="dialog"><span aria-hidden="true">✦</span>${bonusCount ? `${bonusCount} bonus` : "Bonus"}</button>` : ""}
       </article>
     `;
   }
@@ -181,6 +188,64 @@
     `;
   }
 
+  function bonusesMarkup(bonuses) {
+    if (!bonuses.length) return '<p class="mobile-sheet-empty">Aucun bonus actif actuellement.</p>';
+    return `<ul class="mobile-bonus-list">${bonuses.map((bonus) => `
+      <li class="mobile-bonus-item mobile-bonus-item--${bonus.type}">
+        <span aria-hidden="true">${escapeText(bonus.icon)}</span>
+        <div><small>${escapeText(bonus.duration)}</small><strong>${escapeText(bonus.label)}</strong><p>${escapeText(bonus.description)}</p></div>
+      </li>
+    `).join("")}</ul>`;
+  }
+
+  function historyMarkup(history) {
+    if (!history.length) return '<p class="mobile-sheet-empty">L’échange va commencer.</p>';
+    return `<ol class="mobile-history-list">${history.map((entry) => `
+      <li class="mobile-history-entry mobile-history-entry--${escapeText(entry.type)}">
+        <div>
+          <span>${escapeText(entry.label)}</span>
+          ${entry.variationTypes.map((type) => `<small>${escapeText(type)}</small>`).join("")}
+        </div>
+        ${entry.card ? `<button type="button" data-mobile-history-card="${escapeText(entry.id)}" aria-label="Agrandir ${escapeText(entry.card.name)}"><img src="${entry.card.artwork}" alt="" /></button>` : ""}
+        <p>${escapeText(entry.message)}</p>
+        ${entry.variations.length ? `<ul>${entry.variations.map((variation) => `<li>${escapeText(variation)}</li>`).join("")}</ul>` : ""}
+      </li>
+    `).join("")}</ol>`;
+  }
+
+  function mobileSheetMarkup(name, title, content) {
+    const open = openMobilePanel === name;
+    return `
+      <div class="mobile-sheet-backdrop${open ? "" : " hidden"}" data-mobile-sheet="${name}" role="presentation" aria-hidden="${!open}">
+        <section class="mobile-bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-${name}-title" tabindex="-1">
+          <div class="mobile-sheet-grabber" aria-hidden="true"></div>
+          <header>
+            <h2 id="mobile-${name}-title">${title}</h2>
+            <button type="button" data-mobile-close-panel aria-label="Fermer">×</button>
+          </header>
+          <div class="mobile-sheet-content">${content}</div>
+        </section>
+      </div>
+    `;
+  }
+
+  function returnConfirmationMarkup(info) {
+    const open = openMobilePanel === "return";
+    return `
+      <div class="mobile-return-confirm${open ? "" : " hidden"}" data-mobile-sheet="return" role="presentation" aria-hidden="${!open}">
+        <section role="dialog" aria-modal="true" aria-labelledby="mobileReturnTitle" aria-describedby="mobileReturnConsequence" tabindex="-1">
+          <span>Sortie du match</span>
+          <h2 id="mobileReturnTitle">${escapeText(info.title)}</h2>
+          <p id="mobileReturnConsequence">${escapeText(info.consequence)}</p>
+          <div>
+            <button type="button" data-mobile-cancel-return>Rester dans le match</button>
+            <button type="button" data-mobile-confirm-return>Quitter le match</button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
   function importantMessagesMarkup(viewState) {
     const messages = lastResolutionReceipt?.messages?.length
       ? lastResolutionReceipt.messages
@@ -230,7 +295,7 @@
         <ol class="mobile-set-scores" aria-label="Score des sets">${scoreMarkup(viewState.score)}</ol>
         <section class="mobile-player-pair" aria-label="Joueurs">
           ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT")}
-          ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER")}
+          ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER", viewState.bonuses.length)}
         </section>
         <section class="mobile-power" aria-label="Confrontation de puissance">
           <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
@@ -260,9 +325,20 @@
             <button type="button" data-mobile-close-explanation>Compris</button>
           </section>
         </div>
-        <div class="mobile-last-card-zoom hidden" role="dialog" aria-modal="true" aria-label="Dernière carte jouée agrandie">
-          <button type="button" data-mobile-close-card-zoom aria-label="Fermer l’agrandissement">×</button>
-          ${viewState.lastPlayedCard ? `<img src="${viewState.lastPlayedCard.artwork}" alt="${escapeText(viewState.lastPlayedCard.name)}" />` : ""}
+        <div class="mobile-card-detail${openMobilePanel === "card-detail" ? "" : " hidden"}" role="dialog" aria-modal="true" aria-labelledby="mobileCardDetailTitle">
+          <button type="button" data-mobile-close-card-detail aria-label="Fermer le détail">×</button>
+          <img data-mobile-card-detail-image src="${detailedMobileCard?.artwork || ""}" alt="${escapeText(detailedMobileCard?.name || "")}" />
+          <section>
+            <span>Détail de la carte</span>
+            <h2 id="mobileCardDetailTitle" data-mobile-card-detail-name>${escapeText(detailedMobileCard?.name || "")}</h2>
+            <dl data-mobile-card-detail-stats>
+              <div><dt>Coût</dt><dd>${Number(detailedMobileCard?.cost || 0)}</dd></div>
+              <div><dt>Puissance</dt><dd>+${Number(detailedMobileCard?.power || 0)}</dd></div>
+              <div><dt>Précision</dt><dd>${Number(detailedMobileCard?.precision || 0)}</dd></div>
+              <div><dt>Placement</dt><dd>${Number(detailedMobileCard?.placement || 0)}</dd></div>
+            </dl>
+            <p data-mobile-card-detail-effect>${escapeText(detailedMobileCard?.effect || "")}</p>
+          </section>
         </div>
         <div class="mobile-opponent-card-zoom hidden" role="dialog" aria-modal="true" aria-label="Carte adverse agrandie">
           <button type="button" data-mobile-close-opponent-zoom aria-label="Fermer l’agrandissement">×</button>
@@ -272,9 +348,17 @@
           <strong>Revenez en mode portrait</strong>
           <span>La partie mobile reste ouverte pendant la rotation.</span>
         </div>
+        <nav class="mobile-utility-nav" aria-label="Informations et navigation">
+          <button type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>
+          <button type="button" data-mobile-open-return aria-haspopup="dialog">Menu<span aria-hidden="true">↗</span></button>
+        </nav>
+        ${mobileSheetMarkup("bonuses", "Bonus actifs", bonusesMarkup(viewState.bonuses))}
+        ${mobileSheetMarkup("history", "Historique du match", historyMarkup(viewState.history))}
+        ${returnConfirmationMarkup(viewState.returnToMenu)}
       </div>
     `;
     bindMobileGameInteractions(viewState);
+    if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
   }
 
   function prefersReducedMotion() {
@@ -412,6 +496,98 @@
     root?.querySelector(".mobile-card-explanation")?.classList.add("hidden");
   }
 
+  function focusableElements(container) {
+    return [...(container?.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])]
+      .filter((element) => !element.closest(".hidden"));
+  }
+
+  function openPanelElement() {
+    if (openMobilePanel === "card-detail") return root?.querySelector(".mobile-card-detail");
+    return root?.querySelector(`[data-mobile-sheet="${openMobilePanel}"]`);
+  }
+
+  function focusOpenMobilePanel(selectFirst = true) {
+    const panel = openPanelElement();
+    if (!panel || panel.classList.contains("hidden")) return;
+    if (!selectFirst && panel.contains(document.activeElement)) return;
+    const focusable = focusableElements(panel);
+    (focusable[0] || panel.querySelector('[role="dialog"]'))?.focus();
+  }
+
+  function showMobilePanel(name, trigger) {
+    closeMobilePanel(false);
+    openMobilePanel = name;
+    mobilePanelTrigger = trigger instanceof HTMLElement ? trigger : document.activeElement;
+    const panel = openPanelElement();
+    panel?.classList.remove("hidden");
+    panel?.setAttribute("aria-hidden", "false");
+    root?.classList.add("mobile-overlay-open");
+    focusOpenMobilePanel(true);
+  }
+
+  function closeMobilePanel(restoreFocus = true) {
+    if (!openMobilePanel) return;
+    const closingPanel = openMobilePanel;
+    const returnPanel = closingPanel === "card-detail" && restoreFocus ? cardDetailParentPanel : null;
+    const returnTrigger = cardDetailParentTrigger;
+    const panel = openPanelElement();
+    panel?.classList.add("hidden");
+    panel?.setAttribute("aria-hidden", "true");
+    openMobilePanel = null;
+    detailedMobileCard = null;
+    root?.classList.remove("mobile-overlay-open");
+    cardDetailParentPanel = null;
+    cardDetailParentTrigger = null;
+    if (returnPanel) {
+      openMobilePanel = returnPanel;
+      const parent = openPanelElement();
+      parent?.classList.remove("hidden");
+      parent?.setAttribute("aria-hidden", "false");
+      root?.classList.add("mobile-overlay-open");
+      mobilePanelTrigger = returnTrigger;
+      if (mobilePanelTrigger?.isConnected) mobilePanelTrigger.focus();
+      return;
+    }
+    if (restoreFocus && mobilePanelTrigger?.isConnected) mobilePanelTrigger.focus();
+    mobilePanelTrigger = null;
+  }
+
+  function showMobileCardDetail(card, trigger) {
+    if (!card) return;
+    const parentPanel = openMobilePanel;
+    const parentTrigger = mobilePanelTrigger;
+    showMobilePanel("card-detail", trigger);
+    detailedMobileCard = card;
+    cardDetailParentPanel = parentPanel === "history" ? parentPanel : null;
+    cardDetailParentTrigger = parentPanel === "history" ? parentTrigger : null;
+    const dialog = root?.querySelector(".mobile-card-detail");
+    dialog?.querySelector("[data-mobile-card-detail-image]")?.setAttribute("src", card.artwork || "");
+    dialog?.querySelector("[data-mobile-card-detail-image]")?.setAttribute("alt", card.name || "");
+    if (dialog?.querySelector("[data-mobile-card-detail-name]")) dialog.querySelector("[data-mobile-card-detail-name]").textContent = card.name || "";
+    const values = [
+      ["Coût", card.cost],
+      ["Puissance", `+${Number(card.power || 0)}`],
+      ["Précision", card.precision],
+      ["Placement", card.placement],
+    ].filter(([, value]) => value != null);
+    const stats = dialog?.querySelector("[data-mobile-card-detail-stats]");
+    if (stats) stats.innerHTML = values.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
+    if (dialog?.querySelector("[data-mobile-card-detail-effect]")) {
+      dialog.querySelector("[data-mobile-card-detail-effect]").textContent = card.effect || card.consequence || "Aucun effet.";
+    }
+  }
+
+  function bindPanelGestures(panel) {
+    const sheet = panel?.querySelector(".mobile-bottom-sheet");
+    sheet?.addEventListener("pointerdown", (event) => {
+      panelGestureStartY = event.clientY;
+    });
+    sheet?.addEventListener("pointerup", (event) => {
+      if (panelGestureStartY != null && event.clientY - panelGestureStartY > 64) closeMobilePanel();
+      panelGestureStartY = null;
+    });
+  }
+
   function bindMobileGameInteractions(viewState) {
     root?.querySelectorAll("[data-mobile-card]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -438,11 +614,8 @@
       button.addEventListener("click", closeUnavailableExplanation);
     });
     root?.querySelector(".mobile-hand-card--selected")?.scrollIntoView({ block: "nearest", inline: "center" });
-    root?.querySelector("[data-mobile-last-card]")?.addEventListener("click", () => {
-      root.querySelector(".mobile-last-card-zoom")?.classList.remove("hidden");
-    });
-    root?.querySelector("[data-mobile-close-card-zoom]")?.addEventListener("click", () => {
-      root.querySelector(".mobile-last-card-zoom")?.classList.add("hidden");
+    root?.querySelector("[data-mobile-last-card]")?.addEventListener("click", (event) => {
+      showMobileCardDetail(viewState.lastPlayedCard, event.currentTarget);
     });
     root?.querySelector("[data-mobile-opponent-card]")?.addEventListener("click", () => {
       root.querySelector(".mobile-opponent-card-zoom")?.classList.remove("hidden");
@@ -453,6 +626,46 @@
     root?.querySelector("[data-mobile-opponent-continue]")?.addEventListener("click", (event) => {
       const button = event.currentTarget;
       if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
+    });
+    root?.querySelector("[data-mobile-open-bonuses]")?.addEventListener("click", (event) => {
+      showMobilePanel("bonuses", event.currentTarget);
+    });
+    const historyButton = root?.querySelector("[data-mobile-open-history]");
+    historyButton?.addEventListener("click", (event) => showMobilePanel("history", event.currentTarget));
+    historyButton?.addEventListener("pointerdown", (event) => {
+      panelGestureStartY = event.clientY;
+    });
+    historyButton?.addEventListener("pointerup", (event) => {
+      if (panelGestureStartY != null && panelGestureStartY - event.clientY > 48) {
+        event.preventDefault();
+        showMobilePanel("history", historyButton);
+      }
+      panelGestureStartY = null;
+    });
+    root?.querySelector("[data-mobile-open-return]")?.addEventListener("click", (event) => {
+      showMobilePanel("return", event.currentTarget);
+    });
+    root?.querySelectorAll("[data-mobile-close-panel], [data-mobile-cancel-return]").forEach((button) => {
+      button.addEventListener("click", () => closeMobilePanel());
+    });
+    root?.querySelector("[data-mobile-close-card-detail]")?.addEventListener("click", () => closeMobilePanel());
+    root?.querySelector("[data-mobile-confirm-return]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      button.disabled = true;
+      window.tennisLightMobileAdapter?.confirmReturnToMenu();
+    });
+    root?.querySelectorAll("[data-mobile-sheet]").forEach((panel) => {
+      panel.addEventListener("click", (event) => {
+        if (event.target === panel) closeMobilePanel();
+      });
+      bindPanelGestures(panel);
+    });
+    root?.querySelectorAll("[data-mobile-history-card]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const entry = viewState.history.find((candidate) => candidate.id === button.dataset.mobileHistoryCard);
+        if (entry?.card) showMobileCardDetail(entry.card, button);
+      });
     });
   }
 
@@ -472,6 +685,7 @@
     interruptMobileResolution();
     pendingOpponentReveal = null;
     opponentRevealSequence = null;
+    closeMobilePanel(false);
     matchUsesMobileView = false;
     document.body.classList.remove("mobile-game-view");
     mobileApp?.classList.add("hidden");
@@ -487,6 +701,27 @@
   window.addEventListener("tennis-light:match-render", () => renderMobileGame(false));
   window.addEventListener("orientationchange", () => renderMobileGame(false));
   window.addEventListener("resize", () => renderMobileGame(false));
+  document.addEventListener("keydown", (event) => {
+    if (!matchUsesMobileView || !openMobilePanel) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMobilePanel();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const panel = openPanelElement();
+    const focusable = focusableElements(panel);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 
   if (desktopApp && !desktopApp.classList.contains("hidden")) selectViewForMatch();
 })();

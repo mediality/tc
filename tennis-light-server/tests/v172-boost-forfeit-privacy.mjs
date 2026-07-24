@@ -22,9 +22,9 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.4<\/strong>/);
-assert.match(html, /styles\.css\?v=3\.4/);
-assert.match(html, /app\.js\?v=3\.4/);
+assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.5<\/strong>/);
+assert.match(html, /styles\.css\?v=3\.5/);
+assert.match(html, /app\.js\?v=3\.5/);
 assert.equal((html.match(/class="academy-upgrade-cta(?:\s|\")/g) || []).length, 2);
 assert.equal((html.match(/href="http:\/\/www\.tenniscourts\.cc"/g) || []).length, 2);
 assert.doesNotMatch(html, /<footer class="academy-info-footer">/);
