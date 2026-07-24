@@ -16399,13 +16399,112 @@ function mobilePlayerSummary(playerIndex) {
   };
 }
 
+let mobileSelectedCardUid = null;
+let mobilePlaySubmissionLocked = false;
+
+function mobileCardUnavailableReason(playerIndex, card) {
+  if (state.gameOver) return "L’échange est terminé.";
+  if (playerIndex !== state.activePlayer) return "Attendez votre tour pour jouer cette carte.";
+  if (!canUseSeat(playerIndex)) return SERVER_SYNC.enabled
+    ? "Cette carte appartient à l’autre joueur."
+    : "Cette carte ne peut pas être jouée pendant le tour de l’IA.";
+  const player = state.players[playerIndex];
+  const cost = effectiveCost(player, card);
+  if (!canAfford(player, card)) return `Endurance insuffisante : ${cost} requise, ${player.endurance} disponible.`;
+  if (!satisfiesFamilyLimit(player, card)) return `Type incompatible : jouez ${player.limitedFamilies.join(" ou ")}.`;
+  if (!isRemise(card) && !satisfiesReturnServiceRestriction(card)) return "Retour de service : Volée et Smash sont interdits.";
+  const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
+  if (!isRemise(card) && state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) {
+    return `Placement insuffisant : ${totalTurnPlacement(playerIndex, card)} obtenu, ${state.lastCard?.precision || 0} requis.`;
+  }
+  if (state.tutorial.active) {
+    const action = tutorialExpectedAction();
+    const mode = isRemise(card) ? "effect" : "normal";
+    const selectionAllowed = action?.kind === "selectCard"
+      && action.playerIndex === playerIndex
+      && action.cardId === card.id;
+    const playAllowed = action?.kind === "play"
+      && action.playerIndex === playerIndex
+      && action.cardId === card.id
+      && action.mode === mode;
+    if (!selectionAllowed && !playAllowed) return "Le tutoriel demande une autre action.";
+  }
+  return null;
+}
+
+function mobileCardPreview(playerIndex, card) {
+  const player = state.players[playerIndex];
+  const stats = getCardStats(player, card, false);
+  const realCost = effectiveCost(player, card);
+  const resultingPlacement = totalTurnPlacement(playerIndex, card, false);
+  const appliedBonuses = [];
+  if (realCost < card.cost) appliedBonuses.push(`Réduction de coût : -${card.cost - realCost} endurance`);
+  if (realCost > card.cost) appliedBonuses.push(`Surcoût : +${realCost - card.cost} endurance`);
+  if (stats.power !== card.power) appliedBonuses.push(`Puissance modifiée : ${card.power} → ${stats.power}`);
+  if (stats.precision !== card.precision) appliedBonuses.push(`Précision modifiée : ${card.precision} → ${stats.precision}`);
+  if (stats.placement !== card.placement) appliedBonuses.push(`Placement modifié : ${card.placement} → ${stats.placement}`);
+  if (state.turnPlacement[playerIndex] > 0) appliedBonuses.push(`Placement déjà préparé : +${state.turnPlacement[playerIndex]}`);
+  if (isNextEffectCanceledFor(playerIndex) && card.effectType) appliedBonuses.push("Effet annulé par l’adversaire");
+  return {
+    realCost,
+    realPower: stats.power,
+    effects: [card.effect || "Aucun effet"].filter(Boolean),
+    resultingPlacement,
+    appliedBonuses,
+  };
+}
+
+function selectMobileCard(cardUid) {
+  const playerIndex = mobileLocalPlayerIndex();
+  const card = state.players[playerIndex]?.hand.find((candidate) => candidate.uid === cardUid);
+  if (!card) return { ok: false, reason: "Cette carte n’est plus dans votre main." };
+  const unavailableReason = mobileCardUnavailableReason(playerIndex, card);
+  if (unavailableReason) return { ok: false, reason: unavailableReason };
+  mobileSelectedCardUid = card.uid;
+  if (state.tutorial.active && tutorialExpectedAction()?.kind === "selectCard") {
+    selectTutorialCard(playerIndex, card.uid);
+  }
+  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
+  return { ok: true };
+}
+
+function cancelMobileCardSelection() {
+  mobileSelectedCardUid = null;
+  if (state.tutorial.active) state.tutorial.selectedCardUid = null;
+  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
+}
+
+function playSelectedMobileCard() {
+  if (mobilePlaySubmissionLocked || !mobileSelectedCardUid) return false;
+  const playerIndex = mobileLocalPlayerIndex();
+  const card = state.players[playerIndex]?.hand.find((candidate) => candidate.uid === mobileSelectedCardUid);
+  if (!card || mobileCardUnavailableReason(playerIndex, card)) return false;
+  const mode = isRemise(card) ? "effect" : "normal";
+  if (!tutorialAllowsPlay(playerIndex, card, mode, false)) return false;
+  mobilePlaySubmissionLocked = true;
+  mobileSelectedCardUid = null;
+  try {
+    playCard(playerIndex, card.uid, false, null, mode);
+    completeTutorialAction({ kind: "play", playerIndex, cardId: card.id, mode });
+    return true;
+  } finally {
+    mobilePlaySubmissionLocked = false;
+  }
+}
+
 function getMobileMatchViewState() {
   const playerIndex = mobileLocalPlayerIndex();
   const opponentIndex = opponentOf(playerIndex);
   const player = state.players[playerIndex];
   const activeCard = state.latestPlayedCard;
+  let selectedCard = player?.hand?.find((card) => card.uid === mobileSelectedCardUid) || null;
+  if (selectedCard && mobileCardUnavailableReason(playerIndex, selectedCard)) selectedCard = null;
+  if (!selectedCard) mobileSelectedCardUid = null;
   return {
-    phase: state.gameOver ? "MATCH_COMPLETE" : state.activePlayer === playerIndex ? "PLAYER_TURN" : "OPPONENT_CARD_REVEAL",
+    phase: state.gameOver
+      ? "MATCH_COMPLETE"
+      : selectedCard ? "CARD_SELECTED"
+        : state.activePlayer === playerIndex ? "PLAYER_TURN" : "OPPONENT_CARD_REVEAL",
     score: {
       sets: mobileSetScoreState(playerIndex),
       server: state.server === playerIndex ? "PLAYER" : "OPPONENT",
@@ -16419,14 +16518,21 @@ function getMobileMatchViewState() {
         ? `Échange remporté par ${playerName(state.resultInfo?.winner)}`
         : `${displayPlayerName(activePlayer())} doit jouer`,
     },
-    hand: (player?.hand || []).map((card) => ({
-      id: card.uid,
-      artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
-      name: card.name,
-      playable: canPlayNormal(playerIndex, card) || canPlayEffectMode(playerIndex, card),
-      recommendedPlacement: false,
-      requiredPlacement: Boolean(state.mandatoryPlacement && state.activePlayer === playerIndex),
-    })),
+    hand: (player?.hand || []).map((card) => {
+      const unavailableReason = mobileCardUnavailableReason(playerIndex, card);
+      return {
+        id: card.uid,
+        artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+        name: card.name,
+        playable: !unavailableReason,
+        unavailableReason,
+        recommendedPlacement: false,
+        requiredPlacement: Boolean(state.mandatoryPlacement && state.activePlayer === playerIndex),
+      };
+    }),
+    selectedCardId: selectedCard?.uid || null,
+    selectedCardPreview: selectedCard ? mobileCardPreview(playerIndex, selectedCard) : null,
+    playSubmissionLocked: mobilePlaySubmissionLocked,
     activeCard: activeCard ? {
       id: activeCard.playedUid || activeCard.uid,
       artwork: CARD_IMAGES[activeCard.id] || CARD_BACK_IMAGE,
@@ -16445,6 +16551,9 @@ function getMobileMatchViewState() {
 
 window.tennisLightMobileAdapter = {
   getViewState: getMobileMatchViewState,
+  selectCard: selectMobileCard,
+  cancelCardSelection: cancelMobileCardSelection,
+  playSelectedCard: playSelectedMobileCard,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;

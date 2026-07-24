@@ -17,10 +17,10 @@
   function isSmartphonePortrait() {
     const portrait = window.matchMedia("(orientation: portrait)").matches
       || window.innerHeight >= window.innerWidth;
+    const previewRequested = new URLSearchParams(window.location.search).get("mobileGamePreview") === "1";
     return portrait
       && window.innerWidth <= MOBILE_MAX_WIDTH
-      && hasTouchCapability()
-      && hasMobilePlatformSignal();
+      && (previewRequested || (hasTouchCapability() && hasMobilePlatformSignal()));
   }
 
   function scoreMarkup(score) {
@@ -56,15 +56,43 @@
     `;
   }
 
-  function handMarkup(hand) {
+  function handMarkup(hand, selectedCardId) {
     if (!hand.length) return '<p class="mobile-empty-hand">Aucune carte en main</p>';
     return hand.map((card) => `
-      <article class="mobile-hand-card${card.playable ? "" : " mobile-hand-card--locked"}" aria-label="${escapeText(card.name)}${card.playable ? "" : ", indisponible"}">
+      <button class="mobile-hand-card${card.playable ? "" : " mobile-hand-card--locked"}${card.id === selectedCardId ? " mobile-hand-card--selected" : ""}" type="button" data-mobile-card="${escapeText(card.id)}" aria-pressed="${card.id === selectedCardId}" aria-label="${escapeText(card.name)}${card.playable ? "" : `, indisponible : ${card.unavailableReason}`}">
         <img src="${card.artwork}" alt="${escapeText(card.name)}" />
         ${card.requiredPlacement ? '<span>Placement requis</span>' : ""}
         ${card.playable ? "" : '<i aria-hidden="true">🔒</i>'}
-      </article>
+      </button>
     `).join("");
+  }
+
+  function selectedPreviewMarkup(viewState) {
+    const preview = viewState.selectedCardPreview;
+    if (!preview) return "";
+    return `
+      <section class="mobile-selection-preview" aria-label="Aperçu de la carte sélectionnée">
+        <dl>
+          <div><dt>Coût réel</dt><dd>${preview.realCost}</dd></div>
+          <div><dt>Puissance réelle</dt><dd>+${preview.realPower}</dd></div>
+          <div><dt>Placement résultant</dt><dd>${preview.resultingPlacement}</dd></div>
+        </dl>
+        <div class="mobile-selection-detail">
+          <strong>Effet</strong>
+          ${preview.effects.map((effect) => `<p>${escapeText(effect)}</p>`).join("")}
+        </div>
+        <div class="mobile-selection-detail">
+          <strong>Bonus appliqués</strong>
+          ${preview.appliedBonuses.length
+    ? `<ul>${preview.appliedBonuses.map((bonus) => `<li>${escapeText(bonus)}</li>`).join("")}</ul>`
+    : "<p>Aucun bonus appliqué</p>"}
+        </div>
+      </section>
+      <div class="mobile-card-actions" aria-label="Actions de la carte sélectionnée">
+        <button class="mobile-cancel-card" type="button" data-mobile-cancel>Annuler</button>
+        <button class="mobile-play-card" type="button" data-mobile-play ${viewState.playSubmissionLocked ? "disabled" : ""}>Jouer (-${preview.realCost} endurance)</button>
+      </div>
+    `;
   }
 
   function activeCardMarkup(card) {
@@ -117,16 +145,69 @@
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
         <section class="mobile-scene" aria-label="Carte active">${activeCardMarkup(viewState.activeCard)}</section>
+        ${selectedPreviewMarkup(viewState)}
         <section class="mobile-hand-section" aria-label="Votre main">
-          <header><strong>Votre main</strong><span>Lecture seule</span></header>
-          <div class="mobile-card-hand">${handMarkup(viewState.hand)}</div>
+          <header><strong>Votre main</strong><span>${viewState.selectedCardId ? "Carte sélectionnée" : "Touchez pour inspecter"}</span></header>
+          <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId)}</div>
         </section>
+        <div class="mobile-card-explanation hidden" role="dialog" aria-modal="true" aria-labelledby="mobileCardExplanationTitle">
+          <button class="mobile-card-explanation-backdrop" type="button" data-mobile-close-explanation aria-label="Fermer"></button>
+          <section>
+            <span>Carte indisponible</span>
+            <strong id="mobileCardExplanationTitle"></strong>
+            <p data-mobile-explanation-reason></p>
+            <button type="button" data-mobile-close-explanation>Compris</button>
+          </section>
+        </div>
         <div class="mobile-portrait-lock" role="status">
           <strong>Revenez en mode portrait</strong>
           <span>La partie mobile reste ouverte pendant la rotation.</span>
         </div>
       </div>
     `;
+    bindMobileGameInteractions(viewState);
+  }
+
+  function showUnavailableExplanation(card) {
+    const dialog = root?.querySelector(".mobile-card-explanation");
+    if (!dialog) return;
+    const title = dialog.querySelector("#mobileCardExplanationTitle");
+    const reason = dialog.querySelector("[data-mobile-explanation-reason]");
+    if (title) title.textContent = card.name;
+    if (reason) reason.textContent = card.unavailableReason || "Cette carte ne peut pas être jouée maintenant.";
+    dialog.classList.remove("hidden");
+    dialog.querySelector("section button")?.focus();
+  }
+
+  function closeUnavailableExplanation() {
+    root?.querySelector(".mobile-card-explanation")?.classList.add("hidden");
+  }
+
+  function bindMobileGameInteractions(viewState) {
+    root?.querySelectorAll("[data-mobile-card]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const card = viewState.hand.find((candidate) => candidate.id === button.dataset.mobileCard);
+        if (!card) return;
+        if (!card.playable) {
+          showUnavailableExplanation(card);
+          return;
+        }
+        window.tennisLightMobileAdapter?.selectCard(card.id);
+      });
+    });
+    root?.querySelector("[data-mobile-cancel]")?.addEventListener("click", () => {
+      window.tennisLightMobileAdapter?.cancelCardSelection();
+    });
+    root?.querySelector("[data-mobile-play]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      button.disabled = true;
+      window.tennisLightMobileAdapter?.playSelectedCard();
+    });
+    root?.querySelectorAll("[data-mobile-close-explanation]").forEach((button) => {
+      button.addEventListener("click", closeUnavailableExplanation);
+    });
+    root?.querySelector(".mobile-hand-card--selected")?.scrollIntoView({ block: "nearest", inline: "center" });
   }
 
   function applySelectedView() {
