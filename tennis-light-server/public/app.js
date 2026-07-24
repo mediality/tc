@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.17";
+const GAME_VERSION = "v3.19";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7378,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.17");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.19");
 }
 
 function emptyMomentumState() {
@@ -8299,6 +8299,17 @@ function runSoloAITurn() {
       }
     }
 
+    const cancellationAbsorbingCoup = chooseSoloCancellationAbsorbingCoup(playerIndex);
+    if (cancellationAbsorbingCoup) {
+      recordSoloAiDecision("absorb_effect_cancellation_with_coup", {
+        card: cardLogInfo(cancellationAbsorbingCoup),
+        dormantEffect: isSoloCardEffectDormant(playerIndex, cancellationAbsorbingCoup),
+      });
+      playCard(playerIndex, cancellationAbsorbingCoup.uid);
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
+
     const strategicEffect = chooseSoloStrategicEffect(playerIndex);
     if (strategicEffect) {
       recordSoloAiDecision(
@@ -8412,6 +8423,17 @@ function runAmateurSoloAITurn(playerIndex) {
   const legalRemises = player.hand.filter((card) => isRemise(card) && canPlayNormal(playerIndex, card));
 
   if (state.mandatoryPlacement) {
+    const directBoosts = player.hand.filter((card) => canPlayBoost(playerIndex, card));
+    if (directBoosts.length) {
+      const card = directBoosts[Math.floor(Math.random() * directBoosts.length)];
+      const sacrifices = player.hand.filter((candidate) => candidate.uid !== card.uid);
+      const sacrifice = sacrifices[Math.floor(Math.random() * sacrifices.length)];
+      if (sacrifice) {
+        recordSoloAiDecision("amateur_direct_counter_boost", { card: cardLogInfo(card), sacrifice: cardLogInfo(sacrifice) });
+        playCard(playerIndex, card.uid, true, sacrifice.uid);
+        return true;
+      }
+    }
     const weakDefense = chooseAmateurOption(legalCoups);
     if (weakDefense) {
       recordSoloAiDecision("amateur_basic_defense", { card: cardLogInfo(weakDefense.card) });
@@ -8430,7 +8452,10 @@ function runAmateurSoloAITurn(playerIndex) {
     return true;
   }
 
-  if (!state.turnHasEffect[playerIndex] && legalRemises.length && Math.random() < 0.16) {
+  if (!state.turnHasEffect[playerIndex]
+    && !state.players[opponentOf(playerIndex)].cancelNextOpponentEffect
+    && legalRemises.length
+    && Math.random() < 0.16) {
     const effect = legalRemises[Math.floor(Math.random() * legalRemises.length)];
     recordSoloAiDecision("amateur_random_effect", { card: cardLogInfo(effect) });
     playCard(playerIndex, effect.uid, false, null, "effect");
@@ -10331,16 +10356,39 @@ function chooseSoloStrategicEffect(playerIndex) {
   if (state.turnHasEffect[playerIndex]) return null;
   const player = state.players[playerIndex];
   const opponent = state.players[opponentOf(playerIndex)];
-  if (opponent.cancelNextOpponentEffect) {
-    if (state.mandatoryPlacement) return null;
-    return chooseSoloCancellationBait(playerIndex);
-  }
+  if (opponent.cancelNextOpponentEffect) return null;
   const effects = player.hand
     .filter((card) => isRemise(card) && canPlayEffectMode(playerIndex, card))
     .map((card) => ({ card, score: soloImmediateEffectValue(playerIndex, card) }))
     .filter((choice) => choice.score >= 6)
     .sort((a, b) => b.score - a.score);
   return effects[0]?.card ?? null;
+}
+
+function isSoloCardEffectDormant(playerIndex, card) {
+  if (!card?.effectType) return true;
+  if (card.effectType === "serviceCard") return !isOpeningServeAvailable();
+  if (card.effectType === "serviceBoostHint") return !isServiceBoostHintWindow(playerIndex);
+  if (card.effectType === "freeBoostNext") return !isFreeBoostNextWindow(playerIndex);
+  if (card.effectType === "jokerResponse") return state.mandatoryPlacementReason !== "boost" && !state.lastCard?.boosted;
+  return false;
+}
+
+function chooseSoloCancellationAbsorbingCoup(playerIndex) {
+  if (!state.players[opponentOf(playerIndex)]?.cancelNextOpponentEffect || state.mandatoryPlacement) return null;
+  const options = state.players[playerIndex].hand
+    .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
+    .map((card) => {
+      const dormant = isSoloCardEffectDormant(playerIndex, card);
+      return {
+        card,
+        dormant,
+        score: soloPlayableCoupScore(playerIndex, card)
+          - (dormant ? 0 : soloEffectPreservationScore(card) * 2),
+      };
+    })
+    .sort((a, b) => Number(b.dormant) - Number(a.dormant) || b.score - a.score);
+  return options[0]?.card ?? null;
 }
 
 function chooseSoloCancellationBait(playerIndex) {
@@ -10425,7 +10473,7 @@ function chooseSoloBoostPlay(playerIndex) {
     && !isSetDangerForPlayer(playerIndex)
     && best.threat.probability >= unsafeRiskThreshold
     && !best.threat.canDefend;
-  const forcedButIrrational = !best.threat.canDefend && best.boostedScore < 0;
+  const forcedButIrrational = !state.mandatoryPlacement && !best.threat.canDefend && best.boostedScore < 0;
   const shouldBoost = !expertBlocksRisk
     && !forcedButIrrational
     && (state.mandatoryPlacement || state.boostAvailableFor === playerIndex || isSetDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex) || best.passPressure || best.boostedScore >= best.normalScore + styleBoostMargin);
@@ -10879,7 +10927,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   }
 
   state.lastCard = playedCard;
-  if (isOpeningServe) {
+  if (isOpeningServe && hasActiveEffect) {
     state.returnServiceRestrictionSpent = state.returnServiceRestrictionSpent ?? [false, false];
     state.returnServiceRestrictionFor = opponentIndex;
     state.returnServiceRestrictionSpent[opponentIndex] = false;
@@ -16560,7 +16608,8 @@ function mobileCardUnavailableReason(playerIndex, card) {
   if (!satisfiesFamilyLimit(player, card)) return `Type incompatible : jouez ${player.limitedFamilies.join(" ou ")}.`;
   if (!isRemise(card) && !satisfiesReturnServiceRestriction(card)) return "Retour de service : Volée et Smash sont interdits.";
   const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
-  if (!isRemise(card) && state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) {
+  const boostRemainsPlayable = !isRemise(card) && canPlayBoost(playerIndex, card);
+  if (!isRemise(card) && state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost && !boostRemainsPlayable) {
     return `Placement insuffisant : ${totalTurnPlacement(playerIndex, card)} obtenu, ${state.lastCard?.precision || 0} requis.`;
   }
   if (state.tutorial.active) {

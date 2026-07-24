@@ -39,10 +39,41 @@ assert.equal(
   "Retour de service doit rester jouable en Effet après un service boosté",
 );
 
+const boostWithoutPlacementContext = vm.createContext({
+  SERVER_SYNC: { enabled: false },
+  state: {
+    gameOver: false,
+    activePlayer: 0,
+    mandatoryPlacement: true,
+    mandatoryPlacementReason: "boost",
+    lastCard: { precision: 5 },
+    tutorial: { active: false },
+    players: [{ endurance: 5, limitedFamilies: null }, {}],
+  },
+  canUseSeat: () => true,
+  effectiveCost: () => 1,
+  canAfford: () => true,
+  satisfiesFamilyLimit: () => true,
+  isRemise: () => false,
+  satisfiesReturnServiceRestriction: () => true,
+  hasPlacementForPrevious: () => false,
+  canPlayBoost: () => true,
+  totalTurnPlacement: () => 2,
+});
+vm.runInContext(functionSource(app, "mobileCardUnavailableReason"), boostWithoutPlacementContext);
+assert.equal(
+  vm.runInContext("mobileCardUnavailableReason(0, { family: 'Coup droit', effectType: null })", boostWithoutPlacementContext),
+  null,
+  "Une carte jouable en Boost ne doit pas être verrouillée par le placement normal",
+);
+
 assert.match(app, /function mobileCardPlayOptions\(playerIndex, card\)/);
 assert.match(app, /canPlayEffectMode\(playerIndex, card\) \? option\("effect"/);
 assert.match(app, /canPlayNormal\(playerIndex, card\) \? option\("placement"/);
 assert.match(app, /canPlayBoost\(playerIndex, card\) \? option\("boost"/);
+assert.match(app, /const boostRemainsPlayable = !isRemise\(card\) && canPlayBoost\(playerIndex, card\)/);
+assert.match(app, /amateur_direct_counter_boost/);
+assert.match(app, /const forcedButIrrational = !state\.mandatoryPlacement/);
 assert.match(app, /playCard\(playerIndex, card\.uid, boosted, sacrificeUid, mode\)/);
 assert.match(app, /function passMobileTurn\(\)/);
 assert.match(app, /function endMobileTurn\(\)/);

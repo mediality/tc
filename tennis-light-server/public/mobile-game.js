@@ -172,9 +172,7 @@
   }
 
   function activeCardMarkup(card) {
-    if (!card) {
-      return '<div class="mobile-active-card mobile-active-card--empty"><span>En attente de votre coup</span></div>';
-    }
+    if (!card) return "";
     return `
       <article class="mobile-active-card">
         <img src="${card.artwork}" alt="${escapeText(card.name)}" decoding="async" />
@@ -484,6 +482,13 @@
       : viewState.activeCard?.owner === "OPPONENT"
         ? acknowledgedOpponentCardIds().has(viewState.activeCard.id) ? null : viewState.activeCard
         : viewState.activeCard?.id === settledLocalCardId ? null : viewState.activeCard;
+    const sceneMarkup = viewState.selectedCardId && !viewState.spectator
+      ? selectedPreviewMarkup(viewState)
+      : viewState.result || pendingOpponentReveal || sceneCard
+        ? `<section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
+            ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
+          </section>`
+        : "";
     root.innerHTML = `
       <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-stop-opponent="${viewState.assistance.stopOpponentCard}">
         <a class="mobile-skip-link" href="#mobileGameHand">Aller à la main</a>
@@ -508,11 +513,7 @@
           <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
-        ${viewState.selectedCardId && !viewState.spectator
-    ? selectedPreviewMarkup(viewState)
-    : `<section class="mobile-scene${!viewState.result && !pendingOpponentReveal && !sceneCard ? " mobile-scene--empty" : ""}${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
-          ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
-        </section>
+        ${sceneMarkup}
         <div class="mobile-last-card-row">
           <section class="mobile-last-card" aria-label="Dernière carte jouée">
             <header><strong>Dernière carte jouée</strong></header>
@@ -525,7 +526,7 @@
     ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>ANNULER</button>'
     : !pendingOpponentReveal && viewState.turnActions.canPass ? `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">Passer</button>` : ""}
           ${viewState.turnActions.hideEndTurn ? "" : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>TERMINER LE TOUR</button>`}
-        </div>`}`}
+        </div>`}
         ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section id="mobileGameHand" class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}" tabindex="-1">
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
         </section>`}

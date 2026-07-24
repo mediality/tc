@@ -535,10 +535,6 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   min-height: 142px;
 }
 
-.mobile-scene--empty {
-  min-height: 68px;
-}
-
 .mobile-scene--resolving {
   border-radius: 18px;
   background: radial-gradient(circle, rgba(102, 232, 192, 0.12), transparent 68%);
