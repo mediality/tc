@@ -314,10 +314,10 @@
       <p class="mobile-assistance-note">${assistance.stopOpponentCard
     ? "Activé : utilisez Continuer pour chaque carte adverse."
     : "Désactivé : chaque carte adverse reste visible une seconde puis la partie continue."}</p>
-      <label class="mobile-assistance-option">
+      <div class="mobile-assistance-option">
         <span><strong>Plein écran</strong><small>Masquer l’interface du navigateur pendant le match.</small></span>
-        <input type="checkbox" data-mobile-fullscreen ${assistance.fullscreenActive ? "checked" : ""} ${assistance.fullscreenAvailable ? "" : "disabled"} />
-      </label>
+        <button type="button" data-mobile-fullscreen aria-pressed="${assistance.fullscreenActive}" ${assistance.fullscreenAvailable ? "" : "disabled"}>${assistance.fullscreenActive ? "Quitter" : "Activer"}</button>
+      </div>
       <p class="mobile-assistance-note">${assistance.fullscreenAvailable
     ? assistance.fullscreenActive ? "Activé : le match occupe tout l’écran." : "Désactivé par défaut."
     : "Le plein écran n’est pas disponible dans ce navigateur."}</p>
@@ -470,7 +470,7 @@
         </section>
         ${viewState.selectedCardId && !viewState.spectator
     ? selectedPreviewMarkup(viewState)
-    : `<section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
+    : `<section class="mobile-scene${!viewState.result && !pendingOpponentReveal && !sceneCard ? " mobile-scene--empty" : ""}${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
           ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
         </section>
         <div class="mobile-last-card-row">
@@ -478,7 +478,7 @@
             <header><strong>Dernière carte jouée</strong></header>
             ${lastPlayedCardMarkup(viewState.lastPlayedCard)}
           </section>
-          ${viewState.lastPlayedCard ? '<button class="mobile-history-inline" type="button" data-mobile-open-history aria-haspopup="dialog"><span aria-hidden="true">☰</span>Historique</button>' : ""}
+          ${viewState.lastPlayedCard ? '<button class="mobile-history-inline" type="button" data-mobile-open-history aria-haspopup="dialog">Historique</button>' : ""}
         </div>
         ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
           ${viewState.turnActions.canUndo
@@ -927,17 +927,21 @@
       if (!(input instanceof HTMLInputElement)) return;
       window.tennisLightMobileAdapter?.setAssistance({ stopOpponentCard: input.checked });
     });
-    root?.querySelector("[data-mobile-fullscreen]")?.addEventListener("change", async (event) => {
-      const input = event.currentTarget;
-      if (!(input instanceof HTMLInputElement)) return;
+    root?.querySelector("[data-mobile-fullscreen]")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      if (!(button instanceof HTMLButtonElement)) return;
+      const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
       try {
-        if (input.checked && !document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        } else if (!input.checked && document.fullscreenElement) {
-          await document.exitFullscreen();
+        if (!active) {
+          const request = document.documentElement.requestFullscreen
+            || document.documentElement.webkitRequestFullscreen;
+          await request?.call(document.documentElement);
+        } else {
+          const exit = document.exitFullscreen || document.webkitExitFullscreen;
+          await exit?.call(document);
         }
       } catch (error) {
-        input.checked = Boolean(document.fullscreenElement);
+        button.setAttribute("aria-pressed", String(Boolean(document.fullscreenElement || document.webkitFullscreenElement)));
       }
       renderMobileGame(true);
     });
@@ -1026,6 +1030,7 @@
   window.addEventListener("orientationchange", scheduleMobileRender);
   window.addEventListener("resize", scheduleMobileRender);
   document.addEventListener("fullscreenchange", scheduleMobileRender);
+  document.addEventListener("webkitfullscreenchange", scheduleMobileRender);
   document.addEventListener("keydown", (event) => {
     if (!matchUsesMobileView) return;
     const explanation = root?.querySelector(".mobile-card-explanation:not(.hidden)");

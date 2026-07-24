@@ -19,6 +19,18 @@ body.mobile-game-view .mobile-game-app {
   min-height: 100dvh;
 }
 
+body.mobile-game-view .confrontation-intro-backdrop {
+  z-index: 720;
+  pointer-events: auto;
+}
+
+body.mobile-game-view .confrontation-start-button {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
 .mobile-game-shell {
   --mobile-player-color: #5ee1b8;
   --mobile-opponent-color: #f2a37f;
@@ -30,7 +42,7 @@ body.mobile-game-view .mobile-game-app {
   padding:
     max(10px, env(safe-area-inset-top))
     max(12px, env(safe-area-inset-right))
-    max(188px, calc(env(safe-area-inset-bottom) + 178px))
+    max(214px, calc(env(safe-area-inset-bottom) + 204px))
     max(12px, env(safe-area-inset-left));
   overflow-x: clip;
 }
@@ -523,6 +535,10 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   min-height: 142px;
 }
 
+.mobile-scene--empty {
+  min-height: 68px;
+}
+
 .mobile-scene--resolving {
   border-radius: 18px;
   background: radial-gradient(circle, rgba(102, 232, 192, 0.12), transparent 68%);
@@ -557,7 +573,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   display: grid;
   grid-template-columns: 1fr;
   place-items: center;
-  min-height: 108px;
+  min-height: 56px;
   border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: 18px;
 }
@@ -731,7 +747,8 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 
 .mobile-history-inline {
   align-self: end;
-  min-height: 52px;
+  height: 64px;
+  min-height: 64px;
   border: 1px solid rgba(255, 255, 255, 0.17);
   border-radius: 12px;
   padding: 0 12px;
@@ -739,6 +756,21 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   background: rgba(3, 31, 45, 0.94);
   font-size: 0.66rem;
   font-weight: 900;
+}
+
+.mobile-assistance-option button {
+  min-width: 86px;
+  border: 1px solid rgba(140, 224, 191, 0.42);
+  border-radius: 999px;
+  padding: 8px 13px;
+  color: #062637;
+  background: #8ce0bf;
+  font-weight: 950;
+}
+
+.mobile-assistance-option button[aria-pressed="true"] {
+  color: #fff;
+  background: #197d68;
 }
 
 .mobile-last-card > header strong {
@@ -1243,6 +1275,12 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
     max(12px, env(safe-area-inset-left));
   min-width: 0;
   background: linear-gradient(180deg, rgba(3, 23, 35, 0), #031723 16%, #031723 100%);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout paint style;
+  isolation: isolate;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }
 
 .mobile-card-hand {

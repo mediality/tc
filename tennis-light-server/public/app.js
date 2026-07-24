@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.14";
+const GAME_VERSION = "v3.15";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7279,7 +7279,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.14");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.15");
 }
 
 function emptyMomentumState() {
@@ -7664,6 +7664,7 @@ function showConfrontationIntro() {
     </section>
   `;
   document.body.append(backdrop);
+  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
   backdrop.querySelector("[data-start-confrontation]")?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -7673,21 +7674,19 @@ function showConfrontationIntro() {
   const sequenceItems = [...backdrop.querySelectorAll("[data-confrontation-stage]")];
   const sequenceDuration = 3_000;
   sequenceItems.forEach((item, index) => {
-    const delay = sequenceItems.length <= 1 ? 0 : Math.round((index / sequenceItems.length) * 2_800);
+    const delay = sequenceItems.length <= 1 ? 0 : Math.round((index / sequenceItems.length) * (sequenceDuration - 200));
     confrontationIntroSequenceTimers.push(window.setTimeout(() => item.classList.add("revealed"), delay));
   });
-  confrontationIntroSequenceTimers.push(window.setTimeout(() => {
-    const countdownShell = backdrop.querySelector("[data-confrontation-countdown-shell]");
-    countdownShell?.classList.add("revealed");
-    countdownShell?.setAttribute("aria-hidden", "false");
-    const expiresAt = Date.now() + 5_000;
-    confrontationIntroTimer = window.setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-      const countdown = backdrop.querySelector("[data-confrontation-countdown]");
-      if (countdown) countdown.textContent = String(remaining);
-      if (remaining <= 0) closeConfrontationIntro();
-    }, 100);
-  }, sequenceDuration));
+  const countdownShell = backdrop.querySelector("[data-confrontation-countdown-shell]");
+  countdownShell?.classList.add("revealed");
+  countdownShell?.setAttribute("aria-hidden", "false");
+  const expiresAt = Date.now() + 5_000;
+  confrontationIntroTimer = window.setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    const countdown = backdrop.querySelector("[data-confrontation-countdown]");
+    if (countdown) countdown.textContent = String(remaining);
+    if (remaining <= 0) closeConfrontationIntro();
+  }, 100);
 }
 
 function queueConfrontationIntro() {
@@ -7958,9 +7957,12 @@ function canPlayNormal(playerIndex, card) {
 }
 
 function canPlayEffectMode(playerIndex, card) {
-  // Une Remise reste jouable en mode Effet même si son effet n'a plus de
-  // cible utile : elle peut relancer l'échange ou absorber une annulation.
-  return canPlayNormal(playerIndex, card) && isRemise(card);
+  if (!isRemise(card) || state.gameOver || playerIndex !== state.activePlayer) return false;
+  if (!canUseSeat(playerIndex)) return false;
+  const player = state.players[playerIndex];
+  // Le mode Effet d'une Remise reste disponible face à un service ou un
+  // retour boosté : la contrainte de placement s'applique à la clôture du tour.
+  return canAfford(player, card) && satisfiesFamilyLimit(player, card);
 }
 
 function canEndTurn(playerIndex) {
@@ -17033,8 +17035,11 @@ function getMobileMatchViewState() {
     opponentStarCard: mobileCharacterStarCard(opponent),
     assistance: {
       stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
-      fullscreenAvailable: Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen),
-      fullscreenActive: Boolean(document.fullscreenElement),
+      fullscreenAvailable: Boolean(
+        document.documentElement.requestFullscreen
+        || document.documentElement.webkitRequestFullscreen
+      ),
+      fullscreenActive: Boolean(document.fullscreenElement || document.webkitFullscreenElement),
     },
     history: mobileHistoryEntries(),
     returnToMenu: mobileReturnToMenuInfo(),

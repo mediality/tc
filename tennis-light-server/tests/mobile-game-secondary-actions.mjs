@@ -10,10 +10,10 @@ const [html, app, mobileApp, mobileStyles, pkgText] = await Promise.all([
 ]);
 const pkg = JSON.parse(pkgText);
 
-assert.equal(pkg.version, "3.14.0");
-assert.match(app, /const GAME_VERSION = "v3\.14"/);
-assert.match(html, /id="gameVersion">v3\.14</);
-assert.match(html, /mobile-game\.js\?v=3\.14\.0/);
+assert.equal(pkg.version, "3.15.0");
+assert.match(app, /const GAME_VERSION = "v3\.15"/);
+assert.match(html, /id="gameVersion">v3\.15</);
+assert.match(html, /mobile-game\.js\?v=3\.15\.0/);
 
 assert.match(app, /bonuses: activeEffectBadges\(playerIndex\)/);
 assert.match(app, /function mobileHistoryEntries\(\)/);
@@ -48,11 +48,11 @@ assert.match(mobileApp, /window\.tennisLightMobileAdapter\?\.confirmReturnToMenu
 assert.doesNotMatch(mobileApp, /pointerup[\s\S]{0,250}confirmReturnToMenu/);
 assert.doesNotMatch(mobileApp, /(?:^|[^.])\b(?:playCard|endTurn)\(|activeEffectBadges|actionLogEntryType/);
 
-assert.match(mobileStyles, /\.mobile-utility-nav/);
+assert.match(mobileStyles, /\.mobile-history-inline/);
 assert.match(mobileStyles, /\.mobile-sheet-backdrop/);
 assert.match(mobileStyles, /\.mobile-bottom-sheet/);
 assert.match(mobileStyles, /\.mobile-return-confirm/);
-assert.match(mobileStyles, /\.mobile-utility-nav button\s*\{[\s\S]*min-height: 48px/);
+assert.match(mobileStyles, /\.mobile-history-inline\s*\{[\s\S]*min-height:\s*64px/);
 assert.match(mobileStyles, /\.mobile-bottom-sheet > header button\s*\{[\s\S]*width: 44px;[\s\S]*height: 44px/);
 assert.doesNotMatch(mobileStyles, /\.game-app\s/);
 

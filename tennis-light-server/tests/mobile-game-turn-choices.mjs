@@ -1,9 +1,43 @@
 import assert from "node:assert/strict";
+import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 const mobile = await readFile(new URL("../public/mobile-game.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../public/mobile-game.css", import.meta.url), "utf8");
+
+function functionSource(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert.notEqual(start, -1, `fonction absente: ${name}`);
+  const bodyStart = source.indexOf(") {", start) + 2;
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error(`fonction incomplète: ${name}`);
+}
+
+const boostedServiceEffectContext = vm.createContext({
+  state: {
+    gameOver: false,
+    activePlayer: 1,
+    mandatoryPlacement: true,
+    mandatoryPlacementReason: "boost",
+    players: [{}, { endurance: 5, limitedFamilies: null }],
+  },
+  isRemise: (card) => card.family === "Remise",
+  canUseSeat: () => true,
+  canAfford: () => true,
+  satisfiesFamilyLimit: () => true,
+});
+vm.runInContext(functionSource(app, "canPlayEffectMode"), boostedServiceEffectContext);
+assert.equal(
+  vm.runInContext("canPlayEffectMode(1, { family: 'Remise', effectType: 'freeBoostNext' })", boostedServiceEffectContext),
+  true,
+  "Retour de service doit rester jouable en Effet après un service boosté",
+);
 
 assert.match(app, /function mobileCardPlayOptions\(playerIndex, card\)/);
 assert.match(app, /canPlayEffectMode\(playerIndex, card\) \? option\("effect"/);
