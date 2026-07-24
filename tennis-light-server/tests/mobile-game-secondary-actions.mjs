@@ -10,10 +10,10 @@ const [html, app, mobileApp, mobileStyles, pkgText] = await Promise.all([
 ]);
 const pkg = JSON.parse(pkgText);
 
-assert.equal(pkg.version, "3.15.0");
-assert.match(app, /const GAME_VERSION = "v3\.15"/);
-assert.match(html, /id="gameVersion">v3\.15</);
-assert.match(html, /mobile-game\.js\?v=3\.15\.0/);
+assert.equal(pkg.version, "3.16.0");
+assert.match(app, /const GAME_VERSION = "v3\.16"/);
+assert.match(html, /id="gameVersion">v3\.16</);
+assert.match(html, /mobile-game\.js\?v=3\.16\.0/);
 
 assert.match(app, /bonuses: activeEffectBadges\(playerIndex\)/);
 assert.match(app, /function mobileHistoryEntries\(\)/);

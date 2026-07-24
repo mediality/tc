@@ -26,6 +26,7 @@ assert.match(app, /fullscreenAvailable: Boolean\([\s\S]*document\.documentElemen
 assert.match(app, /function canPlayEffectMode\(playerIndex, card\)[\s\S]*canAfford\(player, card\) && satisfiesFamilyLimit\(player, card\)/);
 assert.match(app, /window\.dispatchEvent\(new CustomEvent\("tennis-light:match-render"\)\)/);
 assert.match(app, /const expiresAt = Date\.now\(\) \+ 5_000/);
+assert.match(app, /passNeedsConfirmation: player\?\.hand\?\.some\(\(card\) => mobileCardPlayOptions\(playerIndex, card\)\.length > 0\)/);
 
 assert.match(mobile, /data-mobile-open-match-menu/);
 assert.match(mobile, /data-mobile-menu-destination="competition"/);
@@ -59,6 +60,9 @@ assert.match(mobile, /data-mobile-player-star=/);
 assert.match(mobile, /mobileSheetMarkup\("star-player"/);
 assert.match(mobile, /mobileSheetMarkup\("star-opponent"/);
 assert.match(mobile, /class="mobile-history-inline"/);
+assert.match(mobile, /!pendingOpponentReveal && viewState\.turnActions\.canPass \? `<button class="mobile-pass-button/);
+assert.match(mobile, /data-mobile-confirm-pass/);
+assert.match(mobile, /Passer malgré une carte jouable/);
 assert.doesNotMatch(mobile, /☰<\/span>Historique/);
 assert.doesNotMatch(mobile, /<header><strong>Votre main<\/strong>/);
 assert.doesNotMatch(mobile, /Placement requis/);
@@ -69,6 +73,7 @@ assert.match(css, /\.mobile-power i[\s\S]*mask:\s*url\("assets\/icons\/power-fla
 assert.match(css, /\.mobile-set-score--player[\s\S]*background:\s*#197d68/);
 assert.match(css, /\.mobile-set-score--opponent[\s\S]*background:\s*#a9563f/);
 assert.match(css, /\.mobile-mode-action--risk/);
+assert.match(css, /\.mobile-mode-action--risk\s*\{[\s\S]*color:\s*#fff !important/);
 assert.match(css, /\.mobile-mode-action--normal,[\s\S]*background:\s*var\(--mobile-player-color\)/);
 assert.match(css, /\.mobile-pass-button--player/);
 assert.match(css, /\.mobile-pass-button--opponent/);
@@ -83,4 +88,4 @@ assert.match(css, /max\(214px, calc\(env\(safe-area-inset-bottom\) \+ 204px\)\)/
 assert.match(css, /\.mobile-history-inline\s*\{[\s\S]*height:\s*64px/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.15 : démarrage, plein écran et réponse au Boost : OK");
+console.log("Mobile v3.16 : tour adverse automatique et sécurité Passer : OK");

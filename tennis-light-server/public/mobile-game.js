@@ -25,6 +25,7 @@
   let transientDialogTrigger = null;
   let opponentAutoContinueTimer = null;
   let playerHadControlOnPreviousRender = false;
+  let passConfirmationOpen = false;
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -185,8 +186,21 @@
     `;
   }
 
-  function opponentRevealMarkup(card) {
+  function opponentRevealMarkup(card, requireContinue = true) {
     if (!card) return "";
+    if (!requireContinue) {
+      return `
+        <article class="mobile-opponent-reveal mobile-opponent-reveal--automatic" data-mobile-opponent-reveal="${escapeText(card.id)}">
+          <button class="mobile-opponent-card-visual" type="button" data-mobile-opponent-card aria-label="Agrandir la carte adverse ${escapeText(card.name)}">
+            <img src="${card.artwork}" alt="${escapeText(card.name)}" decoding="async" />
+          </button>
+          <dl aria-label="Valeurs de la carte adverse">
+            <div><dt>Puissance</dt><dd>+${card.power}</dd></div>
+            <div><dt>Placement</dt><dd>${card.placement}</dd></div>
+          </dl>
+        </article>
+      `;
+    }
     return `
       <article class="mobile-opponent-reveal" data-mobile-opponent-reveal="${escapeText(card.id)}">
         <button class="mobile-opponent-card-visual" type="button" data-mobile-opponent-card aria-label="Agrandir la carte adverse ${escapeText(card.name)}">
@@ -392,6 +406,22 @@
     `;
   }
 
+  function passConfirmationMarkup() {
+    return `
+      <div class="mobile-return-confirm${passConfirmationOpen ? "" : " hidden"}" role="presentation" aria-hidden="${!passConfirmationOpen}">
+        <section role="dialog" aria-modal="true" aria-labelledby="mobilePassConfirmTitle" aria-describedby="mobilePassConfirmMessage" tabindex="-1">
+          <span>Confirmation</span>
+          <h2 id="mobilePassConfirmTitle">Passer malgré une carte jouable ?</h2>
+          <p id="mobilePassConfirmMessage">Vous pouvez encore jouer au moins une carte. Voulez-vous vraiment passer ?</p>
+          <div>
+            <button type="button" data-mobile-cancel-pass>Continuer à jouer</button>
+            <button type="button" data-mobile-confirm-pass>Passer</button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
   function importantMessagesMarkup(viewState) {
     const messages = lastResolutionReceipt?.messages?.length
       ? lastResolutionReceipt.messages
@@ -471,7 +501,7 @@
         ${viewState.selectedCardId && !viewState.spectator
     ? selectedPreviewMarkup(viewState)
     : `<section class="mobile-scene${!viewState.result && !pendingOpponentReveal && !sceneCard ? " mobile-scene--empty" : ""}${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
-          ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal) : activeCardMarkup(sceneCard)}
+          ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
         </section>
         <div class="mobile-last-card-row">
           <section class="mobile-last-card" aria-label="Dernière carte jouée">
@@ -483,7 +513,7 @@
         ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
           ${viewState.turnActions.canUndo
     ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>ANNULER</button>'
-    : `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass ${viewState.turnActions.canPass ? "" : "disabled"} aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">Passer</button>`}
+    : !pendingOpponentReveal && viewState.turnActions.canPass ? `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">Passer</button>` : ""}
           ${viewState.turnActions.hideEndTurn ? "" : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>TERMINER LE TOUR</button>`}
         </div>`}`}
         ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section id="mobileGameHand" class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}" tabindex="-1">
@@ -532,6 +562,7 @@
         ${viewState.modeContext.competition?.league ? mobileSheetMarkup("standings", "Classement", standingsMarkup(viewState.modeContext.competition)) : ""}
         ${mobileSheetMarkup("assistance", "Assistance", assistanceMarkup(viewState.assistance))}
         ${returnConfirmationMarkup(viewState.returnToMenu)}
+        ${passConfirmationMarkup()}
       </div>
     `;
     bindMobileGameInteractions(viewState);
@@ -660,14 +691,14 @@
     renderMobileGame(true);
   }
 
-  async function continueOpponentReveal(button) {
-    if (!pendingOpponentReveal || opponentRevealSequence || button.disabled) return;
+  async function continueOpponentReveal(button = null) {
+    if (!pendingOpponentReveal || opponentRevealSequence || button?.disabled) return;
     window.clearTimeout(opponentAutoContinueTimer);
     opponentAutoContinueTimer = null;
     const card = pendingOpponentReveal;
     const token = ++resolutionSequenceToken;
     opponentRevealSequence = { token, flyer: null };
-    button.disabled = true;
+    if (button) button.disabled = true;
     const sceneImage = root?.querySelector(".mobile-opponent-card-visual img");
     const lastImage = root?.querySelector(".mobile-last-card-button img");
     const fromBounds = sceneImage?.getBoundingClientRect();
@@ -688,8 +719,7 @@
     if (!pendingOpponentReveal || viewState.assistance.stopOpponentCard) return;
     opponentAutoContinueTimer = window.setTimeout(() => {
       opponentAutoContinueTimer = null;
-      const button = root?.querySelector("[data-mobile-opponent-continue]");
-      if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
+      continueOpponentReveal();
     }, 1000);
   }
 
@@ -862,6 +892,23 @@
     root?.querySelector("[data-mobile-pass]")?.addEventListener("click", (event) => {
       const button = event.currentTarget;
       if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+      if (viewState.turnActions.passNeedsConfirmation) {
+        passConfirmationOpen = true;
+        renderMobileGame(true);
+        root?.querySelector("[data-mobile-cancel-pass]")?.focus();
+        return;
+      }
+      selectedPlayMode = null;
+      selectedBoostSacrificeId = null;
+      window.tennisLightMobileAdapter?.passTurn();
+    });
+    root?.querySelector("[data-mobile-cancel-pass]")?.addEventListener("click", () => {
+      passConfirmationOpen = false;
+      renderMobileGame(true);
+      root?.querySelector("[data-mobile-pass]")?.focus();
+    });
+    root?.querySelector("[data-mobile-confirm-pass]")?.addEventListener("click", () => {
+      passConfirmationOpen = false;
       selectedPlayMode = null;
       selectedBoostSacrificeId = null;
       window.tennisLightMobileAdapter?.passTurn();
@@ -1043,6 +1090,13 @@
     if (event.key === "Escape" && opponentZoom) {
       event.preventDefault();
       root.querySelector("[data-mobile-close-opponent-zoom]")?.click();
+      return;
+    }
+    if (event.key === "Escape" && passConfirmationOpen) {
+      event.preventDefault();
+      passConfirmationOpen = false;
+      renderMobileGame(true);
+      root?.querySelector("[data-mobile-pass]")?.focus();
       return;
     }
     if (!openMobilePanel) return;

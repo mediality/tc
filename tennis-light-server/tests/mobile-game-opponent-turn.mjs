@@ -8,9 +8,9 @@ const [html, app, mobileApp, mobileStyles] = await Promise.all([
   readFile(new URL("../public/mobile-game.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(app, /const GAME_VERSION = "v3\.15"/);
-assert.match(html, /id="gameVersion">v3\.15</);
-assert.match(html, /app\.js\?v=3\.15\.0/);
+assert.match(app, /const GAME_VERSION = "v3\.16"/);
+assert.match(html, /id="gameVersion">v3\.16</);
+assert.match(html, /app\.js\?v=3\.16\.0/);
 assert.match(app, /function mobilePlayedCardSummary\(card, playerIndex\)/);
 assert.match(app, /if \(SERVER_SYNC\.enabled && Number\.isInteger\(SERVER_SYNC\.seat\)\) return SERVER_SYNC\.seat/);
 assert.match(app, /cost: Number\(card\.costPaid \?\? card\.cost \?\? 0\)/);
@@ -24,13 +24,15 @@ assert.match(app, /importSyncState\(data\.state\)/);
 assert.match(app, /stopOpponentCard: localStorage\.getItem\("tennisLightMobileStopOpponentCard"\) !== "false"/);
 assert.match(app, /function setMobileAssistance\(options = \{\}\)/);
 assert.match(mobileApp, /function scheduleOpponentAutoContinue\(viewState\)/);
-assert.match(mobileApp, /window\.setTimeout\(\(\) => \{[\s\S]*continueOpponentReveal\(button\);[\s\S]*\}, 1000\)/);
+assert.match(mobileApp, /window\.setTimeout\(\(\) => \{[\s\S]*continueOpponentReveal\(\);[\s\S]*\}, 1000\)/);
 assert.match(mobileApp, /sessionStorage\.getItem\(ACKNOWLEDGED_OPPONENT_CARDS_KEY\)/);
 assert.match(mobileApp, /data-mobile-opponent-reveal=/);
 assert.match(mobileApp, /data-mobile-opponent-continue>Continuer/);
 assert.match(mobileApp, /data-mobile-opponent-card/);
 assert.match(mobileApp, /data-mobile-close-opponent-zoom/);
-assert.match(mobileApp, /if \(!pendingOpponentReveal \|\| opponentRevealSequence \|\| button\.disabled\) return/);
+assert.match(mobileApp, /if \(!pendingOpponentReveal \|\| opponentRevealSequence \|\| button\?\.disabled\) return/);
+assert.match(mobileApp, /mobile-opponent-reveal--automatic/);
+assert.match(mobileApp, /opponentRevealMarkup\(pendingOpponentReveal, viewState\.assistance\.stopOpponentCard\)/);
 assert.match(mobileApp, /animateCardBetween\(sceneImage, fromBounds, toBounds, 240, token\)/);
 assert.match(mobileApp, /rememberAcknowledgedOpponentCard\(card\.id\)/);
 assert.match(mobileApp, /acknowledgeOpponentCard\(card\.id\)/);
@@ -40,6 +42,7 @@ assert.doesNotMatch(mobileApp, /(?:^|[^.])\b(?:playCard|endTurn)\(/);
 
 assert.match(mobileStyles, /\.mobile-scene--opponent-reveal/);
 assert.match(mobileStyles, /\.mobile-opponent-continue\s*\{[\s\S]*min-height: 48px/);
+assert.match(mobileStyles, /\.mobile-opponent-reveal--automatic/);
 assert.match(mobileStyles, /\.mobile-hand-section--disabled \.mobile-card-hand\s*\{[\s\S]*pointer-events: none/);
 assert.match(mobileStyles, /@media \(max-width: 340px\)/);
 assert.doesNotMatch(mobileStyles, /\.game-app\s/);
