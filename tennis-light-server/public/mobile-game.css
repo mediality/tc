@@ -1407,6 +1407,8 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-card-hand {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 9px;
   overflow-x: auto;
@@ -1414,6 +1416,7 @@ body.mobile-game-view .choice-card span {
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
+  isolation: isolate;
 }
 
 .mobile-turn-actions--selection + .mobile-card-hand {
@@ -1482,6 +1485,8 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-selection-preview {
+  position: relative;
+  z-index: 20;
   display: grid;
   gap: 5px;
   border: 1px solid rgba(116, 230, 192, 0.34);
@@ -1626,12 +1631,16 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-turn-actions {
+  position: relative;
+  z-index: 30;
   display: flex;
   align-items: stretch;
   gap: 5px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  isolation: isolate;
+  pointer-events: auto;
 }
 
 .mobile-turn-actions::-webkit-scrollbar {

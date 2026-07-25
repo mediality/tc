@@ -23,8 +23,7 @@ assert.match(mobileCss, /background: rgba\(2, 13, 20, 0\.86\)/);
 
 assert.doesNotMatch(mobile, /anchorPassButtonWhenItAppears/);
 assert.doesNotMatch(mobile, /querySelector\("\[data-mobile-pass\]"\)\?\.scrollIntoView/);
-assert.match(mobile, /input type="checkbox" data-mobile-fullscreen/);
-assert.match(mobile, /\[data-mobile-fullscreen\]"\)\?\.addEventListener\("change"/);
+assert.doesNotMatch(mobile, /data-mobile-fullscreen|Plein écran/);
 
 assert.match(app, /const LOCAL_MOBILE_MATCH_EXIT_GRACE_MS = 20000/);
 assert.match(app, /params\.set\(LOCAL_MOBILE_MATCH_QUERY, matchId\)/);

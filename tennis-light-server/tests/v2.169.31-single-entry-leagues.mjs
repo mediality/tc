@@ -10,8 +10,8 @@ const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.ur
 assert.equal(pkg.version, "3.23.0");
 assert.match(app, /const GAME_VERSION = "v3\.23"/);
 assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.23<\/strong>/);
-assert.match(html, /app\.js\?v=3\.23\.0/);
-assert.match(html, /styles\.css\?v=3\.23\.0/);
+assert.match(html, /app\.js\?v=3\.23\.1/);
+assert.match(html, /styles\.css\?v=3\.23\.1/);
 
 assert.match(app, /const singleEntryLeague = competition\.eventType === "League"/);
 assert.match(app, /const replayLocked = alreadyPlayed && singleEntryLeague/);

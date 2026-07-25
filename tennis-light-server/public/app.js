@@ -17210,11 +17210,6 @@ function getMobileMatchViewState() {
     opponentStarCard: mobileCharacterStarCard(opponent),
     assistance: {
       stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
-      fullscreenAvailable: Boolean(
-        document.documentElement.requestFullscreen
-        || document.documentElement.webkitRequestFullscreen
-      ),
-      fullscreenActive: Boolean(document.fullscreenElement || document.webkitFullscreenElement),
     },
     history: mobileHistoryEntries(),
     returnToMenu: mobileReturnToMenuInfo(),

@@ -101,7 +101,6 @@
         </div>
         <button class="mobile-player-copy" type="button" data-mobile-player-star="${side}" aria-haspopup="dialog" aria-label="Voir le prochain pouvoir étoile de ${escapeText(player.name)}">
           <strong>${escapeText(player.name)}</strong>
-          <span>${escapeText(player.characterName)}</span>
         </button>
         <div class="mobile-player-meta">
           ${bonusCount ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses="${side}" aria-haspopup="dialog" aria-label="${bonusCount} bonus actifs pour ${escapeText(player.name)}"><span aria-hidden="true">✦</span><b>${bonusCount}</b></button>` : ""}
@@ -353,13 +352,6 @@
       <p class="mobile-assistance-note">${assistance.stopOpponentCard
     ? "Activé : utilisez Continuer pour chaque carte adverse."
     : "Désactivé : chaque carte adverse reste visible une seconde puis la partie continue."}</p>
-      <label class="mobile-assistance-option">
-        <span><strong>Plein écran</strong><small>Masquer l’interface du navigateur pendant le match.</small></span>
-        <input type="checkbox" data-mobile-fullscreen ${assistance.fullscreenActive ? "checked" : ""} ${assistance.fullscreenAvailable ? "" : "disabled"} />
-      </label>
-      <p class="mobile-assistance-note">${assistance.fullscreenAvailable
-    ? assistance.fullscreenActive ? "Activé : le match occupe tout l’écran." : "Désactivé par défaut."
-    : "Le plein écran n’est pas disponible dans ce navigateur."}</p>
     `;
   }
 
@@ -877,6 +869,10 @@
   }
 
   function bindMobileGameInteractions(viewState) {
+    const turnActions = root?.querySelector(".mobile-turn-actions");
+    ["pointerdown", "pointerup", "touchstart", "touchend"].forEach((eventName) => {
+      turnActions?.addEventListener(eventName, (event) => event.stopPropagation(), { passive: true });
+    });
     root?.querySelectorAll("[data-mobile-card]").forEach((button) => {
       button.addEventListener("click", () => {
         const card = viewState.hand.find((candidate) => candidate.id === button.dataset.mobileCard);
@@ -1009,24 +1005,6 @@
       if (!(input instanceof HTMLInputElement)) return;
       window.tennisLightMobileAdapter?.setAssistance({ stopOpponentCard: input.checked });
     });
-    root?.querySelector("[data-mobile-fullscreen]")?.addEventListener("change", async (event) => {
-      const input = event.currentTarget;
-      if (!(input instanceof HTMLInputElement)) return;
-      const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
-      try {
-        if (input.checked && !active) {
-          const request = document.documentElement.requestFullscreen
-            || document.documentElement.webkitRequestFullscreen;
-          await request?.call(document.documentElement);
-        } else if (!input.checked && active) {
-          const exit = document.exitFullscreen || document.webkitExitFullscreen;
-          await exit?.call(document);
-        }
-      } catch (error) {
-        input.checked = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
-      }
-      renderMobileGame(true);
-    });
     root?.querySelector("[data-mobile-tutorial-next]")?.addEventListener("click", () => {
       window.tennisLightMobileAdapter?.continueTutorial();
     });
@@ -1111,8 +1089,6 @@
   window.addEventListener("tennis-light:match-render", scheduleMobileRender);
   window.addEventListener("orientationchange", scheduleMobileRender);
   window.addEventListener("resize", scheduleMobileRender);
-  document.addEventListener("fullscreenchange", scheduleMobileRender);
-  document.addEventListener("webkitfullscreenchange", scheduleMobileRender);
   document.addEventListener("keydown", (event) => {
     if (!matchUsesMobileView) return;
     const explanation = root?.querySelector(".mobile-card-explanation:not(.hidden)");
