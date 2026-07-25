@@ -273,7 +273,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 
 .mobile-set-score--player span,
 .mobile-set-score--opponent span {
-  color: #fff;
+  color: #082738;
   font-weight: 950;
 }
 
@@ -2049,6 +2049,31 @@ body.mobile-game-view .choice-card span {
   .mobile-value-delta {
     opacity: 1;
     transform: none;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  .mobile-hand-section {
+    align-content: end;
+    height: clamp(310px, 46dvh, 380px);
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .mobile-hand-section::before {
+    position: absolute;
+    z-index: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 224px;
+    background: linear-gradient(180deg, rgba(3, 23, 35, 0), #031723 18%, #031723 100%);
+    content: "";
+    pointer-events: none;
+  }
+
+  .mobile-hand-section > * {
+    pointer-events: auto;
   }
 }
 

@@ -60,7 +60,9 @@ assert.match(mobile, /mobileSheetMarkup\("bonuses-player"/);
 assert.match(mobile, /mobileSheetMarkup\("bonuses-opponent"/);
 assert.match(mobile, /showMobilePanel\(`bonuses-\$\{event\.currentTarget\.dataset\.mobileOpenBonuses\}`/);
 assert.match(mobile, /function anchorMobileTurnToTop\(viewState\)/);
+assert.match(mobile, /\["PLAYER_TURN", "CARD_SELECTED"\]\.includes\(viewState\.phase\)/);
 assert.match(mobile, /playerHasControl && !playerHadControlOnPreviousRender/);
+assert.match(mobile, /querySelector\("\.mobile-hand-section"\)\?\.getBoundingClientRect\(\)/);
 assert.match(mobile, /score\.getBoundingClientRect\(\)\.top \+ window\.scrollY/);
 assert.match(mobile, /window\.scrollTo\(\{[\s\S]*behavior: "auto"/);
 assert.match(mobile, /mobile-action-warning[\s\S]*assets\/icons\/warning\.svg/);
@@ -87,6 +89,7 @@ assert.match(css, /\.mobile-power i[\s\S]*mask:\s*url\("assets\/icons\/power-fla
 assert.match(css, /\.mobile-power i[\s\S]*transform:\s*scale\(2\)/);
 assert.match(css, /\.mobile-set-score--player[\s\S]*background:\s*var\(--mobile-player-color\)/);
 assert.match(css, /\.mobile-set-score--opponent[\s\S]*background:\s*var\(--mobile-opponent-color\)/);
+assert.match(css, /\.mobile-set-score--player span,[\s\S]*\.mobile-set-score--opponent span[\s\S]*color:\s*#082738/);
 assert.match(css, /\.mobile-mode-action--risk/);
 assert.match(css, /\.mobile-mode-action--risk\s*\{[\s\S]*color:\s*#fff !important/);
 assert.match(css, /\.mobile-mode-action--normal,[\s\S]*background:\s*var\(--mobile-player-color\)/);
@@ -108,6 +111,8 @@ assert.match(css, /\.mobile-connection\s*\{[\s\S]*height:\s*34px/);
 assert.match(css, /\.mobile-game-shell\s*\{[\s\S]*align-content:\s*start[\s\S]*gap:\s*6px/);
 assert.match(css, /\.mobile-player\s*\{[\s\S]*height:\s*52px/);
 assert.match(css, /\.mobile-turn-actions--selection \+ \.mobile-card-hand\s*\{[\s\S]*padding-top:\s*20px/);
+assert.match(css, /@supports \(-webkit-touch-callout: none\)[\s\S]*height:\s*clamp\(310px, 46dvh, 380px\)[\s\S]*pointer-events:\s*none/);
+assert.match(css, /@supports \(-webkit-touch-callout: none\)[\s\S]*\.mobile-hand-section > \*[\s\S]*pointer-events:\s*auto/);
 assert.match(css, /\.mobile-turn-actions\s*\{[\s\S]*z-index:\s*30[\s\S]*pointer-events:\s*auto/);
 assert.match(css, /\.mobile-card-hand\s*\{[\s\S]*z-index:\s*1[\s\S]*isolation:\s*isolate/);
 assert.match(css, /\.mobile-game-shell--player-turn\s*\{[\s\S]*min-height:\s*calc\(100dvh \+ 150px\)/);
@@ -123,4 +128,4 @@ assert.match(css, /max\(214px, calc\(env\(safe-area-inset-bottom\) \+ 204px\)\)/
 assert.match(css, /\.mobile-history-inline\s*\{[\s\S]*height:\s*64px/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.26 : tour adverse automatique et sécurité Passer : OK");
+console.log("Mobile v3.27 : tour adverse automatique et sécurité Passer : OK");

@@ -497,7 +497,7 @@
             ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
           </section>`
         : "";
-    const playerHasControlNow = viewState.phase === "PLAYER_TURN"
+    const playerHasControlNow = ["PLAYER_TURN", "CARD_SELECTED"].includes(viewState.phase)
       && !pendingOpponentReveal
       && !resolutionSequence
       && !viewState.spectator;
@@ -584,6 +584,7 @@
         ${passConfirmationMarkup()}
       </div>
     `;
+    root.querySelector(".mobile-hand-section")?.getBoundingClientRect();
     bindMobileGameInteractions(viewState);
     const nextHand = root.querySelector(".mobile-card-hand");
     if (nextHand) nextHand.scrollLeft = previousHandScrollLeft;
@@ -592,7 +593,7 @@
   }
 
   function anchorMobileTurnToTop(viewState) {
-    const playerHasControl = viewState.phase === "PLAYER_TURN"
+    const playerHasControl = ["PLAYER_TURN", "CARD_SELECTED"].includes(viewState.phase)
       && !pendingOpponentReveal
       && !resolutionSequence
       && !viewState.spectator;
