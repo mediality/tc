@@ -181,7 +181,7 @@
     ` : "";
     const endTurnButton = viewState.turnActions.hideEndTurn
       ? ""
-      : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>FIN DU TOUR</button>`;
+      : `<button class="mobile-end-turn${viewState.turnActions.endTurnBoostRisk ? " mobile-end-turn--risk" : ""}" type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>TERMINER TOUR</button>`;
     const content = `${undoButton || passButton}${selectedActions}${endTurnButton}`;
     return content ? `<div class="mobile-turn-actions${preview ? " mobile-turn-actions--selection" : ""}" aria-label="Actions du tour">${content}</div>` : "";
   }
@@ -514,10 +514,10 @@
           <button class="mobile-match-menu-button" type="button" data-mobile-open-match-menu aria-haspopup="dialog" aria-label="Ouvrir le menu du match"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></button>
         </section>
         ${connectionMarkup(viewState.connection)}
-        <ol class="mobile-set-scores" aria-label="Score des sets">${scoreMarkup(viewState.score)}</ol>
+        <ol id="mobileTurnTop" class="mobile-set-scores" aria-label="Score des sets">${scoreMarkup(viewState.score)}</ol>
         <section class="mobile-player-pair" aria-label="Joueurs">
-          ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT", viewState.opponentBonuses)}
           ${playerMarkup(viewState.player, "player", viewState.score.server === "PLAYER", viewState.bonuses)}
+          ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT", viewState.opponentBonuses)}
         </section>
         <section class="mobile-power${viewState.confrontation.winner ? ` mobile-power--winner-${viewState.confrontation.winner.toLowerCase()}` : ""}" aria-label="Confrontation de puissance">
           <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
@@ -588,10 +588,10 @@
     const nextHand = root.querySelector(".mobile-card-hand");
     if (nextHand) nextHand.scrollLeft = previousHandScrollLeft;
     if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
-    anchorMobileGameToBottom(viewState);
+    anchorMobileTurnToTop(viewState);
   }
 
-  function anchorMobileGameToBottom(viewState) {
+  function anchorMobileTurnToTop(viewState) {
     const playerHasControl = viewState.phase === "PLAYER_TURN"
       && !pendingOpponentReveal
       && !resolutionSequence
@@ -600,7 +600,7 @@
     playerHadControlOnPreviousRender = playerHasControl;
     if (!shouldAnchor) return;
     window.requestAnimationFrame(() => {
-      root?.querySelector("#mobileGameHand")?.scrollIntoView({ block: "end", behavior: "auto" });
+      root?.querySelector("#mobileTurnTop")?.scrollIntoView({ block: "start", behavior: "auto" });
     });
   }
 

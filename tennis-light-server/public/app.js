@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.20";
+const GAME_VERSION = "v3.21";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7378,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.20");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.21");
 }
 
 function emptyMomentumState() {
@@ -17182,6 +17182,12 @@ function getMobileMatchViewState() {
         && tutorialAllowsPass()
         && !hasPlayedThisTurn(playerIndex),
       canEndTurn: !SPECTATOR_MODE.enabled && canEndTurn(playerIndex),
+      endTurnBoostRisk: Boolean(
+        state.lastCard
+        && Number(state.turnPlacement[playerIndex] || 0) < Number(state.lastCard.precision || 0)
+        && !state.turnIgnoresPlacement[playerIndex]
+        && !state.turnCannotOpenBoost[playerIndex]
+      ),
       hideEndTurn: !state.turnDirty
         || Boolean(state.mandatoryPlacement && !canEndTurn(playerIndex)),
       canUndo: !SPECTATOR_MODE.enabled && canUndoTurn(playerIndex),

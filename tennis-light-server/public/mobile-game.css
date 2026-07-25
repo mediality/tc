@@ -1619,6 +1619,7 @@ body.mobile-game-view .choice-card span {
 .mobile-turn-actions button {
   flex: 1 1 0;
   min-width: 52px;
+  max-width: 25%;
   min-height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 9px;
@@ -2034,9 +2035,10 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-mode-action--cancel {
-  flex: 0 0 48px;
-  min-width: 48px !important;
-  width: 48px;
+  flex: 0 0 10%;
+  min-width: 44px !important;
+  max-width: 10%;
+  width: 10%;
   padding: 0 !important;
   background: rgba(255, 255, 255, 0.1);
   font-size: 1.25rem;
@@ -2044,20 +2046,44 @@ body.mobile-game-view .choice-card span {
 
 .mobile-mode-action--normal,
 .mobile-mode-action--effect {
-  border-color: color-mix(in srgb, var(--mobile-player-color) 72%, white);
-  color: #062637;
-  background: var(--mobile-player-color);
+  border-color: color-mix(in srgb, var(--mobile-player-color) 72%, white) !important;
+  color: #062637 !important;
+  background: var(--mobile-player-color) !important;
+}
+
+.mobile-undo-turn {
+  border-color: rgba(255, 180, 154, 0.7) !important;
+  background: linear-gradient(135deg, #825142, #653b31) !important;
+}
+
+.mobile-end-turn {
+  border-color: color-mix(in srgb, var(--mobile-player-color) 72%, white) !important;
+  color: #062637 !important;
+  background: var(--mobile-player-color) !important;
+}
+
+.mobile-end-turn--risk {
+  border-color: rgba(255, 142, 122, 0.85) !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #a94d3c, #813528) !important;
+}
+
+.mobile-turn-actions > .mobile-pass-button:only-child {
+  flex: 0 0 25%;
+  width: 25%;
 }
 
 .mobile-mode-action--boost,
 .mobile-mode-action--placement {
-  background: linear-gradient(135deg, #b78823, #8f6817);
+  border-color: rgba(255, 206, 92, 0.72) !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, #b78823, #8f6817) !important;
 }
 
 .mobile-mode-action--risk {
-  border-color: rgba(255, 142, 122, 0.85);
+  border-color: rgba(255, 142, 122, 0.85) !important;
   color: #fff !important;
-  background: linear-gradient(135deg, #a94d3c, #813528);
+  background: linear-gradient(135deg, #a94d3c, #813528) !important;
 }
 
 .mobile-opponent-reveal--automatic {
