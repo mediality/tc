@@ -115,7 +115,8 @@ assert.match(css, /@supports \(-webkit-touch-callout: none\)[\s\S]*height:\s*cla
 assert.match(css, /@supports \(-webkit-touch-callout: none\)[\s\S]*\.mobile-hand-section > \*[\s\S]*pointer-events:\s*auto/);
 assert.match(css, /\.mobile-turn-actions\s*\{[\s\S]*z-index:\s*30[\s\S]*pointer-events:\s*auto/);
 assert.match(css, /\.mobile-card-hand\s*\{[\s\S]*z-index:\s*1[\s\S]*isolation:\s*isolate/);
-assert.match(css, /\.mobile-game-shell--player-turn\s*\{[\s\S]*min-height:\s*calc\(100dvh \+ 150px\)/);
+assert.match(css, /\.mobile-game-shell\s*\{[\s\S]*min-height:\s*calc\(100dvh \+ 150px\)[\s\S]*overflow-anchor:\s*none/);
+assert.doesNotMatch(css, /\.mobile-game-shell--player-turn\s*\{/);
 assert.match(css, /\.mobile-end-turn--risk\s*\{[\s\S]*background:\s*linear-gradient/);
 assert.match(css, /\.mobile-effect-canceled\s*\{[\s\S]*var\(--mobile-opponent-color\)/);
 assert.match(app, /endTurnBoostRisk: Boolean\([\s\S]*state\.turnPlacement\[playerIndex\][\s\S]*state\.lastCard\.precision/);
@@ -128,4 +129,4 @@ assert.match(css, /max\(214px, calc\(env\(safe-area-inset-bottom\) \+ 204px\)\)/
 assert.match(css, /\.mobile-history-inline\s*\{[\s\S]*height:\s*64px/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.27 : tour adverse automatique et sécurité Passer : OK");
+console.log("Mobile v3.28 : tour adverse automatique et sécurité Passer : OK");

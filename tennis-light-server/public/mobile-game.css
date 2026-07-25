@@ -39,17 +39,14 @@ body.mobile-game-view .confrontation-start-button {
   gap: 6px;
   width: 100%;
   max-width: 100%;
-  min-height: 100dvh;
+  min-height: calc(100dvh + 150px);
   padding:
     max(10px, env(safe-area-inset-top))
     max(12px, env(safe-area-inset-right))
     max(214px, calc(env(safe-area-inset-bottom) + 204px))
     max(12px, env(safe-area-inset-left));
   overflow-x: clip;
-}
-
-.mobile-game-shell--player-turn {
-  min-height: calc(100dvh + 150px);
+  overflow-anchor: none;
 }
 
 .mobile-game-shell,

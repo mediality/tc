@@ -497,12 +497,8 @@
             ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
           </section>`
         : "";
-    const playerHasControlNow = ["PLAYER_TURN", "CARD_SELECTED"].includes(viewState.phase)
-      && !pendingOpponentReveal
-      && !resolutionSequence
-      && !viewState.spectator;
     root.innerHTML = `
-      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}${playerHasControlNow ? " mobile-game-shell--player-turn" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-stop-opponent="${viewState.assistance.stopOpponentCard}">
+      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-stop-opponent="${viewState.assistance.stopOpponentCard}">
         <a class="mobile-skip-link" href="#mobileGameHand">Aller à la main</a>
         ${resolutionAnnouncementMarkup()}
         <header class="mobile-game-header">
