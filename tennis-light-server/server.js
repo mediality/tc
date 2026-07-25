@@ -834,8 +834,8 @@ function maxWeeklyTournamentPoints(week) {
     .filter((competition) => competition.week === week)
     .reduce((sum, competition) => {
       const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
-      return sum + (table.weeklyPotential || table.winner || 0);
-    }, 0);
+      return sum + Number(table.winner || 0);
+    }, 750);
 }
 
 function aiHumanWinBonusCap(basePoints, weeklyPotential) {
@@ -904,54 +904,27 @@ async function aiCircuitStandingsForBoost(season, week) {
   return { rows, worldOrderIds, boostedTopIds, previousWeekLeaderId };
 }
 
-function applyAiWeeklyPerformanceCoefficients(totals, standings, maxSem) {
-  if (!maxSem) return totals;
-  const boostedTopSet = new Set(standings.boostedTopIds || []);
+function applyAiWeeklyPerformanceCoefficients(totals, standings, pointMax) {
+  if (!pointMax) return totals;
   const rankIaById = new Map((standings.worldOrderIds || []).map((characterId, index) => [characterId, index + 1]));
-  const standingById = new Map((standings.rows || []).map((entry) => [entry.characterId, entry]));
   const adjusted = new Map();
-  const cappedCandidates = [];
   for (const [characterId, points] of totals) {
-    const rankIa = rankIaById.get(characterId) || 0;
-    let multiplier = 1.5;
-    if (boostedTopSet.has(characterId)) multiplier = 2.2;
-    else if (rankIa === 2 || rankIa === 3) multiplier = 2;
-    else if (rankIa === 4) multiplier = 1.8;
-    else if (rankIa === 5) multiplier = 1.6;
-    const boostedPoints = Math.round(points * multiplier);
-    adjusted.set(characterId, Math.min(boostedPoints, maxSem));
-    if (boostedPoints > maxSem) {
-      const standing = standingById.get(characterId) || { scoreRef: 0, scoreTotal: 0 };
-      cappedCandidates.push({
-        characterId,
-        boostedPoints,
-        scoreRef: standing.scoreRef || 0,
-        scoreTotal: standing.scoreTotal || 0,
-      });
-    }
+    const rankIa = rankIaById.get(characterId) || CIRCUIT_AI_CHARACTER_IDS.length;
+    const multiplier = rankIa <= 5 ? 1.7 : rankIa <= 10 ? 1.5 : 1.25;
+    adjusted.set(characterId, Math.min(Math.round(points * multiplier), pointMax));
   }
-  cappedCandidates
-    .sort((a, b) => b.scoreRef - a.scoreRef
-      || b.scoreTotal - a.scoreTotal
-      || b.boostedPoints - a.boostedPoints
-      || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"))
-    .forEach((entry, index) => {
-      const penalty = index === 0 ? 0 : index === 1 ? 400 : index === 2 ? 800 : 1200;
-      adjusted.set(entry.characterId, Math.max(0, maxSem - penalty));
-    });
-  const overThreshold = [...adjusted.entries()]
-    .filter(([, points]) => points >= 3750)
-    .map(([characterId, points]) => {
-      const standing = standingById.get(characterId) || { scoreRef: 0, scoreTotal: 0 };
-      return { characterId, points, scoreRef: standing.scoreRef || 0, scoreTotal: standing.scoreTotal || 0 };
-    })
-    .sort((a, b) => b.points - a.points
-      || b.scoreRef - a.scoreRef
-      || b.scoreTotal - a.scoreTotal
-      || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"));
-  if (overThreshold[0]?.points > 3750) {
-    overThreshold.slice(1).forEach((entry, index) => {
-      adjusted.set(entry.characterId, Math.max(0, 3750 - (index * 250)));
+
+  const weeklyOrder = [...adjusted.entries()]
+    .sort(([characterA, pointsA], [characterB, pointsB]) => (
+      pointsB - pointsA
+      || (rankIaById.get(characterA) || 99999) - (rankIaById.get(characterB) || 99999)
+      || aiCharacterName(characterA).localeCompare(aiCharacterName(characterB), "fr")
+    ));
+  if (weeklyOrder[0]?.[1] >= pointMax) {
+    const rankCaps = [1, 0.85, 0.8, 0.75, 0.7];
+    weeklyOrder.forEach(([characterId, points], index) => {
+      const ratio = rankCaps[index] ?? 0.6;
+      adjusted.set(characterId, Math.min(points, Math.floor(pointMax * ratio)));
     });
   }
   return adjusted;
@@ -967,16 +940,19 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
   }
   const totals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
   const standings = await aiCircuitStandingsForBoost(season, week);
-  competitions.forEach((competition) => {
-    const awards = competition.eventType === "League"
-      ? simulatedAiLeaguePoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds)
-      : simulatedAiTournamentPoints(competition, season, week, bonusTopIds, simulationNonce, standings.worldOrderIds);
-    awards.forEach((points, characterId) => {
-      totals.set(characterId, (totals.get(characterId) || 0) + points);
+  for (let simulationIndex = 0; simulationIndex < 2; simulationIndex += 1) {
+    const runNonce = `${simulationNonce}:run:${simulationIndex + 1}`;
+    competitions.forEach((competition) => {
+      const awards = competition.eventType === "League"
+        ? simulatedAiLeaguePoints(competition, season, week, bonusTopIds, runNonce, standings.worldOrderIds)
+        : simulatedAiTournamentPoints(competition, season, week, bonusTopIds, runNonce, standings.worldOrderIds);
+      awards.forEach((points, characterId) => {
+        totals.set(characterId, (totals.get(characterId) || 0) + points);
+      });
     });
-  });
-  const maxSem = maxWeeklyTournamentPoints(week);
-  const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, maxSem);
+  }
+  const pointMax = maxWeeklyTournamentPoints(week);
+  const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, pointMax);
   if (db) {
     for (const [characterId, points] of adjustedTotals) {
       await db.query(`
@@ -989,7 +965,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
                 CASE WHEN EXCLUDED.points >= $5 THEN 100 ELSE LEAST(300, GREATEST(0, $5 - EXCLUDED.points)) END
               ),
               updated_at = NOW()
-      `, [characterId, season, week, points, maxSem]);
+      `, [characterId, season, week, points, pointMax]);
     }
     return;
   }
@@ -999,7 +975,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
     authMemory.circuitAiWeekScores.set(key, points);
     authMemory.circuitAiHumanBonuses.set(
       key,
-      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), aiHumanWinBonusCap(points, maxSem)),
+      Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), aiHumanWinBonusCap(points, pointMax)),
     );
   }
 }

@@ -8,11 +8,11 @@ const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8")
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const csv = fs.readFileSync(new URL("../world-tour.csv", import.meta.url), "utf8").trim().split(/\r?\n/);
 
-assert.equal(pkg.version, "2.169.28");
-assert.match(app, /const GAME_VERSION = "v2\.169\.28"/);
-assert.match(html, /Tennis Courts Academy · 2\.169\.28/);
-assert.match(html, /styles\.css\?v=170\.28/);
-assert.match(html, /app\.js\?v=170\.28/);
+assert.equal(pkg.version, "3.31.0");
+assert.match(app, /const GAME_VERSION = "v3\.31"/);
+assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.31<\/strong>/);
+assert.match(html, /styles\.css\?v=3\.31\.0/);
+assert.match(html, /app\.js\?v=3\.31\.0/);
 
 const headers = csv.shift().replace(/^\uFEFF/, "").split(";");
 const rows = csv.map((line) => Object.fromEntries(headers.map((header, index) => [header, line.split(";")[index]])));
@@ -46,8 +46,6 @@ assert.match(app, /map\(\(entry\) => \[entry, "legend"\]\)/);
 assert.match(app, /state\.tournament\.competitionPoints\?\.matchWin/);
 assert.match(app, /return position === 2 \? "group3" : position === 3 \? "group4"/);
 
-assert.match(css, /animation: exchange-winner-halo \.55s/);
-assert.match(css, /rgba\(255, 255, 255, \.98\)/);
-assert.match(css, /\.player-identity-panel\.active-turn h2/);
+assert.doesNotMatch(css, /animation: exchange-winner-halo \.55s/);
 
 console.log("v2.169.28 Prestige League, Ultimate League, calendrier et retours visuels : OK");

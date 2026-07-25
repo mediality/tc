@@ -75,6 +75,7 @@ assert.equal(
 );
 
 const bonusContext = {
+  HUMAN_TOURNAMENT_ENTRY: "human",
   SURFACE_BONUSES: {
     hard: [1, 2, 3].map((index) => ({ id: `hard${index}` })),
     grass: [1, 2, 3].map((index) => ({ id: `grass${index}` })),
@@ -95,15 +96,20 @@ vm.runInNewContext(`
   middleBonuses = buildWeeklyCircuitProBonuses(entries, seeds, "hard", 2);
   advancedBonuses = buildWeeklyCircuitProBonuses(entries, seeds, "hard", 3);
 `, bonusContext);
-for (const entry of ["human", "ai1", "ai2", "ai3"]) {
+assert.equal(bonusContext.amateurBonuses.bonuses.human, undefined);
+assert.equal(bonusContext.middleBonuses.bonuses.human, undefined);
+assert.equal(bonusContext.advancedBonuses.bonuses.human, undefined);
+for (const entry of ["ai1", "ai2", "ai3"]) {
   assert.equal(bonusContext.amateurBonuses.bonuses[entry].length, 2);
   assert.equal(bonusContext.middleBonuses.bonuses[entry].length, 2);
   assert.equal(bonusContext.middleBonuses.bonuses[entry][0].id.startsWith("hard"), true);
-  assert.equal(bonusContext.advancedBonuses.bonuses[entry].length, 2);
-  assert.notEqual(bonusContext.advancedBonuses.bonuses[entry][0].id, bonusContext.advancedBonuses.bonuses[entry][1].id);
 }
+assert.equal(bonusContext.advancedBonuses.bonuses.ai1.length, 3);
+assert.equal(bonusContext.advancedBonuses.bonuses.ai2.length, 1);
+assert.equal(bonusContext.advancedBonuses.bonuses.ai3.length, 1);
 
 const coefficientContext = {
+  CIRCUIT_AI_CHARACTER_IDS: aiIds,
   aiCharacterName: (entry) => entry,
 };
 vm.runInNewContext(`
@@ -117,15 +123,29 @@ vm.runInNewContext(`
   standings.rows = standings.worldOrderIds.map((characterId) => ({ characterId, scoreRef: 0, scoreTotal: 0 }));
   adjusted = applyAiWeeklyPerformanceCoefficients(totals, standings, 10000);
 `, coefficientContext);
-assert.equal(coefficientContext.adjusted.get("ai1"), 220);
-assert.equal(coefficientContext.adjusted.get("ai2"), 200);
-assert.equal(coefficientContext.adjusted.get("ai3"), 200);
-assert.equal(coefficientContext.adjusted.get("ai4"), 180);
-assert.equal(coefficientContext.adjusted.get("ai5"), 160);
+assert.equal(coefficientContext.adjusted.get("ai1"), 170);
+assert.equal(coefficientContext.adjusted.get("ai2"), 170);
+assert.equal(coefficientContext.adjusted.get("ai3"), 170);
+assert.equal(coefficientContext.adjusted.get("ai4"), 170);
+assert.equal(coefficientContext.adjusted.get("ai5"), 170);
 assert.equal(coefficientContext.adjusted.get("ai6"), 150);
+
+vm.runInNewContext(`
+  cappedTotals = new Map(standings.worldOrderIds.map((characterId) => [characterId, 600]));
+  capped = applyAiWeeklyPerformanceCoefficients(cappedTotals, standings, 1000);
+`, coefficientContext);
+assert.equal(coefficientContext.capped.get("ai1"), 1000);
+assert.equal(coefficientContext.capped.get("ai2"), 850);
+assert.equal(coefficientContext.capped.get("ai3"), 800);
+assert.equal(coefficientContext.capped.get("ai4"), 750);
+assert.equal(coefficientContext.capped.get("ai5"), 700);
+assert.equal(coefficientContext.capped.get("ai6"), 600);
 
 assert.match(server, /function simulatedAiMatchPerformancePoints/);
 assert.match(server, /5 \+ Math\.abs\(score\[0\] - score\[1\]\)/);
 assert.match(server, /if \(loserSets === 0\).*\+ 5/);
+assert.match(sourceOf(server, "maxWeeklyTournamentPoints"), /reduce\([\s\S]*table\.winner[\s\S]*750/);
+assert.match(sourceOf(server, "simulateAiCircuitWeek"), /simulationIndex < 2/);
+assert.match(sourceOf(server, "simulateAiCircuitWeek"), /runNonce = `\$\{simulationNonce\}:run:\$\{simulationIndex \+ 1\}`/);
 
 console.log("v143 RankIA, tirages Circuit Pro et points IA: OK");
