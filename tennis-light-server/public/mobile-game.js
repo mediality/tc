@@ -406,7 +406,6 @@
                 <div class="mobile-match-finale-portrait">
                   <img class="mobile-match-finale-lobby" src="${player.lobbyArtwork}" alt="${escapeText(player.name)}" decoding="async" />
                   <img class="mobile-match-finale-outcome" src="${player.resultArtwork}" alt="${escapeText(player.outcome)} · ${escapeText(player.name)}" decoding="async" />
-                  <b>${escapeText(player.outcome)}</b>
                 </div>
               </article>
             `).join("")}

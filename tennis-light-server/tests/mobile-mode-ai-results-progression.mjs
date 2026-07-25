@@ -13,6 +13,7 @@ for (const command of ["nextSoloExchange", "nextSetExchange", "nextFullSet", "st
 assert.match(app, /function mobileResultState\(playerIndex\)/);
 assert.match(app, /state\.setMatch\.matchOver \? "Match terminé" : state\.setMatch\.setOver \? "Set terminé" : "Échange terminé"/);
 assert.match(app, /resultArtwork: MATCH_RESULT_IMAGES\[matchPlayer\?\.characterId\]\?\.\[won \? "win" : "lose"\]/);
+assert.match(app, /name: displayPlayerName\(matchPlayer\)/);
 assert.match(app, /matchOver: Boolean\(state\.setMatch\.matchOver\)/);
 assert.match(app, /sets: mobileSetScoreState\(playerIndex\)\.filter/);
 assert.match(app, /players: \[presentationPlayer\(playerIndex\), presentationPlayer\(opponentIndex\)\]/);
@@ -31,5 +32,8 @@ assert.match(css, /\.mobile-match-finale\s*\{[\s\S]*position:\s*fixed[\s\S]*z-in
 assert.match(css, /\.mobile-match-finale--resolved \.mobile-match-finale-outcome\s*\{[\s\S]*opacity:\s*1/);
 assert.match(css, /\.mobile-match-finale-set--player\s*\{[\s\S]*var\(--mobile-player-color\)/);
 assert.match(css, /\.mobile-match-finale-set--opponent\s*\{[\s\S]*var\(--mobile-opponent-color\)/);
+assert.doesNotMatch(css, /\.mobile-match-finale-player\s*\{[^}]*animation:/);
+assert.doesNotMatch(mobile, /<b>\$\{escapeText\(player\.outcome\)\}<\/b>/);
+assert.match(css, /body\.mobile-game-view \.event-confirm-backdrop\s*\{[\s\S]*z-index:\s*730/);
 
 console.log("Compatibilité mobile IA, set, match et progression : OK");

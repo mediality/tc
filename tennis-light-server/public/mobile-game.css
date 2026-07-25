@@ -1713,7 +1713,6 @@ body.mobile-game-view .choice-card span {
   display: grid;
   gap: 7px;
   min-width: 0;
-  animation: mobile-match-finale-fade 420ms ease-out both;
 }
 
 .mobile-match-finale-player > strong {
@@ -1756,27 +1755,6 @@ body.mobile-game-view .choice-card span {
 
 .mobile-match-finale--resolved .mobile-match-finale-outcome {
   opacity: 1;
-}
-
-.mobile-match-finale-portrait b {
-  position: absolute;
-  z-index: 2;
-  right: 8px;
-  bottom: 8px;
-  border-radius: 999px;
-  padding: 5px 8px;
-  color: #082738;
-  background: #dff376;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  opacity: 0;
-  transform: translateY(5px);
-  transition: opacity 280ms ease-out, transform 280ms ease-out;
-}
-
-.mobile-match-finale--resolved .mobile-match-finale-portrait b {
-  opacity: 1;
-  transform: none;
 }
 
 .mobile-match-finale-sets {
@@ -1850,6 +1828,10 @@ body.mobile-game-view .choice-card span {
     opacity: 1;
     transform: none;
   }
+}
+
+body.mobile-game-view .event-confirm-backdrop {
+  z-index: 730;
 }
 
 .mobile-match-result--opponent {

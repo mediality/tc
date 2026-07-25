@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.29";
+const GAME_VERSION = "v3.30";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7378,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.29");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.30");
 }
 
 function emptyMomentumState() {
@@ -16835,7 +16835,7 @@ function mobileResultState(playerIndex) {
       || CHARACTER_IMAGES[matchPlayer?.characterId]?.[0]
       || CHARACTER_IMAGES.coachUnknown[0];
     return {
-      name: matchPlayer?.name || displayPlayerName(matchPlayer),
+      name: displayPlayerName(matchPlayer),
       lobbyArtwork,
       resultArtwork: MATCH_RESULT_IMAGES[matchPlayer?.characterId]?.[won ? "win" : "lose"]
         || lobbyArtwork,
