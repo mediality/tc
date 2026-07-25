@@ -35,7 +35,8 @@ body.mobile-game-view .confrontation-start-button {
   --mobile-player-color: #5ee1b8;
   --mobile-opponent-color: #f2a37f;
   display: grid;
-  gap: 10px;
+  align-content: start;
+  gap: 6px;
   width: 100%;
   max-width: 100%;
   min-height: 100dvh;
@@ -112,6 +113,10 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   justify-content: space-between;
 }
 
+.mobile-game-header {
+  height: 28px;
+}
+
 .mobile-game-header span,
 .mobile-hand-section > header span {
   color: rgba(255, 255, 255, 0.58);
@@ -185,6 +190,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
+  height: 34px;
   border: 1px solid rgba(116, 230, 192, 0.25);
   border-radius: 10px;
   padding: 6px 8px;
@@ -283,10 +289,11 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 .mobile-player {
   position: relative;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
-  min-height: 58px;
+  height: 52px;
+  min-height: 52px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   padding: 6px 9px;
@@ -336,8 +343,8 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 
 .mobile-player-avatar {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
 }
 
 .mobile-player-avatar img {
@@ -1407,6 +1414,10 @@ body.mobile-game-view .choice-card span {
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
+}
+
+.mobile-turn-actions--selection + .mobile-card-hand {
+  padding-top: 20px;
 }
 
 .mobile-card-hand::-webkit-scrollbar {

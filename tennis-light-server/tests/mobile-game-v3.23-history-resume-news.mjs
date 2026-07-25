@@ -9,7 +9,7 @@ const mobile = fs.readFileSync(path.join(root, "public/mobile-game.js"), "utf8")
 const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "utf8");
 const styles = fs.readFileSync(path.join(root, "public/styles.css"), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.22"/);
+assert.match(app, /const GAME_VERSION = "v3\.23"/);
 assert.match(app, /playerSide: actorIndex < 0 \? "information" : actorIndex === localPlayerIndex \? "player" : "opponent"/);
 assert.match(mobile, /mobile-history-entry--side-\$\{escapeText\(entry\.playerSide\)\}/);
 assert.match(mobile, /mobile-history-player-name/);
@@ -37,4 +37,4 @@ assert.match(styles, /\.pro-news-copy[\s\S]*overflow-y: auto/);
 assert.doesNotMatch(styles, /exchange-winner-halo/);
 assert.match(app, /startsWith\(label\.toLocaleLowerCase\("fr"\)\)[\s\S]*\? source\.label/);
 
-console.log("Mobile v3.22 : historique, choix, plein écran, reprise et actualités : OK");
+console.log("Mobile v3.23 : historique, choix, plein écran, reprise et actualités : OK");
