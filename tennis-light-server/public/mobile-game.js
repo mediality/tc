@@ -101,6 +101,7 @@
         </div>
         <button class="mobile-player-copy" type="button" data-mobile-player-star="${side}" aria-haspopup="dialog" aria-label="Voir le prochain pouvoir étoile de ${escapeText(player.name)}">
           <strong>${escapeText(player.name)}</strong>
+          <span>${escapeText(player.secondaryLabel)}</span>
         </button>
         <div class="mobile-player-meta">
           ${bonusCount ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses="${side}" aria-haspopup="dialog" aria-label="${bonusCount} bonus actifs pour ${escapeText(player.name)}"><span aria-hidden="true">✦</span><b>${bonusCount}</b></button>` : ""}

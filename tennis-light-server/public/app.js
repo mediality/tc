@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.23";
+const GAME_VERSION = "v3.26";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7378,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.23");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.26");
 }
 
 function emptyMomentumState() {
@@ -7694,7 +7694,8 @@ function confrontationPlayerCardMarkup(player, playerIndex) {
     || CHARACTER_IMAGES[player?.characterId]?.[0]
     || CHARACTER_IMAGES.coachUnknown[0];
   const tournamentEntry = playerIndex === 0 ? HUMAN_TOURNAMENT_ENTRY : player?.characterId;
-  const rank = player?.worldRank || tournamentWorldRankForEntry(tournamentEntry);
+  const rank = player?.worldRank
+    || (state.tournament.active ? tournamentWorldRankForEntry(tournamentEntry) : null);
   const isHuman = SERVER_SYNC.enabled || !SOLO_AI.enabled || playerIndex !== SOLO_AI.playerIndex;
   const participantName = isHuman
     ? player?.nickname || (playerIndex === 0 ? state.tournament?.humanNickname : null) || AUTH_STATE.user?.nickname || player?.name
@@ -16580,9 +16581,23 @@ function mobileSetScoreState(playerIndex) {
 
 function mobilePlayerSummary(playerIndex) {
   const player = state.players[playerIndex];
+  const tournamentEntry = state.tournament.active && playerIndex === 0
+    ? HUMAN_TOURNAMENT_ENTRY
+    : player?.characterId;
+  const rank = player?.worldRank || tournamentWorldRankForEntry(tournamentEntry);
+  const isAiPlayer = SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex;
+  const aiLevel = isAiPlayer ? normalizeAiIntelligence(SOLO_AI.style) : null;
+  const aiLevelLabels = {
+    amateur: "Amateur",
+    normal: "Normal",
+    expert: "Expert",
+    champion: "Champion",
+    legend: "Légende",
+  };
   return {
     name: displayPlayerName(player),
     characterName: player?.name || "",
+    secondaryLabel: `${frenchOrdinalRank(rank)}${aiLevel ? ` - IA ${aiLevelLabels[aiLevel]}` : ""}`,
     artwork: PROFILE_CHARACTER_IMAGES[player?.characterId]
       || CHARACTER_IMAGES[player?.characterId]?.[player?.characterSide || 0]
       || CHARACTER_IMAGES.coachUnknown[0],

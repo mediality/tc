@@ -8,9 +8,9 @@ const [html, app, mobileApp, mobileStyles] = await Promise.all([
   readFile(new URL("../public/mobile-game.css", import.meta.url), "utf8"),
 ]);
 
-assert.match(app, /const GAME_VERSION = "v3\.23"/);
-assert.match(html, /id="gameVersion">v3\.23</);
-assert.match(html, /app\.js\?v=3\.23\.1/);
+assert.match(app, /const GAME_VERSION = "v3\.26"/);
+assert.match(html, /id="gameVersion">v3\.26</);
+assert.match(html, /app\.js\?v=3\.26\.0/);
 assert.match(app, /function mobilePlayedCardSummary\(card, playerIndex\)/);
 assert.match(app, /if \(SERVER_SYNC\.enabled && Number\.isInteger\(SERVER_SYNC\.seat\)\) return SERVER_SYNC\.seat/);
 assert.match(app, /cost: Number\(card\.costPaid \?\? card\.cost \?\? 0\)/);

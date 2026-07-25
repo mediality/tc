@@ -18,6 +18,8 @@ assert.match(app, /const opponent = state\.players\[opponentIndex\]/);
 assert.match(app, /function undoMobileTurn\(\)[\s\S]*restoreTurnSnapshot\(\)/);
 assert.match(app, /standings: leagueStandingsState/);
 assert.match(app, /opponentBonuses: activeEffectBadges\(opponentIndex\)/);
+assert.match(app, /secondaryLabel: `\$\{frenchOrdinalRank\(rank\)\}\$\{aiLevel \? ` - IA \$\{aiLevelLabels\[aiLevel\]\}` : ""\}`/);
+assert.match(app, /const isAiPlayer = SOLO_AI\.enabled && playerIndex === SOLO_AI\.playerIndex/);
 assert.match(app, /stopOpponentCard: GAMEPLAY_ASSIST\.stopOpponentCard/);
 assert.match(app, /consequence: consequenceParts\.join\(" · "\)/);
 assert.match(app, /boosted: Boolean\(card\.boosted\)/);
@@ -76,6 +78,7 @@ assert.match(mobile, /Passer malgré une carte jouable/);
 assert.doesNotMatch(mobile, /☰<\/span>Historique/);
 assert.doesNotMatch(mobile, /<header><strong>Votre main<\/strong>/);
 assert.doesNotMatch(mobile, /<span>\$\{escapeText\(player\.characterName\)\}<\/span>/);
+assert.match(mobile, /<span>\$\{escapeText\(player\.secondaryLabel\)\}<\/span>/);
 assert.doesNotMatch(mobile, /Placement requis/);
 assert.doesNotMatch(mobile, /Comment jouer cette carte/);
 
@@ -111,7 +114,8 @@ assert.match(css, /\.mobile-game-shell--player-turn\s*\{[\s\S]*min-height:\s*cal
 assert.match(css, /\.mobile-end-turn--risk\s*\{[\s\S]*background:\s*linear-gradient/);
 assert.match(css, /\.mobile-effect-canceled\s*\{[\s\S]*var\(--mobile-opponent-color\)/);
 assert.match(app, /endTurnBoostRisk: Boolean\([\s\S]*state\.turnPlacement\[playerIndex\][\s\S]*state\.lastCard\.precision/);
-assert.match(css, /\.mobile-hand-section\s*\{[\s\S]*backface-visibility:\s*hidden[\s\S]*transform:\s*translate3d\(0, 0, 0\)/);
+assert.match(css, /\.mobile-hand-section\s*\{[\s\S]*position:\s*fixed[\s\S]*isolation:\s*isolate/);
+assert.doesNotMatch(css, /\.mobile-hand-section\s*\{[^}]*translate3d|\.mobile-hand-section\s*\{[^}]*will-change/);
 assert.match(css, /\.mobile-last-card-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) auto/);
 assert.match(css, /body\.mobile-game-view \.confrontation-intro-backdrop\s*\{[\s\S]*z-index:\s*720/);
 assert.doesNotMatch(css, /\.mobile-scene--empty/);
@@ -119,4 +123,4 @@ assert.match(css, /max\(214px, calc\(env\(safe-area-inset-bottom\) \+ 204px\)\)/
 assert.match(css, /\.mobile-history-inline\s*\{[\s\S]*height:\s*64px/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.23 : tour adverse automatique et sécurité Passer : OK");
+console.log("Mobile v3.26 : tour adverse automatique et sécurité Passer : OK");
