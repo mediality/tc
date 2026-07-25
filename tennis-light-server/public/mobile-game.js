@@ -176,7 +176,10 @@
       <button class="mobile-cancel-card mobile-mode-action--cancel" type="button" data-mobile-cancel aria-label="Annuler la sélection et revenir à la main"><span aria-hidden="true">↓</span></button>
       ${options.map((option) => {
         const requiresChoice = option.requiresSacrifice && activeOption?.mode === option.mode && !selectedSacrifice;
-        return `<button class="mobile-mode-action mobile-mode-action--${option.mode}${option.boostRisk ? " mobile-mode-action--risk" : ""}" type="button" data-mobile-action-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}" ${viewState.playSubmissionLocked || requiresChoice ? "aria-disabled=\"true\"" : ""}>${shortLabel(option.mode)}</button>`;
+        const riskWarning = option.mode === "normal" && option.boostRisk
+          ? '<img class="mobile-action-warning" src="assets/icons/warning.svg" alt="" aria-hidden="true" />'
+          : "";
+        return `<button class="mobile-mode-action mobile-mode-action--${option.mode}${option.boostRisk ? " mobile-mode-action--risk" : ""}" type="button" data-mobile-action-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}" ${viewState.playSubmissionLocked || requiresChoice ? "aria-disabled=\"true\"" : ""}>${riskWarning}<span>${shortLabel(option.mode)}</span></button>`;
       }).join("")}
     ` : "";
     const endTurnButton = viewState.turnActions.hideEndTurn
@@ -501,8 +504,12 @@
             ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
           </section>`
         : "";
+    const playerHasControlNow = viewState.phase === "PLAYER_TURN"
+      && !pendingOpponentReveal
+      && !resolutionSequence
+      && !viewState.spectator;
     root.innerHTML = `
-      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-stop-opponent="${viewState.assistance.stopOpponentCard}">
+      <div class="mobile-game-shell${opponentInteractionLocked ? " mobile-game-shell--opponent-locked" : ""}${playerHasControlNow ? " mobile-game-shell--player-turn" : ""}" data-mobile-resolution-deltas="${activeResolutionReceipt?.deltas?.length || 0}" data-mobile-stop-opponent="${viewState.assistance.stopOpponentCard}">
         <a class="mobile-skip-link" href="#mobileGameHand">Aller à la main</a>
         ${resolutionAnnouncementMarkup()}
         <header class="mobile-game-header">
@@ -520,9 +527,9 @@
           ${playerMarkup(viewState.opponent, "opponent", viewState.score.server === "OPPONENT", viewState.opponentBonuses)}
         </section>
         <section class="mobile-power${viewState.confrontation.winner ? ` mobile-power--winner-${viewState.confrontation.winner.toLowerCase()}` : ""}" aria-label="Confrontation de puissance">
-          <div data-mobile-value="player-power"><span>Vous</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
+          <div data-mobile-value="player-power"><span>${escapeText(viewState.player.name)}</span><strong>${viewState.confrontation.playerPower}</strong>${deltaMarkup("player", "power")}</div>
           <i class="mobile-power-bolt" aria-hidden="true"></i>
-          <div data-mobile-value="opponent-power"><span>Adversaire</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
+          <div data-mobile-value="opponent-power"><span>${escapeText(viewState.opponent.name)}</span><strong>${viewState.confrontation.opponentPower}</strong>${deltaMarkup("opponent", "power")}</div>
           <p>${escapeText(viewState.confrontation.contextMessage)}</p>
         </section>
         ${sceneMarkup}
@@ -600,7 +607,14 @@
     playerHadControlOnPreviousRender = playerHasControl;
     if (!shouldAnchor) return;
     window.requestAnimationFrame(() => {
-      root?.querySelector("#mobileTurnTop")?.scrollIntoView({ block: "start", behavior: "auto" });
+      window.requestAnimationFrame(() => {
+        const score = root?.querySelector("#mobileTurnTop");
+        if (!score) return;
+        window.scrollTo({
+          top: score.getBoundingClientRect().top + window.scrollY,
+          behavior: "auto",
+        });
+      });
     });
   }
 

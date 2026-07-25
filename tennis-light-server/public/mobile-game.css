@@ -47,6 +47,10 @@ body.mobile-game-view .confrontation-start-button {
   overflow-x: clip;
 }
 
+.mobile-game-shell--player-turn {
+  min-height: calc(100dvh + 150px);
+}
+
 .mobile-game-shell,
 .mobile-game-shell * {
   box-sizing: border-box;
@@ -121,6 +125,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px;
   gap: 6px;
+  height: 54px;
 }
 
 .mobile-mode-context > div {
@@ -139,10 +144,13 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 }
 
 .mobile-mode-context strong {
+  display: -webkit-box;
   overflow: hidden;
   font-size: 0.68rem;
   overflow-wrap: anywhere;
   text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .mobile-mode-context button {
@@ -224,6 +232,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   grid-auto-columns: minmax(38px, 1fr);
   grid-auto-flow: column;
   gap: 6px;
+  height: 50px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -233,7 +242,8 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   display: grid;
   grid-template-columns: 1fr 3px 1fr;
   align-items: center;
-  min-height: 38px;
+  height: 50px;
+  min-height: 0;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.07);
@@ -248,11 +258,11 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
 }
 
 .mobile-set-score--player {
-  background: #197d68;
+  background: var(--mobile-player-color);
 }
 
 .mobile-set-score--opponent {
-  background: #a9563f;
+  background: var(--mobile-opponent-color);
 }
 
 .mobile-set-score--player span,
@@ -505,6 +515,7 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
   -webkit-mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
   filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.3));
+  transform: scale(2);
 }
 
 .mobile-power--winner-player {
@@ -2027,6 +2038,10 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-mode-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1ch;
   flex: 1 1 0;
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
@@ -2049,6 +2064,23 @@ body.mobile-game-view .choice-card span {
   border-color: color-mix(in srgb, var(--mobile-player-color) 72%, white) !important;
   color: #062637 !important;
   background: var(--mobile-player-color) !important;
+}
+
+.mobile-mode-action--normal {
+  max-width: 50% !important;
+}
+
+.mobile-mode-action--effect,
+.mobile-mode-action--placement,
+.mobile-mode-action--boost {
+  max-width: 25% !important;
+}
+
+.mobile-action-warning {
+  flex: 0 0 2em;
+  width: 2em;
+  height: 2em;
+  color: currentColor;
 }
 
 .mobile-undo-turn {
