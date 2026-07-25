@@ -26,6 +26,8 @@
   let opponentAutoContinueTimer = null;
   let playerHadControlOnPreviousRender = false;
   let passConfirmationOpen = false;
+  let matchEndPresentation = null;
+  let matchEndPresentationTimers = [];
 
   function acknowledgedOpponentCardIds() {
     try {
@@ -334,12 +336,22 @@
   }
 
   function matchMenuMarkup(viewState) {
+    const adminTools = viewState.adminTools;
     return `
       <nav class="mobile-match-menu-list" aria-label="Menu du match">
         ${viewState.modeContext.competition ? '<button type="button" data-mobile-menu-destination="competition">Compétition</button>' : ""}
         ${viewState.modeContext.competition?.league ? '<button type="button" data-mobile-menu-destination="standings">Classement</button>' : ""}
         <button type="button" data-mobile-menu-destination="assistance">Assistance</button>
         <button type="button" data-mobile-open-return>Quitter le match</button>
+        ${adminTools ? `
+          <section class="mobile-match-admin-tools" aria-labelledby="mobileMatchAdminTitle">
+            <h3 id="mobileMatchAdminTitle">Outils ADMIN</h3>
+            <button type="button" data-mobile-admin-tool="simulate-score" ${adminTools.simulateScore.available ? "" : "disabled"}>${escapeText(adminTools.simulateScore.label)}</button>
+            <button type="button" data-mobile-admin-tool="export-logs">${escapeText(adminTools.exportLogs.label)}</button>
+            <button type="button" data-mobile-admin-tool="export-human-matches">${escapeText(adminTools.exportHumanMatches.label)}</button>
+            ${adminTools.revealAiHand.visible ? `<button type="button" data-mobile-admin-tool="reveal-ai-hand" aria-pressed="${adminTools.revealAiHand.active}" ${adminTools.revealAiHand.available ? "" : "disabled"}>${escapeText(adminTools.revealAiHand.label)}</button>` : ""}
+          </section>
+        ` : ""}
       </nav>
     `;
   }
@@ -377,6 +389,39 @@
 
   function resultMarkup(result) {
     if (!result) return "";
+    if (result.matchOver) {
+      const presentation = matchEndPresentation;
+      const revealedSets = presentation?.revealedSets ?? result.sets.length;
+      const finalState = presentation?.finalState ?? true;
+      return `
+        <section class="mobile-match-finale${finalState ? " mobile-match-finale--resolved" : ""}" role="dialog" aria-modal="true" aria-labelledby="mobileMatchFinaleTitle">
+          <header>
+            <span>Résultat final</span>
+            <h2 id="mobileMatchFinaleTitle">Match terminé</h2>
+          </header>
+          <div class="mobile-match-finale-players">
+            ${result.players.map((player) => `
+              <article class="mobile-match-finale-player mobile-match-finale-player--${player.side.toLowerCase()}">
+                <strong>${escapeText(player.name)}</strong>
+                <div class="mobile-match-finale-portrait">
+                  <img class="mobile-match-finale-lobby" src="${player.lobbyArtwork}" alt="${escapeText(player.name)}" decoding="async" />
+                  <img class="mobile-match-finale-outcome" src="${player.resultArtwork}" alt="${escapeText(player.outcome)} · ${escapeText(player.name)}" decoding="async" />
+                  <b>${escapeText(player.outcome)}</b>
+                </div>
+              </article>
+            `).join("")}
+          </div>
+          <ol class="mobile-match-finale-sets" aria-label="Score set par set">
+            ${result.sets.map((set, index) => `
+              <li class="mobile-match-finale-set mobile-match-finale-set--${set.winner.toLowerCase()}${index < revealedSets ? " mobile-match-finale-set--visible" : ""}">
+                <span>${set.player}</span><i aria-hidden="true"></i><span>${set.opponent}</span>
+              </li>
+            `).join("")}
+          </ol>
+          ${finalState && result.actions.length ? `<nav aria-label="Fin du match">${result.actions.map((action) => `<button type="button" data-mobile-progression="${action.id}">${escapeText(action.label)}</button>`).join("")}</nav>` : ""}
+        </section>
+      `;
+    }
     return `
       <section class="mobile-match-result mobile-match-result--${result.winner.toLowerCase()}" aria-live="polite">
         <span>${escapeText(result.condition)}</span>
@@ -475,6 +520,42 @@
     pendingOpponentReveal = { ...opponentCard };
   }
 
+  function clearMatchEndPresentation() {
+    matchEndPresentationTimers.forEach((timer) => window.clearTimeout(timer));
+    matchEndPresentationTimers = [];
+    matchEndPresentation = null;
+  }
+
+  function synchronizeMatchEndPresentation(result) {
+    if (!result?.matchOver) {
+      if (matchEndPresentation) clearMatchEndPresentation();
+      return;
+    }
+    const id = `${result.winner}:${result.score}:${result.sets.map((set) => `${set.player}-${set.opponent}`).join("|")}`;
+    if (matchEndPresentation?.id === id) return;
+    clearMatchEndPresentation();
+    if (prefersReducedMotion()) {
+      matchEndPresentation = { id, revealedSets: result.sets.length, finalState: true };
+      return;
+    }
+    matchEndPresentation = { id, revealedSets: 0, finalState: false };
+    const setCount = Math.max(1, result.sets.length);
+    result.sets.forEach((set, index) => {
+      const timer = window.setTimeout(() => {
+        if (matchEndPresentation?.id !== id) return;
+        matchEndPresentation.revealedSets = index + 1;
+        renderMobileGame(true);
+      }, Math.round(((index + 1) / setCount) * 2000));
+      matchEndPresentationTimers.push(timer);
+    });
+    matchEndPresentationTimers.push(window.setTimeout(() => {
+      if (matchEndPresentation?.id !== id) return;
+      matchEndPresentation.revealedSets = result.sets.length;
+      matchEndPresentation.finalState = true;
+      renderMobileGame(true);
+    }, 2050));
+  }
+
   function renderMobileGame(force = false) {
     if (!matchUsesMobileView || !root) return;
     if (resolutionSequence && !force) return;
@@ -484,6 +565,7 @@
       root.innerHTML = '<p class="mobile-game-fallback" role="status">Chargement du match…</p>';
       return;
     }
+    synchronizeMatchEndPresentation(viewState.result);
     synchronizeOpponentReveal(viewState);
     const opponentInteractionLocked = Boolean(pendingOpponentReveal)
       || viewState.phase === "OPPONENT_CARD_REVEAL";
@@ -993,6 +1075,13 @@
     root?.querySelectorAll("[data-mobile-menu-destination]").forEach((button) => {
       button.addEventListener("click", (event) => {
         showMobilePanel(button.dataset.mobileMenuDestination, event.currentTarget);
+      });
+    });
+    root?.querySelectorAll("[data-mobile-admin-tool]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.disabled) return;
+        const result = window.tennisLightMobileAdapter?.runAdminTool(button.dataset.mobileAdminTool);
+        if (result?.ok) closeMobilePanel();
       });
     });
     root?.querySelector("[data-mobile-open-competition]")?.addEventListener("click", (event) => {

@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.28";
+const GAME_VERSION = "v3.29";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7378,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.28");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.29");
 }
 
 function emptyMomentumState() {
@@ -16824,6 +16824,25 @@ function runMobileProgressionAction(actionId) {
 function mobileResultState(playerIndex) {
   if (!state.gameOver || !state.resultInfo) return null;
   const winner = state.resultInfo.winner;
+  const opponentIndex = opponentOf(playerIndex);
+  const matchWinner = Number.isInteger(state.setMatch.matchWinner)
+    ? state.setMatch.matchWinner
+    : winner;
+  const presentationPlayer = (index) => {
+    const matchPlayer = state.players[index];
+    const won = index === matchWinner;
+    const lobbyArtwork = PROFILE_CHARACTER_IMAGES[matchPlayer?.characterId]
+      || CHARACTER_IMAGES[matchPlayer?.characterId]?.[0]
+      || CHARACTER_IMAGES.coachUnknown[0];
+    return {
+      name: matchPlayer?.name || displayPlayerName(matchPlayer),
+      lobbyArtwork,
+      resultArtwork: MATCH_RESULT_IMAGES[matchPlayer?.characterId]?.[won ? "win" : "lose"]
+        || lobbyArtwork,
+      outcome: won ? "WIN" : "LOSE",
+      side: index === playerIndex ? "PLAYER" : "OPPONENT",
+    };
+  };
   return {
     winner: winner === playerIndex ? "PLAYER" : "OPPONENT",
     winnerName: playerName(winner),
@@ -16832,8 +16851,11 @@ function mobileResultState(playerIndex) {
     reason: state.resultInfo.reason || "",
     score: currentMatchScoreText(),
     setsWon: state.setMatch.enabled
-      ? [Number(state.setMatch.setsWon?.[playerIndex] || 0), Number(state.setMatch.setsWon?.[opponentOf(playerIndex)] || 0)]
+      ? [Number(state.setMatch.setsWon?.[playerIndex] || 0), Number(state.setMatch.setsWon?.[opponentIndex] || 0)]
       : null,
+    matchOver: Boolean(state.setMatch.matchOver),
+    sets: mobileSetScoreState(playerIndex).filter((set) => set.player != null && set.opponent != null),
+    players: [presentationPlayer(playerIndex), presentationPlayer(opponentIndex)],
     actions: SPECTATOR_MODE.enabled ? [] : mobileProgressionActions(),
   };
 }
@@ -17142,6 +17164,48 @@ function setMobileAssistance(options = {}) {
   return { ok: true };
 }
 
+function mobileAdminToolsState() {
+  if (!canAccessAdminFeatures() || SPECTATOR_MODE.enabled) return null;
+  return {
+    simulateScore: {
+      available: canAdminSimulateMatchScore(),
+      label: "Simuler le score",
+    },
+    exportLogs: {
+      available: true,
+      label: "Exporter les logs",
+    },
+    exportHumanMatches: {
+      available: true,
+      label: "Exporter les parties humaines",
+    },
+    revealAiHand: {
+      visible: Boolean(SOLO_AI.enabled && state.gameOver),
+      available: Boolean(SOLO_AI.enabled && state.gameOver),
+      active: Boolean(state.revealAiCards),
+      label: state.revealAiCards ? "Main révélée" : "Révéler la main",
+    },
+  };
+}
+
+function runMobileAdminTool(actionId) {
+  if (!canAccessAdminFeatures() || SPECTATOR_MODE.enabled) return { ok: false };
+  if (actionId === "simulate-score") {
+    if (!canAdminSimulateMatchScore()) return { ok: false };
+    simulateAdminMatchScore();
+  } else if (actionId === "export-logs") {
+    exportLogsFile();
+  } else if (actionId === "export-human-matches") {
+    exportHumanMatchLogsFile();
+  } else if (actionId === "reveal-ai-hand") {
+    if (!SOLO_AI.enabled || !state.gameOver) return { ok: false };
+    toggleRevealAiCards();
+  } else {
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
 function getMobileMatchViewState() {
   const playerIndex = mobileLocalPlayerIndex();
   const opponentIndex = opponentOf(playerIndex);
@@ -17226,6 +17290,7 @@ function getMobileMatchViewState() {
     assistance: {
       stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
     },
+    adminTools: mobileAdminToolsState(),
     history: mobileHistoryEntries(),
     returnToMenu: mobileReturnToMenuInfo(),
     lastPlayedCard: activeCardSummary,
@@ -17245,6 +17310,7 @@ window.tennisLightMobileAdapter = {
   confirmReturnToMenu: confirmMobileReturnToMenu,
   continueTutorial: continueMobileTutorial,
   runProgressionAction: runMobileProgressionAction,
+  runAdminTool: runMobileAdminTool,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;

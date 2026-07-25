@@ -29,12 +29,22 @@ assert.match(app, /function canPlayEffectMode\(playerIndex, card\)[\s\S]*canAffo
 assert.match(app, /window\.dispatchEvent\(new CustomEvent\("tennis-light:match-render"\)\)/);
 assert.match(app, /const expiresAt = Date\.now\(\) \+ 5_000/);
 assert.match(app, /passNeedsConfirmation: player\?\.hand\?\.some\(\(card\) => mobileCardPlayOptions\(playerIndex, card\)\.length > 0\)/);
+assert.match(app, /function mobileAdminToolsState\(\)[\s\S]*if \(!canAccessAdminFeatures\(\) \|\| SPECTATOR_MODE\.enabled\) return null/);
+assert.match(app, /function runMobileAdminTool\(actionId\)[\s\S]*simulateAdminMatchScore\(\)[\s\S]*exportLogsFile\(\)[\s\S]*exportHumanMatchLogsFile\(\)[\s\S]*toggleRevealAiCards\(\)/);
+assert.match(app, /adminTools: mobileAdminToolsState\(\)/);
+assert.match(app, /runAdminTool: runMobileAdminTool/);
 
 assert.match(mobile, /data-mobile-open-match-menu/);
 assert.match(mobile, /data-mobile-menu-destination="competition"/);
 assert.match(mobile, /data-mobile-menu-destination="standings"/);
 assert.match(mobile, /data-mobile-menu-destination="assistance"/);
 assert.match(mobile, /data-mobile-open-return>Quitter le match/);
+assert.match(mobile, /mobile-match-admin-tools/);
+assert.match(mobile, /data-mobile-admin-tool="simulate-score"/);
+assert.match(mobile, /data-mobile-admin-tool="export-logs"/);
+assert.match(mobile, /data-mobile-admin-tool="export-human-matches"/);
+assert.match(mobile, /data-mobile-admin-tool="reveal-ai-hand"/);
+assert.match(mobile, /runAdminTool\(button\.dataset\.mobileAdminTool\)/);
 assert.match(mobile, /data-mobile-stop-opponent-card/);
 assert.match(mobile, /data-mobile-action-mode=/);
 assert.match(mobile, /mobile-mode-action--risk/);
@@ -85,6 +95,7 @@ assert.doesNotMatch(mobile, /Placement requis/);
 assert.doesNotMatch(mobile, /Comment jouer cette carte/);
 
 assert.match(css, /\.mobile-match-menu-button span[\s\S]*height:\s*3px/);
+assert.match(css, /\.mobile-match-admin-tools\s*\{[\s\S]*border-top/);
 assert.match(css, /\.mobile-power i[\s\S]*mask:\s*url\("assets\/icons\/power-flash\.svg"\)/);
 assert.match(css, /\.mobile-power i[\s\S]*transform:\s*scale\(2\)/);
 assert.match(css, /\.mobile-set-score--player[\s\S]*background:\s*var\(--mobile-player-color\)/);
@@ -129,4 +140,4 @@ assert.match(css, /max\(214px, calc\(env\(safe-area-inset-bottom\) \+ 204px\)\)/
 assert.match(css, /\.mobile-history-inline\s*\{[\s\S]*height:\s*64px/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.28 : tour adverse automatique et sécurité Passer : OK");
+console.log("Mobile v3.29 : tour adverse automatique et sécurité Passer : OK");

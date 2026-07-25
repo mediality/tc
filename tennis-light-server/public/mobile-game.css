@@ -1664,6 +1664,194 @@ body.mobile-game-view .choice-card span {
   text-align: center;
 }
 
+.mobile-match-finale {
+  position: fixed;
+  z-index: 690;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  min-height: 100dvh;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    max(14px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  overflow-y: auto;
+  color: #f7fbff;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(94, 225, 184, 0.18), transparent 34%),
+    linear-gradient(180deg, #062b3d, #031723);
+  text-align: center;
+}
+
+.mobile-match-finale > header {
+  display: grid;
+  gap: 3px;
+}
+
+.mobile-match-finale > header span {
+  color: #dff376;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mobile-match-finale > header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.mobile-match-finale-players {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-match-finale-player {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  animation: mobile-match-finale-fade 420ms ease-out both;
+}
+
+.mobile-match-finale-player > strong {
+  overflow: hidden;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-match-finale-portrait {
+  position: relative;
+  min-height: 230px;
+  overflow: hidden;
+  border: 2px solid var(--mobile-opponent-color);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mobile-match-finale-player--player .mobile-match-finale-portrait {
+  border-color: var(--mobile-player-color);
+}
+
+.mobile-match-finale-portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  transition: opacity 360ms ease-out;
+}
+
+.mobile-match-finale-outcome {
+  opacity: 0;
+}
+
+.mobile-match-finale--resolved .mobile-match-finale-lobby {
+  opacity: 0;
+}
+
+.mobile-match-finale--resolved .mobile-match-finale-outcome {
+  opacity: 1;
+}
+
+.mobile-match-finale-portrait b {
+  position: absolute;
+  z-index: 2;
+  right: 8px;
+  bottom: 8px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #082738;
+  background: #dff376;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 280ms ease-out, transform 280ms ease-out;
+}
+
+.mobile-match-finale--resolved .mobile-match-finale-portrait b {
+  opacity: 1;
+  transform: none;
+}
+
+.mobile-match-finale-sets {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-match-finale-set {
+  display: grid;
+  grid-template-columns: 1fr 2px 1fr;
+  align-items: center;
+  width: min(86px, 22vw);
+  min-height: 46px;
+  border-radius: 12px;
+  color: #082738;
+  font-size: 1rem;
+  font-weight: 950;
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+
+.mobile-match-finale-set--player {
+  background: var(--mobile-player-color);
+}
+
+.mobile-match-finale-set--opponent {
+  background: var(--mobile-opponent-color);
+}
+
+.mobile-match-finale-set--visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.mobile-match-finale-set i {
+  width: 2px;
+  height: 20px;
+  background: rgba(8, 39, 56, 0.22);
+}
+
+.mobile-match-finale > nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  animation: mobile-match-finale-fade 300ms ease-out both;
+}
+
+.mobile-match-finale > nav button {
+  min-width: min(210px, 100%);
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 9px 14px;
+  color: #082738;
+  background: var(--mobile-player-color);
+  font-weight: 950;
+}
+
+@keyframes mobile-match-finale-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .mobile-match-result--opponent {
   border-color: var(--mobile-opponent-color);
 }
@@ -2269,6 +2457,29 @@ body.mobile-game-view .choice-card span {
   background: rgba(255, 255, 255, 0.07);
   text-align: left;
   font-weight: 850;
+}
+
+.mobile-match-admin-tools {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, .18);
+}
+
+.mobile-match-admin-tools h3 {
+  margin: 0 0 2px;
+  color: #8ce0bf;
+  font-size: .72rem;
+  font-weight: 950;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.mobile-match-admin-tools button[aria-pressed="true"] {
+  color: #fff;
+  border-color: #f3bfd8;
+  background: #8a2d58;
 }
 
 .mobile-league-standing {
