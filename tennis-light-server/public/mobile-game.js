@@ -25,7 +25,6 @@
   let transientDialogTrigger = null;
   let opponentAutoContinueTimer = null;
   let playerHadControlOnPreviousRender = false;
-  let passWasVisibleOnPreviousRender = false;
   let passConfirmationOpen = false;
 
   function acknowledgedOpponentCardIds() {
@@ -132,23 +131,18 @@
     const activeOption = options.find((option) => option.mode === selectedPlayMode)
       || (options.length === 1 ? options[0] : null);
     const selectedSacrifice = activeOption?.sacrifices?.find((card) => card.id === selectedBoostSacrificeId);
-    const shortLabel = (mode) => ({ effect: "EFFET", placement: "REMISE", normal: "JOUER", boost: "BOOST" }[mode] || mode);
     return `
       <section class="mobile-selection-preview" aria-label="Aperçu de la carte sélectionnée">
         <dl>
-          <div><dt>Coût réel</dt><dd>${preview.realCost}</dd></div>
-          <div><dt>Puissance réelle</dt><dd>+${preview.realPower}</dd></div>
-          <div><dt>Placement résultant</dt><dd>${preview.resultingPlacement}</dd></div>
+          <div><dt>Coût</dt><dd>${preview.realCost}</dd></div>
+          <div><dt>Puissance</dt><dd>+${preview.realPower}</dd></div>
+          <div><dt>Placement</dt><dd>${preview.resultingPlacement}</dd></div>
         </dl>
         <div class="mobile-selection-detail">
           <strong>Effet</strong>
-          ${preview.effects.map((effect) => `<p>${escapeText(effect)}</p>`).join("")}
-        </div>
-        <div class="mobile-selection-detail">
-          <strong>Bonus appliqués</strong>
-          ${preview.appliedBonuses.length
-    ? `<ul>${preview.appliedBonuses.map((bonus) => `<li>${escapeText(bonus)}</li>`).join("")}</ul>`
-    : "<p>Aucun bonus appliqué</p>"}
+          ${preview.effectCanceledByOpponent
+            ? '<p class="mobile-effect-canceled">EFFET ANNULÉ PAR L’ADVERSAIRE</p>'
+            : preview.effects.map((effect) => `<p>${escapeText(effect)}</p>`).join("")}
         </div>
         ${activeOption?.requiresSacrifice ? `
           <fieldset class="mobile-boost-sacrifices">
@@ -161,14 +155,35 @@
           </fieldset>
         ` : ""}
       </section>
-      <div class="mobile-card-actions" aria-label="Actions de la carte sélectionnée">
-        <button class="mobile-cancel-card mobile-mode-action--cancel" type="button" data-mobile-cancel aria-label="Annuler la sélection et revenir à la main"><span aria-hidden="true">↓</span></button>
-        ${options.map((option) => {
-          const requiresChoice = option.requiresSacrifice && activeOption?.mode === option.mode && !selectedSacrifice;
-          return `<button class="mobile-mode-action mobile-mode-action--${option.mode}${option.boostRisk ? " mobile-mode-action--risk" : ""}" type="button" data-mobile-action-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}" ${viewState.playSubmissionLocked || requiresChoice ? "aria-disabled=\"true\"" : ""}>${shortLabel(option.mode)}</button>`;
-        }).join("")}
-      </div>
     `;
+  }
+
+  function turnActionsMarkup(viewState) {
+    if (viewState.spectator) return "";
+    const preview = viewState.selectedCardPreview;
+    const options = preview?.playOptions || [];
+    const activeOption = options.find((option) => option.mode === selectedPlayMode)
+      || (options.length === 1 ? options[0] : null);
+    const selectedSacrifice = activeOption?.sacrifices?.find((card) => card.id === selectedBoostSacrificeId);
+    const shortLabel = (mode) => ({ effect: "EFFET", placement: "REMISE", normal: "JOUER", boost: "BOOST" }[mode] || mode);
+    const passButton = !pendingOpponentReveal && viewState.turnActions.canPass
+      ? `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">PASSER</button>`
+      : "";
+    const undoButton = viewState.turnActions.canUndo
+      ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>ANNULER</button>'
+      : "";
+    const selectedActions = preview ? `
+      <button class="mobile-cancel-card mobile-mode-action--cancel" type="button" data-mobile-cancel aria-label="Annuler la sélection et revenir à la main"><span aria-hidden="true">↓</span></button>
+      ${options.map((option) => {
+        const requiresChoice = option.requiresSacrifice && activeOption?.mode === option.mode && !selectedSacrifice;
+        return `<button class="mobile-mode-action mobile-mode-action--${option.mode}${option.boostRisk ? " mobile-mode-action--risk" : ""}" type="button" data-mobile-action-mode="${option.mode}" aria-pressed="${activeOption?.mode === option.mode}" ${viewState.playSubmissionLocked || requiresChoice ? "aria-disabled=\"true\"" : ""}>${shortLabel(option.mode)}</button>`;
+      }).join("")}
+    ` : "";
+    const endTurnButton = viewState.turnActions.hideEndTurn
+      ? ""
+      : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>FIN DU TOUR</button>`;
+    const content = `${undoButton || passButton}${selectedActions}${endTurnButton}`;
+    return content ? `<div class="mobile-turn-actions${preview ? " mobile-turn-actions--selection" : ""}" aria-label="Actions du tour">${content}</div>` : "";
   }
 
   function activeCardMarkup(card) {
@@ -213,8 +228,7 @@
             <div><dt>Puissance</dt><dd>+${card.power}</dd></div>
             <div><dt>Placement</dt><dd>${card.placement}</dd></div>
           </dl>
-          <p><strong>Effet</strong>${escapeText(card.effect)}</p>
-          ${card.consequence ? `<p><strong>Conséquence</strong>${escapeText(card.consequence)}</p>` : ""}
+          <p${card.effectCanceledByOpponent ? ' class="mobile-effect-canceled"' : ""}><strong>Effet</strong>${escapeText(card.effect)}</p>
         </div>
         <button class="mobile-opponent-continue" type="button" data-mobile-opponent-continue>Continuer</button>
       </article>
@@ -482,9 +496,7 @@
       : viewState.activeCard?.owner === "OPPONENT"
         ? acknowledgedOpponentCardIds().has(viewState.activeCard.id) ? null : viewState.activeCard
         : viewState.activeCard?.id === settledLocalCardId ? null : viewState.activeCard;
-    const sceneMarkup = viewState.selectedCardId && !viewState.spectator
-      ? selectedPreviewMarkup(viewState)
-      : viewState.result || pendingOpponentReveal || sceneCard
+    const sceneMarkup = viewState.result || pendingOpponentReveal || sceneCard
         ? `<section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
             ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
           </section>`
@@ -521,13 +533,9 @@
           </section>
           ${viewState.lastPlayedCard ? '<button class="mobile-history-inline" type="button" data-mobile-open-history aria-haspopup="dialog">Historique</button>' : ""}
         </div>
-        ${viewState.spectator ? "" : `<div class="mobile-turn-actions" aria-label="Actions du tour">
-          ${viewState.turnActions.canUndo
-    ? '<button class="mobile-undo-turn" type="button" data-mobile-undo-turn>ANNULER</button>'
-    : !pendingOpponentReveal && viewState.turnActions.canPass ? `<button class="mobile-pass-button${viewState.turnActions.passProjection ? ` mobile-pass-button--${viewState.turnActions.passProjection.winner.toLowerCase()}` : ""}" type="button" data-mobile-pass aria-label="${escapeText(viewState.turnActions.passProjection?.label || "Passer")}">Passer</button>` : ""}
-          ${viewState.turnActions.hideEndTurn ? "" : `<button type="button" data-mobile-end-turn ${viewState.turnActions.canEndTurn ? "" : "disabled"}>TERMINER LE TOUR</button>`}
-        </div>`}
         ${viewState.spectator ? '<p class="mobile-spectator-notice">Mode spectateur · mains masquées · aucune action de jeu autorisée.</p>' : `<section id="mobileGameHand" class="mobile-hand-section${opponentInteractionLocked ? " mobile-hand-section--disabled" : ""}" aria-label="Votre main" aria-disabled="${opponentInteractionLocked}" tabindex="-1">
+          ${viewState.selectedCardId ? selectedPreviewMarkup(viewState) : ""}
+          ${turnActionsMarkup(viewState)}
           <div class="mobile-card-hand">${handMarkup(viewState.hand, viewState.selectedCardId, opponentInteractionLocked)}</div>
         </section>`}
         ${tutorialMarkup(viewState.tutorial)}
@@ -581,7 +589,6 @@
     if (nextHand) nextHand.scrollLeft = previousHandScrollLeft;
     if (openMobilePanel) window.queueMicrotask(() => focusOpenMobilePanel(false));
     anchorMobileGameToBottom(viewState);
-    anchorPassButtonWhenItAppears(viewState);
   }
 
   function anchorMobileGameToBottom(viewState) {
@@ -594,21 +601,6 @@
     if (!shouldAnchor) return;
     window.requestAnimationFrame(() => {
       root?.querySelector("#mobileGameHand")?.scrollIntoView({ block: "end", behavior: "auto" });
-    });
-  }
-
-  function anchorPassButtonWhenItAppears(viewState) {
-    const passIsVisible = Boolean(
-      viewState.turnActions.canPass
-      && !viewState.turnActions.canUndo
-      && !pendingOpponentReveal
-      && !viewState.selectedCardId
-    );
-    const shouldAnchor = passIsVisible && !passWasVisibleOnPreviousRender && !openMobilePanel;
-    passWasVisibleOnPreviousRender = passIsVisible;
-    if (!shouldAnchor) return;
-    window.requestAnimationFrame(() => {
-      root?.querySelector("[data-mobile-pass]")?.scrollIntoView({ block: "end", behavior: "auto" });
     });
   }
 
@@ -853,7 +845,9 @@
     const stats = dialog?.querySelector("[data-mobile-card-detail-stats]");
     if (stats) stats.innerHTML = values.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
     if (dialog?.querySelector("[data-mobile-card-detail-effect]")) {
-      dialog.querySelector("[data-mobile-card-detail-effect]").textContent = card.effect || card.consequence || "Aucun effet.";
+      const effect = dialog.querySelector("[data-mobile-card-detail-effect]");
+      effect.textContent = card.effect || card.consequence || "Aucun effet.";
+      effect.classList.toggle("mobile-effect-canceled", Boolean(card.effectCanceledByOpponent));
     }
   }
 

@@ -35,7 +35,7 @@ assert.doesNotMatch(mobileApp, /effectiveCost|getCardStats|totalTurnPlacement|ca
 
 assert.match(mobileStyles, /\.mobile-hand-card--locked img\s*\{[\s\S]*filter: grayscale\(1\)/);
 assert.match(mobileStyles, /\.mobile-hand-card--selected\s*\{[\s\S]*translateY\(-6px\) scale\(1\.035\)/);
-assert.match(mobileStyles, /\.mobile-card-actions button,[\s\S]*min-height: 48px/);
+assert.match(mobileStyles, /\.mobile-turn-actions button\s*\{[\s\S]*min-height: 44px/);
 assert.match(mobileStyles, /\.mobile-card-explanation\s*\{[\s\S]*position: fixed/);
 assert.doesNotMatch(mobileStyles, /\.game-app\s/);
 

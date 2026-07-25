@@ -1373,11 +1373,11 @@ body.mobile-game-view .choice-card span {
   bottom: 0;
   left: 0;
   display: grid;
-  gap: 8px;
+  gap: 5px;
   padding:
-    14px max(12px, env(safe-area-inset-right))
+    8px max(10px, env(safe-area-inset-right))
     max(10px, env(safe-area-inset-bottom))
-    max(12px, env(safe-area-inset-left));
+    max(10px, env(safe-area-inset-left));
   min-width: 0;
   background: linear-gradient(180deg, rgba(3, 23, 35, 0), #031723 16%, #031723 100%);
   backface-visibility: hidden;
@@ -1461,10 +1461,10 @@ body.mobile-game-view .choice-card span {
 
 .mobile-selection-preview {
   display: grid;
-  gap: 9px;
+  gap: 5px;
   border: 1px solid rgba(116, 230, 192, 0.34);
-  border-radius: 16px;
-  padding: 11px;
+  border-radius: 12px;
+  padding: 7px;
   background: rgba(5, 36, 51, 0.94);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
   animation: mobile-selection-arrive 160ms ease-out;
@@ -1482,7 +1482,7 @@ body.mobile-game-view .choice-card span {
   justify-items: center;
   min-width: 0;
   border-radius: 10px;
-  padding: 6px 4px;
+  padding: 4px;
   background: rgba(255, 255, 255, 0.07);
   text-align: center;
 }
@@ -1497,13 +1497,14 @@ body.mobile-game-view .choice-card span {
 .mobile-selection-preview dd {
   margin: 0;
   color: #a9efd7;
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 950;
 }
 
 .mobile-selection-detail {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
 }
 
 .mobile-selection-detail strong {
@@ -1519,6 +1520,11 @@ body.mobile-game-view .choice-card span {
   color: rgba(255, 255, 255, 0.78);
   font-size: 0.7rem;
   line-height: 1.35;
+}
+
+.mobile-effect-canceled {
+  color: var(--mobile-opponent-color) !important;
+  font-weight: 950;
 }
 
 .mobile-selection-detail ul {
@@ -1598,18 +1604,30 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-turn-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.mobile-turn-actions::-webkit-scrollbar {
+  display: none;
 }
 
 .mobile-turn-actions button {
+  flex: 1 1 0;
+  min-width: 52px;
   min-height: 44px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 11px;
+  border-radius: 9px;
+  padding: 4px 6px;
   color: #f7fbff;
   background: rgba(255, 255, 255, 0.09);
   font-weight: 850;
+  font-size: 0.66rem;
+  white-space: nowrap;
 }
 
 .mobile-match-result {
@@ -1805,22 +1823,6 @@ body.mobile-game-view .choice-card span {
   font-size: 0.7rem;
 }
 
-.mobile-card-actions {
-  position: sticky;
-  bottom: max(8px, env(safe-area-inset-bottom));
-  z-index: 20;
-  display: grid;
-  grid-template-columns: minmax(92px, 0.7fr) minmax(0, 1.6fr);
-  gap: 8px;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 15px;
-  background: rgba(3, 24, 35, 0.94);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(10px);
-}
-
-.mobile-card-actions button,
 .mobile-card-explanation section button {
   min-height: 48px;
   border-radius: 11px;
@@ -2023,13 +2025,6 @@ body.mobile-game-view .choice-card span {
   }
 }
 
-/* Lot de finition des commandes tactiques et du menu de match. */
-.mobile-card-actions {
-  display: flex;
-  grid-template-columns: none;
-  align-items: stretch;
-}
-
 .mobile-mode-action {
   flex: 1 1 0;
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -2040,6 +2035,7 @@ body.mobile-game-view .choice-card span {
 
 .mobile-mode-action--cancel {
   flex: 0 0 48px;
+  min-width: 48px !important;
   width: 48px;
   padding: 0 !important;
   background: rgba(255, 255, 255, 0.1);

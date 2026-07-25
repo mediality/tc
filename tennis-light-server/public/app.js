@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.19";
+const GAME_VERSION = "v3.20";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7378,7 +7378,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.19");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.20");
 }
 
 function emptyMomentumState() {
@@ -16644,6 +16644,7 @@ function mobileCardPreview(playerIndex, card) {
     realCost,
     realPower: stats.power,
     effects: [card.effect || "Aucun effet"].filter(Boolean),
+    effectCanceledByOpponent: Boolean(isNextEffectCanceledFor(playerIndex) && card.effectType),
     resultingPlacement,
     appliedBonuses,
     playOptions: mobileCardPlayOptions(playerIndex, card),
@@ -16917,8 +16918,9 @@ function mobilePlayedCardSummary(card, playerIndex) {
     cost: Number(card.costPaid ?? card.cost ?? 0),
     power: Number(card.cardPowerGained ?? card.powerGained ?? 0),
     precision: Number(card.precision ?? 0),
+    effectCanceledByOpponent: card.effectApplied === false,
     effect: card.effectApplied === false
-      ? `${card.effect || "Aucun effet"} (annulé)`
+      ? "EFFET ANNULÉ PAR L’ADVERSAIRE"
       : card.effect || "Aucun effet",
     placement,
     consequence: consequenceParts.join(" · "),
@@ -17078,7 +17080,10 @@ function playSelectedMobileCard(intent = {}) {
         ...submittedCard,
         id: resolvedCard?.playedUid || submittedCard.id,
         power: Number(resolvedCard?.cardPowerGained ?? resolvedCard?.powerGained ?? 0),
-        effect: resolvedCard?.effect || card.effect || "",
+        effect: resolvedCard?.effectApplied === false
+          ? "EFFET ANNULÉ PAR L’ADVERSAIRE"
+          : resolvedCard?.effect || card.effect || "",
+        effectCanceledByOpponent: resolvedCard?.effectApplied === false,
       },
       deltas: mobileResolutionDeltas(before, after),
       messages: mobileNewResolutionMessages(previousFirstLog),
