@@ -2109,6 +2109,29 @@ body.spectator-mode .player-panel {
   font-size: 1rem;
 }
 
+.profile-current-week-points dd {
+  display: flex;
+  align-items: baseline;
+  gap: .3em;
+}
+
+.profile-current-week-points dd > small {
+  font-size: .46em;
+  font-weight: 800;
+  opacity: .72;
+}
+
+.profile-current-week-points > em {
+  display: flex;
+  gap: .35em;
+  font-size: .72rem;
+  font-style: normal;
+}
+
+.profile-current-week-points > em span:last-child {
+  opacity: .68;
+}
+
 .profile-character-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

@@ -45,8 +45,9 @@ const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
 const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
 const GAME_NEWS = [
   {
-    id: "v333-kowalski-sakubara-circuit", publishedAt: "2026-07-26", availableAt: "2026-07-26T10:00:00+02:00",
+    id: "v334-kowalski-sakubara-circuit", publishedAt: "2026-07-26", availableAt: "2026-07-26T00:00:00+02:00",
     title: "Johnny Kowalski et Sakubara Geki entrent sur le Circuit Pro", characterId: "johnnyKowalski",
+    image: "assets/sakuwalskinews.jpg",
     audienceRoles: ["pro", "pro_plus", "admin"],
     message: "Le Circuit Pro accueille deux nouveaux adversaires : Johnny Kowalski et Sakubara Geki. Ils participent désormais aux tirages des tournois et intégreront le RankIA lors de la prochaine mise à jour hebdomadaire. Préparez-vous à affronter leurs nouveaux pouvoirs étoile, entre gestion de l’endurance, pioche offensive et réduction de puissance.",
   },

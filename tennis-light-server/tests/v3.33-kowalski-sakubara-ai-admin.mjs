@@ -6,7 +6,7 @@ const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.33.0");
+assert.equal(pkg.version, "3.34.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -28,7 +28,12 @@ assert.match(server, /400 \+ Math\.floor\(seededRandom\(`pointmax:/);
 assert.match(server, /adminAiPointsMatch/);
 assert.match(app, /Fiche joueur IA/);
 assert.match(app, /Seuls les points de la semaine actuelle peuvent être modifiés/);
-assert.match(app, /v333-kowalski-sakubara-circuit/);
+assert.match(app, /v334-kowalski-sakubara-circuit/);
+assert.match(app, /image: "assets\/sakuwalskinews\.jpg"/);
+assert.match(app, /availableAt: "2026-07-26T00:00:00\+02:00"/);
+assert.match(app, /const pointsToDefend = Math\.max\(0,[\s\S]*ranking\.score_ref[\s\S]*ranking\.score_week[\s\S]*ranking\.score_next_ref/);
+assert.match(app, /\/ À défendre/);
+assert.match(css, /\.profile-current-week-points dd > small[\s\S]*font-size:\s*\.46em/);
 assert.match(css, /\.match-finale-overlay/);
 assert.match(css, /prefers-reduced-motion: reduce/);
 
@@ -40,5 +45,6 @@ for (const name of [
 ]) {
   await access(new URL(`../public/assets/cards/${name}`, import.meta.url));
 }
+await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.33 : nouveaux joueurs, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.34 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");

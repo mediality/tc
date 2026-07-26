@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.33";
+const GAME_VERSION = "v3.34";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -352,11 +352,11 @@ const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNA
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
   {
-    id: "v333-kowalski-sakubara-circuit",
+    id: "v334-kowalski-sakubara-circuit",
     publishedAt: "2026-07-26",
-    availableAt: "2026-07-26T10:00:00+02:00",
+    availableAt: "2026-07-26T00:00:00+02:00",
     title: "Johnny Kowalski et Sakubara Geki entrent sur le Circuit Pro",
-    image: "assets/cards/TC-Johnny-Kowalski-LOBBY.webp",
+    image: "assets/sakuwalskinews.jpg",
     audienceRoles: ["pro", "pro_plus", "admin"],
     message: "Le Circuit Pro accueille deux nouveaux adversaires : Johnny Kowalski et Sakubara Geki. Ils participent désormais aux tirages des tournois et intégreront le RankIA lors de la prochaine mise à jour hebdomadaire. Préparez-vous à affronter leurs nouveaux pouvoirs étoile, entre gestion de l’endurance, pioche offensive et réduction de puissance.",
   },
@@ -3298,6 +3298,10 @@ function profileMarkup(profile) {
   const calendarToggle = remainingCalendar.length
     ? '<button class="profile-expand-button" type="button" data-profile-toggle="calendar" aria-expanded="false" aria-label="Afficher les autres semaines du calendrier">+</button>'
     : "";
+  const pointsToDefend = Math.max(0,
+    Number(ranking.score_ref || 0)
+    + Number(ranking.score_week || 0)
+    - Number(ranking.score_next_ref || 0));
   return `
     <section class="profile-identity-hero">
       <div class="profile-identity-portrait">
@@ -3313,7 +3317,11 @@ function profileMarkup(profile) {
         <dl class="profile-identity-metrics">
           <div><dt>Rang mondial</dt><dd>${Number(ranking.points_rank || ranking.rank || 0) ? `#${Number(ranking.points_rank || ranking.rank)}` : "-"}</dd><small>${Number(ranking.projected_rank || 0) ? `#${Number(ranking.projected_rank)} projeté` : "Projection indisponible"}</small></div>
           <div><dt>Points Circuit</dt><dd>${Number(ranking.score_ref || 0)}</dd><small>4 semaines terminées</small></div>
-          <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd><small>En cours</small></div>
+          <div class="profile-current-week-points">
+            <dt>Cette semaine</dt>
+            <dd><span>${Number(ranking.score_week || 0)}</span><small>/ ${pointsToDefend}</small></dd>
+            <em><span>En cours</span><span>/ À défendre</span></em>
+          </div>
           <div class="profile-trophy-metric gold"><dt>Tournois gagnés</dt><dd><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />${tournamentWins}</dd></div>
           <div class="profile-trophy-metric silver"><dt>Finales perdues</dt><dd><img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />${lostFinals}</dd></div>
         </dl>
@@ -7463,7 +7471,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.33");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.34");
 }
 
 function emptyMomentumState() {
