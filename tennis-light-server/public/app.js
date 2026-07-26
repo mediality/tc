@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.44";
+const GAME_VERSION = "v3.45";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.44";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.45";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7476,7 +7476,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.44");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.45");
 }
 
 function emptyMomentumState() {

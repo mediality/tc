@@ -4615,11 +4615,11 @@ h1 {
 .remise-underlay-wrap {
   position: relative;
   width: 148px;
-  height: 254px;
+  height: 220px;
 }
 
 .remise-underlay-wrap.has-boost {
-  height: 288px;
+  height: 254px;
 }
 
 .remise-underlay-shot {
@@ -4631,15 +4631,15 @@ h1 {
 
 .remise-underlay-layer {
   position: absolute;
-  left: 0;
-  top: 20%;
+  left: 3px;
+  top: 37px;
   z-index: 1;
-  width: 100%;
+  width: calc(100% - 19px);
   pointer-events: none;
 }
 
 .remise-underlay-wrap.has-boost .remise-underlay-layer {
-  top: 36%;
+  top: 71px;
 }
 
 .remise-underlay-layer img {

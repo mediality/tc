@@ -7,7 +7,7 @@ const css = await readFile(new URL("../public/styles.css", import.meta.url), "ut
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.44.0");
+assert.equal(pkg.version, "3.45.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -53,7 +53,7 @@ assert.match(app, /state\.gameOver \? "exchange-complete-card" : "unplayable"/);
 assert.match(app, /players: players\.map\(\(player\) => \[player\.name, player\.lobby, player\.result\]\)/);
 assert.match(css, /\.result-panel\.match-finale-host \{[\s\S]*overflow: visible[\s\S]*backdrop-filter: none/);
 assert.match(css, /\.card\.exchange-complete-card \{[\s\S]*filter: none/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.44/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.45/);
 assert.doesNotMatch(html, /<span>v169<\/span>/);
 assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: auto/);
 assert.match(app, /effectDeferredUntilEndTurn:[\s\S]*turnCompleted: false/);
@@ -61,10 +61,10 @@ assert.match(app, /playedCard\.turnCompleted = true;[\s\S]*state\.lastCard = pla
 assert.match(app, /finalRemise\.turnCompleted = true;[\s\S]*finalRemise\.turnPlacement = preparedPlacement/);
 assert.match(app, /function placementRemisesForShot\([\s\S]*card\.turnCompleted \|\| !isRemise\(card\)[\s\S]*card\.remiseMode === "placement"[\s\S]*function renderRemiseStack/);
 assert.match(app, /function renderPlayedHistory\([\s\S]*laterShot[\s\S]*renderRemiseStack\(card, remiseCards\)/);
-assert.match(app, /const REMISE_UNDERLAY_IMAGE = "assets\/fond-carte-remise\.jpg\?v=3\.44"/);
+assert.match(app, /const REMISE_UNDERLAY_IMAGE = "assets\/fond-carte-remise\.jpg\?v=3\.45"/);
 assert.match(app, /const placementBonus = remiseCards\.reduce\([\s\S]*<span>\+\$\{placementBonus\}<\/span>/);
-assert.match(css, /\.remise-underlay-wrap \{[\s\S]*width: 148px[\s\S]*height: 254px/);
-assert.match(css, /\.remise-underlay-layer \{[\s\S]*top: 20%/);
+assert.match(css, /\.remise-underlay-wrap \{[\s\S]*width: 148px[\s\S]*height: 220px/);
+assert.match(css, /\.remise-underlay-layer \{[\s\S]*left: 3px[\s\S]*top: 37px[\s\S]*width: calc\(100% - 19px\)/);
 assert.match(css, /\.remise-underlay-layer span \{[\s\S]*color: #f1cf55[\s\S]*background: #080b0d/);
 assert.match(app, /const friendlyIdentity = SERVER_SYNC\.friendlyMatch \? \{[\s\S]*humanNickname: state\.tournament\?\.humanNickname[\s\S]*state\.tournament\.humanNickname = friendlyIdentity\.humanNickname/);
 assert.match(app, /const isAiPlayer = SOLO_AI\.enabled && playerIndex === SOLO_AI\.playerIndex[\s\S]*desktop-player-rank[\s\S]*secondaryIdentity/);
@@ -87,4 +87,4 @@ for (const name of [
 }
 await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.44 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.45 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
