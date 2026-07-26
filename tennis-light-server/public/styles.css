@@ -8027,6 +8027,15 @@ h1 {
   box-shadow: 0 14px 34px rgba(2, 18, 32, .2);
   backdrop-filter: blur(14px);
 }
+
+.result-panel.match-finale-host {
+  overflow: visible;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
 .result-banner-heading { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 16px; align-items: center; }
 .result-winner-copy { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-items: center; }
 .result-banner-heading .eyebrow { grid-column: 1 / -1; margin: 0 0 2px; color: #27836b; font-size: .58rem; }
@@ -8209,6 +8218,16 @@ h1 {
   border-radius: 0;
   clip-path: none;
   image-rendering: -webkit-optimize-contrast;
+}
+
+@media (min-width: 1500px) {
+  body.game-adaptive-board:not(.mobile-game-view) .app {
+    width: min(1880px, calc(100vw - 24px));
+  }
+
+  body.game-adaptive-board:not(.mobile-game-view) .court {
+    grid-template-columns: minmax(0, 1fr) clamp(170px, 10vw, 200px) minmax(0, 1fr);
+  }
 }
 
 .center-lane .log {

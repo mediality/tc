@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.37";
+const GAME_VERSION = "v3.39";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1546,6 +1546,7 @@ let soloTournamentCountdownTimer = null;
 const GAMEPLAY_ASSIST = {
   preview: localStorage.getItem("tennisLightAssistPreview") === "true",
   information: localStorage.getItem("tennisLightAssistInformation") === "true",
+  adaptiveBoard: localStorage.getItem("tennisLightAssistAdaptiveBoard") === "true",
   stopOpponentCard: localStorage.getItem("tennisLightMobileStopOpponentCard") !== "false",
   panelOpen: false,
 };
@@ -1717,6 +1718,7 @@ const els = {
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gamePreviewToggle: document.querySelector("#gamePreviewToggle"),
   gameInformationToggle: document.querySelector("#gameInformationToggle"),
+  gameAdaptiveBoardToggle: document.querySelector("#gameAdaptiveBoardToggle"),
   gameContextStrip: document.querySelector("#gameContextStrip"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
@@ -7473,7 +7475,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.37");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.39");
 }
 
 function emptyMomentumState() {
@@ -14532,6 +14534,7 @@ let renderedDesktopMatchFinaleKey = "";
 function renderResultPanel() {
   if (!state.gameOver || !state.setMatch.matchOver || state.setMatch.matchWinner == null) {
     renderedDesktopMatchFinaleKey = "";
+    els.resultPanel.classList.remove("match-finale-host");
     els.resultPanel.innerHTML = "";
     els.resultPanel.classList.add("hidden");
     return;
@@ -14549,7 +14552,7 @@ function renderResultPanel() {
     score,
     winner: score[0] > score[1] ? 0 : 1,
   }));
-  const progressionMarkup = renderProgressionButtons();
+  const progressionMarkup = renderRallyEndActions();
   const finaleKey = JSON.stringify({
     winner,
     players: players.map((player) => [player.name, player.lobby, player.result]),
@@ -14557,6 +14560,7 @@ function renderResultPanel() {
     progressionMarkup,
   });
   els.resultPanel.classList.remove("hidden");
+  els.resultPanel.classList.add("match-finale-host");
   if (renderedDesktopMatchFinaleKey === finaleKey && els.resultPanel.querySelector(".match-finale-overlay")) return;
   renderedDesktopMatchFinaleKey = finaleKey;
   els.resultPanel.innerHTML = `
@@ -14824,6 +14828,8 @@ function renderModeButtons() {
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
   if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
+  if (els.gameAdaptiveBoardToggle) els.gameAdaptiveBoardToggle.checked = GAMEPLAY_ASSIST.adaptiveBoard;
+  document.body.classList.toggle("game-adaptive-board", GAMEPLAY_ASSIST.adaptiveBoard);
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
@@ -15637,10 +15643,19 @@ function renderCharacterCard(player, playerIndex) {
   const worldRankReminder = state.tournament.active && [1, 2, 3].includes(Number(player.worldRank))
     ? { label: `N°${Number(player.worldRank)} mondial`, goldWorldRank: true }
     : null;
-  const bonusReminders = [
-    worldRankReminder,
+  const bonusReminderCandidates = [
     ...surfaceBonusesForPlayer(player),
     ...(player.permanentBonuses ?? []),
+  ].filter(Boolean);
+  const seenBonusReminders = new Set();
+  const bonusReminders = [
+    worldRankReminder,
+    ...bonusReminderCandidates.filter((bonus) => {
+      const identity = bonus.sourceBonusId || String(bonus.label || "").trim().toLocaleLowerCase("fr") || bonus.id;
+      if (!identity || seenBonusReminders.has(identity)) return false;
+      seenBonusReminders.add(identity);
+      return true;
+    }),
   ].filter(Boolean);
   const surfaceBonus = bonusReminders.length
     ? `<div class="surface-bonus-stack">${bonusReminders.map((bonus) => `<div class="surface-bonus-reminder${bonus.goldWorldRank ? " world-rank-gold" : ""}">${escapeHtml(bonus.label)}</div>`).join("")}</div>`
@@ -15809,7 +15824,7 @@ function bindCenterButtons() {
 }
 
 function bindResultTournamentButton() {
-  bindProgressionButtons(els.resultPanel);
+  bindRallyEndActions(els.resultPanel);
 }
 
 function returnFriendlyMatchToClubHouse() {
@@ -16736,6 +16751,11 @@ els.gamePreviewToggle?.addEventListener("change", () => {
 els.gameInformationToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.information = Boolean(els.gameInformationToggle.checked);
   localStorage.setItem("tennisLightAssistInformation", String(GAMEPLAY_ASSIST.information));
+  render();
+});
+els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.adaptiveBoard = Boolean(els.gameAdaptiveBoardToggle.checked);
+  localStorage.setItem("tennisLightAssistAdaptiveBoard", String(GAMEPLAY_ASSIST.adaptiveBoard));
   render();
 });
 els.friendlyLobbyHomeButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "online" }));

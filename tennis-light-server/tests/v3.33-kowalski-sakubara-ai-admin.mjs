@@ -4,9 +4,10 @@ import { access, readFile } from "node:fs/promises";
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
+const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.37.0");
+assert.equal(pkg.version, "3.39.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -42,8 +43,18 @@ assert.match(css, /\.pro-news-copy > p:not\(\.label\):not\(\.pro-news-signature\
 assert.match(css, /\.match-finale-overlay/);
 assert.match(app, /let renderedDesktopMatchFinaleKey = ""/);
 assert.match(app, /renderedDesktopMatchFinaleKey === finaleKey[\s\S]*\.match-finale-overlay/);
+assert.match(app, /els\.resultPanel\.classList\.add\("match-finale-host"\)/);
+assert.match(app, /const progressionMarkup = renderRallyEndActions\(\)/);
+assert.match(app, /function bindResultTournamentButton\(\) \{\s*bindRallyEndActions\(els\.resultPanel\)/);
 assert.match(app, /players: players\.map\(\(player\) => \[player\.name, player\.lobby, player\.result\]\)/);
+assert.match(css, /\.result-panel\.match-finale-host \{[\s\S]*overflow: visible[\s\S]*backdrop-filter: none/);
 assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: -webkit-optimize-contrast/);
+assert.match(app, /const seenBonusReminders = new Set\(\)/);
+assert.match(app, /bonus\.sourceBonusId \|\| String\(bonus\.label \|\| ""\)\.trim\(\)\.toLocaleLowerCase\("fr"\) \|\| bonus\.id/);
+assert.match(app, /adaptiveBoard: localStorage\.getItem\("tennisLightAssistAdaptiveBoard"\) === "true"/);
+assert.match(html, /id="gameAdaptiveBoardToggle"[\s\S]*Plateau adapté à l’écran/);
+assert.match(app, /document\.body\.classList\.toggle\("game-adaptive-board", GAMEPLAY_ASSIST\.adaptiveBoard\)/);
+assert.match(css, /body\.game-adaptive-board:not\(\.mobile-game-view\) \.app[\s\S]*width: min\(1880px, calc\(100vw - 24px\)\)/);
 assert.match(css, /prefers-reduced-motion: reduce/);
 
 for (const name of [
@@ -56,4 +67,4 @@ for (const name of [
 }
 await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.37 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.39 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
