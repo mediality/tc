@@ -7,7 +7,7 @@ const css = await readFile(new URL("../public/styles.css", import.meta.url), "ut
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.40.0");
+assert.equal(pkg.version, "3.41.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -53,9 +53,9 @@ assert.match(app, /state\.gameOver \? "exchange-complete-card" : "unplayable"/);
 assert.match(app, /players: players\.map\(\(player\) => \[player\.name, player\.lobby, player\.result\]\)/);
 assert.match(css, /\.result-panel\.match-finale-host \{[\s\S]*overflow: visible[\s\S]*backdrop-filter: none/);
 assert.match(css, /\.card\.exchange-complete-card \{[\s\S]*filter: none/);
-assert.match(html, /class="site-version-footer"[\s\S]*<strong>v3\.40<\/strong>/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.41/);
 assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: -webkit-optimize-contrast/);
+assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: auto/);
 assert.match(app, /const seenBonusReminders = new Set\(\)/);
 assert.match(app, /bonus\.sourceBonusId \|\| String\(bonus\.label \|\| ""\)\.trim\(\)\.toLocaleLowerCase\("fr"\) \|\| bonus\.id/);
 assert.match(app, /adaptiveBoard: localStorage\.getItem\("tennisLightAssistAdaptiveBoard"\) === "true"/);
@@ -74,4 +74,4 @@ for (const name of [
 }
 await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.40 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.41 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
