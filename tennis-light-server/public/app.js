@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.47";
+const GAME_VERSION = "v3.48";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.47";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.48";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -112,6 +112,7 @@ const SPECTATOR_MODE = {
 // rouvrir le tableau qu'un joueur a choisi de masquer.
 const TOURNAMENT_PANEL_UI = {
   visible: true,
+  championshipOpenZone: 1,
 };
 
 const PROFILE_ACTIVITY = {
@@ -160,7 +161,7 @@ const MENU_STATE = {
 const AI_CLUB_HOUSE = {
   format: (() => {
     const storedFormat = localStorage.getItem("tennisLightAiClubFormat");
-    if (storedFormat === "league") return "league";
+    if (["league", "championship"].includes(storedFormat)) return storedFormat;
     if (["classic", "tournament"].includes(storedFormat)) return "classic";
     return "match";
   })(),
@@ -262,6 +263,7 @@ const EMPTY_TOURNAMENT = {
   bonusLevel: "none",
   weekly: false,
   league: false,
+  championship: false,
   competitionId: null,
   competitionName: null,
   competitionSurface: null,
@@ -5072,7 +5074,10 @@ function renderAiClubHouse() {
     button.disabled = button.hasAttribute("data-pro-format") && !proAccess;
   });
   const isMatch = AI_CLUB_HOUSE.format === "match";
+  const isChampionship = AI_CLUB_HOUSE.format === "championship";
   document.querySelectorAll("[data-competition-setting]").forEach((row) => row.classList.toggle("hidden", isMatch));
+  document.querySelector("#aiPlayersSettingRow")?.classList.toggle("hidden", isMatch || isChampionship);
+  document.querySelector("#aiDistributionSettingRow")?.classList.toggle("hidden", isMatch || isChampionship);
   els.aiBonusSettingRow?.classList.remove("setting-disabled");
   if (els.aiLevelDescription) {
     els.aiLevelDescription.textContent = AI_DIFFICULTY_DESCRIPTIONS[AI_CLUB_HOUSE.difficulty];
@@ -5081,17 +5086,19 @@ function renderAiClubHouse() {
     els.aiBonusDescription.textContent = AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
   }
   if (els.aiClubHouseSummary) {
-    const format = AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
+    const format = AI_CLUB_HOUSE.format === "championship" ? "Championnat" : AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
     const bonusText = `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
     els.aiClubHouseSummary.textContent = isMatch
       ? `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)}`
+      : isChampionship
+        ? `24 joueurs · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · tirage aléatoire avec 8 têtes de série`
       : `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
     if (els.aiClubHouseSummaryTitle) els.aiClubHouseSummaryTitle.textContent = format;
   }
   if (els.startAiClubHouseButton) {
-    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
+    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "championship" ? "Lancer le Championnat" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
   }
   els.aiClubHouseAccessNote?.classList.toggle("hidden", proAccess);
   els.aiClubHouseSaveActions?.classList.toggle("hidden", !proAccess || !readAiClubHouseSave());
@@ -5162,7 +5169,7 @@ function deleteAiClubHouseSave() {
 function updateAiClubHouseSetting(setting, value) {
   if (setting === "format") {
     if (["classic", "league"].includes(value) && !canAccessProFeatures()) return;
-    AI_CLUB_HOUSE.format = ["match", "classic", "league"].includes(value) ? value : "match";
+    AI_CLUB_HOUSE.format = ["match", "classic", "league", "championship"].includes(value) ? value : "match";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
   } else if (setting === "sets") {
     AI_CLUB_HOUSE.targetSets = Number(value) === 3 ? 3 : 2;
@@ -5241,6 +5248,8 @@ async function startAiClubHouseCompetition() {
         configureSoloOpponent();
         SOLO_AI.difficulty = AI_CLUB_HOUSE.difficulty;
         startMatchMode(AI_CLUB_HOUSE.targetSets, { keepSoloOpponent: true });
+      } else if (AI_CLUB_HOUSE.format === "championship") {
+        startChampionshipMode(AI_CLUB_HOUSE.targetSets, options);
       } else if (AI_CLUB_HOUSE.format === "league") {
         startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
       } else {
@@ -7476,7 +7485,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.47");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.48");
 }
 
 function emptyMomentumState() {
@@ -8346,18 +8355,22 @@ function runSoloAITurn() {
       return;
     }
 
-    if (!legalInventory.canProgress && canSoloPassAndWin(playerIndex)) {
-      const punitivePath = chooseSoloPunitiveContinuation(playerIndex, scenarioPlan);
-      if (punitivePath) {
+    const securedPass = soloSecuredPassDecision(playerIndex, scenarioPlan);
+    if (securedPass?.shouldPass) {
+      if (securedPass.punitivePath) {
         recordSoloAiDecision("press_secured_advantage", {
-          path: punitivePath,
-          pass: soloPassDecisionSnapshot(playerIndex),
+          path: securedPass.punitivePath,
+          pass: securedPass.projection,
+          reason: securedPass.reason,
         });
-        executeSoloPlanPath(playerIndex, punitivePath);
+        executeSoloPlanPath(playerIndex, securedPass.punitivePath);
         ensureSoloProgress(beforeSignature);
         return;
       }
-      recordSoloAiDecision("pass_secured_win", soloPassDecisionSnapshot(playerIndex));
+      recordSoloAiDecision("pass_secured_win", {
+        ...securedPass.projection,
+        reason: securedPass.reason,
+      });
       pass(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
@@ -10043,6 +10056,55 @@ function canSoloPassAndWin(playerIndex) {
     return false;
   }
   return exchangeWinner === playerIndex;
+}
+
+function soloSecuredPassDecision(playerIndex, scenarioPlan = null) {
+  if (!aiIntelligenceAtLeast("expert") || !canSoloPassAndWin(playerIndex)) return null;
+  const projection = soloPassProjection(playerIndex);
+  if (projection.projectedWinner !== playerIndex) return null;
+  if (projection.matchClinched) {
+    return { shouldPass: true, reason: "le passage garantit le match", projection };
+  }
+  if (projection.setOver && projection.setWinner === playerIndex) {
+    return { shouldPass: true, reason: "le passage garantit le set", projection };
+  }
+  const player = state.players[playerIndex];
+  const response = soloOpponentResponseProjection(playerIndex);
+  const setScore = projection.projectedSetScore || state.setMatch.score;
+  const gamesA = Number(setScore?.[playerIndex] || 0);
+  const gamesB = Number(setScore?.[opponentOf(playerIndex)] || 0);
+  const scoreLeverage = state.setMatch.enabled && (gamesA >= 4 || gamesB >= 4);
+  const resourcePressure = player.endurance <= 3 || player.hand.length <= 2;
+  const unsafeContinuation = response.risk >= (normalizeAiIntelligence(SOLO_AI.style) === "expert" ? 0.28 : 0.36);
+  const cleanerSet = shouldExpertPlayForCleanerSetScore(playerIndex, projection.projectedPower);
+  if (cleanerSet && !resourcePressure && response.risk < 0.12) {
+    const punitivePath = chooseSoloPunitiveContinuation(playerIndex, scenarioPlan);
+    if (punitivePath) {
+      return {
+        shouldPass: true,
+        punitivePath,
+        reason: "continuer peut améliorer nettement le score du set à faible risque",
+        projection,
+      };
+    }
+  }
+  if (scoreLeverage || resourcePressure || unsafeContinuation || normalizeAiIntelligence(SOLO_AI.style) === "legend") {
+    return {
+      shouldPass: true,
+      reason: scoreLeverage
+        ? "sécuriser l’échange à un moment important du set"
+        : resourcePressure
+          ? "sécuriser l’échange et préserver les ressources"
+          : unsafeContinuation
+            ? "éviter une réponse adverse risquée"
+            : "convertir immédiatement l’avantage certain",
+      projection,
+    };
+  }
+  const punitivePath = chooseSoloPunitiveContinuation(playerIndex, scenarioPlan);
+  return punitivePath
+    ? { shouldPass: true, punitivePath, reason: "punition mesurée à faible risque", projection }
+    : { shouldPass: true, reason: "aucune continuation supérieure au gain certain", projection };
 }
 
 function shouldExpertPlayForCleanerSetScore(playerIndex, projectedPowersAfterPass) {
@@ -12758,6 +12820,310 @@ function buildLeagueTournamentMatches(groups, humanEntry, targetSets, seededEntr
   return matches;
 }
 
+function championshipMatch(id, label, phase, day, group, playerA = null, playerB = null) {
+  const playable = Boolean(playerA && playerB && (isHumanTournamentEntry(playerA) || isHumanTournamentEntry(playerB)));
+  const match = {
+    id,
+    label,
+    round: `championship${phase}`,
+    championshipPhase: phase,
+    day,
+    group,
+    playerA,
+    playerB,
+    winner: null,
+    score: null,
+    liveScore: null,
+    playable,
+    simulated: Boolean(playerA && playerB && !playable),
+    hiddenWinner: null,
+    hiddenSetScores: null,
+    revealedSetScores: [],
+  };
+  if (match.simulated) ensureSimulatedTournamentMatchReady(match);
+  return match;
+}
+
+function buildChampionshipSetup(humanCharacterId) {
+  const selectedAi = shuffle(TOURNAMENT_CHARACTER_POOL.filter((entry) => entry !== humanCharacterId)).slice(0, 23);
+  const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
+  const ranked = rankedTournamentEntries(roster);
+  const seeds = ranked.slice(0, 8);
+  const others = shuffle(ranked.slice(8));
+  const groups = {};
+  "ABCDEFGH".split("").forEach((group, index) => {
+    groups[group] = [seeds[index], others[index * 2], others[index * 2 + 1]];
+  });
+  return { roster, ranked, seeds, groups };
+}
+
+function buildChampionshipMatches(groups) {
+  const matches = [];
+  for (const group of "ABCDEFGH") {
+    const [a, b, c] = groups[group];
+    matches.push(
+      championshipMatch(`champ_p1_${group}_d1`, `1er tour · Groupe ${group} · A–C`, 1, 1, group, a, c),
+      championshipMatch(`champ_p1_${group}_d2`, `1er tour · Groupe ${group} · B–C`, 1, 2, group, b, c),
+      championshipMatch(`champ_p1_${group}_d3`, `1er tour · Groupe ${group} · A–B`, 1, 3, group, a, b),
+    );
+  }
+  for (const group of ["1", "2", "3", "4"]) {
+    [[[0, 1], [2, 3]], [[0, 3], [2, 1]], [[0, 2], [1, 3]]].forEach((dayMatches, dayIndex) => {
+      dayMatches.forEach((pair, matchIndex) => {
+        matches.push(championshipMatch(
+          `champ_p2_g${group}_d${dayIndex + 1}_m${matchIndex + 1}`,
+          `2e tour · Groupe ${group} · Journée ${dayIndex + 1}`,
+          2,
+          dayIndex + 1,
+          group,
+        ));
+      });
+    });
+  }
+  for (let index = 1; index <= 4; index += 1) {
+    matches.push(championshipMatch(`champ_playoff_${index}`, `Barrage ${index}`, 3, 1, null));
+    matches.push(championshipMatch(`champ_qf_${index}`, `Quart de finale ${index}`, 4, 1, null));
+  }
+  matches.push(
+    championshipMatch("champ_sf_1", "Demi-finale 1", 4, 2, null),
+    championshipMatch("champ_sf_2", "Demi-finale 2", 4, 2, null),
+    championshipMatch("final", "Finale", 4, 3, null),
+  );
+  return matches;
+}
+
+function startChampionshipMode(targetSets = 2, options = {}) {
+  if (SERVER_SYNC.enabled) {
+    state.log.unshift("Le Championnat est disponible uniquement en mode solo.");
+    render();
+    return;
+  }
+  targetSets = Number(targetSets) === 3 ? 3 : 2;
+  resetTournament();
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
+  const humanCharacterId = selectedCharacterId();
+  const setup = buildChampionshipSetup(humanCharacterId);
+  const humanLevel = circuitHumanLevel();
+  const bonusLevel = normalizeAiBonusLevel(options.bonus || "none");
+  state.tournament = {
+    active: true,
+    visible: true,
+    championship: true,
+    aiClubHouse: true,
+    difficulty: SOLO_AI.difficulty,
+    aiIntelligenceLevels: buildTournamentAiIntelligenceLevels(setup.ranked, SOLO_AI.difficulty, { humanLevel }),
+    bonusLevel,
+    playerSelection: "random",
+    distribution: "seeded",
+    weekly: false,
+    competitionId: null,
+    competitionName: "Championnat",
+    targetSets,
+    humanCharacterId,
+    humanNickname: nicknameValue(),
+    humanEntry: HUMAN_TOURNAMENT_ENTRY,
+    currentMatch: null,
+    nextHumanMatchId: null,
+    championCharacterId: null,
+    championshipPhase: 1,
+    championshipPhase1Groups: setup.groups,
+    championshipPhase2Groups: {},
+    leagueSeededEntries: setup.ranked,
+    tournamentSeedNumbers: Object.fromEntries(setup.seeds.map((entry, index) => [entry, index + 1])),
+    humanCircuitLevel: humanLevel,
+    surfaceBonuses: buildAiClubHouseBonuses(setup.ranked, bonusLevel),
+    permanentBonuses: {},
+    seededCharacters: [],
+    dynamicBonusIds: [],
+    matches: [],
+  };
+  state.tournament.matches = buildChampionshipMatches(setup.groups);
+  TOURNAMENT_PANEL_UI.visible = true;
+  TOURNAMENT_PANEL_UI.championshipOpenZone = 1;
+  prepareChampionshipHumanMatch();
+  state.log.unshift(`Championnat · 24 joueurs · ${targetSets} sets gagnants · IA ${tournamentDifficultyLabel(SOLO_AI.difficulty)}.`);
+  render();
+}
+
+function championshipMatches(phase = null, day = null) {
+  return state.tournament.matches.filter((match) => (
+    match.championshipPhase
+    && (phase == null || match.championshipPhase === phase)
+    && (day == null || match.day === day)
+  ));
+}
+
+function championshipStandings(phase, group, throughDay = 3) {
+  const groups = phase === 1 ? state.tournament.championshipPhase1Groups : state.tournament.championshipPhase2Groups;
+  const rows = new Map((groups?.[group] || []).map((entry) => [entry, {
+    entry, points: 0, played: 0, wins: 0, losses: 0,
+    setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
+    worldRank: tournamentWorldRankForEntry(entry) ?? 999999,
+  }]));
+  for (const match of championshipMatches(phase).filter((item) => item.group === group && item.day <= throughDay)) {
+    if (!match.score || !match.winner) continue;
+    const statsA = rows.get(match.playerA);
+    const statsB = rows.get(match.playerB);
+    applyLeagueMatchStats(statsA, statsB, match.revealedSetScores?.length ? match.revealedSetScores : parseTournamentScore(match.score));
+    statsA.played += 1;
+    statsB.played += 1;
+    rows.get(match.winner).points += 1;
+    rows.get(match.winner).wins += 1;
+    (match.winner === match.playerA ? statsB : statsA).losses += 1;
+  }
+  return [...rows.values()].map((row) => ({
+    ...row,
+    setDifference: row.setsWon - row.setsLost,
+    gameDifference: row.gamesWon - row.gamesLost,
+  })).sort((a, b) => b.points - a.points
+    || b.setDifference - a.setDifference
+    || b.gameDifference - a.gameDifference
+    || a.worldRank - b.worldRank);
+}
+
+function revealChampionshipDay(phase, day) {
+  for (const match of championshipMatches(phase, day)) {
+    if (match.winner || !match.playerA || !match.playerB) continue;
+    if (!ensureSimulatedTournamentMatchReady(match)) continue;
+    match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
+    match.score = formatSetScores(match.revealedSetScores);
+    match.winner = match.hiddenWinner;
+  }
+}
+
+function assignChampionshipMatch(id, playerA, playerB) {
+  setMatchPlayers(tournamentMatchById(id), playerA, playerB);
+}
+
+function refreshChampionshipSlots() {
+  if (!state.tournament.championship) return;
+  if (championshipMatches(1, 3).every((match) => match.winner)) {
+    const ranked = Object.fromEntries("ABCDEFGH".split("").map((group) => [group, championshipStandings(1, group, 3)]));
+    const groups = {
+      1: [ranked.A[0]?.entry, ranked.B[1]?.entry, ranked.C[0]?.entry, ranked.D[1]?.entry],
+      2: [ranked.E[0]?.entry, ranked.F[1]?.entry, ranked.G[0]?.entry, ranked.H[1]?.entry],
+      3: [ranked.B[0]?.entry, ranked.A[1]?.entry, ranked.D[0]?.entry, ranked.C[1]?.entry],
+      4: [ranked.F[0]?.entry, ranked.E[1]?.entry, ranked.H[0]?.entry, ranked.G[1]?.entry],
+    };
+    state.tournament.championshipPhase2Groups = groups;
+    for (const group of ["1", "2", "3", "4"]) {
+      const entries = groups[group];
+      const schedule = [[[0, 1], [2, 3]], [[0, 3], [2, 1]], [[0, 2], [1, 3]]];
+      schedule.forEach((pairs, dayIndex) => pairs.forEach(([a, b], matchIndex) => {
+        assignChampionshipMatch(`champ_p2_g${group}_d${dayIndex + 1}_m${matchIndex + 1}`, entries[a], entries[b]);
+      }));
+    }
+  }
+  if (championshipMatches(2, 3).every((match) => match.winner)) {
+    const ranked = Object.fromEntries(["1", "2", "3", "4"].map((group) => [group, championshipStandings(2, group, 3)]));
+    assignChampionshipMatch("champ_playoff_1", ranked["1"][1]?.entry, ranked["2"][2]?.entry);
+    assignChampionshipMatch("champ_playoff_2", ranked["2"][1]?.entry, ranked["3"][2]?.entry);
+    assignChampionshipMatch("champ_playoff_3", ranked["3"][1]?.entry, ranked["4"][2]?.entry);
+    assignChampionshipMatch("champ_playoff_4", ranked["4"][1]?.entry, ranked["1"][2]?.entry);
+    state.tournament.championshipGroupWinners = ["1", "2", "3", "4"].map((group) => ranked[group][0]?.entry);
+  }
+  const playoffs = championshipMatches(3);
+  if (playoffs.length && playoffs.every((match) => match.winner)) {
+    if (!state.tournament.championshipFinalDraw) {
+      const pos1to4 = shuffle(state.tournament.championshipGroupWinners || []);
+      const pos5to8 = shuffle(playoffs.map((match) => match.winner));
+      state.tournament.championshipFinalDraw = [...pos1to4, ...pos5to8];
+    }
+    const draw = state.tournament.championshipFinalDraw;
+    for (let index = 0; index < 4; index += 1) assignChampionshipMatch(`champ_qf_${index + 1}`, draw[index], draw[index + 4]);
+  }
+  for (let index = 1; index <= 2; index += 1) {
+    const left = tournamentMatchById(`champ_qf_${(index * 2) - 1}`);
+    const right = tournamentMatchById(`champ_qf_${index * 2}`);
+    if (left?.winner && right?.winner) assignChampionshipMatch(`champ_sf_${index}`, left.winner, right.winner);
+  }
+  const sf1 = tournamentMatchById("champ_sf_1");
+  const sf2 = tournamentMatchById("champ_sf_2");
+  if (sf1?.winner && sf2?.winner) assignChampionshipMatch("final", sf1.winner, sf2.winner);
+}
+
+function championshipHumanStillQualified() {
+  const human = humanTournamentEntry();
+  if (state.tournament.championshipPhase === 1 && championshipMatches(1, 3).every((match) => match.winner)) {
+    return Object.keys(state.tournament.championshipPhase1Groups).some((group) => championshipStandings(1, group, 3).slice(0, 2).some((row) => row.entry === human));
+  }
+  if (state.tournament.championshipPhase === 2 && championshipMatches(2, 3).every((match) => match.winner)) {
+    return Object.keys(state.tournament.championshipPhase2Groups).some((group) => championshipStandings(2, group, 3).slice(0, 3).some((row) => row.entry === human));
+  }
+  return true;
+}
+
+function simulateRemainingChampionship() {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    refreshChampionshipSlots();
+    for (const match of state.tournament.matches) {
+      if (match.winner || !match.playerA || !match.playerB || isHumanTournamentEntry(match.playerA) || isHumanTournamentEntry(match.playerB)) continue;
+      if (!ensureSimulatedTournamentMatchReady(match)) continue;
+      match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
+      match.score = formatSetScores(match.revealedSetScores);
+      match.winner = match.hiddenWinner;
+      changed = true;
+    }
+  }
+  refreshChampionshipSlots();
+  const final = tournamentMatchById("final");
+  state.tournament.stage = "complete";
+  state.tournament.currentMatch = null;
+  state.tournament.nextHumanMatchId = null;
+  state.tournament.championCharacterId = final?.winner || null;
+}
+
+function prepareChampionshipHumanMatch() {
+  refreshChampionshipSlots();
+  const next = nextHumanTournamentMatch();
+  if (!next) {
+    simulateRemainingChampionship();
+    return;
+  }
+  state.tournament.championshipPhase = next.championshipPhase;
+  TOURNAMENT_PANEL_UI.championshipOpenZone = next.championshipPhase;
+  state.tournament.currentMatch = next.id;
+  state.tournament.nextHumanMatchId = null;
+  state.tournament.stage = next.round;
+  SOLO_AI.characterId = opponentCharacterInMatch(next, humanTournamentEntry());
+  startMatchMode(state.tournament.targetSets, { keepSoloOpponent: true });
+  state.tournament.currentMatch = next.id;
+  state.tournament.stage = next.round;
+}
+
+function handleChampionshipMatchComplete() {
+  const match = tournamentMatchById(state.tournament.currentMatch);
+  if (!match || match.winner) return;
+  match.winner = tournamentWinnerEntryFromMatchWinner(state.setMatch.matchWinner);
+  match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
+  match.score = formatSetScores(match.revealedSetScores);
+  match.liveScore = null;
+  revealChampionshipDay(match.championshipPhase, match.day);
+  refreshChampionshipSlots();
+  state.tournament.championshipPhase = Math.max(state.tournament.championshipPhase, match.championshipPhase);
+  if (!championshipHumanStillQualified() || (match.championshipPhase >= 3 && match.winner !== humanTournamentEntry())) {
+    simulateRemainingChampionship();
+    render();
+    return;
+  }
+  const next = nextHumanTournamentMatch();
+  if (!next) {
+    simulateRemainingChampionship();
+    render();
+    return;
+  }
+  state.tournament.stage = "readyNext";
+  state.tournament.currentMatch = null;
+  state.tournament.nextHumanMatchId = next.id;
+  state.tournament.championshipPhase = next.championshipPhase;
+  TOURNAMENT_PANEL_UI.championshipOpenZone = next.championshipPhase;
+  render();
+}
+
 function prepareLeagueHumanMatch() {
   const nextMatch = nextHumanTournamentMatch();
   if (!nextMatch) {
@@ -13762,6 +14128,10 @@ function handleTournamentMatchComplete() {
     handleFriendlyTournamentMatchComplete();
     return;
   }
+  if (state.tournament.championship) {
+    handleChampionshipMatchComplete();
+    return;
+  }
   if (state.tournament.league) {
     handleLeagueTournamentMatchComplete();
     return;
@@ -14117,7 +14487,7 @@ async function recordWeeklyCompetitionResult() {
 }
 
 function startTournamentSemi() {
-  if ((state.tournament.weekly || state.tournament.bracket16 || state.tournament.league) && state.tournament.stage === "readyNext") {
+  if ((state.tournament.weekly || state.tournament.bracket16 || state.tournament.league || state.tournament.championship) && state.tournament.stage === "readyNext") {
     startWeeklyNextMatch();
     return;
   }
@@ -14136,7 +14506,7 @@ function startTournamentSemi() {
 }
 
 function startTournamentFinal() {
-  if ((state.tournament.weekly || state.tournament.bracket16 || state.tournament.league) && state.tournament.stage === "readyNext") {
+  if ((state.tournament.weekly || state.tournament.bracket16 || state.tournament.league || state.tournament.championship) && state.tournament.stage === "readyNext") {
     startWeeklyNextMatch();
     return;
   }
@@ -14157,11 +14527,15 @@ function startTournamentFinal() {
 }
 
 function startWeeklyNextMatch() {
-  if (!state.tournament.active || (!state.tournament.weekly && !state.tournament.bracket16 && !state.tournament.league) || state.tournament.stage !== "readyNext") return;
+  if (!state.tournament.active || (!state.tournament.weekly && !state.tournament.bracket16 && !state.tournament.league && !state.tournament.championship) || state.tournament.stage !== "readyNext") return;
   const match = tournamentMatchById(state.tournament.nextHumanMatchId);
   if (!match) return;
   state.tournament.stage = match.round;
   state.tournament.currentMatch = match.id;
+  if (state.tournament.championship) {
+    state.tournament.championshipPhase = match.championshipPhase;
+    TOURNAMENT_PANEL_UI.championshipOpenZone = match.championshipPhase;
+  }
   state.tournament.nextHumanMatchId = null;
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
@@ -14179,11 +14553,13 @@ function updateTournamentSetProgress() {
   if (current && !current.score) {
     current.liveScore = tournamentCompletedSetScore(current);
   }
-  if (state.tournament.league) refreshLeagueKnockoutSlots();
+  if (state.tournament.championship) refreshChampionshipSlots();
+  else if (state.tournament.league) refreshLeagueKnockoutSlots();
   else if (state.tournament.weekly) refreshWeeklyTournamentDerivedSlots();
   else refreshTournamentDerivedSlots();
   revealNextTournamentAiSet();
-  if (state.tournament.league) refreshLeagueKnockoutSlots();
+  if (state.tournament.championship) refreshChampionshipSlots();
+  else if (state.tournament.league) refreshLeagueKnockoutSlots();
   else if (state.tournament.weekly) refreshWeeklyTournamentDerivedSlots();
   else refreshTournamentDerivedSlots();
 }
@@ -15100,6 +15476,10 @@ function renderTournamentPanel() {
   const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
   const final = tournamentMatchById("final");
   const champion = state.tournament.championCharacterId;
+  if (state.tournament.championship) {
+    renderChampionshipPanel(title, final, champion);
+    return;
+  }
   if (state.tournament.league) {
     renderLeagueTournamentPanel(title, final, champion);
     return;
@@ -15154,6 +15534,106 @@ function renderTournamentPanel() {
   els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
   els.tournamentPanel.querySelector("[data-start-tournament-semi]")?.addEventListener("click", () => scheduleSoloTournamentMatch(startTournamentSemi));
   els.tournamentPanel.querySelector("[data-start-tournament-final]")?.addEventListener("click", () => scheduleSoloTournamentMatch(startTournamentFinal));
+}
+
+function championshipCompletedDay(phase) {
+  let completed = 0;
+  for (const day of [1, 2, 3]) {
+    const matches = championshipMatches(phase, day);
+    if (matches.length && matches.every((match) => match.winner && match.score)) completed = day;
+  }
+  return completed;
+}
+
+function renderChampionshipStandings(phase, group) {
+  const throughDay = championshipCompletedDay(phase);
+  const rows = championshipStandings(phase, group, throughDay);
+  const qualificationCount = phase === 1 ? 2 : 3;
+  return `
+    <section class="league-standings championship-standings">
+      <span class="tournament-round-label">Groupe ${group}</span>
+      <div class="league-standings-head">
+        <span>Rang</span><span>Nom</span><span>Points</span><span>Diff. sets</span><span>Diff. jeux</span>
+      </div>
+      ${rows.map((row, index) => `
+        <div class="league-standings-row ${index < qualificationCount && throughDay >= 3 ? "qualified" : ""} ${isHumanTournamentEntry(row.entry) ? "human-player" : ""}">
+          <strong class="league-rank">${index + 1}</strong>
+          <span class="tournament-player-identity">${tournamentPlayerLabel(row.entry)} ${aiIntelligenceBadgeMarkup(row.entry)}</span>
+          <strong>${row.points}</strong>
+          <span>${formatLeagueDifference(row.setDifference)}</span>
+          <span>${formatLeagueDifference(row.gameDifference)}</span>
+        </div>
+      `).join("")}
+    </section>
+  `;
+}
+
+function championshipZoneMarkup(phase, title, content) {
+  const open = TOURNAMENT_PANEL_UI.championshipOpenZone === phase;
+  const available = phase <= Number(state.tournament.championshipPhase || 1)
+    || championshipMatches(phase).some((match) => match.playerA && match.playerB);
+  if (!available) return "";
+  return `
+    <section class="championship-zone ${open ? "open" : ""}">
+      <button class="championship-zone-toggle" type="button" data-championship-zone="${phase}" aria-expanded="${open}">
+        <span>Zone ${phase}</span><strong>${title}</strong><span aria-hidden="true">${open ? "−" : "+"}</span>
+      </button>
+      <div class="championship-zone-content ${open ? "" : "hidden"}">${content}</div>
+    </section>
+  `;
+}
+
+function renderChampionshipPanel(title, final, champion) {
+  const phase1Groups = "ABCDEFGH".split("");
+  const phase2Groups = ["1", "2", "3", "4"];
+  const groupMatches = (phase) => championshipMatches(phase).map((match) => renderTournamentMatch(match)).join("");
+  const phase1 = `
+    <div class="league-standings-grid championship-groups">${phase1Groups.map((group) => renderChampionshipStandings(1, group)).join("")}</div>
+    <div class="tournament-bracket championship-matches">${groupMatches(1)}</div>
+  `;
+  const phase2 = `
+    <div class="league-standings-grid championship-groups">${phase2Groups.map((group) => renderChampionshipStandings(2, group)).join("")}</div>
+    <div class="tournament-bracket championship-matches">${groupMatches(2)}</div>
+  `;
+  const phase3 = `<div class="tournament-bracket championship-matches">${groupMatches(3)}</div>`;
+  const finalMatches = championshipMatches(4);
+  const phase4 = `
+    <div class="tournament-bracket championship-final-bracket">
+      <div class="tournament-column"><span class="tournament-column-title">Quarts</span>${finalMatches.filter((match) => match.id.startsWith("champ_qf")).map((match) => renderTournamentMatch(match)).join("")}</div>
+      <div class="tournament-column"><span class="tournament-column-title">Demi-finales</span>${finalMatches.filter((match) => match.id.startsWith("champ_sf")).map((match) => renderTournamentMatch(match)).join("")}</div>
+      <div class="tournament-column"><span class="tournament-column-title">Finale</span>${renderTournamentMatch(final, true)}</div>
+      ${renderTournamentChampion(champion, final)}
+    </div>
+  `;
+  els.tournamentPanel.innerHTML = `
+    <div class="tournament-header">
+      <div class="tournament-header-copy">
+        <p class="eyebrow">Compétition en cours</p>
+        <h2>${escapeHtml(title)} ${renderHumanRoundBadge()}</h2>
+        <div class="tournament-meta-row">
+          <span class="difficulty-reminder">24 joueurs · ${Number(state.tournament.targetSets || 2)} sets gagnants · IA ${tournamentDifficultyLabel(state.tournament.difficulty)}</span>
+          <span class="difficulty-reminder">Tour ${Number(state.tournament.championshipPhase || 1)} sur 4</span>
+        </div>
+      </div>
+      <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>
+        ${TOURNAMENT_PANEL_UI.visible ? "Masquer le tableau" : "Afficher le tableau"}
+      </button>
+    </div>
+    <div class="championship-board ${TOURNAMENT_PANEL_UI.visible ? "" : "hidden"}">
+      ${championshipZoneMarkup(1, "1er Tour · Groupes A à H", phase1)}
+      ${championshipZoneMarkup(2, "2e Tour · Groupes 1 à 4", phase2)}
+      ${championshipZoneMarkup(3, "3e Tour · Barrages", phase3)}
+      ${championshipZoneMarkup(4, "Tour final", phase4)}
+    </div>
+  `;
+  els.tournamentPanel.classList.remove("hidden");
+  els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
+  els.tournamentPanel.querySelectorAll("[data-championship-zone]").forEach((button) => {
+    button.addEventListener("click", () => {
+      TOURNAMENT_PANEL_UI.championshipOpenZone = Number(button.dataset.championshipZone);
+      render();
+    });
+  });
 }
 
 function renderFriendlyTournamentStatus() {
@@ -15332,6 +15812,9 @@ function tournamentPlayerLabel(entry) {
 function toggleTournamentPanel() {
   if (!state.tournament.active || SPECTATOR_MODE.enabled) return;
   TOURNAMENT_PANEL_UI.visible = !TOURNAMENT_PANEL_UI.visible;
+  if (TOURNAMENT_PANEL_UI.visible && state.tournament.championship) {
+    TOURNAMENT_PANEL_UI.championshipOpenZone = Number(state.tournament.championshipPhase || 1);
+  }
   render();
 }
 

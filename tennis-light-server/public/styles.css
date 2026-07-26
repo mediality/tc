@@ -3783,6 +3783,30 @@ h1 {
   padding-bottom: 4px;
 }
 
+.championship-board { display: grid; gap: 12px; }
+.championship-zone { overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: rgba(255,255,255,.055); }
+.championship-zone.open { border-color: rgba(140,224,191,.42); }
+.championship-zone-toggle {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  padding: 10px 14px;
+  color: #fff;
+  background: rgba(4,30,47,.86);
+  text-align: left;
+  cursor: pointer;
+}
+.championship-zone-toggle > span:first-child { color: #8ce0bf; font-size: .7rem; font-weight: 900; text-transform: uppercase; }
+.championship-zone-toggle > span:last-child { font-size: 1.35rem; }
+.championship-zone-content { display: grid; gap: 14px; padding: 12px; }
+.championship-groups { grid-template-columns: repeat(4, minmax(240px, 1fr)); }
+.championship-matches { grid-template-columns: repeat(4, minmax(210px, 1fr)); }
+.championship-final-bracket { grid-template-columns: repeat(4, minmax(210px, 1fr)); }
+
 .tournament-column {
   display: grid;
   gap: 14px;
@@ -6295,6 +6319,9 @@ h1 {
 }
 
 @media (max-width: 900px) {
+  .championship-groups,
+  .championship-matches,
+  .championship-final-bracket { grid-template-columns: 1fr; }
   .training-page-layout,
   .clubhouse-configuration-layout { grid-template-columns: 1fr; }
   .training-coach-card { min-height: 235px; }
