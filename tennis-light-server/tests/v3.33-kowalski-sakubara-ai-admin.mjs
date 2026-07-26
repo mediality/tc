@@ -7,7 +7,7 @@ const css = await readFile(new URL("../public/styles.css", import.meta.url), "ut
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.39.0");
+assert.equal(pkg.version, "3.40.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -46,8 +46,15 @@ assert.match(app, /renderedDesktopMatchFinaleKey === finaleKey[\s\S]*\.match-fin
 assert.match(app, /els\.resultPanel\.classList\.add\("match-finale-host"\)/);
 assert.match(app, /const progressionMarkup = renderRallyEndActions\(\)/);
 assert.match(app, /function bindResultTournamentButton\(\) \{\s*bindRallyEndActions\(els\.resultPanel\)/);
+assert.match(app, /function startTournamentNextMatchFromCenter\(\)[\s\S]*els\.resultPanel\?\.classList\.add\("hidden"\)[\s\S]*scheduleSoloTournamentMatch/);
+assert.match(app, /const finaleWasVisible = Boolean\(els\.resultPanel[\s\S]*showEventConfirmDialog[\s\S]*if \(!confirmed\)[\s\S]*classList\.remove\("hidden"\)/);
+assert.match(app, /catch \(error\) \{[\s\S]*persistance de sortie du tournoi a échoué[\s\S]*resetTournament\(\)[\s\S]*showMenuScreen\(\)/);
+assert.match(app, /state\.gameOver \? "exchange-complete-card" : "unplayable"/);
 assert.match(app, /players: players\.map\(\(player\) => \[player\.name, player\.lobby, player\.result\]\)/);
 assert.match(css, /\.result-panel\.match-finale-host \{[\s\S]*overflow: visible[\s\S]*backdrop-filter: none/);
+assert.match(css, /\.card\.exchange-complete-card \{[\s\S]*filter: none/);
+assert.match(html, /class="site-version-footer"[\s\S]*<strong>v3\.40<\/strong>/);
+assert.doesNotMatch(html, /<span>v169<\/span>/);
 assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: -webkit-optimize-contrast/);
 assert.match(app, /const seenBonusReminders = new Set\(\)/);
 assert.match(app, /bonus\.sourceBonusId \|\| String\(bonus\.label \|\| ""\)\.trim\(\)\.toLocaleLowerCase\("fr"\) \|\| bonus\.id/);
@@ -67,4 +74,4 @@ for (const name of [
 }
 await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.39 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.40 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");

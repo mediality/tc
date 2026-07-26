@@ -25,7 +25,7 @@ for (const icon of ["MATCH.svg", "LEAGUE.svg", "JOIN.svg", "JUST-WATCH.svg", "VA
   await access(new URL(`../public/assets/icons/${icon}`, import.meta.url));
 }
 
-assert.match(html, /Tennis Courts Academy · <strong id="gameVersion">v3\.5<\/strong>/);
+assert.match(html, /class="site-version-footer"[\s\S]*<strong>v3\.40<\/strong>/);
 assert.match(html, /styles\.css\?v=3\.5\.0/);
 assert.match(html, /app\.js\?v=3\.5\.0/);
 assert.match(html, /academy-upgrade-cta/);

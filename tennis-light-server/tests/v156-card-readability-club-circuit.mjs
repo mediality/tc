@@ -20,9 +20,10 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.doesNotMatch(html, /<span>v169<\/span>/);
+assert.match(html, /class="site-version-footer"[\s\S]*v3\.40/);
+assert.match(html, /styles\.css\?v=3\.40\.0/);
+assert.match(html, /app\.js\?v=3\.40\.0/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);

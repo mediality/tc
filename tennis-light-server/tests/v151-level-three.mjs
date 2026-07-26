@@ -20,7 +20,8 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /Tennis Courts Academy <span>v169<\/span>/);
+assert.doesNotMatch(html, /<span>v169<\/span>/);
+assert.match(html, /class="site-version-footer"[\s\S]*v3\.40/);
 
 const intelligenceSource = functionSource("drawLevelSixAiIntelligence");
 const intelligence = (rankIa, random) => {

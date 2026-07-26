@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.39";
+const GAME_VERSION = "v3.40";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7475,7 +7475,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.39");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.40");
 }
 
 function emptyMomentumState() {
@@ -15846,6 +15846,7 @@ function startTournamentNextMatchFromCenter() {
   if (state.tournament.friendly) {
     return;
   }
+  els.resultPanel?.classList.add("hidden");
   if (state.tournament.stage === "readyNext" || state.tournament.stage === "readySemi") {
     scheduleSoloTournamentMatch(startTournamentSemi);
     return;
@@ -15856,18 +15857,27 @@ function startTournamentNextMatchFromCenter() {
 }
 
 async function exitTournamentToLobby() {
+  const finaleWasVisible = Boolean(els.resultPanel && !els.resultPanel.classList.contains("hidden"));
+  if (finaleWasVisible) els.resultPanel.classList.add("hidden");
   const confirmed = await showEventConfirmDialog({
     kicker: state.tournament?.competitionName || "Compétition",
     title: "Quitter le tournoi ?",
     message: "Votre progression sera conservée lorsque ce format le permet, puis vous reviendrez à l’accueil.",
     confirmLabel: "Retour accueil",
   });
-  if (!confirmed) return;
-  if (state.tournament.weekly && state.tournament.stage !== "complete") {
-    await saveTournamentProgress();
-  } else if (state.tournament.weekly) {
-    await recordWeeklyCompetitionResult();
-    await deleteTournamentProgress();
+  if (!confirmed) {
+    if (finaleWasVisible) els.resultPanel.classList.remove("hidden");
+    return;
+  }
+  try {
+    if (state.tournament.weekly && state.tournament.stage !== "complete") {
+      await saveTournamentProgress();
+    } else if (state.tournament.weekly) {
+      await recordWeeklyCompetitionResult();
+      await deleteTournamentProgress();
+    }
+  } catch (error) {
+    console.warn("La persistance de sortie du tournoi a échoué, retour à l’accueil maintenu.", error);
   }
   resetTournament();
   showMenuScreen();
@@ -16148,7 +16158,7 @@ function renderCard(playerIndex, card) {
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : state.gameOver ? "exchange-complete-card" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}">
       ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
       ${imageUrl ? `
         <button class="card-visual card-effect-forbid-host card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">

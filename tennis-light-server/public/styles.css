@@ -3462,6 +3462,10 @@ h1 {
   filter: grayscale(0.35);
 }
 
+.card.exchange-complete-card {
+  filter: none;
+}
+
 .card.boosted-card::after {
   content: "";
   position: absolute;
@@ -8225,9 +8229,24 @@ h1 {
     width: min(1880px, calc(100vw - 24px));
   }
 
-  body.game-adaptive-board:not(.mobile-game-view) .court {
+body.game-adaptive-board:not(.mobile-game-view) .court {
     grid-template-columns: minmax(0, 1fr) clamp(170px, 10vw, 200px) minmax(0, 1fr);
   }
+}
+
+.site-version-footer {
+  width: min(1440px, calc(100vw - 32px));
+  margin: 18px auto max(16px, env(safe-area-inset-bottom));
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.site-version-footer strong {
+  color: #fff;
 }
 
 .center-lane .log {
