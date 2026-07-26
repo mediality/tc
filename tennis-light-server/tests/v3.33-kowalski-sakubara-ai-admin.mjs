@@ -6,7 +6,7 @@ const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.36.0");
+assert.equal(pkg.version, "3.37.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -52,4 +52,4 @@ for (const name of [
 }
 await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.36 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.37 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
