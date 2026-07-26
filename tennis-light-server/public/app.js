@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.41";
+const GAME_VERSION = "v3.42";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7475,7 +7475,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.41");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.42");
 }
 
 function emptyMomentumState() {
@@ -7704,6 +7704,10 @@ function importSyncState(remoteState) {
   const friendlyIdentity = SERVER_SYNC.friendlyMatch ? {
     humanEntry: FRIENDLY_TOURNAMENT.entry,
     humanCharacterId: friendlyEntryCharacterId(FRIENDLY_TOURNAMENT.entry),
+    humanNickname: state.tournament?.humanNickname
+      || state.tournament?.friendlyParticipants?.find((participant) => participant.id === FRIENDLY_TOURNAMENT.participantId)?.nickname
+      || AUTH_STATE.user?.nickname
+      || MENU_STATE.nickname,
     friendlyParticipants: state.tournament?.friendlyParticipants,
     friendlyEntries: state.tournament?.friendlyEntries,
   } : null;
@@ -7716,6 +7720,7 @@ function importSyncState(remoteState) {
   if (friendlyIdentity && state.tournament) {
     state.tournament.humanEntry = friendlyIdentity.humanEntry;
     state.tournament.humanCharacterId = friendlyIdentity.humanCharacterId;
+    state.tournament.humanNickname = friendlyIdentity.humanNickname;
     state.tournament.friendlyParticipants = friendlyIdentity.friendlyParticipants;
     state.tournament.friendlyEntries = friendlyIdentity.friendlyEntries;
   }
@@ -10951,6 +10956,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     turnEndPlacement: combinedPlacement + (state.turnEffectPlacement[playerIndex] ?? 0),
     effectApplied: appliesEffect,
     effectDeferredUntilEndTurn: isRemise(card) && remiseMode === "placement",
+    turnCompleted: false,
     removed: false,
   };
 
@@ -11063,6 +11069,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
     state.log.unshift(drawn > 0 ? `${playerName(opponentIndex)} pioche 1 carte car le service n'est ni un Service ni un Coup droit.` : `${playerName(opponentIndex)} devrait piocher, mais le deck est vide.`);
   }
 
+  playedCard.turnCompleted = true;
   state.lastCard = playedCard;
   if (isOpeningServe && hasActiveEffect) {
     state.returnServiceRestrictionSpent = state.returnServiceRestrictionSpent ?? [false, false];
@@ -11191,6 +11198,7 @@ function commitEndTurn(playerIndex) {
   }
 
   if (finalRemise) {
+    finalRemise.turnCompleted = true;
     finalRemise.turnPlacement = preparedPlacement;
     finalRemise.turnEndPlacement = preparedPlacement;
     state.lastCard = finalRemise;
@@ -15691,13 +15699,44 @@ function renderCharacterCard(player, playerIndex) {
   `;
 }
 
+function placementRemisesForShot(playedCards, shotIndex) {
+  const shot = playedCards[shotIndex];
+  if (!shot || isRemise(shot)) return [];
+  const remises = [];
+  for (let index = shotIndex - 1; index >= 0; index -= 1) {
+    const card = playedCards[index];
+    if (card.turnCompleted || !isRemise(card)) break;
+    if (card.remiseMode === "placement" && !card.removed) remises.unshift(card);
+  }
+  return remises;
+}
+
+function renderRemiseStack(shot, remiseCards) {
+  return `<div class="center-remise-stack" style="--remise-count:${remiseCards.length}">
+    <div class="center-remise-stack-shot">${renderCardVisualOnly(shot, "center-played")}</div>
+    ${remiseCards.map((card, index) => `
+      <div class="center-remise-stack-peek" style="--remise-index:${index}" aria-label="${escapeHtml(`${card.name}, jouée en Remise : ${card.placement} placement, ${card.costPaid ?? card.cost ?? 0} endurance`)}">
+        ${renderCardVisualOnly(card, "center-played center-remise-card")}
+      </div>
+    `).join("")}
+  </div>`;
+}
+
 function renderPlayedHistory(player) {
   if (!player.played.length) {
     return '<div class="played-card empty">Aucune carte</div>';
   }
+  const renderedCards = player.played.map((card, index, playedCards) => {
+    if (card.remiseMode === "placement") {
+      const laterShot = playedCards.slice(index + 1).find((candidate) => !isRemise(candidate) || candidate.turnCompleted);
+      if (laterShot) return "";
+    }
+    const remiseCards = placementRemisesForShot(playedCards, index);
+    return remiseCards.length ? renderRemiseStack(card, remiseCards) : renderCardVisualOnly(card, "history-card");
+  });
   return `
     <div class="played-history-row">
-      ${player.played.map((card) => renderCardVisualOnly(card, "history-card")).join("")}
+      ${renderedCards.join("")}
     </div>
   `;
 }
@@ -15902,11 +15941,17 @@ function renderCenterPlayedCard() {
     bindRallyEndActions(els.centerPlayedCard);
     return;
   }
+  const playedCards = state.players[state.latestPlayedCard.owner]?.played ?? [];
+  const latestIndex = playedCards.findIndex((card) => card.playedUid === state.latestPlayedCard.playedUid);
+  const remiseCards = placementRemisesForShot(playedCards, latestIndex);
+  const centerCardMarkup = remiseCards.length
+    ? renderRemiseStack(state.latestPlayedCard, remiseCards)
+    : renderCardVisualOnly(state.latestPlayedCard, "center-played");
   els.centerPlayedCard.innerHTML = `
     ${renderCenterSetScore()}
     <p class="previous-title">Dernière carte jouée</p>
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
-      ${renderCardVisualOnly(state.latestPlayedCard, "center-played")}
+      ${centerCardMarkup}
     </div>
     <div class="center-progression-actions">${renderRallyEndActions()}</div>
   `;
@@ -16044,12 +16089,31 @@ function openEffectHelpDialog(button) {
 function renderPlayerPanel(playerIndex, root) {
   const player = state.players[playerIndex];
   const passDisabled = playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) || !tutorialAllowsPass();
+  const isAiPlayer = SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex;
+  const tournamentEntry = isAiPlayer ? player.characterId : HUMAN_TOURNAMENT_ENTRY;
+  const rank = player.worldRank || (state.tournament.active ? tournamentWorldRankForEntry(tournamentEntry) : null);
+  const intelligence = isAiPlayer
+    ? (state.tournament.active
+      ? aiIntelligenceForEntry(player.characterId, state.tournament.difficulty)
+      : normalizeAiIntelligence(SOLO_AI.style))
+    : null;
+  const intelligenceLabel = {
+    amateur: "Amateur",
+    normal: "Normal",
+    expert: "Expert",
+    champion: "Champion",
+    legend: "Légendaire",
+  }[intelligence] || "Normal";
+  const secondaryIdentity = isAiPlayer ? intelligenceLabel : player.name;
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
     <header class="player-header">
       <div class="player-identity-panel${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
         <h2>${escapeHtml(displayPlayerName(player))}</h2>
-        <div class="player-character-name">${escapeHtml(player.name)} ${playerIndex === SOLO_AI.playerIndex ? aiIntelligenceBadgeMarkup(player.characterId) : ""}</div>
+        <div class="player-character-name">
+          <span class="desktop-player-rank">${escapeHtml(frenchOrdinalRank(rank))}</span>
+          <span>${escapeHtml(secondaryIdentity)}</span>
+        </div>
         <div class="turn-buttons">
           <button class="pass-button${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
           ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}

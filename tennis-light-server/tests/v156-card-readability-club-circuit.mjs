@@ -21,9 +21,9 @@ function functionSource(name) {
 }
 
 assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.41/);
-assert.match(html, /styles\.css\?v=3\.41\.0/);
-assert.match(html, /app\.js\?v=3\.41\.0/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.42/);
+assert.match(html, /styles\.css\?v=3\.42\.3/);
+assert.match(html, /app\.js\?v=3\.42\.3/);
 
 assert.doesNotMatch(app, /renderReadableCardEffect|readable-card-effect/);
 assert.doesNotMatch(styles, /readable-card-effect|hand-readable-effect|played-readable-effect|choice-readable-effect/);
