@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=3.49.0" />
-    <link rel="stylesheet" href="./mobile-game.css?v=3.49.0" />
+    <link rel="stylesheet" href="./styles.css?v=3.50.0" />
+    <link rel="stylesheet" href="./mobile-game.css?v=3.50.0" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -125,7 +125,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v3.49</span></strong>
+          <strong>Tennis Courts Academy · <span>v3.50</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -784,6 +784,20 @@
       </div>
     </section>
 
+    <section id="championshipLobbyScreen" class="menu-screen friendly-lobby-screen championship-lobby-screen mode-clubhouse-screen hidden">
+      <div class="menu-shell friendly-lobby-shell championship-lobby-shell">
+        <header class="lobby-section-header">
+          <button class="brand-home-button" type="button" data-exit-championship aria-label="Quitter le Championnat"><img class="brand-logo lobby-section-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" /></button>
+          <button class="small-button" type="button" data-exit-championship>Retour accueil</button>
+        </header>
+        <figure class="championship-lobby-hero">
+          <img src="./assets/CIRCUIT-PRO.jpg" alt="Championnat Tennis Courts Academy" />
+          <figcaption><p class="label">Club House Solo</p><h1>Championnat</h1><p>24 joueurs · deux phases de groupes · barrages · tableau final</p></figcaption>
+        </figure>
+        <div id="championshipLobbyContent" class="championship-lobby-content" aria-live="polite"></div>
+      </div>
+    </section>
+
     <main class="app game-app hidden">
       <section class="topbar">
         <div>
@@ -863,8 +877,8 @@
       </div>
     </div>
 
-    <script src="./tutorial-engine.js?v=3.49.0"></script>
-    <script src="./app.js?v=3.49.0"></script>
-    <script src="./mobile-game.js?v=3.49.0"></script>
+    <script src="./tutorial-engine.js?v=3.50.0"></script>
+    <script src="./app.js?v=3.50.0"></script>
+    <script src="./mobile-game.js?v=3.50.0"></script>
   </body>
 </html>

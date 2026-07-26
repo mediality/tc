@@ -6,7 +6,7 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const index = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.49"/);
+assert.match(app, /const GAME_VERSION = "v3\.50"/);
 assert.match(index, /data-ai-club-value="championship"/);
 assert.match(index, /<strong>Championnat<\/strong>/);
 assert.match(app, /function startChampionshipMode\(/);
@@ -34,6 +34,15 @@ assert.match(app, /class="championship-playoffs"/);
 assert.match(styles, /\.championship-zone-toggle/);
 assert.match(styles, /\.championship-groups \{ grid-template-columns: repeat\(2/);
 assert.match(styles, /\.championship-playoffs \{ display: grid; grid-template-columns: repeat\(4/);
+assert.match(index, /id="championshipLobbyScreen"/);
+assert.match(index, /id="championshipLobbyContent"/);
+assert.match(app, /function renderChampionshipLobby\(/);
+assert.match(app, /function startChampionshipDraw\(/);
+assert.match(app, /championshipDrawVisibleCount \+= 1/);
+assert.match(app, /}, 1000\)/);
+assert.match(app, /function simulateChampionshipBatchAnimated\(/);
+assert.match(app, /data-return-championship-lobby/);
+assert.match(app, /function ensureTournamentMatchHasWinningSetCount\(/);
 
 const aiTurn = app.slice(app.indexOf("function runSoloAITurn"), app.indexOf("function chooseAmateurOption"));
 assert.match(aiTurn, /soloSecuredPassDecision\(playerIndex, scenarioPlan\)/);
@@ -81,4 +90,14 @@ vm.runInNewContext(`${advanceSource}; result = advanceChampionshipToNextHumanMat
 assert.equal(advanceContext.result?.id, "quarter-human", "Le premier de groupe doit reprendre directement en quart après simulation des barrages");
 assert.ok(playoffMatches.every((match) => match.winner), "Tous les barrages sans humain doivent être simulés");
 
-console.log("v3.49 : Championnat à 24 et décision de passe IA : OK");
+const scoreStart = app.indexOf("function randomMatchSetScoresForWinner(");
+const scoreEnd = app.indexOf("\nfunction formatSetScores(", scoreStart);
+const scoreContext = { Math, results: [] };
+vm.runInNewContext(`${app.slice(scoreStart, scoreEnd)}; for (const target of [2, 3]) for (let i = 0; i < 500; i += 1) results.push({ target, scores: randomMatchSetScoresForWinner(i % 2, target), winner: i % 2 });`, scoreContext);
+for (const { target, scores, winner } of scoreContext.results) {
+  const wins = scores.filter((score) => score[winner] > score[1 - winner]).length;
+  assert.equal(wins, target, `Le vainqueur doit gagner ${target} sets`);
+  assert.ok(scores.length <= (target * 2) - 1, `Un match en ${target} sets gagnants ne peut dépasser ${(target * 2) - 1} sets`);
+}
+
+console.log("v3.50 : Championnat à 24 et décision de passe IA : OK");

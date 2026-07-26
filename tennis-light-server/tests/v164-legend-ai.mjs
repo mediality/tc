@@ -22,7 +22,7 @@ function functionSource(name) {
 }
 
 assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.49/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.50/);
 assert.match(html, /styles\.css\?v=170\.15/);
 assert.match(html, /app\.js\?v=170\.15/);
 assert.match(app, /const CARD_ASSET_VERSION = "170"/);
