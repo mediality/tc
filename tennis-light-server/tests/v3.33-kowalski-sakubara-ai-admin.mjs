@@ -6,7 +6,7 @@ const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.34.0");
+assert.equal(pkg.version, "3.35.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -28,12 +28,17 @@ assert.match(server, /400 \+ Math\.floor\(seededRandom\(`pointmax:/);
 assert.match(server, /adminAiPointsMatch/);
 assert.match(app, /Fiche joueur IA/);
 assert.match(app, /Seuls les points de la semaine actuelle peuvent être modifiés/);
-assert.match(app, /v334-kowalski-sakubara-circuit/);
+assert.match(app, /v335-kowalski-sakubara-circuit/);
 assert.match(app, /image: "assets\/sakuwalskinews\.jpg"/);
+assert.match(app, /title: "La fureur ou la folie \?"/);
+assert.match(app, /Imprévisibles, incontrôlables et capables de péter les plombs/);
+assert.match(app, /La folie vient officiellement d’entrer sur le court\./);
 assert.match(app, /availableAt: "2026-07-26T00:00:00\+02:00"/);
 assert.match(app, /const pointsToDefend = Math\.max\(0,[\s\S]*ranking\.score_ref[\s\S]*ranking\.score_week[\s\S]*ranking\.score_next_ref/);
 assert.match(app, /\/ À défendre/);
 assert.match(css, /\.profile-current-week-points dd > small[\s\S]*font-size:\s*\.46em/);
+assert.match(css, /\.pro-news-copy h2 \{[\s\S]*text-align: left/);
+assert.match(css, /\.pro-news-copy > p:not\(\.label\):not\(\.pro-news-signature\) \{[\s\S]*white-space: pre-line/);
 assert.match(css, /\.match-finale-overlay/);
 assert.match(css, /prefers-reduced-motion: reduce/);
 
@@ -47,4 +52,4 @@ for (const name of [
 }
 await access(new URL("../public/assets/sakuwalskinews.jpg", import.meta.url));
 
-console.log("v3.34 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");
+console.log("v3.35 : nouveaux joueurs, profil, news, IA, RankIA, admin et finale multi-écrans : OK");

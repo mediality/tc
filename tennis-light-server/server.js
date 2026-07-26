@@ -45,11 +45,11 @@ const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
 const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
 const GAME_NEWS = [
   {
-    id: "v334-kowalski-sakubara-circuit", publishedAt: "2026-07-26", availableAt: "2026-07-26T00:00:00+02:00",
-    title: "Johnny Kowalski et Sakubara Geki entrent sur le Circuit Pro", characterId: "johnnyKowalski",
+    id: "v335-kowalski-sakubara-circuit", publishedAt: "2026-07-26", availableAt: "2026-07-26T00:00:00+02:00",
+    title: "La fureur ou la folie ?", characterId: "johnnyKowalski",
     image: "assets/sakuwalskinews.jpg",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Le Circuit Pro accueille deux nouveaux adversaires : Johnny Kowalski et Sakubara Geki. Ils participent désormais aux tirages des tournois et intégreront le RankIA lors de la prochaine mise à jour hebdomadaire. Préparez-vous à affronter leurs nouveaux pouvoirs étoile, entre gestion de l’endurance, pioche offensive et réduction de puissance.",
+    message: "Imprévisibles, incontrôlables et capables de péter les plombs à n’importe quel moment, Sakubara Geki, la fureur rose venue du Japon, et Johnny Kowalski, le fantasque Américain, débarquent sur les courts avec une seule idée : chambouler la hiérarchie.\n\nColère, rage, folie, provocations… Ils sont prêts à enflammer les terrains, retourner les tribunes et faire craquer leurs adversaires. Avec eux, oubliez le calme, le fair-play et les matchs tranquilles. La folie vient officiellement d’entrer sur le court.",
   },
   {
     id: "v16929-prestige-ultimate-league",

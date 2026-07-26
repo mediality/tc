@@ -5012,12 +5012,14 @@ h1 {
 }
 
 .pro-news-copy h2 {
+  text-align: left;
   color: #0b3448;
   font-size: clamp(1.45rem, 4vw, 2.25rem);
   line-height: 1.06;
 }
 
 .pro-news-copy > p:not(.label):not(.pro-news-signature) {
+  white-space: pre-line;
   color: #314657;
   font-size: 1rem;
   font-weight: 650;

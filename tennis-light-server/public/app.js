@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.34";
+const GAME_VERSION = "v3.35";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -352,13 +352,13 @@ const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNA
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
   {
-    id: "v334-kowalski-sakubara-circuit",
+    id: "v335-kowalski-sakubara-circuit",
     publishedAt: "2026-07-26",
     availableAt: "2026-07-26T00:00:00+02:00",
-    title: "Johnny Kowalski et Sakubara Geki entrent sur le Circuit Pro",
+    title: "La fureur ou la folie ?",
     image: "assets/sakuwalskinews.jpg",
     audienceRoles: ["pro", "pro_plus", "admin"],
-    message: "Le Circuit Pro accueille deux nouveaux adversaires : Johnny Kowalski et Sakubara Geki. Ils participent désormais aux tirages des tournois et intégreront le RankIA lors de la prochaine mise à jour hebdomadaire. Préparez-vous à affronter leurs nouveaux pouvoirs étoile, entre gestion de l’endurance, pioche offensive et réduction de puissance.",
+    message: "Imprévisibles, incontrôlables et capables de péter les plombs à n’importe quel moment, Sakubara Geki, la fureur rose venue du Japon, et Johnny Kowalski, le fantasque Américain, débarquent sur les courts avec une seule idée : chambouler la hiérarchie.\n\nColère, rage, folie, provocations… Ils sont prêts à enflammer les terrains, retourner les tribunes et faire craquer leurs adversaires. Avec eux, oubliez le calme, le fair-play et les matchs tranquilles. La folie vient officiellement d’entrer sur le court.",
   },
   {
     id: "v16929-prestige-ultimate-league",
@@ -7471,7 +7471,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.34");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.35");
 }
 
 function emptyMomentumState() {
