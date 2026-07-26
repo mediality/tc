@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.43";
+const GAME_VERSION = "v3.44";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,6 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.44";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7475,7 +7476,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.43");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.44");
 }
 
 function emptyMomentumState() {
@@ -15712,13 +15713,14 @@ function placementRemisesForShot(playedCards, shotIndex) {
 }
 
 function renderRemiseStack(shot, remiseCards) {
-  return `<div class="center-remise-stack" style="--remise-count:${remiseCards.length}">
-    <div class="center-remise-stack-shot">${renderCardVisualOnly(shot, "center-played")}</div>
-    ${remiseCards.map((card, index) => `
-      <div class="center-remise-stack-peek" style="--remise-index:${index}" aria-label="${escapeHtml(`${card.name}, jouée en Remise : ${card.placement} placement, ${card.costPaid ?? card.cost ?? 0} endurance`)}">
-        ${renderCardVisualOnly(card, "center-played center-remise-card")}
-      </div>
-    `).join("")}
+  const placementBonus = remiseCards.reduce((total, card) => total + Number(card.placement || 0), 0);
+  const details = remiseCards.map((card) => `${card.name} +${Number(card.placement || 0)}`).join(", ");
+  return `<div class="remise-underlay-wrap${shot.boosted ? " has-boost" : ""}" aria-label="${escapeHtml(`Remise +${placementBonus} placement : ${details}`)}">
+    <div class="remise-underlay-layer" aria-hidden="true">
+      <img src="${REMISE_UNDERLAY_IMAGE}" alt="" />
+      <span>+${placementBonus}</span>
+    </div>
+    <div class="remise-underlay-shot">${renderCardVisualOnly(shot, "center-played")}</div>
   </div>`;
 }
 

@@ -8,11 +8,11 @@ const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8")
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const csv = fs.readFileSync(new URL("../world-tour.csv", import.meta.url), "utf8").trim().split(/\r?\n/);
 
-assert.equal(pkg.version, "3.43.0");
-assert.match(app, /const GAME_VERSION = "v3\.43"/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.43/);
-assert.match(html, /styles\.css\?v=3\.43\.0/);
-assert.match(html, /app\.js\?v=3\.43\.0/);
+assert.equal(pkg.version, "3.44.0");
+assert.match(app, /const GAME_VERSION = "v3\.44"/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.44/);
+assert.match(html, /styles\.css\?v=3\.44\.0/);
+assert.match(html, /app\.js\?v=3\.44\.0/);
 
 const headers = csv.shift().replace(/^\uFEFF/, "").split(";");
 const rows = csv.map((line) => Object.fromEntries(headers.map((header, index) => [header, line.split(";")[index]])));

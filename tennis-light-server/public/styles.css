@@ -4612,42 +4612,64 @@ h1 {
   margin-top: 18px;
 }
 
-.center-remise-stack {
-  /* Montrer toute la colonne Placement/Endurance de la Remise, sans découvrir
-     sa zone Effet : la bande gagne de la largeur vers la gauche. */
-  --remise-peek: 54px;
+.remise-underlay-wrap {
   position: relative;
-  width: calc(148px + var(--remise-count) * var(--remise-peek));
-  height: 211px;
+  width: 148px;
+  height: 254px;
 }
 
-.center-remise-stack-shot {
+.remise-underlay-wrap.has-boost {
+  height: 288px;
+}
+
+.remise-underlay-shot {
   position: absolute;
-  top: 0;
-  left: calc(var(--remise-count) * var(--remise-peek));
-  z-index: 20;
+  inset: 0;
+  z-index: 3;
   width: 148px;
 }
 
-.center-remise-stack-peek {
+.remise-underlay-layer {
   position: absolute;
-  top: 0;
-  left: calc(var(--remise-index) * var(--remise-peek));
-  z-index: calc(10 + var(--remise-index));
-  width: var(--remise-peek);
-  height: 211px;
-  overflow: hidden;
-  border-radius: 0 8px 8px 0;
+  left: 0;
+  top: 20%;
+  z-index: 1;
+  width: 100%;
+  pointer-events: none;
 }
 
-.center-remise-stack-peek .played-visual {
-  width: 148px;
-  transform: translateX(calc(var(--remise-peek) - 148px));
+.remise-underlay-wrap.has-boost .remise-underlay-layer {
+  top: 36%;
 }
 
-.center-remise-stack-peek .remise-forbid-overlay,
-.center-remise-stack-peek .played-chip {
-  display: none;
+.remise-underlay-layer img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 731 / 1039;
+  border: 2px solid rgba(23, 33, 43, 0.14);
+  border-radius: var(--game-card-radius);
+  object-fit: cover;
+  box-shadow: 0 8px 16px rgba(10, 32, 44, 0.28);
+}
+
+.remise-underlay-layer span {
+  position: absolute;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  min-height: 32px;
+  border: 2px solid #f1cf55;
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: #f1cf55;
+  background: #080b0d;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.34);
+  font-size: 1rem;
+  font-weight: 1000;
+  line-height: 1;
 }
 
 .center-card-wrap + .next-exchange-button,

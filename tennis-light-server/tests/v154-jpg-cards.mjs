@@ -13,7 +13,7 @@ const [html, app, styles, files] = await Promise.all([
 ]);
 
 assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.43/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.44/);
 assert.match(html, /styles\.css\?v=170\.8/);
 assert.match(html, /app\.js\?v=170\.8/);
 
