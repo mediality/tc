@@ -6,7 +6,7 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const index = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.51"/);
+assert.match(app, /const GAME_VERSION = "v3\.52"/);
 assert.match(index, /data-ai-club-value="championship"/);
 assert.match(index, /<strong>Championnat<\/strong>/);
 assert.match(app, /function startChampionshipMode\(/);
@@ -34,10 +34,26 @@ assert.match(app, /class="championship-playoffs"/);
 assert.match(styles, /\.championship-zone-toggle/);
 assert.match(styles, /\.championship-groups \{ grid-template-columns: repeat\(2/);
 assert.match(styles, /\.championship-playoffs \{ display: grid; grid-template-columns: repeat\(4/);
+assert.match(styles, /\.championship-lobby-content \.championship-board/);
+assert.match(styles, /\.championship-lobby-content \.league-standings/);
+assert.match(styles, /\.championship-lobby-content \.championship-day \{ grid-template-columns: 120px/);
+assert.match(styles, /\.match-finale-overlay > nav \{[^}]*gap: 10px/);
 assert.match(index, /id="championshipLobbyScreen"/);
 assert.match(index, /id="championshipLobbyContent"/);
 assert.match(app, /function renderChampionshipLobby\(/);
 assert.match(app, /function startChampionshipDraw\(/);
+assert.match(app, /function renderChampionshipLobbyStandings\(/);
+assert.match(app, /function renderChampionshipLobbyGroupPhase\(/);
+assert.match(app, /function renderChampionshipLobbyFinal\(/);
+assert.match(app, /championship-section-label">Groupes/);
+assert.match(app, /championship-section-label">Calendrier/);
+assert.match(app, /1er Tour · Groupes A à H/);
+assert.match(app, /2e Tour · Groupes 1 à 4/);
+assert.match(app, /3e Tour · Barrages/);
+assert.match(app, /<span>Rang<\/span><span>Nom<\/span><span>Points<\/span><span>Diff\. sets<\/span><span>Diff\. jeux<\/span>/);
+assert.match(app, /tournament-column-title">Quarts/);
+assert.match(app, /tournament-column-title">Demi-finales/);
+assert.match(app, /CHAMPIONSHIP_LOBBY_UI\.openZone = lobbyCurrentPhase/);
 assert.match(app, /championshipDrawVisibleCount \+= 1/);
 assert.match(app, /}, 1000\)/);
 assert.match(app, /function simulateChampionshipBatchAnimated\(/);
@@ -169,4 +185,4 @@ for (const { target, scores, winner } of scoreContext.results) {
   assert.ok(scores.length <= (target * 2) - 1, `Un match en ${target} sets gagnants ne peut dépasser ${(target * 2) - 1} sets`);
 }
 
-console.log("v3.51 : salon Championnat verrouillé, 24 joueurs et décision de passe IA : OK");
+console.log("v3.52 : salon Championnat, classements progressifs, tableau final et décision de passe IA : OK");

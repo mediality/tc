@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.51";
+const GAME_VERSION = "v3.52";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.51";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.52";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -118,6 +118,8 @@ const TOURNAMENT_PANEL_UI = {
 const CHAMPIONSHIP_LOBBY_UI = {
   timer: null,
   busy: false,
+  openZone: 1,
+  currentPhase: 1,
 };
 
 const PROFILE_ACTIVITY = {
@@ -4235,6 +4237,8 @@ function showChampionshipLobbyScreen() {
   hideStandaloneScreens();
   hideGameScreen();
   els.championshipLobbyScreen?.classList.remove("hidden");
+  CHAMPIONSHIP_LOBBY_UI.currentPhase = Number(state.tournament?.championshipPhase || 1);
+  CHAMPIONSHIP_LOBBY_UI.openZone = CHAMPIONSHIP_LOBBY_UI.currentPhase;
   renderChampionshipLobby();
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -7523,7 +7527,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.51");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.52");
 }
 
 function emptyMomentumState() {
@@ -12991,6 +12995,8 @@ function startChampionshipMode(targetSets = 2, options = {}) {
   state.tournament.matches = buildChampionshipMatches(setup.groups);
   TOURNAMENT_PANEL_UI.visible = true;
   TOURNAMENT_PANEL_UI.championshipOpenZone = 1;
+  CHAMPIONSHIP_LOBBY_UI.openZone = 1;
+  CHAMPIONSHIP_LOBBY_UI.currentPhase = 1;
   state.tournament.stage = "championshipLobby";
   state.log.unshift(`Championnat · 24 joueurs · ${targetSets} sets gagnants · IA ${tournamentDifficultyLabel(SOLO_AI.difficulty)}.`);
   render();
@@ -15723,43 +15729,96 @@ function championshipLobbyPlayer(entry, drawn = championshipDrawnEntrySet()) {
   return entry && drawn.has(entry) ? tournamentPlayerLabel(entry) : "—";
 }
 
-function renderChampionshipLobbyMatch(match, drawn) {
-  const readyA = drawn.has(match.playerA);
-  const readyB = drawn.has(match.playerB);
-  const ready = readyA && readyB;
-  const score = ready ? (match.liveScore || match.score || "") : "";
+function renderChampionshipLobbyStandings(phase, group, drawn) {
+  const throughDay = championshipCompletedDay(phase);
+  const groupEntries = (phase === 1
+    ? state.tournament.championshipPhase1Groups
+    : state.tournament.championshipPhase2Groups)?.[group] || [];
+  const rows = throughDay > 0
+    ? championshipStandings(phase, group, throughDay)
+    : groupEntries.map((entry) => ({
+      entry,
+      points: 0,
+      setDifference: 0,
+      gameDifference: 0,
+    }));
+  const expectedRows = phase === 1 ? 3 : 4;
+  while (rows.length < expectedRows) {
+    rows.push({ entry: null, points: 0, setDifference: 0, gameDifference: 0 });
+  }
+  const qualificationCount = phase === 1 ? 2 : 3;
   return `
-    <article class="tournament-match championship-lobby-match ${state.tournament.currentMatch === match.id ? "current" : ""}">
-      <header class="tournament-match-head"><span class="tournament-round-label">Groupe ${match.group || "—"}</span><span class="tournament-match-status ${match.winner ? "complete" : ready ? "upcoming" : ""}">${match.winner ? "Terminé" : ready ? "À jouer" : "À déterminer"}</span></header>
-      <div class="tournament-player-row"><span>${escapeHtml(readyA ? tournamentPlayerLabel(match.playerA) : "—")}</span></div>
-      <div class="tournament-player-row"><span>${escapeHtml(readyB ? tournamentPlayerLabel(match.playerB) : "—")}</span></div>
-      ${score ? renderTournamentSetScores(score, Boolean(match.liveScore), match.winner === match.playerA ? "left" : match.winner === match.playerB ? "right" : null) : ""}
-    </article>
+    <section class="league-standings championship-standings">
+      <span class="tournament-round-label">Groupe ${group}</span>
+      <div class="league-standings-head">
+        <span>Rang</span><span>Nom</span><span>Points</span><span>Diff. sets</span><span>Diff. jeux</span>
+      </div>
+      ${rows.map((row, index) => {
+        const visible = Boolean(row.entry && drawn.has(row.entry));
+        return `
+          <div class="league-standings-row ${index < qualificationCount && throughDay >= 3 ? "qualified" : ""} ${visible && isHumanTournamentEntry(row.entry) ? "human-player" : ""}">
+            <strong class="league-rank">${index + 1}</strong>
+            <span class="tournament-player-identity">${visible ? `${escapeHtml(tournamentPlayerLabel(row.entry))} ${aiIntelligenceBadgeMarkup(row.entry)}` : "—"}</span>
+            <strong>${visible ? row.points : 0}</strong>
+            <span>${visible ? formatLeagueDifference(row.setDifference) : "0"}</span>
+            <span>${visible ? formatLeagueDifference(row.gameDifference) : "0"}</span>
+          </div>
+        `;
+      }).join("")}
+    </section>
   `;
 }
 
-function renderChampionshipLobbyFirstTour(drawn) {
-  const groups = "ABCDEFGH".split("");
-  const groupCards = groups.map((group) => `
-    <section class="championship-lobby-group">
-      <strong>Groupe ${group}</strong>
-      ${(state.tournament.championshipPhase1Groups[group] || []).map((entry, index) => `<span><b>${["A", "B", "C"][index]}</b>${escapeHtml(championshipLobbyPlayer(entry, drawn))}</span>`).join("")}
-    </section>
-  `).join("");
-  const days = [1, 2, 3].map((day) => `
-    <section class="championship-day">
-      <header><strong>Journée ${day}</strong><span>${day === 1 ? "A contre C" : day === 2 ? "B contre C" : "A contre B"} · 8 matchs</span></header>
-      <div class="championship-day-matches">${championshipMatches(1, day).map((match) => renderChampionshipLobbyMatch(match, drawn)).join("")}</div>
-    </section>
-  `).join("");
-  return `<div class="championship-lobby-groups">${groupCards}</div><div class="championship-days">${days}</div>`;
+function renderChampionshipLobbyMatch(match, drawn) {
+  if (!match) return "";
+  const readyA = drawn.has(match.playerA);
+  const readyB = drawn.has(match.playerB);
+  const ready = readyA && readyB;
+  const visibleMatch = {
+    ...match,
+    playerA: readyA ? match.playerA : null,
+    playerB: readyB ? match.playerB : null,
+    winner: ready ? match.winner : null,
+    score: ready ? match.score : null,
+    liveScore: ready ? match.liveScore : null,
+  };
+  return renderTournamentMatch(visibleMatch, match.id === "final");
 }
 
-function championshipLobbyZone(phase, label, content, open = false) {
+function renderChampionshipLobbyGroupPhase(phase, drawn) {
+  const groups = phase === 1 ? "ABCDEFGH".split("") : ["1", "2", "3", "4"];
+  const descriptions = phase === 1
+    ? ["A contre C", "B contre C", "A contre B"]
+    : ["A–B et C–D", "A–D et C–B", "A–C et B–D"];
+  const standings = `<section class="championship-lobby-section"><p class="championship-section-label">Groupes</p><div class="league-standings-grid championship-groups">${groups.map((group) => renderChampionshipLobbyStandings(phase, group, drawn)).join("")}</div></section>`;
+  const days = [1, 2, 3].map((day) => `
+    <section class="championship-day">
+      <header><strong>Journée ${day}</strong><span>${descriptions[day - 1]} · ${championshipMatches(phase, day).length} matchs</span></header>
+      <div class="championship-day-matches">${championshipMatches(phase, day).map((match) => renderChampionshipLobbyMatch(match, drawn)).join("")}</div>
+    </section>
+  `).join("");
+  return `${standings}<section class="championship-lobby-section"><p class="championship-section-label">Calendrier · ${phase === 1 ? "1er tour" : "2e tour"}</p><div class="championship-days">${days}</div></section>`;
+}
+
+function renderChampionshipLobbyFinal(drawn, champion) {
+  const finalMatches = championshipMatches(4);
+  const final = tournamentMatchById("final");
+  return `
+    <div class="tournament-bracket championship-final-bracket">
+      <div class="tournament-column"><span class="tournament-round-label tournament-column-title">Quarts</span>${finalMatches.filter((match) => match.id.startsWith("champ_qf")).map((match) => renderChampionshipLobbyMatch(match, drawn)).join("")}</div>
+      <div class="tournament-column"><span class="tournament-round-label tournament-column-title">Demi-finales</span>${finalMatches.filter((match) => match.id.startsWith("champ_sf")).map((match) => renderChampionshipLobbyMatch(match, drawn)).join("")}</div>
+      <div class="tournament-column"><span class="tournament-round-label tournament-column-title">Finale</span>${renderChampionshipLobbyMatch(final, drawn)}</div>
+      ${renderTournamentChampion(champion, final)}
+    </div>
+  `;
+}
+
+function championshipLobbyZone(phase, label, content) {
+  const open = Number(CHAMPIONSHIP_LOBBY_UI.openZone || state.tournament.championshipPhase || 1) === phase;
   return `
     <section class="championship-zone ${open ? "open" : ""}">
       <button class="championship-zone-toggle" type="button" data-championship-lobby-zone="${phase}" aria-expanded="${open}">
-        <span>Tour ${phase}</span><strong>${label}</strong><span aria-hidden="true">${open ? "−" : "+"}</span>
+        <span>Zone ${phase}</span><strong>${label}</strong><span aria-hidden="true">${open ? "−" : "+"}</span>
       </button>
       <div class="championship-zone-content ${open ? "" : "hidden"}">${content}</div>
     </section>
@@ -15784,9 +15843,14 @@ function renderChampionshipLobby() {
   state.tournament.matches.forEach(ensureTournamentMatchHasWinningSetCount);
   const drawn = championshipDrawnEntrySet();
   const pending = championshipNextPendingBatch();
+  const complete = state.tournament.stage === "complete";
+  const lobbyCurrentPhase = Number(pending?.championshipPhase || (complete ? 4 : state.tournament.championshipPhase) || 1);
+  if (CHAMPIONSHIP_LOBBY_UI.currentPhase !== lobbyCurrentPhase) {
+    CHAMPIONSHIP_LOBBY_UI.currentPhase = lobbyCurrentPhase;
+    CHAMPIONSHIP_LOBBY_UI.openZone = lobbyCurrentPhase;
+  }
   const pendingBatch = pending ? championshipMatches(pending.championshipPhase, pending.day).filter((match) => !match.winner) : [];
   const humanInBatch = pendingBatch.some((match) => isHumanTournamentEntry(match.playerA) || isHumanTournamentEntry(match.playerB));
-  const complete = state.tournament.stage === "complete";
   const champion = state.tournament.championCharacterId;
   const championId = champion ? tournamentEntryCharacterId(champion) : null;
   const championImage = championId ? (MATCH_RESULT_IMAGES[championId]?.win || PROFILE_CHARACTER_IMAGES[championId]) : null;
@@ -15797,20 +15861,18 @@ function renderChampionshipLobby() {
   const futureContent = (phase) => {
     const matches = championshipMatches(phase);
     if (!matches.some((match) => match.playerA && match.playerB)) return '<p class="championship-empty-round">Le tableau se remplira au fil des qualifications.</p>';
-    if (phase === 2) return `<div class="championship-days">${[1, 2, 3].map((day) => `<section class="championship-day"><header><strong>Journée ${day}</strong><span>8 matchs</span></header><div class="championship-day-matches">${championshipMatches(2, day).map((match) => renderChampionshipLobbyMatch(match, drawn)).join("")}</div></section>`).join("")}</div>`;
+    if (phase === 2) return renderChampionshipLobbyGroupPhase(2, drawn);
     if (phase === 3) return `<div class="championship-playoffs">${matches.map((match) => renderChampionshipLobbyMatch(match, drawn)).join("")}</div>`;
     const finalVisibleEntries = new Set((state.tournament.championshipFinalDraw || []).slice(0, Number(state.tournament.championshipFinalDrawVisibleCount || 0)));
-    return `<div class="tournament-bracket championship-final-bracket">${matches.map((match) => {
-      if (!match.id.startsWith("champ_qf") || match.winner) return renderChampionshipLobbyMatch(match, drawn);
-      return renderChampionshipLobbyMatch(match, finalVisibleEntries);
-    }).join("")}</div>`;
+    const visibleFinalDraw = state.tournament.championshipFinalDraw?.length ? finalVisibleEntries : drawn;
+    return renderChampionshipLobbyFinal(visibleFinalDraw, champion);
   };
   els.championshipLobbyContent.innerHTML = `
     <section class="championship-practical-info">
       <div><span>Format</span><strong>${Number(state.tournament.targetSets || 2)} sets gagnants</strong></div>
       <div><span>Participants</span><strong>1 humain · 23 IA</strong></div>
       <div><span>Niveau IA</span><strong>${tournamentDifficultyLabel(state.tournament.difficulty)}</strong></div>
-      <div><span>Progression</span><strong>Tour ${Number(state.tournament.championshipPhase || 1)} sur 4</strong></div>
+      <div><span>Progression</span><strong>Tour ${lobbyCurrentPhase} sur 4</strong></div>
     </section>
     <div class="championship-lobby-actions">
       <button class="primary-button" type="button" data-championship-next ${complete || state.tournament.championshipHumanEliminated || CHAMPIONSHIP_LOBBY_UI.busy ? "disabled" : ""}>PROCHAIN MATCH</button>
@@ -15820,22 +15882,18 @@ function renderChampionshipLobby() {
     ${CHAMPIONSHIP_LOBBY_UI.busy ? '<div class="championship-lobby-progress" role="status">Mise à jour du tableau en cours…</div>' : ""}
     ${complete ? `<section class="championship-winner-card">${championImage ? `<img src="${escapeHtml(championImage)}" alt="${escapeHtml(tournamentPlayerLabel(champion))}" />` : ""}<span>Vainqueur du Championnat</span><strong>${escapeHtml(tournamentPlayerLabel(champion))}</strong></section>` : ""}
     <div class="championship-board">
-      ${championshipLobbyZone(1, "1er Tour", renderChampionshipLobbyFirstTour(drawn), true)}
-      ${championshipLobbyZone(2, "2e Tour", futureContent(2))}
-      ${championshipLobbyZone(3, "Barrages", futureContent(3))}
-      ${championshipLobbyZone(4, "Tableau final", futureContent(4))}
+      ${championshipLobbyZone(1, "1er Tour · Groupes A à H", renderChampionshipLobbyGroupPhase(1, drawn))}
+      ${championshipLobbyZone(2, "2e Tour · Groupes 1 à 4", futureContent(2))}
+      ${championshipLobbyZone(3, "3e Tour · Barrages", futureContent(3))}
+      ${championshipLobbyZone(4, "Tour final", futureContent(4))}
     </div>
   `;
   els.championshipLobbyContent.querySelector("[data-championship-next]")?.addEventListener("click", startChampionshipNextFromLobby);
   els.championshipLobbyContent.querySelector("[data-championship-draw]")?.addEventListener("click", () => startChampionshipDraw(true));
   els.championshipLobbyContent.querySelector("[data-championship-simulate]")?.addEventListener("click", simulateChampionshipBatchAnimated);
   els.championshipLobbyContent.querySelectorAll("[data-championship-lobby-zone]").forEach((button) => button.addEventListener("click", () => {
-    const content = button.nextElementSibling;
-    const open = button.getAttribute("aria-expanded") === "true";
-    button.setAttribute("aria-expanded", String(!open));
-    button.lastElementChild.textContent = open ? "+" : "−";
-    button.closest(".championship-zone")?.classList.toggle("open", !open);
-    content?.classList.toggle("hidden", open);
+    CHAMPIONSHIP_LOBBY_UI.openZone = Number(button.dataset.championshipLobbyZone);
+    renderChampionshipLobby();
   }));
   els.championshipLobbyScreen.querySelectorAll("[data-exit-championship]").forEach((button) => {
     button.onclick = exitTournamentToLobby;

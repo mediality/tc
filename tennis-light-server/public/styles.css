@@ -2871,7 +2871,7 @@ h1 {
 .match-finale-overlay > ol li i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .6; }
 .match-finale-overlay > ol li.winner-0 { background: var(--player-one-color, #72e0bd); color: #062b3d; }
 .match-finale-overlay > ol li.winner-1 { background: var(--player-two-color, #f2a177); color: #062b3d; }
-.match-finale-overlay > nav { display: flex; justify-content: center; opacity: 0; animation: match-finale-set 250ms ease-out 2.3s forwards; }
+.match-finale-overlay > nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; opacity: 0; animation: match-finale-set 250ms ease-out 2.3s forwards; }
 @keyframes match-finale-set { to { opacity: 1; transform: none; } }
 @keyframes match-finale-result { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
@@ -3821,6 +3821,32 @@ h1 {
 .championship-lobby-hero h1 { margin: 3px 0 6px; font-size: clamp(2rem,5vw,4rem); }
 .championship-lobby-hero p { margin: 0; }
 .championship-lobby-content { display: grid; gap: 14px; }
+.championship-lobby-content .championship-board { border-radius: 18px; padding: 18px; color: #17212b; background: rgba(244,248,249,.97); box-shadow: 0 14px 34px rgba(1,25,39,.22); }
+.championship-lobby-content .championship-zone { border-color: rgba(87,108,121,.18); background: transparent; }
+.championship-lobby-content .championship-zone.open { border-color: rgba(15,141,104,.42); }
+.championship-lobby-content .championship-zone-toggle { color: #17212b; background: #fff; }
+.championship-lobby-content .championship-zone-toggle > span:first-child { color: #0f8d68; }
+.championship-lobby-content .championship-zone-content { background: #eef3f5; }
+.championship-lobby-section { display: grid; gap: 12px; }
+.championship-lobby-section + .championship-lobby-section { margin-top: 8px; }
+.championship-section-label { margin: 0; border-bottom: 1px solid rgba(87,108,121,.2); padding-bottom: 10px; color: #637481; font-size: .78rem; font-weight: 950; text-transform: uppercase; }
+.championship-lobby-content .league-standings { border-color: rgba(87,108,121,.2); color: #17212b; background: rgba(255,255,255,.92); }
+.championship-lobby-content .league-standings .tournament-round-label { color: #17212b; font-size: 1rem; text-transform: none; }
+.championship-lobby-content .league-standings-head { color: #647481; }
+.championship-lobby-content .league-standings-row { border-top: 1px solid rgba(87,108,121,.16); border-radius: 0; color: #526170; background: transparent; }
+.championship-lobby-content .league-standings-row strong,
+.championship-lobby-content .league-standings-row .tournament-player-identity { color: #17212b; }
+.championship-lobby-content .league-standings-row.qualified { border-radius: 6px; background: #dff8ee; }
+.championship-lobby-content .championship-day { grid-template-columns: 120px minmax(0,1fr); align-items: stretch; border-top: 1px solid rgba(87,108,121,.2); padding-top: 12px; }
+.championship-lobby-content .championship-day > header { align-content: center; align-items: flex-start; flex-direction: column; justify-content: center; color: #17212b; }
+.championship-lobby-content .championship-day > header strong { color: #17212b; font-size: .9rem; text-transform: none; }
+.championship-lobby-content .championship-day > header span { color: #647481; line-height: 1.35; }
+.championship-lobby-content .tournament-match,
+.championship-lobby-content .tournament-champion { border-color: rgba(87,108,121,.22); color: #17212b; background: #fff; box-shadow: 0 4px 12px rgba(22,48,63,.05); }
+.championship-lobby-content .tournament-round-label { color: #52677a; }
+.championship-lobby-content .tournament-player-row { color: #17212b; background: #f7f9fa; }
+.championship-lobby-content .tournament-column-title { color: #52677a; }
+.championship-lobby-content .championship-empty-round { color: #647481; }
 .championship-practical-info { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
 .championship-practical-info > div { display: grid; gap: 3px; border: 1px solid rgba(255,255,255,.13); border-radius: 12px; padding: 12px; color: #fff; background: rgba(255,255,255,.07); }
 .championship-practical-info span { color: #8ce0bf; font-size: .65rem; font-weight: 900; text-transform: uppercase; }
@@ -6366,6 +6392,10 @@ h1 {
 }
 
 @media (max-width: 700px) {
+  .championship-lobby-content .championship-board { padding: 10px; }
+  .championship-lobby-content .championship-zone-content { padding: 8px; }
+  .championship-lobby-content .championship-day { grid-template-columns: 1fr; }
+  .championship-lobby-content .championship-day > header { gap: 3px; }
   .mode-page-hero,
   .solo-clubhouse-hero { min-height: 220px; }
   .mode-page-hero-copy,
