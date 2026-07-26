@@ -6,7 +6,7 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const index = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.50"/);
+assert.match(app, /const GAME_VERSION = "v3\.51"/);
 assert.match(index, /data-ai-club-value="championship"/);
 assert.match(index, /<strong>Championnat<\/strong>/);
 assert.match(app, /function startChampionshipMode\(/);
@@ -43,6 +43,75 @@ assert.match(app, /}, 1000\)/);
 assert.match(app, /function simulateChampionshipBatchAnimated\(/);
 assert.match(app, /data-return-championship-lobby/);
 assert.match(app, /function ensureTournamentMatchHasWinningSetCount\(/);
+
+const clubLaunchStart = app.indexOf("async function startAiClubHouseCompetition(");
+const clubLaunchEnd = app.indexOf("\nfunction configureSoloOpponent(", clubLaunchStart);
+const clubLaunchSource = app.slice(clubLaunchStart, clubLaunchEnd);
+assert.match(clubLaunchSource, /const selectedFormat = AI_CLUB_HOUSE\.format/);
+assert.match(clubLaunchSource, /const isChampionship = selectedFormat === "championship"/);
+assert.match(clubLaunchSource, /if \(isChampionship\) \{\s*showChampionshipLobbyScreen\(\);\s*render\(\);\s*return;/s);
+assert.ok(
+  clubLaunchSource.indexOf("showChampionshipLobbyScreen();") < clubLaunchSource.lastIndexOf("showGameScreen();"),
+  "Le Championnat doit s'arrêter sur le salon avant le chemin normal vers le jeu",
+);
+const launchCalls = [];
+const launchContext = {
+  AI_CLUB_HOUSE: {
+    format: "championship",
+    targetSets: 2,
+    difficulty: "expert",
+    bonus: "none",
+    players: "random",
+    distribution: "random",
+  },
+  canAccessProFeatures: () => true,
+  resetTutorialMode() {},
+  MENU_STATE: {},
+  showTournamentLoadingDialog: async () => {},
+  hideTournamentLoadingDialog() {},
+  ensureGameplayRanking: async () => {},
+  ensureGameplayProfile: async () => {},
+  startChampionshipMode: (...args) => launchCalls.push(["championship", ...args]),
+  startLeagueTournamentMode: () => launchCalls.push(["league"]),
+  startTournamentMode: () => launchCalls.push(["classic"]),
+  resetTournament() {},
+  configureSoloOpponent() {},
+  SOLO_AI: {},
+  startMatchMode: () => launchCalls.push(["match"]),
+  showChampionshipLobbyScreen: () => launchCalls.push(["lobby"]),
+  showGameScreen: () => launchCalls.push(["game"]),
+  showMenuScreen() {},
+  renderAuthState() {},
+  render: () => launchCalls.push(["render"]),
+  console,
+  result: null,
+};
+vm.runInNewContext(`${clubLaunchSource}; result = startAiClubHouseCompetition();`, launchContext);
+await launchContext.result;
+assert.deepEqual(
+  launchCalls.map(([name]) => name),
+  ["championship", "lobby", "render"],
+  "Lancer le Championnat doit ouvrir le salon sans jamais afficher l'interface de jeu",
+);
+
+const championshipStart = app.indexOf("function startChampionshipMode(");
+const championshipStartEnd = app.indexOf("\nfunction championshipMatches(", championshipStart);
+const championshipStartSource = app.slice(championshipStart, championshipStartEnd);
+assert.match(championshipStartSource, /SOLO_AI\.enabled = false/);
+assert.doesNotMatch(championshipStartSource, /startMatchMode\(/);
+
+const prepareStart = app.indexOf("function prepareChampionshipHumanMatch(");
+const prepareEnd = app.indexOf("\nfunction handleChampionshipMatchComplete(", prepareStart);
+const prepareSource = app.slice(prepareStart, prepareEnd);
+assert.match(prepareSource, /!state\.tournament\.championshipDrawComplete\) return/);
+assert.match(prepareSource, /selectedOpponents\.includes\(opponent\)/);
+assert.match(prepareSource, /SOLO_AI\.enabled = true[\s\S]*startMatchMode/);
+
+const resumeStart = app.indexOf("function resumeAiClubHouseSave(");
+const resumeEnd = app.indexOf("\nfunction deleteAiClubHouseSave(", resumeStart);
+const resumeSource = app.slice(resumeStart, resumeEnd);
+assert.match(resumeSource, /state\.tournament\?\.championship && !state\.tournament\.currentMatch/);
+assert.match(resumeSource, /SOLO_AI\.enabled = false;\s*showChampionshipLobbyScreen\(\)/s);
 
 const aiTurn = app.slice(app.indexOf("function runSoloAITurn"), app.indexOf("function chooseAmateurOption"));
 assert.match(aiTurn, /soloSecuredPassDecision\(playerIndex, scenarioPlan\)/);
@@ -100,4 +169,4 @@ for (const { target, scores, winner } of scoreContext.results) {
   assert.ok(scores.length <= (target * 2) - 1, `Un match en ${target} sets gagnants ne peut dépasser ${(target * 2) - 1} sets`);
 }
 
-console.log("v3.50 : Championnat à 24 et décision de passe IA : OK");
+console.log("v3.51 : salon Championnat verrouillé, 24 joueurs et décision de passe IA : OK");

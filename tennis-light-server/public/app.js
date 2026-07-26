@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.50";
+const GAME_VERSION = "v3.51";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.50";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.51";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -4049,8 +4049,7 @@ async function startWeeklyCompetition(competitionId) {
     try {
       if (competition.eventType === "League") startLeagueTournamentMode(targetSets, { competition });
       else startTournamentMode(targetSets, { competition });
-      if (AI_CLUB_HOUSE.format === "championship") showChampionshipLobbyScreen();
-      else showGameScreen();
+      showGameScreen();
       render();
     } catch (error) {
       resetTournament();
@@ -5179,7 +5178,12 @@ function resumeAiClubHouseSave() {
   if (!canAccessProFeatures()) return;
   const saved = readAiClubHouseSave();
   if (!saved || !restoreStateSnapshot(saved)) return;
-  showGameScreen();
+  if (state.tournament?.championship && !state.tournament.currentMatch) {
+    SOLO_AI.enabled = false;
+    showChampionshipLobbyScreen();
+  } else {
+    showGameScreen();
+  }
   applySurfaceBackground(state.tournament?.competitionSurface);
   render();
 }
@@ -5242,7 +5246,12 @@ async function ensureGameplayRanking() {
 }
 
 async function startAiClubHouseCompetition() {
-  const isMatch = AI_CLUB_HOUSE.format === "match";
+  // Conserver le format choisi avant les chargements asynchrones : le rendu du
+  // profil/classement ne doit jamais transformer un Championnat en match Solo.
+  const selectedFormat = AI_CLUB_HOUSE.format;
+  const selectedTargetSets = AI_CLUB_HOUSE.targetSets;
+  const isMatch = selectedFormat === "match";
+  const isChampionship = selectedFormat === "championship";
   if (!isMatch && !canAccessProFeatures()) {
     showMenuScreen();
     renderAuthState("Réservé aux joueurs Pro.");
@@ -5271,13 +5280,18 @@ async function startAiClubHouseCompetition() {
         resetTournament();
         configureSoloOpponent();
         SOLO_AI.difficulty = AI_CLUB_HOUSE.difficulty;
-        startMatchMode(AI_CLUB_HOUSE.targetSets, { keepSoloOpponent: true });
-      } else if (AI_CLUB_HOUSE.format === "championship") {
-        startChampionshipMode(AI_CLUB_HOUSE.targetSets, options);
-      } else if (AI_CLUB_HOUSE.format === "league") {
-        startLeagueTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+        startMatchMode(selectedTargetSets, { keepSoloOpponent: true });
+      } else if (isChampionship) {
+        startChampionshipMode(selectedTargetSets, options);
+      } else if (selectedFormat === "league") {
+        startLeagueTournamentMode(selectedTargetSets, options);
       } else {
-        startTournamentMode(AI_CLUB_HOUSE.targetSets, options);
+        startTournamentMode(selectedTargetSets, options);
+      }
+      if (isChampionship) {
+        showChampionshipLobbyScreen();
+        render();
+        return;
       }
       showGameScreen();
       render();
@@ -7509,7 +7523,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.50");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.51");
 }
 
 function emptyMomentumState() {
@@ -12925,7 +12939,9 @@ function startChampionshipMode(targetSets = 2, options = {}) {
   }
   targetSets = Number(targetSets) === 3 ? 3 : 2;
   resetTournament();
-  SOLO_AI.enabled = true;
+  // Aucun adversaire ne doit pouvoir agir tant que le joueur se trouve dans
+  // le salon et que le tirage n'est pas terminé.
+  SOLO_AI.enabled = false;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.difficulty = normalizeAiDifficulty(options.difficulty || "normal");
   const humanCharacterId = selectedCharacterId();
@@ -13144,8 +13160,18 @@ function advanceChampionshipToNextHumanMatch() {
 }
 
 function prepareChampionshipHumanMatch() {
+  if (!state.tournament.championship || !state.tournament.championshipDrawComplete) return;
   const next = advanceChampionshipToNextHumanMatch();
   if (!next) {
+    return;
+  }
+  const opponent = opponentCharacterInMatch(next, humanTournamentEntry());
+  const selectedOpponents = state.tournament.championshipRoster || [];
+  if (!opponent || !selectedOpponents.includes(opponent)) {
+    state.log.unshift("Championnat : adversaire invalide, retour au salon.");
+    state.tournament.currentMatch = null;
+    state.tournament.stage = "championshipLobby";
+    SOLO_AI.enabled = false;
     return;
   }
   state.tournament.championshipPhase = next.championshipPhase;
@@ -13153,7 +13179,8 @@ function prepareChampionshipHumanMatch() {
   state.tournament.currentMatch = next.id;
   state.tournament.nextHumanMatchId = null;
   state.tournament.stage = next.round;
-  SOLO_AI.characterId = opponentCharacterInMatch(next, humanTournamentEntry());
+  SOLO_AI.enabled = true;
+  SOLO_AI.characterId = opponent;
   startMatchMode(state.tournament.targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = next.id;
   state.tournament.stage = next.round;
