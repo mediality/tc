@@ -4636,6 +4636,21 @@ h1 {
   top: 71px;
 }
 
+.played-history-row .remise-underlay-wrap,
+.played-history-row .remise-underlay-shot {
+  width: 125px;
+}
+
+.played-history-row .remise-underlay-shot .played-visual.center-played {
+  width: 125px;
+}
+
+.played-history-row .remise-underlay-layer {
+  left: 3px;
+  top: 41px;
+  width: calc(100% - 3px);
+}
+
 .remise-underlay-layer img {
   display: block;
   width: 100%;
