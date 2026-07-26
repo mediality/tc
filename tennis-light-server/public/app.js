@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.35";
+const GAME_VERSION = "v3.36";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -2345,20 +2345,22 @@ function showGameNewsDialog(newsId) {
         <p class="label">DERNIÈRES ACTU · ${escapeHtml(formatGameNewsDate(news.publishedAt))}</p>
         <h2 id="proNewsTitle">${escapeHtml(news.title)}</h2>
         <p id="proNewsMessage">${escapeHtml(news.message)}</p>
-        <div class="dialog-actions">
-          <button class="primary-button" type="button" data-close-pro-news>FERMER</button>
-        </div>
       </div>
     </article>
   `;
   const close = () => {
+    document.removeEventListener("keydown", onKeyDown);
     backdrop.remove();
   };
-  backdrop.querySelector("[data-close-pro-news]")?.addEventListener("click", close);
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") close();
+  };
   backdrop.addEventListener("click", (event) => {
-    if (event.target === backdrop) close();
+    if (event.target.closest("[data-close-pro-news]") || !event.target.closest(".pro-news-modal")) close();
   });
+  document.addEventListener("keydown", onKeyDown);
   document.body.append(backdrop);
+  backdrop.querySelector("[data-close-pro-news]")?.focus();
 }
 
 async function loadAuthState() {
@@ -7471,7 +7473,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.35");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.36");
 }
 
 function emptyMomentumState() {

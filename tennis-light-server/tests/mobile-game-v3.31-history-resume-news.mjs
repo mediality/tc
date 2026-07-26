@@ -9,7 +9,7 @@ const mobile = fs.readFileSync(path.join(root, "public/mobile-game.js"), "utf8")
 const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "utf8");
 const styles = fs.readFileSync(path.join(root, "public/styles.css"), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.35"/);
+assert.match(app, /const GAME_VERSION = "v3\.36"/);
 assert.match(app, /playerSide: actorIndex < 0 \? "information" : actorIndex === localPlayerIndex \? "player" : "opponent"/);
 assert.match(mobile, /mobile-history-entry--side-\$\{escapeText\(entry\.playerSide\)\}/);
 assert.match(mobile, /mobile-history-player-name/);
@@ -31,9 +31,13 @@ assert.match(app, /snapshot: \{[\s\S]*state: cloneData\(state\)[\s\S]*soloAi: cl
 assert.match(app, /restoreLocalMobileMatchFromUrl\(\)/);
 
 assert.match(app, /class="pro-news-close"[\s\S]*aria-label="Fermer l’actualité"/);
+assert.doesNotMatch(app, />FERMER<\/button>/);
+assert.match(app, /event\.target\.closest\("\[data-close-pro-news\]"\) \|\| !event\.target\.closest\("\.pro-news-modal"\)/);
+assert.match(app, /if \(event\.key === "Escape"\) close\(\)/);
 assert.match(styles, /\.pro-news-close[\s\S]*min-width: 44px[\s\S]*height: 44px/);
 assert.match(styles, /\.pro-news-copy[\s\S]*overflow-y: auto/);
+assert.match(styles, /\.home-news-copy time,[\s\S]*\.home-news-title \{[\s\S]*text-align: left/);
 assert.doesNotMatch(styles, /exchange-winner-halo/);
 assert.match(app, /startsWith\(label\.toLocaleLowerCase\("fr"\)\)[\s\S]*\? source\.label/);
 
-console.log("Mobile v3.35 : historique, choix, reprise et actualités : OK");
+console.log("Mobile v3.36 : historique, choix, reprise et actualités : OK");

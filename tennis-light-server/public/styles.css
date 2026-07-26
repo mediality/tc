@@ -4987,6 +4987,8 @@ h1 {
 }
 
 .pro-news-copy {
+  display: grid;
+  justify-items: start;
   max-height: min(72vh, 680px);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -5012,6 +5014,8 @@ h1 {
 }
 
 .pro-news-copy h2 {
+  width: 100%;
+  margin-inline: 0;
   text-align: left;
   color: #0b3448;
   font-size: clamp(1.45rem, 4vw, 2.25rem);
@@ -7283,6 +7287,9 @@ h1 {
 }
 
 .home-news-copy time {
+  justify-self: start;
+  width: 100%;
+  text-align: left;
   color: #0f8d68;
   font-size: 0.7rem;
   font-weight: 900;
@@ -7669,6 +7676,8 @@ h1 {
 .home-news-copy { grid-template-columns: minmax(105px, auto) minmax(0, 1fr) auto; align-items: center; align-content: center; gap: 16px; padding: 9px 13px; }
 .home-news-copy time { color: #8ce0bf; white-space: nowrap; }
 .home-news-title { min-width: 0; overflow: hidden; border: 0; padding: 0; color: #fff; background: transparent; font: inherit; font-size: .9rem; font-weight: 900; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.home-news-copy time,
+.home-news-title { justify-self: stretch; width: 100%; text-align: left; }
 .home-news-title:hover { color: #e9ff70; }
 .home-news-read { color: #e9ff70; white-space: nowrap; }
 
