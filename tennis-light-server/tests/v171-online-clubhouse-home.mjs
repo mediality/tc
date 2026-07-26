@@ -25,7 +25,7 @@ for (const icon of ["MATCH.svg", "LEAGUE.svg", "JOIN.svg", "JUST-WATCH.svg", "VA
   await access(new URL(`../public/assets/icons/${icon}`, import.meta.url));
 }
 
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.45/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.46/);
 assert.match(html, /styles\.css\?v=3\.5\.0/);
 assert.match(html, /app\.js\?v=3\.5\.0/);
 assert.match(html, /academy-upgrade-cta/);

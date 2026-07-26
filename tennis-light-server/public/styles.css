@@ -4615,16 +4615,10 @@ h1 {
 .remise-underlay-wrap {
   position: relative;
   width: 148px;
-  height: 220px;
-}
-
-.remise-underlay-wrap.has-boost {
-  height: 254px;
 }
 
 .remise-underlay-shot {
-  position: absolute;
-  inset: 0;
+  position: relative;
   z-index: 3;
   width: 148px;
 }
@@ -4679,6 +4673,10 @@ h1 {
 
 .center-card-wrap.boosted-center-wrap + .next-exchange-button {
   margin-top: 140px;
+}
+
+.center-card-wrap.has-remise-underlay + .center-progression-actions {
+  margin-top: 34px;
 }
 
 .next-set-button {

@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.45";
+const GAME_VERSION = "v3.46";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.45";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.46";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7476,7 +7476,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.45");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.46");
 }
 
 function emptyMomentumState() {
@@ -15952,7 +15952,7 @@ function renderCenterPlayedCard() {
   els.centerPlayedCard.innerHTML = `
     ${renderCenterSetScore()}
     <p class="previous-title">Dernière carte jouée</p>
-    <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}">
+    <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}${remiseCards.length ? " has-remise-underlay" : ""}">
       ${centerCardMarkup}
     </div>
     <div class="center-progression-actions">${renderRallyEndActions()}</div>
