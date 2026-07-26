@@ -22,7 +22,7 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.42/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.43/);
 assert.match(html, /styles\.css\?v=3\.5\.0/);
 assert.match(html, /app\.js\?v=3\.5\.0/);
 assert.equal((html.match(/class="academy-upgrade-cta(?:\s|\")/g) || []).length, 2);

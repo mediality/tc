@@ -140,4 +140,4 @@ assert.match(css, /max\(214px, calc\(env\(safe-area-inset-bottom\) \+ 204px\)\)/
 assert.match(css, /\.mobile-history-inline\s*\{[\s\S]*height:\s*64px/);
 assert.doesNotMatch(css, /\.mobile-undo-turn\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
 
-console.log("Mobile v3.42 : tour adverse automatique et sécurité Passer : OK");
+console.log("Mobile v3.43 : tour adverse automatique et sécurité Passer : OK");

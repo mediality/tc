@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.42";
+const GAME_VERSION = "v3.43";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7475,7 +7475,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.42");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.43");
 }
 
 function emptyMomentumState() {

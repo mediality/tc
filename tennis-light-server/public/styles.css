@@ -4613,7 +4613,9 @@ h1 {
 }
 
 .center-remise-stack {
-  --remise-peek: 38px;
+  /* Montrer toute la colonne Placement/Endurance de la Remise, sans découvrir
+     sa zone Effet : la bande gagne de la largeur vers la gauche. */
+  --remise-peek: 54px;
   position: relative;
   width: calc(148px + var(--remise-count) * var(--remise-peek));
   height: 211px;
@@ -4621,7 +4623,8 @@ h1 {
 
 .center-remise-stack-shot {
   position: absolute;
-  inset: 0 auto auto 0;
+  top: 0;
+  left: calc(var(--remise-count) * var(--remise-peek));
   z-index: 20;
   width: 148px;
 }
@@ -4629,7 +4632,7 @@ h1 {
 .center-remise-stack-peek {
   position: absolute;
   top: 0;
-  left: calc(148px + var(--remise-index) * var(--remise-peek));
+  left: calc(var(--remise-index) * var(--remise-peek));
   z-index: calc(10 + var(--remise-index));
   width: var(--remise-peek);
   height: 211px;
