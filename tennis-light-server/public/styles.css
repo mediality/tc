@@ -8199,6 +8199,18 @@ h1 {
 .confrontation-intro-player img { border-radius: var(--game-card-radius); clip-path: inset(1px round 7.2%); }
 .boost-sacrifice-back { border-radius: var(--game-card-radius); clip-path: inset(1px round 7.2%); }
 
+/* À trois cartes par ligne, le conteneur arrondi suffit : éviter une seconde
+   rasterisation de l'image préserve mieux les petits textes imprimés. */
+.hand .card-visual {
+  isolation: isolate;
+}
+
+.hand .card-visual > img:not(.forbid-effect-overlay) {
+  border-radius: 0;
+  clip-path: none;
+  image-rendering: -webkit-optimize-contrast;
+}
+
 .center-lane .log {
   display: grid;
   align-self: end;

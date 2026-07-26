@@ -40,6 +40,10 @@ assert.match(css, /\.profile-current-week-points dd > small[\s\S]*font-size:\s*\
 assert.match(css, /\.pro-news-copy h2 \{[\s\S]*text-align: left/);
 assert.match(css, /\.pro-news-copy > p:not\(\.label\):not\(\.pro-news-signature\) \{[\s\S]*white-space: pre-line/);
 assert.match(css, /\.match-finale-overlay/);
+assert.match(app, /let renderedDesktopMatchFinaleKey = ""/);
+assert.match(app, /renderedDesktopMatchFinaleKey === finaleKey[\s\S]*\.match-finale-overlay/);
+assert.match(app, /players: players\.map\(\(player\) => \[player\.name, player\.lobby, player\.result\]\)/);
+assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: -webkit-optimize-contrast/);
 assert.match(css, /prefers-reduced-motion: reduce/);
 
 for (const name of [

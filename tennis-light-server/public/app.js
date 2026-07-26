@@ -14527,8 +14527,11 @@ function renderCompactMatchScore(setMatch) {
   `;
 }
 
+let renderedDesktopMatchFinaleKey = "";
+
 function renderResultPanel() {
   if (!state.gameOver || !state.setMatch.matchOver || state.setMatch.matchWinner == null) {
+    renderedDesktopMatchFinaleKey = "";
     els.resultPanel.innerHTML = "";
     els.resultPanel.classList.add("hidden");
     return;
@@ -14546,7 +14549,16 @@ function renderResultPanel() {
     score,
     winner: score[0] > score[1] ? 0 : 1,
   }));
+  const progressionMarkup = renderProgressionButtons();
+  const finaleKey = JSON.stringify({
+    winner,
+    players: players.map((player) => [player.name, player.lobby, player.result]),
+    scores: scores.map((set) => [set.score, set.winner]),
+    progressionMarkup,
+  });
   els.resultPanel.classList.remove("hidden");
+  if (renderedDesktopMatchFinaleKey === finaleKey && els.resultPanel.querySelector(".match-finale-overlay")) return;
+  renderedDesktopMatchFinaleKey = finaleKey;
   els.resultPanel.innerHTML = `
     <section class="match-finale-overlay" role="dialog" aria-modal="true" aria-labelledby="matchFinaleTitle">
       <header><span>Résultat final</span><h2 id="matchFinaleTitle">Match terminé</h2></header>
@@ -14557,7 +14569,7 @@ function renderResultPanel() {
         </article>`).join("")}
       </div>
       <ol>${scores.map((set, index) => `<li style="--reveal-index:${index}" class="winner-${set.winner}"><span>${set.score[0]}</span><i></i><span>${set.score[1]}</span></li>`).join("")}</ol>
-      <nav>${renderProgressionButtons()}</nav>
+      <nav>${progressionMarkup}</nav>
     </section>`;
   bindResultTournamentButton();
 }
