@@ -6,7 +6,7 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const index = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.52"/);
+assert.match(app, /const GAME_VERSION = "v3\.53"/);
 assert.match(index, /data-ai-club-value="championship"/);
 assert.match(index, /<strong>Championnat<\/strong>/);
 assert.match(app, /function startChampionshipMode\(/);
@@ -38,6 +38,8 @@ assert.match(styles, /\.championship-lobby-content \.championship-board/);
 assert.match(styles, /\.championship-lobby-content \.league-standings/);
 assert.match(styles, /\.championship-lobby-content \.championship-day \{ grid-template-columns: 120px/);
 assert.match(styles, /\.match-finale-overlay > nav \{[^}]*gap: 10px/);
+assert.match(styles, /\.league-standings-row\.human-player[^}]*background: #fff8e5/);
+assert.match(styles, /\.tournament-player-row\.winner[^}]*background: #eaf5f1/);
 assert.match(index, /id="championshipLobbyScreen"/);
 assert.match(index, /id="championshipLobbyContent"/);
 assert.match(app, /function renderChampionshipLobby\(/);
@@ -54,6 +56,7 @@ assert.match(app, /<span>Rang<\/span><span>Nom<\/span><span>Points<\/span><span>
 assert.match(app, /tournament-column-title">Quarts/);
 assert.match(app, /tournament-column-title">Demi-finales/);
 assert.match(app, /CHAMPIONSHIP_LOBBY_UI\.openZone = lobbyCurrentPhase/);
+assert.match(app, /CHAMPIONSHIP_LOBBY_UI\.openZone === phase \? 0 : phase/);
 assert.match(app, /championshipDrawVisibleCount \+= 1/);
 assert.match(app, /}, 1000\)/);
 assert.match(app, /function simulateChampionshipBatchAnimated\(/);
@@ -185,4 +188,4 @@ for (const { target, scores, winner } of scoreContext.results) {
   assert.ok(scores.length <= (target * 2) - 1, `Un match en ${target} sets gagnants ne peut dépasser ${(target * 2) - 1} sets`);
 }
 
-console.log("v3.52 : salon Championnat, classements progressifs, tableau final et décision de passe IA : OK");
+console.log("v3.53 : salon Championnat sobre, tours repliables, classements et tableau final : OK");

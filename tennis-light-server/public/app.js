@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.52";
+const GAME_VERSION = "v3.53";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.52";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.53";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7527,7 +7527,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.52");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.53");
 }
 
 function emptyMomentumState() {
@@ -15814,7 +15814,7 @@ function renderChampionshipLobbyFinal(drawn, champion) {
 }
 
 function championshipLobbyZone(phase, label, content) {
-  const open = Number(CHAMPIONSHIP_LOBBY_UI.openZone || state.tournament.championshipPhase || 1) === phase;
+  const open = Number(CHAMPIONSHIP_LOBBY_UI.openZone) === phase;
   return `
     <section class="championship-zone ${open ? "open" : ""}">
       <button class="championship-zone-toggle" type="button" data-championship-lobby-zone="${phase}" aria-expanded="${open}">
@@ -15892,7 +15892,8 @@ function renderChampionshipLobby() {
   els.championshipLobbyContent.querySelector("[data-championship-draw]")?.addEventListener("click", () => startChampionshipDraw(true));
   els.championshipLobbyContent.querySelector("[data-championship-simulate]")?.addEventListener("click", simulateChampionshipBatchAnimated);
   els.championshipLobbyContent.querySelectorAll("[data-championship-lobby-zone]").forEach((button) => button.addEventListener("click", () => {
-    CHAMPIONSHIP_LOBBY_UI.openZone = Number(button.dataset.championshipLobbyZone);
+    const phase = Number(button.dataset.championshipLobbyZone);
+    CHAMPIONSHIP_LOBBY_UI.openZone = CHAMPIONSHIP_LOBBY_UI.openZone === phase ? 0 : phase;
     renderChampionshipLobby();
   }));
   els.championshipLobbyScreen.querySelectorAll("[data-exit-championship]").forEach((button) => {
