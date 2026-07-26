@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.48";
+const GAME_VERSION = "v3.49";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.48";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.49";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7485,7 +7485,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.48");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.49");
 }
 
 function emptyMomentumState() {
@@ -13077,11 +13077,41 @@ function simulateRemainingChampionship() {
   state.tournament.championCharacterId = final?.winner || null;
 }
 
-function prepareChampionshipHumanMatch() {
+function advanceChampionshipToNextHumanMatch() {
+  for (let guard = 0; guard < 20; guard += 1) {
+    refreshChampionshipSlots();
+    const nextHuman = nextHumanTournamentMatch();
+    if (nextHuman) {
+      for (let day = 1; day < Number(nextHuman.day || 1); day += 1) {
+        revealChampionshipDay(nextHuman.championshipPhase, day);
+      }
+      refreshChampionshipSlots();
+      return nextHuman;
+    }
+    const nextAiMatch = state.tournament.matches.find((match) => (
+      !match.winner
+      && match.playerA
+      && match.playerB
+      && !isHumanTournamentEntry(match.playerA)
+      && !isHumanTournamentEntry(match.playerB)
+    ));
+    if (!nextAiMatch) break;
+    revealChampionshipDay(nextAiMatch.championshipPhase, nextAiMatch.day);
+  }
   refreshChampionshipSlots();
-  const next = nextHumanTournamentMatch();
+  const final = tournamentMatchById("final");
+  if (final?.winner) {
+    state.tournament.stage = "complete";
+    state.tournament.currentMatch = null;
+    state.tournament.nextHumanMatchId = null;
+    state.tournament.championCharacterId = final.winner;
+  }
+  return null;
+}
+
+function prepareChampionshipHumanMatch() {
+  const next = advanceChampionshipToNextHumanMatch();
   if (!next) {
-    simulateRemainingChampionship();
     return;
   }
   state.tournament.championshipPhase = next.championshipPhase;
@@ -13110,9 +13140,8 @@ function handleChampionshipMatchComplete() {
     render();
     return;
   }
-  const next = nextHumanTournamentMatch();
+  const next = advanceChampionshipToNextHumanMatch();
   if (!next) {
-    simulateRemainingChampionship();
     render();
     return;
   }
@@ -14565,6 +14594,23 @@ function updateTournamentSetProgress() {
 }
 
 function revealNextTournamentAiSet() {
+  if (state.tournament.championship) {
+    const current = tournamentMatchById(state.tournament.currentMatch);
+    if (!current) return;
+    for (const match of championshipMatches(current.championshipPhase, current.day)) {
+      if (!match.simulated || !ensureSimulatedTournamentMatchReady(match)) continue;
+      if ((match.revealedSetScores ?? []).length >= match.hiddenSetScores.length) continue;
+      match.revealedSetScores.push(match.hiddenSetScores[match.revealedSetScores.length]);
+      match.liveScore = `${formatSetScores(match.revealedSetScores)} · EN DIRECT`;
+      if (match.revealedSetScores.length >= match.hiddenSetScores.length) {
+        match.score = formatSetScores(match.revealedSetScores);
+        match.winner = match.hiddenWinner;
+        match.liveScore = null;
+      }
+    }
+    refreshChampionshipSlots();
+    return;
+  }
   const round = ["round16", "qualif", "quarter", "semi"].includes(state.tournament.stage) ? state.tournament.stage : null;
   if (!round) return;
   for (const match of simulatedTournamentMatches(round)) {
@@ -15586,16 +15632,27 @@ function championshipZoneMarkup(phase, title, content) {
 function renderChampionshipPanel(title, final, champion) {
   const phase1Groups = "ABCDEFGH".split("");
   const phase2Groups = ["1", "2", "3", "4"];
-  const groupMatches = (phase) => championshipMatches(phase).map((match) => renderTournamentMatch(match)).join("");
+  const days = (phase) => [1, 2, 3].map((day) => {
+    const matches = championshipMatches(phase, day);
+    const description = phase === 1
+      ? day === 1 ? "A contre C" : day === 2 ? "B contre C" : "A contre B"
+      : day === 1 ? "A–B et C–D" : day === 2 ? "A–D et C–B" : "A–C et B–D";
+    return `
+      <section class="championship-day">
+        <header><strong>Journée ${day}</strong><span>${description} · ${matches.length} matchs</span></header>
+        <div class="championship-day-matches">${matches.map((match) => renderTournamentMatch(match)).join("")}</div>
+      </section>
+    `;
+  }).join("");
   const phase1 = `
     <div class="league-standings-grid championship-groups">${phase1Groups.map((group) => renderChampionshipStandings(1, group)).join("")}</div>
-    <div class="tournament-bracket championship-matches">${groupMatches(1)}</div>
+    <div class="championship-days">${days(1)}</div>
   `;
   const phase2 = `
     <div class="league-standings-grid championship-groups">${phase2Groups.map((group) => renderChampionshipStandings(2, group)).join("")}</div>
-    <div class="tournament-bracket championship-matches">${groupMatches(2)}</div>
+    <div class="championship-days">${days(2)}</div>
   `;
-  const phase3 = `<div class="tournament-bracket championship-matches">${groupMatches(3)}</div>`;
+  const phase3 = `<div class="championship-playoffs">${championshipMatches(3).map((match) => renderTournamentMatch(match)).join("")}</div>`;
   const finalMatches = championshipMatches(4);
   const phase4 = `
     <div class="tournament-bracket championship-final-bracket">

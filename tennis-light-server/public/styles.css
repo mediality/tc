@@ -3803,7 +3803,14 @@ h1 {
 .championship-zone-toggle > span:first-child { color: #8ce0bf; font-size: .7rem; font-weight: 900; text-transform: uppercase; }
 .championship-zone-toggle > span:last-child { font-size: 1.35rem; }
 .championship-zone-content { display: grid; gap: 14px; padding: 12px; }
-.championship-groups { grid-template-columns: repeat(4, minmax(240px, 1fr)); }
+.championship-groups { grid-template-columns: repeat(2, minmax(300px, 1fr)); }
+.championship-days { display: grid; gap: 16px; }
+.championship-day { display: grid; gap: 9px; }
+.championship-day > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: #fff; }
+.championship-day > header strong { color: #8ce0bf; font-size: .86rem; text-transform: uppercase; }
+.championship-day > header span { color: rgba(255,255,255,.68); font-size: .7rem; font-weight: 800; }
+.championship-day-matches { display: grid; grid-template-columns: repeat(4, minmax(190px, 1fr)); gap: 10px; }
+.championship-playoffs { display: grid; grid-template-columns: repeat(4, minmax(190px, 1fr)); gap: 10px; }
 .championship-matches { grid-template-columns: repeat(4, minmax(210px, 1fr)); }
 .championship-final-bracket { grid-template-columns: repeat(4, minmax(210px, 1fr)); }
 
