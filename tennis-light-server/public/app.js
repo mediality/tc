@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.31";
+const GAME_VERSION = "v3.33";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -317,6 +317,8 @@ const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   lukasEberhardt: "assets/cards/LOBBY-Lukas-Eberhardt.webp",
   milanVerhaegen: "assets/cards/LOBBY-Milan-Verhaegen.webp",
   rosaBenavente: "assets/cards/TC-Rosa-Benavente-LOBBY.webp",
+  johnnyKowalski: "assets/cards/TC-Johnny-Kowalski-LOBBY.webp",
+  sakubaraGeki: "assets/cards/TC-Sakubara-Geki-LOBBY.webp",
 });
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -343,10 +345,21 @@ const NEW_TOURNAMENT_PLAYERS = [
   "lukasEberhardt",
   "milanVerhaegen",
   "rosaBenavente",
+  "johnnyKowalski",
+  "sakubaraGeki",
 ];
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
+  {
+    id: "v333-kowalski-sakubara-circuit",
+    publishedAt: "2026-07-26",
+    availableAt: "2026-07-26T10:00:00+02:00",
+    title: "Johnny Kowalski et Sakubara Geki entrent sur le Circuit Pro",
+    image: "assets/cards/TC-Johnny-Kowalski-LOBBY.webp",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Le Circuit Pro accueille deux nouveaux adversaires : Johnny Kowalski et Sakubara Geki. Ils participent désormais aux tirages des tournois et intégreront le RankIA lors de la prochaine mise à jour hebdomadaire. Préparez-vous à affronter leurs nouveaux pouvoirs étoile, entre gestion de l’endurance, pioche offensive et réduction de puissance.",
+  },
   {
     id: "v16929-prestige-ultimate-league",
     publishedAt: "2026-07-23",
@@ -394,6 +407,8 @@ const AI_SURFACE_PREFERENCES = {
   zariaCampbell: "hard", renAoshima: "grass", yasmineElMansouri: "clay",
   daanVermeer: "hard", lukasEberhardt: "hard", milanVerhaegen: "clay",
   rosaBenavente: "clay",
+  johnnyKowalski: "clay",
+  sakubaraGeki: "grass",
 };
 const SURFACE_SPECIALISTS = Object.fromEntries(["grass", "hard", "clay"].map((surface) => [
   surface,
@@ -627,6 +642,20 @@ const CHARACTERS = {
       { side: "Rose", label: "Le placement du prochain Coup adverse repart de 0", type: "opponentNextShotBasePlacementZero" },
     ],
   },
+  johnnyKowalski: {
+    name: "Johnny Kowalski",
+    effects: [
+      { side: "Bleu", label: "Piochez 1 carte et ajoutez sa puissance imprimée à votre Coup", type: "drawPrintedPowerForCurrentShot" },
+      { side: "Rose", label: "Votre adversaire perd 1 endurance et vous récupérez 1 endurance", type: "stealEndurance", value: 1 },
+    ],
+  },
+  sakubaraGeki: {
+    name: "Sakubara Geki",
+    effects: [
+      { side: "Bleu", label: "La puissance imprimée du Coup adverse précédent est ramenée à 1", type: "reducePreviousOpponentPrintedPower", value: 1 },
+      { side: "Rose", label: "Récupérez 1 endurance et gagnez 2 puissance", type: "gainEnduranceAndPower", endurance: 1, power: 2 },
+    ],
+  },
 };
 
 const CHARACTER_IMAGES = versionCardAsset({
@@ -746,6 +775,14 @@ const CHARACTER_IMAGES = versionCardAsset({
     "assets/cards/TC-Rosa-Benavente.webp",
     "assets/cards/TC-Rosa-Benavente-VERSO.webp",
   ],
+  johnnyKowalski: [
+    "assets/cards/TC-Johnny-Kowalski.webp",
+    "assets/cards/TC-Johnny-Kowalski-VERSO.webp",
+  ],
+  sakubaraGeki: [
+    "assets/cards/TC-Sakubara-Geki.webp",
+    "assets/cards/TC-Sakubara-Geki-VERSO.webp",
+  ],
 });
 
 const MATCH_RESULT_IMAGES = versionCardAsset({
@@ -856,6 +893,14 @@ const MATCH_RESULT_IMAGES = versionCardAsset({
   milanVerhaegen: {
     win: "assets/cards/TC-result-Milan-Verhaegen-WIN.webp",
     lose: "assets/cards/TC-result-Milan-Verhaegen-LOSE.webp",
+  },
+  johnnyKowalski: {
+    win: "assets/cards/TC-Johnny-Kowalski-WINS.webp",
+    lose: "assets/cards/TC-Johnny-Kowalski-LOSE.webp",
+  },
+  sakubaraGeki: {
+    win: "assets/cards/TC-Sakubara-Geki-WINS.webp",
+    lose: "assets/cards/TC-Sakubara-Geki-LOSE.webp",
   },
 });
 
@@ -2581,7 +2626,9 @@ function rankingMarkup(ranking = AUTH_STATE.ranking) {
   }
   const profileName = (row) => {
     if (row.is_ai || String(row.id || "").startsWith("ai:")) {
-      return `<span class="ranking-ai-name">${escapeHtml(row.nickname)}</span>`;
+      return canAccessAdminFeatures()
+        ? `<button class="ranking-name-button ranking-ai-name" type="button" data-admin-ai-profile="${escapeHtml(String(row.id || "").replace(/^ai:/, ""))}" data-admin-ai-name="${escapeHtml(row.nickname)}" data-admin-ai-points="${Number(row.score_week || 0)}">${escapeHtml(row.nickname)}</button>`
+        : `<span class="ranking-ai-name">${escapeHtml(row.nickname)}</span>`;
     }
     return `
       <button class="ranking-name-button" type="button" data-profile-user="${escapeHtml(row.id || "")}">
@@ -2628,6 +2675,44 @@ function attachProfileLinks(container) {
       showProfileScreen(userId);
     });
   });
+  container?.querySelectorAll("[data-admin-ai-profile]").forEach((button) => {
+    button.addEventListener("click", () => openAdminAiPlayerSheet(button));
+  });
+}
+
+function openAdminAiPlayerSheet(button) {
+  if (!canAccessAdminFeatures()) return;
+  document.querySelector(".admin-ai-player-backdrop")?.remove();
+  const characterId = button.dataset.adminAiProfile;
+  const name = button.dataset.adminAiName || characterId;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop admin-ai-player-backdrop";
+  backdrop.innerHTML = `
+    <section class="effect-help-dialog" role="dialog" aria-modal="true" aria-labelledby="adminAiPlayerTitle">
+      <div><p class="label">Fiche joueur IA</p><h2 id="adminAiPlayerTitle">${escapeHtml(name)}</h2>
+        <p>Seuls les points de la semaine actuelle peuvent être modifiés.</p>
+        <label class="menu-field">Points<input type="number" min="0" max="100000" step="1" value="${Math.max(0, Number(button.dataset.adminAiPoints || 0))}" data-admin-ai-points-input /></label>
+      </div>
+      <div class="admin-inline-actions"><button class="small-button" type="button" data-close-admin-ai>Annuler</button><button class="primary-button" type="button" data-save-admin-ai>Enregistrer</button></div>
+    </section>`;
+  const close = () => backdrop.remove();
+  backdrop.querySelector("[data-close-admin-ai]")?.addEventListener("click", close);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) close(); });
+  backdrop.querySelector("[data-save-admin-ai]")?.addEventListener("click", async () => {
+    const input = backdrop.querySelector("[data-admin-ai-points-input]");
+    const points = Math.round(Number(input?.value));
+    if (!Number.isFinite(points) || points < 0) return input?.focus();
+    try {
+      await authRequest(`/api/admin/ai-players/${encodeURIComponent(characterId)}/points`, { points });
+      close();
+      await loadRanking(AUTH_STATE.rankingPage || 1);
+    } catch (error) {
+      input?.setCustomValidity(error.message);
+      input?.reportValidity();
+    }
+  });
+  document.body.appendChild(backdrop);
+  backdrop.querySelector("input")?.focus();
 }
 
 function renderRanking() {
@@ -7378,7 +7463,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.31");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.33");
 }
 
 function emptyMomentumState() {
@@ -8231,6 +8316,13 @@ function runSoloAITurn() {
     const scenarioPlan = prepareSoloScenarioPlan(playerIndex);
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
       recordSoloAiDecision("end_turn_after_effect");
+      endTurn(playerIndex);
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
+    const resourceClose = soloAdvancedEffectOnlyTurnDecision(playerIndex);
+    if (resourceClose) {
+      recordSoloAiDecision("end_turn_after_effect_resource_strategy", resourceClose);
       endTurn(playerIndex);
       ensureSoloProgress(beforeSignature);
       return;
@@ -9875,6 +9967,38 @@ function executeSoloPlanPath(playerIndex, path) {
 
 function canSoloFinishWithCoup(playerIndex) {
   return Boolean(chooseSoloBoostPlay(playerIndex) || chooseSoloNormalCoup(playerIndex));
+}
+
+function soloAdvancedEffectOnlyTurnDecision(playerIndex) {
+  if (!aiIntelligenceAtLeast("expert") || !state.turnHasEffect[playerIndex] || !canEndTurn(playerIndex) || state.mandatoryPlacement) return null;
+  const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
+  const coups = player.hand
+    .filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card))
+    .map((card) => ({
+      card,
+      cost: effectiveCost(player, card),
+      score: soloPlayableCoupScore(playerIndex, card),
+    }))
+    .sort((a, b) => a.cost - b.cost || b.score - a.score);
+  if (!coups.length) return { reason: "aucun Coup jouable après l’Effet", remainingEndurance: player.endurance };
+  const best = [...coups].sort((a, b) => b.score - a.score)[0];
+  const enduranceAfter = player.endurance - best.cost;
+  const reserve = normalizeAiIntelligence(SOLO_AI.style) === "expert" ? 1 : 2;
+  const powerMargin = player.power - opponent.power;
+  const handAfter = player.hand.length - 1;
+  const preservesTempo = enduranceAfter < reserve && handAfter >= 1;
+  const weakImmediateGain = best.score < 18 && powerMargin >= -1;
+  const legendPreservesLead = normalizeAiIntelligence(SOLO_AI.style) === "legend"
+    && powerMargin > 0 && enduranceAfter <= reserve;
+  if (!preservesTempo && !weakImmediateGain && !legendPreservesLead) return null;
+  return {
+    reason: legendPreservesLead ? "conserver l’avance et l’endurance" : preservesTempo ? "préserver l’endurance pour le prochain tour" : "éviter un Coup peu rentable",
+    remainingEndurance: player.endurance,
+    projectedEnduranceAfterCoup: enduranceAfter,
+    preservedCard: cardLogInfo(best.card),
+    powerMargin,
+  };
 }
 
 function canSoloPassAndWin(playerIndex) {
@@ -11605,6 +11729,54 @@ function applyCharacterEffect(playerIndex, playedCard) {
     const message = drawn > 0 ? `Piochez ${drawn} carte${drawn > 1 ? "s" : ""}.` : "Le deck est vide, aucune carte piochée.";
     state.log.unshift(`${character.name} (${effect.side}) : ${message}`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}. ${message}`);
+    return false;
+  }
+
+  if (effect.type === "drawPrintedPowerForCurrentShot") {
+    const drawnCard = state.deck[0] || null;
+    const drawn = drawCards(player, 1);
+    const printedPower = drawnCard ? Number(drawnCard.power || 0) : 0;
+    if (drawn && printedPower > 0) {
+      player.power += printedPower;
+      playedCard.effectPowerGained += printedPower;
+    }
+    const message = drawn
+      ? `${drawnCard.name} est piochée : +${printedPower} puissance imprimée sur le Coup en cours.`
+      : "Le deck est vide : aucune carte piochée et aucun gain de puissance.";
+    state.log.unshift(`${character.name} (${effect.side}) : ${message}`);
+    setEffectNotice("coach", { name: character.name }, message);
+    return false;
+  }
+
+  if (effect.type === "stealEndurance") {
+    const value = effect.value ?? 1;
+    const opponent = state.players[opponentOf(playerIndex)];
+    const lost = Math.min(value, Math.max(0, Number(opponent.endurance || 0)));
+    opponent.endurance = Math.max(0, opponent.endurance - value);
+    player.endurance += value;
+    state.log.unshift(`${character.name} (${effect.side}) : ${displayPlayerName(opponent)} perd ${lost} endurance et ${displayPlayerName(player)} récupère ${value} endurance.`);
+    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "reducePreviousOpponentPrintedPower") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    const target = [...opponent.played].reverse().find((card) => !card.removed && isShot(card));
+    if (!target) {
+      const message = "Aucun Coup adverse engagé : le pouvoir ne retire aucune puissance.";
+      state.log.unshift(`${character.name} (${effect.side}) : ${message}`);
+      setEffectNotice("coach", { name: character.name }, message);
+      return false;
+    }
+    const printedPower = Number(target.basePowerGained ?? (target.boosted ? target.boostPower : target.power) ?? 0);
+    const retainedPower = Math.min(printedPower, effect.value ?? 1);
+    const removedPower = Math.max(0, printedPower - retainedPower);
+    opponent.power = Math.max(0, opponent.power - removedPower);
+    target.basePowerGained = retainedPower;
+    if (state.latestPlayedCard?.playedUid === target.playedUid) state.latestPlayedCard.basePowerGained = retainedPower;
+    const message = `${target.name} conserve 1 puissance imprimée : ${displayPlayerName(opponent)} perd ${removedPower} puissance. Les bonus du Coup restent acquis.`;
+    state.log.unshift(`${character.name} (${effect.side}) : ${message}`);
+    setEffectNotice("coach", { name: character.name }, message);
     return false;
   }
 
@@ -14346,10 +14518,38 @@ function renderCompactMatchScore(setMatch) {
 }
 
 function renderResultPanel() {
-  // La fin d'échange est désormais entièrement intégrée à la carte
-  // « État de l'échange » afin de ne plus superposer deux résumés.
-  els.resultPanel.innerHTML = "";
-  els.resultPanel.classList.add("hidden");
+  if (!state.gameOver || !state.setMatch.matchOver || state.setMatch.matchWinner == null) {
+    els.resultPanel.innerHTML = "";
+    els.resultPanel.classList.add("hidden");
+    return;
+  }
+  const winner = state.setMatch.matchWinner;
+  const players = state.players.map((player, playerIndex) => {
+    const lobby = PROFILE_CHARACTER_IMAGES[player.characterId] || CHARACTER_IMAGES[player.characterId]?.[0];
+    return {
+      name: displayPlayerName(player),
+      lobby,
+      result: MATCH_RESULT_IMAGES[player.characterId]?.[playerIndex === winner ? "win" : "lose"] || lobby,
+    };
+  });
+  const scores = (state.setMatch.completedScores || []).map((score) => ({
+    score,
+    winner: score[0] > score[1] ? 0 : 1,
+  }));
+  els.resultPanel.classList.remove("hidden");
+  els.resultPanel.innerHTML = `
+    <section class="match-finale-overlay" role="dialog" aria-modal="true" aria-labelledby="matchFinaleTitle">
+      <header><span>Résultat final</span><h2 id="matchFinaleTitle">Match terminé</h2></header>
+      <div class="match-finale-players">
+        ${players.map((player, index) => `<article>
+          <strong>${escapeHtml(player.name)}</strong>
+          <div><img src="${escapeHtml(player.lobby)}" alt="${escapeHtml(player.name)}" /><img class="match-finale-result-image" src="${escapeHtml(player.result)}" alt="${escapeHtml(player.name)}" /></div>
+        </article>`).join("")}
+      </div>
+      <ol>${scores.map((set, index) => `<li style="--reveal-index:${index}" class="winner-${set.winner}"><span>${set.score[0]}</span><i></i><span>${set.score[1]}</span></li>`).join("")}</ol>
+      <nav>${renderProgressionButtons()}</nav>
+    </section>`;
+  bindResultTournamentButton();
 }
 
 function applyEndBonuses() {
@@ -15669,38 +15869,54 @@ function renderCenterPlayedCard() {
 function activeEffectBadges(playerIndex) {
   const player = state.players[playerIndex];
   const badges = [];
+  const sentence = (value) => {
+    const text = String(value || "").trim().replace(/[.\s]+$/, "");
+    return text ? `${text}.` : "";
+  };
+  const withoutDurationSuffix = (value) => String(value || "")
+    .replace(/\s*·\s*\d+\s+échanges?\s*$/i, "")
+    .trim();
   const preferredSourceUid = (sources = []) => {
     const values = (Array.isArray(sources) ? sources : [sources]).map((source) => source?.sourceUid || source).filter(Boolean);
     return values.find((sourceUid) => String(sourceUid).endsWith(":star")) || values[0] || null;
   };
-  if (player.nextPrecisionBonus) badges.push({ text: `Prochain coup: +${player.nextPrecisionBonus} précision`, type: "effect", sourceUid: preferredSourceUid(player.nextPrecisionSources) });
-  if (player.nextPlacementBonus) badges.push({ text: `Prochain coup: +${player.nextPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextPlacementSources) });
-  if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte: +${player.nextAnyPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextAnyPlacementSources) });
-  if (player.nextDiscount) badges.push({ text: `Prochain coup: -${player.nextDiscount} endurance`, type: "effect", sourceUid: preferredSourceUid(player.nextDiscountSources) });
-  if (player.nextExtraCost) badges.push({ text: `Prochain coup: +${player.nextExtraCost} endurance`, type: "effect", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
+  if (player.nextPrecisionBonus) badges.push({ text: `Prochain Coup : +${player.nextPrecisionBonus} précision`, type: "effect", sourceUid: preferredSourceUid(player.nextPrecisionSources) });
+  if (player.nextPlacementBonus) badges.push({ text: `Prochain Coup : +${player.nextPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextPlacementSources) });
+  if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte : +${player.nextAnyPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextAnyPlacementSources) });
+  if (player.nextDiscount) badges.push({ text: `Prochain Coup : coûte ${player.nextDiscount} endurance de moins`, type: "effect", sourceUid: preferredSourceUid(player.nextDiscountSources) });
+  if (player.nextExtraCost) badges.push({ text: `Prochain Coup : coûte ${player.nextExtraCost} endurance de plus`, type: "effect", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
   const rosaPassBonus = Number(state.players[opponentOf(playerIndex)]?.rosaPassPowerBonus || 0);
-  if (rosaPassBonus > 0) badges.push({ text: `Contrainte échange: si vous passez, Rosa gagne +${rosaPassBonus} puissance`, type: "constraint" });
-  if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain coup: puissance x${player.nextPowerMultiplier}`, type: "effect", sourceUid: player.nextPowerMultiplierSourceUid });
-  if (player.exchangePrecisionBonus) badges.push({ text: `Échange: +${player.exchangePrecisionBonus} précision`, type: "effect", sourceUid: preferredSourceUid(player.exchangePrecisionSources) });
-  if (player.exchangePlacementBonus) badges.push({ text: `Échange: +${player.exchangePlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.exchangePlacementSources) });
-  if (player.exchangeFamilyPowerBonuses?.length) badges.push({ text: "Échange: bonus puissance par type", type: "effect", sourceUid: preferredSourceUid(player.exchangeFamilyPowerBonuses) });
-  if (player.exchangeAfterFamilyPlacementBonuses?.length) badges.push({ text: "Échange: bonus placement conditionnel", type: "effect", sourceUid: preferredSourceUid(player.exchangeAfterFamilyPlacementBonuses) });
-  if (player.placementPerOpponentLowPowerCardBonuses?.length) badges.push({ text: "Échange: bonus placement anti-carte faible", type: "effect", sourceUid: preferredSourceUid(player.placementPerOpponentLowPowerCardBonuses) });
-  if (player.protectedFromRemoval) badges.push({ text: "Actif: cartes protégées", type: "effect", sourceUid: player.protectedFromRemovalSourceUid });
-  if (player.cancelNextOpponentEffect) badges.push({ text: "Actif: annule le prochain effet adverse", type: "effect", sourceUid: player.cancelNextOpponentEffectSourceUid });
-  if (player.freeBoostNext) badges.push({ text: "Actif: boost libre", type: "effect", sourceUid: player.freeBoostNextSourceUid });
-  if (state.turnIgnoresPlacement[playerIndex]) badges.push({ text: "Joker: placement ignoré ce tour", type: "effect" });
-  if (player.limitedFamilies) badges.push({ text: `Contrainte tour: ${player.limitedFamilies.join(" / ")}`, type: "constraint", sourceUid: player.limitedFamiliesSourceUid });
-  if (state.activePlayer === playerIndex && state.mandatoryPlacement && state.lastCard) {
-    badges.push({ text: `Contrainte: placement ${state.lastCard.precision}+`, type: "constraint" });
+  if (rosaPassBonus > 0) badges.push({ text: `Pendant l’échange : si vous passez, Rosa gagne +${rosaPassBonus} puissance`, type: "constraint" });
+  if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain Coup : puissance multipliée par ${player.nextPowerMultiplier}`, type: "effect", sourceUid: player.nextPowerMultiplierSourceUid });
+  if (player.exchangePrecisionBonus) badges.push({ text: `Pendant l’échange : +${player.exchangePrecisionBonus} précision sur toutes vos cartes`, type: "effect", sourceUid: preferredSourceUid(player.exchangePrecisionSources) });
+  if (player.exchangePlacementBonus) badges.push({ text: `Pendant l’échange : +${player.exchangePlacementBonus} placement sur toutes vos cartes`, type: "effect", sourceUid: preferredSourceUid(player.exchangePlacementSources) });
+  for (const bonus of player.exchangeFamilyPowerBonuses || []) {
+    const families = bonus.families?.length
+      ? bonus.families.join(", ")
+      : `tous vos Coups sauf ${bonus.excludedFamilies?.join(", ") || "les familles exclues"}`;
+    badges.push({ text: `Pendant l’échange : +${bonus.value} puissance sur ${families}`, type: "effect", sourceUid: bonus.sourceUid });
   }
-  if (state.boostAvailableFor === playerIndex) badges.push({ text: "Actif: boost possible", type: "effect" });
+  for (const bonus of player.exchangeAfterFamilyPlacementBonuses || []) {
+    badges.push({ text: `Pendant l’échange : +${bonus.value} placement sur chaque Coup joué après un ${bonus.afterFamily}`, type: "effect", sourceUid: bonus.sourceUid });
+  }
+  for (const bonus of player.placementPerOpponentLowPowerCardBonuses || []) {
+    badges.push({ text: `Pendant l’échange : +${bonus.value} placement par carte adverse de puissance inférieure à ${bonus.threshold}`, type: "effect", sourceUid: bonus.sourceUid });
+  }
+  if (player.protectedFromRemoval) badges.push({ text: "Pendant l’échange : vos cartes ne peuvent pas être supprimées", type: "effect", sourceUid: player.protectedFromRemovalSourceUid });
+  if (player.cancelNextOpponentEffect) badges.push({ text: "Prochain Effet adverse : annulé", type: "effect", sourceUid: player.cancelNextOpponentEffectSourceUid });
+  if (player.freeBoostNext) badges.push({ text: "Prochain BOOST : disponible sans condition de placement", type: "effect", sourceUid: player.freeBoostNextSourceUid });
+  if (state.turnIgnoresPlacement[playerIndex]) badges.push({ text: "Ce tour : la contrainte de placement est ignorée", type: "effect" });
+  if (player.limitedFamilies) badges.push({ text: `Ce tour : seules les cartes ${player.limitedFamilies.join(" / ")} peuvent être jouées`, type: "constraint", sourceUid: player.limitedFamiliesSourceUid });
+  if (state.activePlayer === playerIndex && state.mandatoryPlacement && state.lastCard) {
+    badges.push({ text: `Ce tour : placement minimum requis ${state.lastCard.precision}`, type: "constraint" });
+  }
+  if (state.boostAvailableFor === playerIndex) badges.push({ text: "Ce tour : BOOST disponible", type: "effect" });
   if (hasReturnServiceRestriction(playerIndex)) {
-    badges.push({ text: "Retour: pas Volée/Smash", type: "constraint" });
+    badges.push({ text: "Retour de service : Volée et Smash interdits", type: "constraint" });
   }
   for (const bonus of player.endBonuses) {
-    if (bonus.type === "doubleLastShot") badges.push({ text: "Fin échange: Double", type: "effect", sourceUid: bonus.sourceUid });
-    if (bonus.type === "boostedBonus") badges.push({ text: `Fin échange: +${bonus.value}/boost`, type: "effect", sourceUid: bonus.sourceUid });
+    if (bonus.type === "doubleLastShot") badges.push({ text: "Fin de l’échange : double la puissance de votre dernière carte Coup", type: "effect", sourceUid: bonus.sourceUid });
+    if (bonus.type === "boostedBonus") badges.push({ text: `Fin de l’échange : +${bonus.value} puissance par carte jouée en BOOST`, type: "effect", sourceUid: bonus.sourceUid });
   }
   const persistentBonuses = [
     ...(player.surfaceBonuses || (player.surfaceBonus ? [player.surfaceBonus] : [])),
@@ -15715,10 +15931,14 @@ function activeEffectBadges(playerIndex) {
     const duration = bonus?.remainingExchanges
       ? `${bonus.remainingExchanges} échange${bonus.remainingExchanges > 1 ? "s" : ""}`
       : (player.temporaryBonuses || []).includes(bonus) ? "Provisoire" : "Match";
+    const displayedLabel = withoutDurationSuffix(bonus.label || bonus.reason || "Bonus actif");
     badges.push({
-      text: `${duration}: ${bonus.label || bonus.reason || "Bonus actif"}`,
+      text: `${duration} : ${displayedLabel}`,
       type: "effect",
-      description: bonus.reason || bonus.description || bonus.effect || "",
+      description: [
+        sentence(displayedLabel),
+        bonus.reason && !displayedLabel.includes(bonus.reason) ? `Origine : ${sentence(bonus.reason)}` : "",
+      ].filter(Boolean).join(" "),
     });
   }
   return badges.map((badge) => {
@@ -15735,7 +15955,7 @@ function activeEffectBadges(playerIndex) {
       label: starBonus ? `Bonus étoile · ${label}` : label,
       duration: starBonus ? "Bonus étoile" : duration,
       icon: badge.type === "constraint" ? "!" : "✦",
-      description: badge.description || `${starLabel ? `${starLabel}. ` : ""}${badge.text}. Cet état est appliqué tant que la carte est visible.`,
+      description: badge.description || `${starLabel ? `${sentence(starLabel)} ` : ""}${sentence(badge.text)}`,
     };
   });
 }

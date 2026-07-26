@@ -2822,6 +2822,39 @@ h1 {
   box-shadow: 0 10px 24px rgba(9, 71, 74, 0.08);
 }
 
+.match-finale-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 690;
+  display: grid;
+  align-content: center;
+  gap: clamp(16px, 3vh, 30px);
+  padding: clamp(24px, 5vw, 72px);
+  overflow: auto;
+  color: #fff;
+  background: linear-gradient(160deg, #062b3d 0%, #0a4153 100%);
+}
+.match-finale-overlay > header { text-align: center; }
+.match-finale-overlay > header span { letter-spacing: .16em; text-transform: uppercase; opacity: .72; }
+.match-finale-overlay > header h2 { margin: 6px 0 0; font-size: clamp(2rem, 4vw, 4rem); }
+.match-finale-players { display: grid; grid-template-columns: repeat(2, minmax(0, 280px)); justify-content: center; gap: clamp(16px, 5vw, 70px); }
+.match-finale-players article { display: grid; gap: 10px; text-align: center; }
+.match-finale-players article > strong { font-size: clamp(1rem, 2vw, 1.4rem); }
+.match-finale-players article > div { position: relative; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 22px; }
+.match-finale-players img { width: 100%; height: 100%; object-fit: cover; }
+.match-finale-result-image { position: absolute; inset: 0; opacity: 0; animation: match-finale-result 300ms ease-out 2s forwards; }
+.match-finale-overlay > ol { display: flex; justify-content: center; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.match-finale-overlay > ol li { display: grid; grid-template-columns: auto 8px auto; align-items: center; gap: 8px; min-width: 72px; padding: 8px 12px; border-radius: 999px; font-weight: 800; opacity: 0; transform: translateY(8px); animation: match-finale-set 220ms ease-out calc(var(--reveal-index) * 400ms) forwards; }
+.match-finale-overlay > ol li i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .6; }
+.match-finale-overlay > ol li.winner-0 { background: var(--player-one-color, #72e0bd); color: #062b3d; }
+.match-finale-overlay > ol li.winner-1 { background: var(--player-two-color, #f2a177); color: #062b3d; }
+.match-finale-overlay > nav { display: flex; justify-content: center; opacity: 0; animation: match-finale-set 250ms ease-out 2.3s forwards; }
+@keyframes match-finale-set { to { opacity: 1; transform: none; } }
+@keyframes match-finale-result { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .match-finale-result-image, .match-finale-overlay > ol li, .match-finale-overlay > nav { animation: none; opacity: 1; transform: none; }
+}
+
 .result-panel {
   margin-bottom: 12px;
   border-color: rgba(15, 141, 104, 0.28);

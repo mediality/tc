@@ -37,12 +37,19 @@ const HISTORIC_CHARACTER_IDS = [
 const NEW_CHARACTER_IDS = [
   "jonasFalkenried", "yunaSeo", "ikerSalvat", "loganBrooks", "kavyaSaran", "zariaCampbell",
   "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen", "rosaBenavente",
+  "johnnyKowalski", "sakubaraGeki",
 ];
 const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
 const PRO_REWARD_CHARACTER_IDS = ["milanVerhaegen", "rosaBenavente"];
 const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
 const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
 const GAME_NEWS = [
+  {
+    id: "v333-kowalski-sakubara-circuit", publishedAt: "2026-07-26", availableAt: "2026-07-26T10:00:00+02:00",
+    title: "Johnny Kowalski et Sakubara Geki entrent sur le Circuit Pro", characterId: "johnnyKowalski",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Le Circuit Pro accueille deux nouveaux adversaires : Johnny Kowalski et Sakubara Geki. Ils participent désormais aux tirages des tournois et intégreront le RankIA lors de la prochaine mise à jour hebdomadaire. Préparez-vous à affronter leurs nouveaux pouvoirs étoile, entre gestion de l’endurance, pioche offensive et réduction de puissance.",
+  },
   {
     id: "v16929-prestige-ultimate-league",
     publishedAt: "2026-07-23",
@@ -96,6 +103,8 @@ const AI_CHARACTER_NAMES = {
   lukasEberhardt: "Lukas Eberhardt",
   milanVerhaegen: "Milan Verhaegen",
   rosaBenavente: "Rosa Benavente",
+  johnnyKowalski: "Johnny Kowalski",
+  sakubaraGeki: "Sakubara Geki",
 };
 const AI_SURFACE_PREFERENCES = {
   theoBriancourt: "clay",
@@ -120,11 +129,13 @@ const AI_SURFACE_PREFERENCES = {
   lukasEberhardt: "hard",
   milanVerhaegen: "clay",
   rosaBenavente: "clay",
+  johnnyKowalski: "clay",
+  sakubaraGeki: "grass",
 };
 const TOURNAMENT_SEED_CANDIDATES = {
-  grass: ["kojiIwata", "elianaMarquez", "calvinBrentwood"],
+  grass: ["kojiIwata", "elianaMarquez", "calvinBrentwood", "sakubaraGeki"],
   hard: ["petraEckermann", "bryanGoodwin", "alessandraConti", "kjellBlomqvist"],
-  clay: ["saharaJackson", "javierRamirez", "theoBriancourt"],
+  clay: ["saharaJackson", "javierRamirez", "theoBriancourt", "johnnyKowalski"],
 };
 const SURFACES = ["grass", "hard", "clay"];
 const SURFACE_LABELS = { grass: "HERBE", hard: "DUR", clay: "TERRE-BATTUE" };
@@ -755,7 +766,7 @@ function simulatedAiTournamentPoints(competition, season, week, bonusTopIds = []
 function simulatedAiLeaguePoints(competition, season, week, bonusTopIds = [], simulationNonce = "", rankingOrder = []) {
   const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[800];
   const totalAwards = new Map(CIRCUIT_AI_CHARACTER_IDS.map((id) => [id, 0]));
-  const rankBands = [[1, 8], [9, 16], [15, 22]];
+  const rankBands = [[1, 8], [9, 16], [17, 24]];
   const ranked = rankingOrder.length ? rankingOrder : CIRCUIT_AI_CHARACTER_IDS;
   const add = (id, points) => totalAwards.set(id, (totalAwards.get(id) || 0) + Math.max(0, Number(points || 0)));
   const playMatch = (playerA, playerB, label) => {
@@ -829,13 +840,15 @@ async function topAiIdsForReference(season, week, limit = 8) {
     .map((entry) => entry.characterId);
 }
 
-function maxWeeklyTournamentPoints(week) {
-  return COMPETITION_DEFINITIONS
+function maxWeeklyTournamentPoints(week, randomSeed = `week:${week}`) {
+  const winnersTotal = COMPETITION_DEFINITIONS
     .filter((competition) => competition.week === week)
     .reduce((sum, competition) => {
       const table = competition.points || POINT_TABLES[competition.value] || POINT_TABLES[400];
       return sum + Number(table.winner || 0);
-    }, 750);
+    }, 0);
+  const randomMargin = 400 + Math.floor(seededRandom(`pointmax:${randomSeed}`) * 351);
+  return winnersTotal + randomMargin;
 }
 
 function aiHumanWinBonusCap(basePoints, weeklyPotential) {
@@ -951,7 +964,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
       });
     });
   }
-  const pointMax = maxWeeklyTournamentPoints(week);
+  const pointMax = maxWeeklyTournamentPoints(week, `${season}:${week}`);
   const adjustedTotals = applyAiWeeklyPerformanceCoefficients(totals, standings, pointMax);
   if (db) {
     for (const [characterId, points] of adjustedTotals) {
@@ -3055,6 +3068,37 @@ async function handleAuth(req, res, url) {
         .reduce((sum, weekNumber) => sum + (authMemory.circuitWeekScores.get(`${user.id}:${current.season}:${weekNumber}`) || 0), 0),
     }));
     sendJson(res, 200, { users: users.map(adminPublicUser), page, pageSize, total: allUsers.length, totalPages: Math.max(1, Math.ceil(allUsers.length / pageSize)) });
+    return true;
+  }
+
+  const adminAiPointsMatch = url.pathname.match(/^\/api\/admin\/ai-players\/([^/]+)\/points$/);
+  if (req.method === "POST" && adminAiPointsMatch) {
+    if (!await requireAdmin(req, res)) return true;
+    const characterId = decodeURIComponent(adminAiPointsMatch[1]);
+    if (!CIRCUIT_AI_CHARACTER_IDS.includes(characterId)) {
+      sendJson(res, 404, { error: "Joueur IA introuvable." });
+      return true;
+    }
+    const payload = await readJson(req);
+    const points = Math.round(Number(payload.points));
+    if (!Number.isFinite(points) || points < 0 || points > 100000) {
+      sendJson(res, 400, { error: "Les points doivent être un entier compris entre 0 et 100000." });
+      return true;
+    }
+    const current = await circuitState();
+    if (db) {
+      await db.query(`
+        INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points, human_win_bonus)
+        VALUES ($1, $2, $3, $4, 0)
+        ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
+          SET points = EXCLUDED.points, human_win_bonus = 0, updated_at = NOW()
+      `, [characterId, current.season, current.week, points]);
+    } else {
+      const key = `${current.season}:${current.week}:${characterId}`;
+      authMemory.circuitAiWeekScores.set(key, points);
+      authMemory.circuitAiHumanBonuses.set(key, 0);
+    }
+    sendJson(res, 200, { characterId, points, season: current.season, week: current.week });
     return true;
   }
 

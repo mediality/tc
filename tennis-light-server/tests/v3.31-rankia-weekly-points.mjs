@@ -17,7 +17,7 @@ function sourceOf(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-const aiIds = Array.from({ length: 21 }, (_, index) => `ai${index + 1}`);
+const aiIds = Array.from({ length: 24 }, (_, index) => `ai${index + 1}`);
 const coefficientContext = {
   CIRCUIT_AI_CHARACTER_IDS: aiIds,
   aiCharacterName: (id) => id,
@@ -62,12 +62,13 @@ const pointMaxContext = {
     { week: 5, points: { winner: 2000 } },
   ],
   POINT_TABLES: {},
+  seededRandom: () => 0,
 };
 vm.runInNewContext(`
   ${sourceOf(server, "maxWeeklyTournamentPoints")}
   pointMax = maxWeeklyTournamentPoints(4);
 `, pointMaxContext);
-assert.equal(pointMaxContext.pointMax, 5450);
+assert.equal(pointMaxContext.pointMax, 5100);
 
 const performanceSource = sourceOf(server, "simulatedAiMatchPerformancePoints");
 assert.match(performanceSource, /5 \+ Math\.abs\(score\[0\] - score\[1\]\)/);
@@ -79,4 +80,5 @@ assert.match(simulationSource, /runNonce = `\$\{simulationNonce\}:run:\$\{simula
 assert.match(simulationSource, /simulatedAiLeaguePoints/);
 assert.match(simulationSource, /simulatedAiTournamentPoints/);
 
-console.log("v3.31 RankIA : double simulation, points de match, coefficients et PointMAX : OK");
+assert.match(sourceOf(server, "simulatedAiLeaguePoints"), /\[\[1, 8\], \[9, 16\], \[17, 24\]\]/);
+console.log("v3.33 RankIA : 24 IA, trois Leagues, coefficients et PointMAX variable : OK");

@@ -83,8 +83,9 @@ assert.deepEqual(JSON.parse(JSON.stringify(stakeContext.result)), [
 ]);
 
 assert.match(functionSource(app, "activeEffectBadges"), /Bonus étoile/);
-assert.match(functionSource(app, "activeEffectBadges"), /tant que la carte est visible/);
-assert.doesNotMatch(functionSource(app, "activeEffectBadges"), /tant que son indicateur reste visible/);
+assert.doesNotMatch(functionSource(app, "activeEffectBadges"), /tant que la carte est visible/);
+assert.match(functionSource(app, "activeEffectBadges"), /Pendant l’échange/);
+assert.match(functionSource(app, "activeEffectBadges"), /Fin de l’échange/);
 
 const leaveWaiting = functionSource(server, "leaveWaitingFriendlyParticipant");
 assert.match(leaveWaiting, /transferFriendlyTournamentCreator/);
