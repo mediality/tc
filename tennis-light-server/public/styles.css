@@ -3878,6 +3878,8 @@ h1 {
 .championship-lobby-content .league-standings { border-color: rgba(87,108,121,.2); color: #17212b; background: rgba(255,255,255,.92); }
 .championship-lobby-content .league-standings .tournament-round-label { color: #293b49; font-size: .88rem; font-weight: 800; text-transform: none; }
 .championship-lobby-content .league-standings-head { color: #71818b; font-size: .62rem; font-weight: 800; }
+.one-point-master-standings .league-standings-head,
+.one-point-master-standings .league-standings-row { grid-template-columns: 42px minmax(130px, 1fr) repeat(4, minmax(54px, auto)); }
 .championship-lobby-content .league-standings-row { min-height: 31px; border-top: 1px solid rgba(87,108,121,.14); border-left: 3px solid transparent; border-radius: 0; padding-block: 5px; color: #5c6d78; background: transparent; font-size: .76rem; font-weight: 750; }
 .championship-lobby-content .league-standings-row strong,
 .championship-lobby-content .league-standings-row .tournament-player-identity { color: #293945; font-weight: 800; }
