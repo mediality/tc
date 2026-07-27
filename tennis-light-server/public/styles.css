@@ -6405,6 +6405,10 @@ h1 {
   background: radial-gradient(circle at 50% 0, rgba(36, 142, 184, 0.23), transparent 36%), #082a3e;
 }
 
+.ai-club-house-screen {
+  background: transparent;
+}
+
 .mode-clubhouse-topbar {
   min-height: 64px;
   margin-bottom: 12px;

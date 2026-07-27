@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.61";
+const GAME_VERSION = "v3.62";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -4248,6 +4248,7 @@ function showAiClubHouseScreen() {
   hideLobbySectionScreen();
   hideStandaloneScreens();
   els.aiClubHouseScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
   renderAiClubHouse();
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -4260,7 +4261,7 @@ function showChampionshipLobbyScreen() {
   els.championshipLobbyScreen?.classList.remove("hidden");
   const lobbyTitle = document.querySelector("#championshipLobbyTitle");
   const lobbySubtitle = document.querySelector("#championshipLobbySubtitle");
-  if (lobbyTitle) lobbyTitle.textContent = state.tournament?.onePointMaster ? "One Point Master" : "Championnat";
+  if (lobbyTitle) lobbyTitle.textContent = state.tournament?.onePointMaster ? "1 Point Master" : "Championnat";
   if (lobbySubtitle) lobbySubtitle.textContent = state.tournament?.onePointMaster
     ? "24 joueurs · 4 groupes de 6 · barrages · tableau final"
     : "24 joueurs · deux phases de groupes · barrages · tableau final";
@@ -4304,6 +4305,7 @@ function showMenuScreen() {
   applySurfaceBackground(null);
   renderAuthState();
   updateMenuSelection();
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function showProfileScreen(userId = null) {
@@ -5157,7 +5159,7 @@ function renderAiClubHouse() {
     els.aiBonusDescription.textContent = AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
   }
   if (els.aiClubHouseSummary) {
-    const format = AI_CLUB_HOUSE.format === "onepointmaster" ? "One Point Master" : AI_CLUB_HOUSE.format === "championship" ? "Championnat" : AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "onepoint" ? "1 Point Game" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
+    const format = AI_CLUB_HOUSE.format === "onepointmaster" ? "1 Point Master" : AI_CLUB_HOUSE.format === "championship" ? "Championnat" : AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "onepoint" ? "1 Point Game" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
     const bonusText = `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
@@ -5173,7 +5175,7 @@ function renderAiClubHouse() {
     if (els.aiClubHouseSummaryTitle) els.aiClubHouseSummaryTitle.textContent = format;
   }
   if (els.startAiClubHouseButton) {
-    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "onepointmaster" ? "Lancer le One Point Master" : AI_CLUB_HOUSE.format === "onepoint" ? "Lancer le 1 Point Game" : AI_CLUB_HOUSE.format === "championship" ? "Lancer le Championnat" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
+    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "onepointmaster" ? "Lancer le 1 Point Master" : AI_CLUB_HOUSE.format === "onepoint" ? "Lancer le 1 Point Game" : AI_CLUB_HOUSE.format === "championship" ? "Lancer le Championnat" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
   }
   els.aiClubHouseAccessNote?.classList.toggle("hidden", proAccess);
   els.aiClubHouseSaveActions?.classList.toggle("hidden", !proAccess || !readAiClubHouseSave());
@@ -7614,7 +7616,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.61");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.62");
 }
 
 function emptyMomentumState() {
@@ -13316,7 +13318,7 @@ function startOnePointMasterMode(options = {}) {
     bonusLevel: "reward",
     playerSelection: options.players || "random",
     distribution,
-    competitionName: "One Point Master",
+    competitionName: "1 Point Master",
     targetSets: 1,
     humanCharacterId,
     humanNickname: nicknameValue(),
@@ -13342,7 +13344,7 @@ function startOnePointMasterMode(options = {}) {
   TOURNAMENT_PANEL_UI.visible = true;
   CHAMPIONSHIP_LOBBY_UI.openZone = 1;
   CHAMPIONSHIP_LOBBY_UI.currentPhase = 1;
-  state.log.unshift(`One Point Master · 1 humain et 23 IA · répartition ${distribution === "ranking" ? "avec têtes de série" : "aléatoire"}.`);
+  state.log.unshift(`1 Point Master · 1 humain et 23 IA · répartition ${distribution === "ranking" ? "avec têtes de série" : "aléatoire"}.`);
   render();
 }
 

@@ -1,9 +1,10 @@
 {
   "name": "tennis-courts-light-server",
-  "version": "3.61.0",
+  "version": "3.62.0",
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
+    "test:v3.62": "node tests/v3.62-one-point-master-navigation.mjs",
     "test:v3.56": "node tests/v3.56-one-point-rewards.mjs",
     "test:v3.57": "node tests/v3.57-ai-certain-win.mjs",
     "test:v3.58": "node tests/v3.58-one-point-finale.mjs",

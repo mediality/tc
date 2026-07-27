@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=3.61.0" />
+    <link rel="stylesheet" href="./styles.css?v=3.62.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=3.61.0" />
   </head>
   <body>
@@ -127,7 +127,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v3.61</span></strong>
+          <strong>Tennis Courts Academy · <span>v3.62</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -605,32 +605,35 @@
             <img src="./assets/infos-competition.jpg" alt="Joueurs célébrant un trophée du Mode Solo" />
             <div class="content-page-hero-copy">
               <p class="label">Club House Solo</p>
-              <h1>Les cinq modes de jeu du Mode Solo</h1>
+              <h1>Les six modes de jeu du Mode Solo</h1>
               <p>Du simple match d’entraînement au championnat de longue durée, choisissez l’expérience qui correspond à votre envie du moment.</p>
             </div>
           </header>
 
           <section class="solo-info-introduction">
             <p class="label">Introduction</p>
-            <h2>Cinq formats, cinq façons de relever le défi</h2>
-            <p>Le Mode Solo propose cinq formats de jeu, allant du simple match d’entraînement au championnat de longue durée.</p>
+            <h2>Six formats, six façons de relever le défi</h2>
+            <p>Le Mode Solo propose six formats de jeu, allant du simple match d’entraînement au championnat de longue durée.</p>
             <p>Chaque mode possède son propre rythme, son organisation et ses enjeux. Le niveau des adversaires peut être personnalisé afin d’adapter l’expérience à tous les profils : découverte du jeu, entraînement tactique ou recherche d’un véritable défi.</p>
             <p>Les compétitions du Club House Solo sont indépendantes du Circuit Pro : leurs résultats n’ont aucune incidence sur les points ou le classement de celui-ci.</p>
-            <div class="solo-match-intro">
-              <img src="./assets/icons/MATCH.svg" alt="" aria-hidden="true" />
-              <div>
-                <h3>Match Solo</h3>
+          </section>
+
+          <section class="solo-competition-accordions" aria-label="Les six modes du Mode Solo">
+            <details class="solo-competition-accordion">
+              <summary>
+                <img src="./assets/icons/MATCH.svg" alt="" aria-hidden="true" />
+                <span><strong>Match Solo</strong></span>
+                <i aria-hidden="true"></i>
+              </summary>
+              <div class="solo-competition-content">
                 <p>Le Match Solo est le format le plus simple et le plus immédiat. Il permet de rencontrer un coach de l’Académie, sans participer à un tournoi, une phase de groupes ou une compétition complète. Le joueur choisit une rencontre en deux ou trois sets gagnants et personnalise le niveau du coach.</p>
                 <p>Accessible à tous, ce mode permet de tester un personnage, essayer des combinaisons de cartes, apprendre à gérer l’endurance, s’entraîner face aux Boosts et aux effets, ou préparer rapidement une stratégie.</p>
               </div>
-            </div>
-          </section>
-
-          <section class="solo-competition-accordions" aria-label="Les quatre compétitions du Mode Solo">
+            </details>
             <details class="solo-competition-accordion">
               <summary>
                 <img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
-                <span><small>Compétition 1</small><strong>Tournoi Classic</strong></span>
+                <span><strong>Tournoi Classic</strong></span>
                 <i aria-hidden="true"></i>
               </summary>
               <div class="solo-competition-content">
@@ -650,7 +653,7 @@
             <details class="solo-competition-accordion">
               <summary>
                 <img src="./assets/icons/LEAGUE.svg" alt="" aria-hidden="true" />
-                <span><small>Compétition 2</small><strong>League</strong></span>
+                <span><strong>League</strong></span>
                 <i aria-hidden="true"></i>
               </summary>
               <div class="solo-competition-content">
@@ -671,7 +674,7 @@
             <details class="solo-competition-accordion">
               <summary>
                 <img src="./assets/icons/CHAMPIONSHIP.svg" alt="" aria-hidden="true" />
-                <span><small>Compétition 3</small><strong>Championnat</strong></span>
+                <span><strong>Championnat</strong></span>
                 <i aria-hidden="true"></i>
               </summary>
               <div class="solo-competition-content">
@@ -690,7 +693,7 @@
             <details class="solo-competition-accordion">
               <summary>
                 <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
-                <span><small>Compétition 4</small><strong>1 Point Game</strong></span>
+                <span><strong>1 Point Game</strong></span>
                 <i aria-hidden="true"></i>
               </summary>
               <div class="solo-competition-content">
@@ -705,6 +708,31 @@
                 <h3>Mode Récompense</h3>
                 <p>Activé par défaut, il accorde deux récompenses après une victoire 3–0, une récompense après une victoire 2–0 et aucune après une victoire 2–1. Ces avantages peuvent améliorer la puissance, la précision ou le placement pour la rencontre suivante.</p>
                 <p>Rapide, spectaculaire et particulièrement tendu, le 1 Point Game ne laisse aucune place à l’erreur : une seule décision peut prolonger le parcours ou y mettre immédiatement fin.</p>
+              </div>
+            </details>
+
+            <details class="solo-competition-accordion">
+              <summary>
+                <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
+                <span><strong>1 Point Master</strong></span>
+                <i aria-hidden="true"></i>
+              </summary>
+              <div class="solo-competition-content">
+                <p>1 joueur humain + 23 adversaire IA</p>
+                <p>Créer 4 groupe de 6 joueurs.</p>
+                <p>Si têtes de série : tirer au sort les 4 têtes de série parmi les 4 meilleurs au classement mondial<br>puis 4 autres tetes de série de 5 à 8, parmi les 4 suivants au classement mondial.<br>Indiquer un (1) à (8) en fonction de leur désignation.<br>Répartir dans chaque groupe 1 tete de série entre 1 et 4 (A) et 1 tete de série entre 5 et 8. (B)<br>Répartir ensuite les 16 autres places, groupe par groupe pour les joueurs restants. (C-D-E-F)</p>
+                <p>Si aléatoire, répartir les 24 au hasard.</p>
+                <p>Chaque joueur va affronter les 5 autres de son groupe comme ceci :<br>Journée 1 : A-F / B-E / C-D<br>Journée 2 : A-E / B-C / D-F<br>Journée 3 : A-D / B-F / C-E<br>Journée 4 : A-B / E-D / C-F<br>Journée 5 : A-C / B-D / E-F</p>
+                <p>Etablir un classement en comptabilisant :<br>Le nombre de victoires, la différence points gagnés/perdus, le nombre de victoire Boost 3-0, le nombre de victoire 2-0</p>
+                <p>Le classement tient compte du nombre de points (1 victoire = 1 point), de la différence de score (points gagnés-points perdus) puis des victoires sur boost (1 victoire sur boost = 1 point), et victoire 2-0 (1 victoire effet = 1 point)</p>
+                <p>Départager les joueurs comme suit :<br>1 Classement par points<br>2 Différence gagnés/perdu<br>3 Classement par boost<br>4 Classement par 2-0</p>
+                <p>Indiquer les intitulés dans le classement : Points / Différence / Boost / 2-0</p>
+                <p>A l'issue de cette phrase les qualifiés sont :<br>Les 1er de chaque groupe accèdent aux quarts de finale<br>Les 2e et 3e passent par un match de barrages<br>Les 4e, 5e et 6e sont éliminés</p>
+                <p>Barrages :<br>Le 2e du groupe 1 contre le 3e du groupe 2<br>Le 2e du groupe 2 contre le 3e du groupe 3<br>Le 2e du groupe 3 contre le 3e du groupe 4<br>Le 2e du groupe 4 contre le 3e du groupe 1</p>
+                <p>Les vainqueur rejoignent les quarts de finale</p>
+                <p>Tour final :<br>Les 4 vainqueurs de groupes sont tirés aléatoirement en match 1,2,3 ou 4<br>Les vainqueurs des barrages sont tirés aléatoirement en match 1,2,3 ou 4 et affronteront un vainqueur de groupe.<br>Ensuite tournoi à élimination directe des quarts de finale à la victoire.</p>
+                <p>Possibilité de rejoindre le salon/club-house lors de l'animation finale de match, pour consulter les scores, simuler les matchs si nécessaire et faire les tirages au sort.</p>
+                <p>Reprednre l'animation finale de match du one point game.</p>
               </div>
             </details>
           </section>
@@ -829,7 +857,7 @@
               </button>
               <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="onepointmaster" data-pro-format>
                 <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
-                <span><small>Joueurs Pro · 24 joueurs</small><strong>One Point Master</strong><em>Groupes, barrages et phase finale en un point.</em></span>
+                <span><small>Joueurs Pro · 24 joueurs</small><strong>1 Point Master</strong><em>Groupes, barrages et phase finale en un point.</em></span>
               </button>
             </div>
           </section>
@@ -1017,7 +1045,7 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.61.0"></script>
-    <script src="./app.js?v=3.61.0"></script>
+    <script src="./app.js?v=3.62.0"></script>
     <script src="./mobile-game.js?v=3.61.0"></script>
   </body>
 </html>
