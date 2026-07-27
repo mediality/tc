@@ -25,5 +25,12 @@ assert.match(app, /friendlyFormat === "onepoint"/);
 assert.match(server, /\["match", "classic", "league", "onepoint"\]/);
 assert.match(server, /tournament\.format === "onepoint" \? 1/);
 assert.match(server, /function friendlyHumanWinnerFromState[\s\S]*tournament\.format === "onepoint"/);
+assert.match(app, /function onePointResultPerformance[\s\S]*winnerScore\) === 3[\s\S]*return 3[\s\S]*return 2[\s\S]*return 1/);
+assert.match(app, /onePointRewards\?\.\[tournamentEntry\]/);
+assert.match(app, /state\.tournament\.active && playerIndex === 0[\s\S]*humanTournamentEntry\(\)/);
+assert.match(app, /state\.tournament\.onePointRewards\[winnerEntry\]/);
+assert.match(server, /function recordFriendlyOnePointResults/);
+assert.match(server, /previousWinScores:\s*tournament\.previousWinScores/);
+assert.match(server, /rewardCounts:\s*tournament\.rewardCounts/);
 
-console.log("v3.56 : résumé compétition, accès Pro et 1 Point Game en ligne : OK");
+console.log("v3.56 : récompenses humaines et priorité de service Solo/En ligne : OK");

@@ -21,7 +21,7 @@ function functionSource(name) {
 }
 
 assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.55/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.56/);
 
 const intelligenceSource = functionSource("drawLevelSixAiIntelligence");
 const intelligence = (rankIa, random) => {

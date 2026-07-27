@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.55";
+const GAME_VERSION = "v3.56";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.55";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.56";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -5791,6 +5791,15 @@ function showFriendlyOpponentDisconnectDialog(match, opponent) {
   FRIENDLY_TOURNAMENT.opponentDisconnectTimer = window.setInterval(updateCountdown, 250);
 }
 
+function friendlyOnePointRewardsFromCounts(rewardCounts = {}) {
+  const existing = state.tournament?.onePointRewards || {};
+  return Object.fromEntries(Object.entries(rewardCounts).map(([entry, rawCount]) => {
+    const count = Math.max(0, Math.min(2, Number(rawCount || 0)));
+    const current = Array.isArray(existing[entry]) ? existing[entry] : [];
+    return [entry, current.length === count ? cloneData(current) : shuffle(onePointRewardBonusPool()).slice(0, count)];
+  }));
+}
+
 function applyFriendlyTournamentState(payload, currentMatch = null) {
   if (!payload) return;
   if (SPECTATOR_MODE.enabled) {
@@ -5865,6 +5874,8 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     currentMatch: FRIENDLY_TOURNAMENT.inMatch ? state.tournament?.currentMatch ?? null : null,
     nextHumanMatchId: null,
     championCharacterId: payload.champion,
+    previousWinScores: payload.previousWinScores || {},
+    onePointRewards: friendlyOnePointRewardsFromCounts(payload.rewardCounts || {}),
     friendlyEntries: payload.entries || [],
     friendlyParticipants: payload.participants || [],
     matches,
@@ -7551,7 +7562,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.55");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.56");
 }
 
 function emptyMomentumState() {
@@ -7619,7 +7630,7 @@ function newGame(options = {}) {
   }
   state.players.forEach((player, playerIndex) => {
     const tournamentEntry = state.tournament.active && playerIndex === 0
-      ? HUMAN_TOURNAMENT_ENTRY
+      ? humanTournamentEntry()
       : player.characterId;
     const humanInProCircuit = state.tournament.active
       && state.tournament.difficulty === "circuit"
@@ -7627,7 +7638,12 @@ function newGame(options = {}) {
     const assignedSurfaceBonuses = state.tournament.active && !humanInProCircuit && state.tournament.surfaceBonuses
       ? state.tournament.surfaceBonuses[tournamentEntry] ?? null
       : null;
-    player.surfaceBonuses = Array.isArray(assignedSurfaceBonuses)
+    const earnedOnePointRewards = state.tournament.active && state.tournament.onePointGame
+      ? cloneData(state.tournament.onePointRewards?.[tournamentEntry] || [])
+      : [];
+    player.surfaceBonuses = earnedOnePointRewards.length
+      ? earnedOnePointRewards
+      : Array.isArray(assignedSurfaceBonuses)
       ? cloneData(assignedSurfaceBonuses)
       : assignedSurfaceBonuses
         ? [cloneData(assignedSurfaceBonuses)]
@@ -13566,6 +13582,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     dynamicBonusIds,
     matches: [],
     previousWinScores: {},
+    onePointRewards: {},
   };
   state.tournament.matches = buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets);
   refreshTournamentDerivedSlots();
@@ -14200,13 +14217,22 @@ function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tourname
 function applyOnePointTournamentReward(winnerEntry, winnerScore, loserScore) {
   if (!state.tournament?.onePointGame || !winnerEntry) return;
   state.tournament.previousWinScores ||= {};
-  state.tournament.previousWinScores[winnerEntry] = Number(winnerScore || 0);
+  state.tournament.previousWinScores[winnerEntry] = onePointResultPerformance(winnerScore, loserScore);
   if (state.tournament.bonusLevel !== "reward") return;
   const rewardCount = winnerScore === 3 && loserScore === 0 ? 2 : winnerScore === 2 && loserScore === 0 ? 1 : 0;
-  state.tournament.surfaceBonuses ||= {};
-  state.tournament.surfaceBonuses[winnerEntry] = rewardCount
+  state.tournament.onePointRewards ||= {};
+  state.tournament.onePointRewards[winnerEntry] = rewardCount
     ? shuffle(onePointRewardBonusPool()).slice(0, rewardCount)
     : [];
+  state.tournament.surfaceBonuses ||= {};
+  state.tournament.surfaceBonuses[winnerEntry] = cloneData(state.tournament.onePointRewards[winnerEntry]);
+}
+
+function onePointResultPerformance(winnerScore, loserScore) {
+  if (Number(winnerScore) === 3 && Number(loserScore) === 0) return 3;
+  if (Number(winnerScore) === 2 && Number(loserScore) === 0) return 2;
+  if (Number(winnerScore) === 2 && Number(loserScore) === 1) return 1;
+  return 0;
 }
 
 function aiTournamentStrength(characterId) {

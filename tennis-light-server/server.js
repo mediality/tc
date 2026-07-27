@@ -4098,6 +4098,7 @@ function sanitizeFriendlySpectatorState(remoteState) {
 }
 
 function publicFriendlyTournamentInfo(req, tournament, participant = null, spectator = null) {
+  recordFriendlyOnePointResults(tournament);
   const activeParticipants = activeFriendlyParticipants(tournament);
   const canWatchMatches = friendlyTournamentVisibility(tournament) === "public" || Boolean(participant?.selected);
   return {
@@ -4159,6 +4160,8 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     round: tournament.round,
     champion: tournament.champion || null,
     championInfo: friendlyEntryPublic(tournament, tournament.champion),
+    previousWinScores: tournament.previousWinScores || {},
+    rewardCounts: tournament.rewardCounts || {},
     ready: tournament.ready || {},
     nextReady: tournament.nextReady || {},
     participant: participant ? {
@@ -4480,6 +4483,30 @@ function simulateFriendlyScore(winnerIsPlayerA, targetSets = 2) {
   return scores.map(([gamesA, gamesB]) => `${gamesA}/${gamesB}`).join(" - ");
 }
 
+function recordFriendlyOnePointResults(tournament) {
+  if (tournament?.format !== "onepoint") return;
+  tournament.previousWinScores ||= {};
+  tournament.rewardCounts ||= {};
+  for (const match of tournament.matches || []) {
+    if (!match.winner || match.onePointRewardRecorded) continue;
+    const score = String(match.score || "").match(/(\d+)\s*\/\s*(\d+)/);
+    if (!score) continue;
+    const gamesA = Number(score[1]);
+    const gamesB = Number(score[2]);
+    const winnerIsA = match.winner === match.playerA;
+    const winnerScore = winnerIsA ? gamesA : gamesB;
+    const loserScore = winnerIsA ? gamesB : gamesA;
+    const performance = winnerScore === 3 && loserScore === 0 ? 3
+      : winnerScore === 2 && loserScore === 0 ? 2
+        : winnerScore === 2 && loserScore === 1 ? 1 : 0;
+    tournament.previousWinScores[match.winner] = performance;
+    tournament.rewardCounts[match.winner] = tournament.bonus === "reward"
+      ? performance === 3 ? 2 : performance === 2 ? 1 : 0
+      : 0;
+    match.onePointRewardRecorded = true;
+  }
+}
+
 function simulateFriendlyAiOnlyMatches(tournament) {
   for (const match of tournament.matches) {
     if (match.winner || match.hiddenWinner || !match.playerA || !match.playerB) continue;
@@ -4774,6 +4801,7 @@ function resolveFriendlyDepartedForfeits(tournament) {
 }
 
 function refreshFriendlyTournamentSlots(tournament) {
+  recordFriendlyOnePointResults(tournament);
   if (tournament.status === "waiting") {
     tournament.round = "waiting";
     return;
