@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.66";
+const GAME_VERSION = "v3.67";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -2308,7 +2308,7 @@ function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
   const allNews = availableGameNews()
     .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
-  const newsItems = allNews;
+  const newsItems = allNews.slice(0, 5);
   els.homeNewsArchiveAction?.classList.toggle("hidden", allNews.length < 6);
   if (!newsItems.length) {
     els.homeNewsList.innerHTML = '<div class="home-news-empty">Les prochaines actualités de l’Academy arrivent bientôt.</div>';
@@ -2339,18 +2339,18 @@ function renderNewsArchive() {
   if (!els.newsArchiveList) return;
   const newsItems = availableGameNews()
     .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
-  els.newsArchiveList.innerHTML = newsItems.map((news) => {
+  els.newsArchiveList.innerHTML = newsItems.map((news, index) => {
     const characterId = news.characterId || "milanVerhaegen";
     const image = gameNewsImage(news);
     return `
-      <article class="news-archive-card">
-        <button class="news-archive-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
+      <article class="news-archive-card ${index === 0 ? "news-archive-featured" : "news-archive-summary"}">
+        ${index === 0 ? `<button class="news-archive-visual" type="button" data-read-game-news="${escapeHtml(news.id)}" aria-label="Lire : ${escapeHtml(news.title)}">
           <img src="${escapeHtml(image)}" alt="${escapeHtml(news.image ? news.title : `Portrait de ${characterNameFromId(characterId)}`)}" />
-        </button>
+        </button>` : ""}
         <div class="news-archive-copy">
           <time datetime="${escapeHtml(news.publishedAt)}">${escapeHtml(formatGameNewsDate(news.publishedAt))}</time>
           <button class="news-archive-title" type="button" data-read-game-news="${escapeHtml(news.id)}">${escapeHtml(news.title)}</button>
-          <p>${escapeHtml(news.message)}</p>
+          ${index === 0 ? `<p>${escapeHtml(news.message)}</p>` : ""}
           <button class="home-news-read" type="button" data-read-game-news="${escapeHtml(news.id)}">Lire l’actualité <span aria-hidden="true">→</span></button>
         </div>
       </article>
@@ -4203,6 +4203,7 @@ function showLobbySection(sectionName) {
 function showGameScreen() {
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -4230,6 +4231,7 @@ function hideGameScreen() {
 function showFriendlyLobbyScreen() {
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -4276,6 +4278,7 @@ function showChampionshipLobbyScreen() {
 function showRankingScreen() {
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
@@ -4289,7 +4292,7 @@ function showRankingScreen() {
 function showMenuScreen() {
   resetTutorialMode();
   setLobbyAccountPanelOpen(false);
-  hideGameScreen();
+  hideStandaloneScreens();
   hideLobbySectionScreen();
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
@@ -4316,6 +4319,7 @@ function showProfileScreen(userId = null) {
   if (!["profile", "character", "game"].includes(previousDestination)) PAGE_NAVIGATION_STATE.profileReturn = previousDestination;
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -4333,6 +4337,7 @@ function showCharacterScreen() {
   if (!AUTH_STATE.user) return;
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -4347,6 +4352,7 @@ function showCharacterScreen() {
 function showResetPasswordScreen() {
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -4361,6 +4367,7 @@ function showAdminScreen() {
   if (!canAccessAdminFeatures()) return;
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   hideGameScreen();
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -4376,6 +4383,7 @@ function showAdminScreen() {
 function showCircuitInfoScreen() {
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
@@ -4400,6 +4408,7 @@ function showSoloInfoScreen() {
 function showAcademyInfoScreen() {
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
+  hideStandaloneScreens();
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -5446,10 +5455,10 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
   }
   const tournamentHtml = tournaments.map((tournament) => `
     <article class="lobby-room friendly-tournament-room online-room-card">
-      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "LEAGUE.svg" : tournament.format === "onepoint" ? "power-flash.svg" : tournament.format === "match" ? "MATCH.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
+      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "LEAGUE.svg" : ["onepoint", "onepointmaster"].includes(tournament.format) ? "power-flash.svg" : tournament.format === "match" ? "MATCH.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Partie en ligne</strong>
-        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "onepoint" ? "1 POINT GAME" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${tournament.format === "onepoint" ? "1 point" : `${Number(tournament.targetSets || 2)} sets`} · ${tournament.visibility === "private" ? "Privé" : "Public"} · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
+        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "onepointmaster" ? "1 POINT MASTER" : tournament.format === "onepoint" ? "1 POINT MATCH" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${["onepoint", "onepointmaster"].includes(tournament.format) ? "1 point" : `${Number(tournament.targetSets || 2)} sets`} · ${tournament.visibility === "private" ? "Privé" : "Public"} · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
         ${tournament.canResume
@@ -5899,12 +5908,13 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     active: true,
     visible: true,
     friendly: true,
-    onePointGame: payload.format === "onepoint",
+    onePointGame: ["onepoint", "onepointmaster"].includes(payload.format),
+    onePointMaster: payload.format === "onepointmaster",
     league: payload.format === "league",
     difficulty: payload.difficulty || "normal",
-    competitionName: `Événement amical en ligne · ${payload.format === "league" ? "LEAGUE" : payload.format === "onepoint" ? "1 POINT GAME" : payload.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"}`,
+    competitionName: `Événement amical en ligne · ${payload.format === "league" ? "LEAGUE" : payload.format === "onepointmaster" ? "1 POINT MASTER" : payload.format === "onepoint" ? "1 POINT MATCH" : payload.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"}`,
     stage: payload.round || "waiting",
-    targetSets: payload.format === "onepoint" ? 1 : Number(payload.targetSets || 2),
+    targetSets: ["onepoint", "onepointmaster"].includes(payload.format) ? 1 : Number(payload.targetSets || 2),
     friendlyFormat: payload.format || "classic",
     friendlyDistribution: payload.distribution || "random",
     friendlyBonus: payload.bonus || "none",
@@ -6292,20 +6302,45 @@ function renderFriendlyLobbyScreen() {
       </div>
     </section>
   ` : "";
+  const masterGroupMarkup = format === "onepointmaster" ? `
+    <section>
+      <p class="label">Classements des groupes</p>
+      <div class="friendly-league-groups">
+        ${["A", "B", "C", "D"].map((groupName) => `
+          <article class="friendly-league-group">
+            <h3>Groupe ${groupName}</h3>
+            <div class="friendly-standing-head">
+              <span>#</span><span>Joueur</span><span>Points</span><span>Différence</span><span>Boost</span><span>2-0</span>
+            </div>
+            ${(standings[groupName] || []).map((row) => `
+              <div class="friendly-standing-row">
+                <span>${Number(row.position || 0)}</span>
+                <strong>${escapeHtml(row.player?.nickname || "Joueur")}${tournamentSeedNumberMarkup(row.entry)}</strong>
+                <strong class="friendly-standing-points">${Number(row.points || 0)}</strong>
+                <span>${formatLeagueDifference(Number(row.difference || 0))}</span>
+                <span>${Number(row.boost || 0)}</span>
+                <span>${Number(row.twoZero || 0)}</span>
+              </div>
+            `).join("")}
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  ` : "";
   els.friendlyLobbyContent.innerHTML = `
     <header class="online-room-hero">
       <img src="./assets/MODE-EN-LIGNE.jpg" alt="" aria-hidden="true" />
       <div>
         <p class="label">Club House en ligne</p>
-        <h1>${format === "league" ? "League" : format === "onepoint" ? "1 Point Game" : format === "match" ? "Match" : "Tournoi Classic"}</h1>
-        <p>${participants.length}/4 joueurs connectés · ${format === "onepoint" ? "un point décisif" : `${targetSets} sets gagnants`}</p>
+        <h1>${format === "league" ? "League" : format === "onepointmaster" ? "1 Point Master" : format === "onepoint" ? "1 Point Match" : format === "match" ? "Match" : "Tournoi Classic"}</h1>
+        <p>${participants.length}/4 joueurs connectés · ${["onepoint", "onepointmaster"].includes(format) ? "un point décisif" : `${targetSets} sets gagnants`}</p>
       </div>
     </header>
     <div class="friendly-lobby-title clubhouse-room-heading">
       <div>
         <p class="label">CLUB HOUSE · ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
         <h2>${FRIENDLY_TOURNAMENT.isSpectator ? "Vue spectateur" : "Configuration et joueurs"}</h2>
-        <p>${participants.length}/4 connectés · ${selectedCount}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "onepoint" ? "1 POINT GAME" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${format === "onepoint" ? "1 point décisif" : `${targetSets} sets gagnants`}</p>
+        <p>${participants.length}/4 connectés · ${selectedCount}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "onepointmaster" ? "1 POINT MASTER" : format === "onepoint" ? "1 POINT MATCH" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${["onepoint", "onepointmaster"].includes(format) ? "1 point décisif" : `${targetSets} sets gagnants`}</p>
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
@@ -6316,7 +6351,8 @@ function renderFriendlyLobbyScreen() {
         ${formatCard("match", "Match", "Une rencontre directe entre deux joueurs.", "MATCH.svg")}
         ${formatCard("classic", "Tournoi Classic", "Un tableau à élimination directe.", "trophy-circuit.svg")}
         ${formatCard("league", "League", "Une phase de groupes puis les finales.", "LEAGUE.svg")}
-        ${formatCard("onepoint", "1 Point Game", "Un unique point par rencontre.", "power-flash.svg")}
+        ${formatCard("onepoint", "1 Point Match", "Un unique point par rencontre.", "power-flash.svg")}
+        ${formatCard("onepointmaster", "1 Point Master", "24 joueurs, groupes, barrages et tableau final.", "power-flash.svg")}
       </div>
     </section>
     <div class="clubhouse-configuration-layout online-room-configuration">
@@ -6334,7 +6370,7 @@ function renderFriendlyLobbyScreen() {
           ${settingButton("bonus", "ascendant", "ASCENDANT", bonus === "ascendant")}
           ${settingButton("bonus", "domination", "DOMINATION", bonus === "domination")}
           ${settingButton("bonus", "nemesis", "BÊTE NOIRE", bonus === "nemesis")}
-          ${format === "onepoint" ? settingButton("bonus", "reward", "RÉCOMPENSE", bonus === "reward") : ""}
+          ${["onepoint", "onepointmaster"].includes(format) ? settingButton("bonus", "reward", "RÉCOMPENSE", bonus === "reward") : ""}
         </div>
       </div>
       <div class="friendly-setting-row">
@@ -6344,7 +6380,7 @@ function renderFriendlyLobbyScreen() {
           ${settingButton("playerSelection", "best", "MEILLEURS", playerSelection === "best")}
         </div>
       </div>
-      <div class="friendly-setting-row ${format === "onepoint" ? "hidden" : ""}">
+      <div class="friendly-setting-row ${["onepoint", "onepointmaster"].includes(format) ? "hidden" : ""}">
         <div><strong>Format des sets</strong><span>Sets gagnants par rencontre</span></div>
         <div class="friendly-setting-switch">
           ${settingButton("targetSets", "2", "2 SETS", targetSets === 2)}
@@ -6362,8 +6398,8 @@ function renderFriendlyLobbyScreen() {
     </section>
     <aside class="clubhouse-summary-card online-room-summary-card">
       <p class="label">Votre Club House</p>
-      <h2>${format === "league" ? "League" : format === "onepoint" ? "1 Point Game" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
-      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${format === "onepoint" ? "1 point décisif" : `${targetSets} sets gagnants`} · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
+      <h2>${format === "league" ? "League" : format === "onepointmaster" ? "1 Point Master" : format === "onepoint" ? "1 Point Match" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
+      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${["onepoint", "onepointmaster"].includes(format) ? "1 point décisif" : `${targetSets} sets gagnants`} · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
       ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button" type="button" data-resume-friendly-match>REPRENDRE MON MATCH</button>` : ""}
       ${FRIENDLY_TOURNAMENT.isSpectator || state.tournament.stage !== "waiting" ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
       <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
@@ -6399,10 +6435,11 @@ function renderFriendlyLobbyScreen() {
       </div>
     </section>
     ${leagueGroupMarkup}
+    ${masterGroupMarkup}
     ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
     ${matches.length && format !== "league" ? `
       <section>
-        <p class="label">Tableau CLASSIC</p>
+        <p class="label">${format === "onepointmaster" ? "Groupes, barrages et tour final" : format === "onepoint" ? "Tableau 1 Point Match" : "Tableau CLASSIC"}</p>
         <div class="friendly-bracket-grid">
           ${matches.map(renderFriendlyLobbyMatchCard).join("")}
         </div>
@@ -6442,8 +6479,8 @@ async function updateFriendlyTournamentSettings(setting, value) {
     visibility: state.tournament.friendlyVisibility === "private" ? "private" : "public",
   };
   if (setting === "format") {
-    next.format = ["match", "classic", "league", "onepoint"].includes(value) ? value : "match";
-    if (next.format === "onepoint") next.targetSets = 1;
+    next.format = ["match", "classic", "league", "onepoint", "onepointmaster"].includes(value) ? value : "match";
+    if (["onepoint", "onepointmaster"].includes(next.format)) next.targetSets = 1;
     else if (Number(next.targetSets) === 1) next.targetSets = 2;
   }
   if (setting === "targetSets") next.targetSets = Number(value) === 3 ? 3 : 2;
@@ -6750,7 +6787,7 @@ async function startFriendlyTournamentFromLobby() {
     return;
   }
   const friendlyFormat = state.tournament?.friendlyFormat || "match";
-  const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "onepoint" ? "1 POINT GAME" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
+  const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "onepointmaster" ? "1 POINT MASTER" : friendlyFormat === "onepoint" ? "1 POINT MATCH" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
   const setsLabel = Number(state.tournament?.targetSets || 2);
   const selectedCount = state.tournament?.friendlyParticipants?.filter((participant) => participant.selected).length || 0;
   const confirmed = await showEventConfirmDialog({
@@ -7618,7 +7655,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.66");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.67");
 }
 
 function emptyMomentumState() {
@@ -11138,7 +11175,7 @@ function applySurfaceBonusAfterPlay(playerIndex, playedCard, costPaid) {
       addNextPlacementBonus(player, 2, playedCard.playedUid);
       state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +2 placement sur sa carte suivante.`);
     }
-    if (bonus.id === "clayForehandEndurance" && playedCard.family === "Coup droit") {
+    if (bonus.id === "clayForehandEndurance" && (playedCard.family === "Coup droit" || playedCard.id === "service-coup-droit")) {
       player.endurance += 1;
       state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} récupère 1 endurance.`);
     }
@@ -16832,7 +16869,7 @@ function renderTournamentMatch(match, isFinal = false) {
 function tournamentSeedNumberMarkup(entry) {
   if (!entry) return "";
   const seedNumber = Number(state.tournament.tournamentSeedNumbers?.[entry] || 0);
-  return seedNumber >= 1 && seedNumber <= 4
+  return seedNumber >= 1 && seedNumber <= 8
     ? `<span class="tournament-seed-number">(${seedNumber})</span>`
     : "";
 }

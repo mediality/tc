@@ -1594,11 +1594,27 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-boost-sacrifices {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(116px, 42vw);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+  scrollbar-width: none;
 }
 
 .mobile-boost-sacrifices legend {
-  grid-column: 1 / -1;
+  position: sticky;
+  left: 0;
+  grid-column: auto;
+  align-self: center;
+  width: 88px;
+  padding-right: 5px;
+  background: #062633;
+}
+
+.mobile-boost-sacrifices::-webkit-scrollbar {
+  display: none;
 }
 
 .mobile-boost-sacrifices button {
@@ -1623,7 +1639,8 @@ body.mobile-game-view .choice-card span {
 }
 
 .mobile-turn-actions {
-  position: relative;
+  position: sticky;
+  bottom: 0;
   z-index: 30;
   display: flex;
   align-items: stretch;
