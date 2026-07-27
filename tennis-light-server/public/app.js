@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.65";
+const GAME_VERSION = "v3.66";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1576,6 +1576,7 @@ const GAMEPLAY_ASSIST = {
   preview: localStorage.getItem("tennisLightAssistPreview") === "true",
   information: localStorage.getItem("tennisLightAssistInformation") === "true",
   adaptiveBoard: localStorage.getItem("tennisLightAssistAdaptiveBoard") === "true",
+  cardDescriptions: localStorage.getItem("tennisLightCardDescriptions") === "true",
   stopOpponentCard: localStorage.getItem("tennisLightMobileStopOpponentCard") !== "false",
   panelOpen: false,
 };
@@ -1748,6 +1749,7 @@ const els = {
   gamePreviewToggle: document.querySelector("#gamePreviewToggle"),
   gameInformationToggle: document.querySelector("#gameInformationToggle"),
   gameAdaptiveBoardToggle: document.querySelector("#gameAdaptiveBoardToggle"),
+  gameCardDescriptionsToggle: document.querySelector("#gameCardDescriptionsToggle"),
   gameContextStrip: document.querySelector("#gameContextStrip"),
   spectatorQuitButton: document.querySelector("#spectatorQuitButton"),
   gameLogoButton: document.querySelector("#gameLogoButton"),
@@ -7616,7 +7618,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.65");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.66");
 }
 
 function emptyMomentumState() {
@@ -13451,6 +13453,7 @@ function revealChampionshipDay(phase, day) {
     match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
     match.score = formatSetScores(match.revealedSetScores);
     match.winner = match.hiddenWinner;
+    recordOnePointMatchOutcome(match);
   }
 }
 
@@ -13536,6 +13539,7 @@ function simulateRemainingChampionship() {
       match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
       match.score = formatSetScores(match.revealedSetScores);
       match.winner = match.hiddenWinner;
+      recordOnePointMatchOutcome(match);
       changed = true;
     }
   }
@@ -13612,13 +13616,7 @@ function handleChampionshipMatchComplete() {
   match.winner = tournamentWinnerEntryFromMatchWinner(state.setMatch.matchWinner);
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
-  if (state.tournament.onePointMaster) {
-    const score = match.revealedSetScores[0] || [0, 0];
-    const winnerIndex = match.winner === match.playerA ? 0 : 1;
-    const loserEntry = match.winner === match.playerA ? match.playerB : match.playerA;
-    clearOnePointTournamentPerformance(loserEntry);
-    applyOnePointTournamentReward(match.winner, Number(score[winnerIndex]), Number(score[opponentOf(winnerIndex)]));
-  }
+  if (state.tournament.onePointMaster) recordOnePointMatchOutcome(match);
   match.liveScore = null;
   revealChampionshipDay(match.championshipPhase, match.day);
   refreshChampionshipSlots();
@@ -14544,36 +14542,51 @@ function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tourname
     const winnerScore = Math.random() < 0.2 ? 3 : 2;
     const loserScore = winnerScore === 3 ? 0 : Math.random() < 0.55 ? 0 : 1;
     const setScores = [winnerIndex === 0 ? [winnerScore, loserScore] : [loserScore, winnerScore]];
-    clearOnePointTournamentPerformance(winner === playerA ? playerB : playerA);
-    applyOnePointTournamentReward(winner, winnerScore, loserScore);
     return { winner, setScores, score: formatSetScores(setScores) };
   }
   const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
 }
 
-function clearOnePointTournamentPerformance(entry) {
-  if (!state.tournament?.onePointGame || !entry) return;
-  state.tournament.previousWinScores ||= {};
-  state.tournament.onePointRewards ||= {};
-  state.tournament.surfaceBonuses ||= {};
-  state.tournament.previousWinScores[entry] = 0;
-  state.tournament.onePointRewards[entry] = [];
-  state.tournament.surfaceBonuses[entry] = [];
+function onePointScorePriority(playerScore, opponentScore) {
+  return {
+    "3-0": 6,
+    "2-0": 5,
+    "2-1": 4,
+    "1-2": 3,
+    "0-2": 2,
+    "0-3": 1,
+  }[`${Number(playerScore)}-${Number(opponentScore)}`] || 0;
 }
 
-function applyOnePointTournamentReward(winnerEntry, winnerScore, loserScore) {
-  if (!state.tournament?.onePointGame || !winnerEntry) return;
+function recordOnePointMatchOutcome(match) {
+  if (!state.tournament?.onePointGame || !match || match.performanceRecorded || !match.winner) return;
+  const score = (match.revealedSetScores?.length ? match.revealedSetScores : parseTournamentScore(match.score))[0];
+  if (!score || !match.playerA || !match.playerB) return;
+  match.performanceRecorded = true;
   state.tournament.previousWinScores ||= {};
-  state.tournament.previousWinScores[winnerEntry] = onePointResultPerformance(winnerScore, loserScore);
-  if (state.tournament.bonusLevel !== "reward") return;
-  const rewardCount = winnerScore === 3 && loserScore === 0 ? 2 : winnerScore === 2 && loserScore === 0 ? 1 : 0;
   state.tournament.onePointRewards ||= {};
-  state.tournament.onePointRewards[winnerEntry] = rewardCount
-    ? shuffle(onePointRewardBonusPool()).slice(0, rewardCount)
-    : [];
   state.tournament.surfaceBonuses ||= {};
-  state.tournament.surfaceBonuses[winnerEntry] = cloneData(state.tournament.onePointRewards[winnerEntry]);
+  [match.playerA, match.playerB].forEach((entry, index) => {
+    const ownScore = Number(score[index]);
+    const opponentScore = Number(score[opponentOf(index)]);
+    state.tournament.previousWinScores[entry] = onePointScorePriority(ownScore, opponentScore);
+    const rewardCount = state.tournament.bonusLevel === "reward"
+      && match.winner === entry
+      && ownScore === 3
+      && opponentScore === 0
+      ? 2
+      : state.tournament.bonusLevel === "reward"
+        && match.winner === entry
+        && ownScore === 2
+        && opponentScore === 0
+        ? 1
+        : 0;
+    state.tournament.onePointRewards[entry] = rewardCount
+      ? shuffle(onePointRewardBonusPool()).slice(0, rewardCount)
+      : [];
+    state.tournament.surfaceBonuses[entry] = cloneData(state.tournament.onePointRewards[entry]);
+  });
 }
 
 function onePointResultPerformance(winnerScore, loserScore) {
@@ -14880,15 +14893,7 @@ function handleWeeklyTournamentMatchComplete() {
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
-  if (state.tournament.onePointGame) {
-    const winnerIndex = winnerEntry === match.playerA ? 0 : 1;
-    const pointScore = match.revealedSetScores[0] || [0, 0];
-    applyOnePointTournamentReward(
-      winnerEntry,
-      Number(pointScore[winnerIndex] || 0),
-      Number(pointScore[opponentOf(winnerIndex)] || 0),
-    );
-  }
+  recordOnePointMatchOutcome(match);
   addHumanMatchPerformanceBonus(match);
   refreshWeeklyTournamentDerivedSlots();
   revealAllTournamentAiSets(match.round);
@@ -15187,6 +15192,7 @@ function revealNextTournamentAiSet() {
         match.score = formatSetScores(match.revealedSetScores);
         match.winner = match.hiddenWinner;
         match.liveScore = null;
+        recordOnePointMatchOutcome(match);
       }
     }
     refreshChampionshipSlots();
@@ -15202,6 +15208,7 @@ function revealNextTournamentAiSet() {
     match.score = formatSetScores(match.revealedSetScores);
     if (match.revealedSetScores.length >= match.hiddenSetScores.length) {
       match.winner = match.hiddenWinner;
+      recordOnePointMatchOutcome(match);
     }
   }
   refreshTournamentDerivedSlots();
@@ -15214,6 +15221,7 @@ function revealAllTournamentAiSets(round = null) {
     match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
     match.score = formatSetScores(match.revealedSetScores);
     match.winner = match.hiddenWinner;
+    recordOnePointMatchOutcome(match);
   }
   refreshTournamentDerivedSlots();
 }
@@ -15855,6 +15863,7 @@ function renderModeButtons() {
   if (els.gamePreviewToggle) els.gamePreviewToggle.checked = GAMEPLAY_ASSIST.preview;
   if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
   if (els.gameAdaptiveBoardToggle) els.gameAdaptiveBoardToggle.checked = GAMEPLAY_ASSIST.adaptiveBoard;
+  if (els.gameCardDescriptionsToggle) els.gameCardDescriptionsToggle.checked = GAMEPLAY_ASSIST.cardDescriptions;
   document.body.classList.toggle("game-adaptive-board", GAMEPLAY_ASSIST.adaptiveBoard);
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
@@ -16558,6 +16567,7 @@ function simulateChampionshipBatchAnimated() {
       match.score = formatSetScores(match.revealedSetScores);
       match.winner = match.hiddenWinner;
       match.liveScore = null;
+      recordOnePointMatchOutcome(match);
     }
     index += 1;
     renderChampionshipLobby();
@@ -17905,7 +17915,7 @@ function renderCard(playerIndex, card) {
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
           ${showForbidEffect ? `<img class="forbid-effect-overlay" src="${FORBID_IMAGE}" alt="Effet annulé" />` : ""}
         </button>
-        <section class="card-readable-data" aria-label="Informations lisibles de ${escapeHtml(card.name)}">
+        ${GAMEPLAY_ASSIST.cardDescriptions ? `<section class="card-readable-data" aria-label="Informations lisibles de ${escapeHtml(card.name)}">
           <header><span>${escapeHtml(card.subtitle ?? card.family)}</span><strong>${escapeHtml(card.name)}</strong></header>
           <div class="card-readable-stats">
             <span><small>Coût</small><strong>${cost}</strong></span>
@@ -17915,7 +17925,7 @@ function renderCard(playerIndex, card) {
           </div>
           <p><b>Effet</b>${escapeHtml(card.effect || "Aucun effet.")}</p>
           <p class="card-readable-boost"><b>Boost</b>${card.boostPower} puissance · ${card.boostPrecision} précision</p>
-        </section>
+        </section>` : ""}
       ` : `
         ${card.star ? '<div class="card-star" aria-label="Carte étoile">★</div>' : ""}
         <div class="card-top">
@@ -18520,6 +18530,11 @@ els.gameInformationToggle?.addEventListener("change", () => {
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.adaptiveBoard = Boolean(els.gameAdaptiveBoardToggle.checked);
   localStorage.setItem("tennisLightAssistAdaptiveBoard", String(GAMEPLAY_ASSIST.adaptiveBoard));
+  render();
+});
+els.gameCardDescriptionsToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.cardDescriptions = Boolean(els.gameCardDescriptionsToggle.checked);
+  localStorage.setItem("tennisLightCardDescriptions", String(GAMEPLAY_ASSIST.cardDescriptions));
   render();
 });
 els.friendlyLobbyHomeButton?.addEventListener("click", () => leaveFriendlyTournamentLobby({ destination: "online" }));

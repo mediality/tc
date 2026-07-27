@@ -341,7 +341,7 @@
       <nav class="mobile-match-menu-list" aria-label="Menu du match">
         ${viewState.modeContext.competition ? '<button type="button" data-mobile-menu-destination="competition">Compétition</button>' : ""}
         ${viewState.modeContext.competition?.league ? '<button type="button" data-mobile-menu-destination="standings">Classement</button>' : ""}
-        <button type="button" data-mobile-menu-destination="assistance">Assistance</button>
+        <button type="button" data-mobile-menu-destination="assistance">Paramètres</button>
         <button type="button" data-mobile-open-return>Quitter le match</button>
         ${adminTools ? `
           <section class="mobile-match-admin-tools" aria-labelledby="mobileMatchAdminTitle">
@@ -656,7 +656,7 @@
         ${mobileSheetMarkup("match-menu", "Menu du match", matchMenuMarkup(viewState))}
         ${viewState.modeContext.competition ? mobileSheetMarkup("competition", "Compétition", competitionMarkup(viewState.modeContext.competition)) : ""}
         ${viewState.modeContext.competition?.league ? mobileSheetMarkup("standings", "Classement", standingsMarkup(viewState.modeContext.competition)) : ""}
-        ${mobileSheetMarkup("assistance", "Assistance", assistanceMarkup(viewState.assistance))}
+        ${mobileSheetMarkup("assistance", "Paramètres", assistanceMarkup(viewState.assistance))}
         ${returnConfirmationMarkup(viewState.returnToMenu)}
         ${passConfirmationMarkup()}
       </div>
