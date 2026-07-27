@@ -5,8 +5,8 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.54.0");
-assert.match(app, /const GAME_VERSION = "v3\.54"/);
+assert.equal(pkg.version, "3.55.0");
+assert.match(app, /const GAME_VERSION = "v3\.55"/);
 assert.match(html, /data-ai-club-value="onepoint"/);
 assert.match(html, /<strong>1 Point Game<\/strong>/);
 assert.match(html, /data-ai-club-value="reward">RÉCOMPENSE/);
@@ -29,6 +29,6 @@ assert.match(app, /scoreA > scoreB \? match\.playerA : match\.playerB/);
 assert.match(app, /selectAiClubHousePlayers\(15/);
 assert.match(app, /const seedEntries = rankedRoster\.slice\(0, 4\)/);
 assert.match(app, /const circuitPositionPairs = \[\[1, 16\]/);
-assert.match(app, /state\.tournament\.onePointGame \? "FIN DU TOURNOI"/);
+assert.match(app, /data-competition-summary>RÉSUMÉ COMPÉTITION/);
 
-console.log("v3.54 : tournoi 1 Point Game, récompenses et service au mérite : OK");
+console.log("v3.55 : tournoi 1 Point Game, récompenses et service au mérite : OK");

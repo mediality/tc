@@ -4458,6 +4458,12 @@ function friendlyEntryIsHuman(entry) {
 }
 
 function simulateFriendlyScore(winnerIsPlayerA, targetSets = 2) {
+  if (Number(targetSets) === 1) {
+    const winnerGames = Math.random() < 0.2 ? 3 : 2;
+    const loserGames = winnerGames === 3 ? 0 : Math.random() < 0.5 ? 0 : 1;
+    const score = winnerIsPlayerA ? [winnerGames, loserGames] : [loserGames, winnerGames];
+    return `${score[0]}/${score[1]}`;
+  }
   const winningScores = [[6, 1], [6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
   const losingScores = [[3, 6], [4, 6], [5, 7], [6, 7]];
   const scores = [];
@@ -5002,6 +5008,18 @@ function friendlyHumanWinnerFromState(tournament, match, remoteState) {
   if (!remoteState?.setMatch?.matchOver || ![0, 1].includes(Number(remoteState.setMatch.matchWinner))) return null;
   const targetSets = Number(tournament.targetSets || 2);
   const completedScores = friendlyHumanCompletedScores(remoteState);
+  if (tournament.format === "onepoint") {
+    if (completedScores.length !== 1) return null;
+    const [gamesA, gamesB] = completedScores[0];
+    const valid = (gamesA === 3 && gamesB === 0)
+      || (gamesB === 3 && gamesA === 0)
+      || (gamesA === 2 && [0, 1].includes(gamesB))
+      || (gamesB === 2 && [0, 1].includes(gamesA));
+    if (!valid || gamesA === gamesB) return null;
+    const winnerSeat = gamesA > gamesB ? 0 : 1;
+    if (winnerSeat !== Number(remoteState.setMatch.matchWinner)) return null;
+    return winnerSeat === 0 ? match.playerA : match.playerB;
+  }
   if (!completedScores.length || completedScores.length > (targetSets * 2) - 1) return null;
   const setWins = [0, 0];
   for (const [gamesA, gamesB] of completedScores) {
@@ -5297,11 +5315,11 @@ async function handleApi(req, res) {
       sendJson(res, 409, { error: "La configuration est verrouillée après le lancement." });
       return;
     }
-    tournament.format = ["match", "classic", "league"].includes(payload.format) ? payload.format : "match";
-    tournament.targetSets = Number(payload.targetSets) === 3 ? 3 : 2;
+    tournament.format = ["match", "classic", "league", "onepoint"].includes(payload.format) ? payload.format : "match";
+    tournament.targetSets = tournament.format === "onepoint" ? 1 : Number(payload.targetSets) === 3 ? 3 : 2;
     tournament.distribution = ["random", "ranking", "separated"].includes(payload.distribution) ? payload.distribution : "random";
     tournament.difficulty = ["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"].includes(payload.difficulty) ? payload.difficulty : "normal";
-    tournament.bonus = ["none", "ascendant", "domination", "nemesis"].includes(payload.bonus) ? payload.bonus : "none";
+    tournament.bonus = ["none", "ascendant", "domination", "nemesis", "reward"].includes(payload.bonus) ? payload.bonus : "none";
     tournament.playerSelection = payload.playerSelection === "best" ? "best" : "random";
     tournament.visibility = payload.visibility === "private" ? "private" : "public";
     const selected = selectedFriendlyParticipants(tournament);

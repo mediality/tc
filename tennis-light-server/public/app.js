@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.54";
+const GAME_VERSION = "v3.55";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.54";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.55";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -1770,6 +1770,8 @@ const els = {
   friendlyLobbyLogoButton: document.querySelector("#friendlyLobbyLogoButton"),
   aiClubHouseScreen: document.querySelector("#aiClubHouseScreen"),
   championshipLobbyScreen: document.querySelector("#championshipLobbyScreen"),
+  competitionSummaryScreen: document.querySelector("#competitionSummaryScreen"),
+  competitionSummaryContent: document.querySelector("#competitionSummaryContent"),
   championshipLobbyContent: document.querySelector("#championshipLobbyContent"),
   aiClubHouseHomeButton: document.querySelector("#aiClubHouseHomeButton"),
   aiClubHouseLogoButton: document.querySelector("#aiClubHouseLogoButton"),
@@ -4135,6 +4137,7 @@ function hideStandaloneScreens() {
     els.friendlyLobbyScreen,
     els.aiClubHouseScreen,
     els.championshipLobbyScreen,
+    els.competitionSummaryScreen,
     els.adminScreen,
     els.rankingScreen,
     els.circuitInfoScreen,
@@ -4229,6 +4232,7 @@ function showAiClubHouseScreen() {
   els.resetPasswordScreen?.classList.add("hidden");
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.championshipLobbyScreen?.classList.add("hidden");
+  els.competitionSummaryScreen?.classList.add("hidden");
   hideGameScreen();
   els.aiClubHouseScreen?.classList.remove("hidden");
   renderAiClubHouse();
@@ -4267,6 +4271,7 @@ function showMenuScreen() {
   els.friendlyLobbyScreen?.classList.add("hidden");
   els.aiClubHouseScreen?.classList.add("hidden");
   els.championshipLobbyScreen?.classList.add("hidden");
+  els.competitionSummaryScreen?.classList.add("hidden");
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
@@ -5087,7 +5092,7 @@ function openReturnLobbyDialog() {
 
 function renderAiClubHouse() {
   const proAccess = canAccessProFeatures();
-  if (!proAccess && !["match", "onepoint"].includes(AI_CLUB_HOUSE.format)) AI_CLUB_HOUSE.format = "match";
+  if (!proAccess && AI_CLUB_HOUSE.format !== "match") AI_CLUB_HOUSE.format = "match";
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   els.aiClubSettingButtons?.forEach((button) => {
@@ -5209,7 +5214,7 @@ function deleteAiClubHouseSave() {
 
 function updateAiClubHouseSetting(setting, value) {
   if (setting === "format") {
-    if (["classic", "league"].includes(value) && !canAccessProFeatures()) return;
+    if (["classic", "league", "championship", "onepoint"].includes(value) && !canAccessProFeatures()) return;
     AI_CLUB_HOUSE.format = ["match", "classic", "league", "championship", "onepoint"].includes(value) ? value : "match";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
   } else if (setting === "sets") {
@@ -5266,7 +5271,7 @@ async function startAiClubHouseCompetition() {
   const isMatch = selectedFormat === "match";
   const isChampionship = selectedFormat === "championship";
   const isOnePoint = selectedFormat === "onepoint";
-  if (!isMatch && !isOnePoint && !canAccessProFeatures()) {
+  if (!isMatch && !canAccessProFeatures()) {
     showMenuScreen();
     renderAuthState("Réservé aux joueurs Pro.");
     return;
@@ -5385,10 +5390,10 @@ function renderLobbyRooms(rooms = [], tournaments = []) {
   }
   const tournamentHtml = tournaments.map((tournament) => `
     <article class="lobby-room friendly-tournament-room online-room-card">
-      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "LEAGUE.svg" : tournament.format === "match" ? "MATCH.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
+      <span class="online-room-format-icon"><img src="./assets/icons/${tournament.format === "league" ? "LEAGUE.svg" : tournament.format === "onepoint" ? "power-flash.svg" : tournament.format === "match" ? "MATCH.svg" : "trophy-circuit.svg"}" alt="" aria-hidden="true" /></span>
       <div>
         <strong>${escapeHtml(tournament.creatorNickname || "Joueur")} · Partie en ligne</strong>
-        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${Number(tournament.targetSets || 2)} sets · ${tournament.visibility === "private" ? "Privé" : "Public"} · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
+        <span>CLUB HOUSE ${tournament.id} · ${tournament.participantCount}/${tournament.maxParticipants} connectés · ${tournament.format === "league" ? "LEAGUE" : tournament.format === "onepoint" ? "1 POINT GAME" : tournament.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${tournament.format === "onepoint" ? "1 point" : `${Number(tournament.targetSets || 2)} sets`} · ${tournament.visibility === "private" ? "Privé" : "Public"} · ${tournament.status === "playing" ? "En cours" : "Ouvert"}</span>
       </div>
       <div class="lobby-room-actions">
         ${tournament.canResume
@@ -5829,11 +5834,12 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     active: true,
     visible: true,
     friendly: true,
+    onePointGame: payload.format === "onepoint",
     league: payload.format === "league",
     difficulty: payload.difficulty || "normal",
-    competitionName: `Événement amical en ligne · ${payload.format === "league" ? "LEAGUE" : payload.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"}`,
+    competitionName: `Événement amical en ligne · ${payload.format === "league" ? "LEAGUE" : payload.format === "onepoint" ? "1 POINT GAME" : payload.format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"}`,
     stage: payload.round || "waiting",
-    targetSets: Number(payload.targetSets || 2),
+    targetSets: payload.format === "onepoint" ? 1 : Number(payload.targetSets || 2),
     friendlyFormat: payload.format || "classic",
     friendlyDistribution: payload.distribution || "random",
     friendlyBonus: payload.bonus || "none",
@@ -6224,15 +6230,15 @@ function renderFriendlyLobbyScreen() {
       <img src="./assets/MODE-EN-LIGNE.jpg" alt="" aria-hidden="true" />
       <div>
         <p class="label">Club House en ligne</p>
-        <h1>${format === "league" ? "League" : format === "match" ? "Match" : "Tournoi Classic"}</h1>
-        <p>${participants.length}/4 joueurs connectés · ${targetSets} sets gagnants</p>
+        <h1>${format === "league" ? "League" : format === "onepoint" ? "1 Point Game" : format === "match" ? "Match" : "Tournoi Classic"}</h1>
+        <p>${participants.length}/4 joueurs connectés · ${format === "onepoint" ? "un point décisif" : `${targetSets} sets gagnants`}</p>
       </div>
     </header>
     <div class="friendly-lobby-title clubhouse-room-heading">
       <div>
         <p class="label">CLUB HOUSE · ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
         <h2>${FRIENDLY_TOURNAMENT.isSpectator ? "Vue spectateur" : "Configuration et joueurs"}</h2>
-        <p>${participants.length}/4 connectés · ${selectedCount}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${targetSets} sets gagnants</p>
+        <p>${participants.length}/4 connectés · ${selectedCount}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "onepoint" ? "1 POINT GAME" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${format === "onepoint" ? "1 point décisif" : `${targetSets} sets gagnants`}</p>
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
@@ -6243,6 +6249,7 @@ function renderFriendlyLobbyScreen() {
         ${formatCard("match", "Match", "Une rencontre directe entre deux joueurs.", "MATCH.svg")}
         ${formatCard("classic", "Tournoi Classic", "Un tableau à élimination directe.", "trophy-circuit.svg")}
         ${formatCard("league", "League", "Une phase de groupes puis les finales.", "LEAGUE.svg")}
+        ${formatCard("onepoint", "1 Point Game", "Un unique point par rencontre.", "power-flash.svg")}
       </div>
     </section>
     <div class="clubhouse-configuration-layout online-room-configuration">
@@ -6255,11 +6262,12 @@ function renderFriendlyLobbyScreen() {
       </div>
       <div class="friendly-setting-row">
         <div><strong>Bonus</strong><span>Avantage attribué aux joueurs IA</span></div>
-        <div class="friendly-setting-switch four-options">
+        <div class="friendly-setting-switch five-options">
           ${settingButton("bonus", "none", "SANS", bonus === "none")}
           ${settingButton("bonus", "ascendant", "ASCENDANT", bonus === "ascendant")}
           ${settingButton("bonus", "domination", "DOMINATION", bonus === "domination")}
           ${settingButton("bonus", "nemesis", "BÊTE NOIRE", bonus === "nemesis")}
+          ${format === "onepoint" ? settingButton("bonus", "reward", "RÉCOMPENSE", bonus === "reward") : ""}
         </div>
       </div>
       <div class="friendly-setting-row">
@@ -6269,7 +6277,7 @@ function renderFriendlyLobbyScreen() {
           ${settingButton("playerSelection", "best", "MEILLEURS", playerSelection === "best")}
         </div>
       </div>
-      <div class="friendly-setting-row">
+      <div class="friendly-setting-row ${format === "onepoint" ? "hidden" : ""}">
         <div><strong>Format des sets</strong><span>Sets gagnants par rencontre</span></div>
         <div class="friendly-setting-switch">
           ${settingButton("targetSets", "2", "2 SETS", targetSets === 2)}
@@ -6287,8 +6295,8 @@ function renderFriendlyLobbyScreen() {
     </section>
     <aside class="clubhouse-summary-card online-room-summary-card">
       <p class="label">Votre Club House</p>
-      <h2>${format === "league" ? "League" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
-      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${targetSets} sets gagnants · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
+      <h2>${format === "league" ? "League" : format === "onepoint" ? "1 Point Game" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
+      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${format === "onepoint" ? "1 point décisif" : `${targetSets} sets gagnants`} · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
       ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button" type="button" data-resume-friendly-match>REPRENDRE MON MATCH</button>` : ""}
       ${FRIENDLY_TOURNAMENT.isSpectator || state.tournament.stage !== "waiting" ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
       <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
@@ -6366,11 +6374,15 @@ async function updateFriendlyTournamentSettings(setting, value) {
     playerSelection: state.tournament.friendlyPlayerSelection || "random",
     visibility: state.tournament.friendlyVisibility === "private" ? "private" : "public",
   };
-  if (setting === "format") next.format = ["match", "classic", "league"].includes(value) ? value : "match";
+  if (setting === "format") {
+    next.format = ["match", "classic", "league", "onepoint"].includes(value) ? value : "match";
+    if (next.format === "onepoint") next.targetSets = 1;
+    else if (Number(next.targetSets) === 1) next.targetSets = 2;
+  }
   if (setting === "targetSets") next.targetSets = Number(value) === 3 ? 3 : 2;
   if (setting === "distribution") next.distribution = ["random", "ranking", "separated"].includes(value) ? value : "random";
   if (setting === "difficulty") next.difficulty = AI_DIFFICULTIES.includes(value) ? value : "normal";
-  if (setting === "bonus") next.bonus = ["none", "ascendant", "domination", "nemesis"].includes(value) ? value : "none";
+  if (setting === "bonus") next.bonus = ["none", "ascendant", "domination", "nemesis", "reward"].includes(value) ? value : "none";
   if (setting === "playerSelection") next.playerSelection = value === "best" ? "best" : "random";
   if (setting === "visibility") next.visibility = value === "private" ? "private" : "public";
   try {
@@ -6671,7 +6683,7 @@ async function startFriendlyTournamentFromLobby() {
     return;
   }
   const friendlyFormat = state.tournament?.friendlyFormat || "match";
-  const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
+  const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "onepoint" ? "1 POINT GAME" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
   const setsLabel = Number(state.tournament?.targetSets || 2);
   const selectedCount = state.tournament?.friendlyParticipants?.filter((participant) => participant.selected).length || 0;
   const confirmed = await showEventConfirmDialog({
@@ -7539,7 +7551,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.54");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.55");
 }
 
 function emptyMomentumState() {
@@ -14990,6 +15002,11 @@ function canAdminSimulateMatchScore() {
 }
 
 function adminSimulatedSetScores(winnerIndex, targetSets) {
+  if (state.tournament?.onePointGame || state.tournament?.friendlyFormat === "onepoint") {
+    const winnerGames = Math.random() < 0.2 ? 3 : 2;
+    const loserGames = winnerGames === 3 ? 0 : Math.random() < 0.5 ? 0 : 1;
+    return [winnerIndex === 0 ? [winnerGames, loserGames] : [loserGames, winnerGames]];
+  }
   return randomMatchSetScoresForWinner(winnerIndex, targetSets);
 }
 
@@ -16812,13 +16829,13 @@ function renderCenterNextSoloExchangeButton() {
 
 function renderCenterNextSetButton() {
   if (state.tournament.friendly && state.gameOver && state.setMatch.matchOver) {
-    return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-club-house>RETOUR CLUB-HOUSE</button>';
+    const summaryButton = competitionSummaryAvailable()
+      ? '<button class="small-button next-set-button" type="button" data-competition-summary>RÉSUMÉ COMPÉTITION</button>'
+      : "";
+    return `<button class="primary-button next-exchange-button next-set-button" type="button" data-return-club-house>SORTIR DE LA COMPÉTITION</button>${summaryButton}`;
   }
   if (isHumanTournamentRunOver()) {
-    if (state.tournament.championship) {
-      return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-championship-lobby>Retour au Club House</button>';
-    }
-    return `<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>${state.tournament.onePointGame ? "FIN DU TOURNOI" : "Sortir du tournoi"}</button>`;
+    return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>SORTIR DE LA COMPÉTITION</button><button class="small-button next-set-button" type="button" data-competition-summary>RÉSUMÉ COMPÉTITION</button>';
   }
   if (state.tournament.championship && state.gameOver && state.setMatch.matchOver && state.tournament.stage === "championshipLobby") {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-championship-lobby>Retour au Club House</button>';
@@ -16869,6 +16886,151 @@ function bindProgressionButtons(root) {
   root?.querySelector("[data-exit-tournament]")?.addEventListener("click", exitTournamentToLobby);
   root?.querySelector("[data-return-club-house]")?.addEventListener("click", returnFriendlyMatchToClubHouse);
   root?.querySelector("[data-return-championship-lobby]")?.addEventListener("click", returnChampionshipLobby);
+  root?.querySelector("[data-competition-summary]")?.addEventListener("click", showCompetitionSummaryScreen);
+}
+
+function competitionSummaryAvailable() {
+  if (!state.tournament?.active || !state.gameOver || !state.setMatch?.matchOver) return false;
+  const human = humanTournamentEntry();
+  const humanMatches = (state.tournament.matches || []).filter((match) => (
+    match.winner && (match.playerA === human || match.playerB === human)
+  ));
+  const last = humanMatches.at(-1);
+  if (!last) return false;
+  return last.winner !== human || last.round === "final" || state.tournament.championCharacterId === human;
+}
+
+function refreshCompetitionSummarySlots() {
+  if (state.tournament.championship) {
+    refreshChampionshipSlots();
+    return;
+  }
+  if (state.tournament.league) {
+    refreshLeagueKnockoutSlots();
+    return;
+  }
+  const winner = (id) => tournamentMatchById(id)?.winner || null;
+  const assign = (id, a, b) => {
+    const match = tournamentMatchById(id);
+    if (match && (a || b)) setMatchPlayers(match, a, b);
+  };
+  assign("qf1", winner("r16_1"), winner("r16_2"));
+  assign("qf2", winner("r16_3"), winner("r16_4"));
+  assign("qf3", winner("r16_5"), winner("r16_6"));
+  assign("qf4", winner("r16_7"), winner("r16_8"));
+  assign("semi1", winner("qf1"), winner("qf2"));
+  assign("semi2", winner("qf3"), winner("qf4"));
+  assign("semiHuman", winner("qfHuman"), winner("qfAi1"));
+  assign("semiAi", winner("qfAi2"), winner("qfAi3"));
+  assign("final", winner("semi1") || winner("semiHuman"), winner("semi2") || winner("semiAi"));
+}
+
+function completeCompetitionForSummary() {
+  let guard = 0;
+  while (guard < 300) {
+    guard += 1;
+    refreshCompetitionSummarySlots();
+    const pending = (state.tournament.matches || []).find((match) => (
+      !match.winner && match.playerA && match.playerB
+      && !isHumanTournamentEntry(match.playerA)
+      && !isHumanTournamentEntry(match.playerB)
+    ));
+    if (!pending) break;
+    const result = simulateAiTournamentMatch(pending.playerA, pending.playerB, Number(state.tournament.targetSets || 2));
+    pending.winner = result.winner;
+    pending.hiddenWinner = result.winner;
+    pending.hiddenSetScores = result.setScores.map((score) => [...score]);
+    pending.revealedSetScores = result.setScores.map((score) => [...score]);
+    pending.score = result.score;
+    pending.liveScore = null;
+  }
+  refreshCompetitionSummarySlots();
+  const final = tournamentMatchById("final");
+  if (final?.winner) {
+    state.tournament.championCharacterId = final.winner;
+    state.tournament.stage = "complete";
+  } else if (!state.tournament.championCharacterId) {
+    const lastFinal = [...(state.tournament.matches || [])].reverse().find((match) => match.round === "final" && match.winner);
+    state.tournament.championCharacterId = lastFinal?.winner || null;
+  }
+}
+
+function competitionSummaryFormatLabel() {
+  if (state.tournament.onePointGame || state.tournament.friendlyFormat === "onepoint") return "1 Point Game";
+  if (state.tournament.championship) return "Championnat";
+  if (state.tournament.league) return "League";
+  return "Tournoi à élimination directe";
+}
+
+function renderCompetitionSummary() {
+  if (!els.competitionSummaryContent) return;
+  const champion = state.tournament.championCharacterId;
+  const championId = champion ? tournamentEntryCharacterId(champion) : null;
+  const championImage = championId
+    ? MATCH_RESULT_IMAGES[championId]?.win || PROFILE_CHARACTER_IMAGES[championId] || CHARACTER_IMAGES[championId]?.[0]
+    : null;
+  const matches = (state.tournament.matches || []).filter((match) => match.playerA || match.playerB);
+  const roundOrder = ["group1", "day1", "group2", "day2", "group3", "day3", "round16", "qualif", "quarter", "semi", "final"];
+  const rounds = [...new Set(matches.map((match) => match.round))].sort((a, b) => (
+    roundOrder.indexOf(a) - roundOrder.indexOf(b)
+  ));
+  const participantCount = new Set(matches.flatMap((match) => [match.playerA, match.playerB]).filter(Boolean)).size;
+  els.competitionSummaryContent.innerHTML = `
+    <header class="competition-summary-hero">
+      <p class="label">Résumé compétition</p>
+      <h1>${escapeHtml(state.tournament.competitionName || competitionSummaryFormatLabel())}</h1>
+      <div class="competition-summary-meta">
+        <span>${escapeHtml(competitionSummaryFormatLabel())}</span>
+        <span>${participantCount} participants</span>
+        <span>IA ${escapeHtml(tournamentDifficultyLabel(state.tournament.difficulty))}</span>
+        ${state.tournament.competitionSurfaceLabel ? `<span>${escapeHtml(state.tournament.competitionSurfaceLabel)}</span>` : ""}
+      </div>
+    </header>
+    <section class="competition-summary-winner">
+      ${championImage ? `<img src="${escapeHtml(championImage)}" alt="${escapeHtml(tournamentPlayerLabel(champion))}" />` : ""}
+      <div><span>Vainqueur de la compétition</span><strong>${escapeHtml(tournamentPlayerLabel(champion) || "À déterminer")}</strong></div>
+    </section>
+    <section class="competition-summary-bracket">
+      <div class="clubhouse-section-heading"><div><p class="label">Résultats complets</p><h2>Tableau de la compétition</h2></div></div>
+      <div class="competition-summary-rounds">
+        ${rounds.map((round) => `
+          <div class="competition-summary-round">
+            <h3>${escapeHtml(matches.find((match) => match.round === round)?.label?.replace(/\s+\d+$/, "") || round)}</h3>
+            ${matches.filter((match) => match.round === round).map((match) => renderTournamentMatch(match, round === "final")).join("")}
+          </div>
+        `).join("")}
+      </div>
+    </section>
+    <button class="primary-button competition-summary-finish" type="button" data-finish-competition>TERMINER LA COMPÉTITION</button>
+  `;
+  els.competitionSummaryContent.querySelector("[data-finish-competition]")?.addEventListener("click", finishCompetitionSummary);
+}
+
+function showCompetitionSummaryScreen() {
+  if (!competitionSummaryAvailable()) return;
+  stopSoloTimers();
+  completeCompetitionForSummary();
+  els.resultPanel?.classList.add("hidden");
+  els.menuScreen?.classList.add("hidden");
+  hideStandaloneScreens();
+  hideGameScreen();
+  els.competitionSummaryScreen?.classList.remove("hidden");
+  renderCompetitionSummary();
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+async function finishCompetitionSummary() {
+  try {
+    if (state.tournament.weekly) {
+      await recordWeeklyCompetitionResult();
+      await deleteTournamentProgress();
+    }
+  } catch (error) {
+    console.warn("La clôture de la compétition n’a pas pu être synchronisée.", error);
+  }
+  if (FRIENDLY_TOURNAMENT.enabled) resetFriendlyTournamentConnection();
+  resetTournament();
+  showMenuScreen();
 }
 
 function returnChampionshipLobby() {
@@ -18154,6 +18316,7 @@ function mobileProgressionActions() {
     ["exit-tournament", "data-exit-tournament", "Sortir du tournoi"],
     ["return-club-house", "data-return-club-house", "Retour Club House"],
     ["return-championship-lobby", "data-return-championship-lobby", "Retour au Club House"],
+    ["competition-summary", "data-competition-summary", "Résumé compétition"],
   ];
   const actions = definitions
     .filter(([, attribute]) => markup.includes(attribute))
@@ -18175,6 +18338,7 @@ function runMobileProgressionAction(actionId) {
   else if (actionId === "exit-tournament") exitTournamentToLobby();
   else if (actionId === "return-club-house") returnFriendlyMatchToClubHouse();
   else if (actionId === "return-championship-lobby") returnChampionshipLobby();
+  else if (actionId === "competition-summary") showCompetitionSummaryScreen();
   else if (actionId === "replay-match") startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
   return { ok: true };
 }

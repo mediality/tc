@@ -8299,6 +8299,36 @@ h1 {
 .tournament-champion { overflow: hidden; }
 .tournament-champion-visual { position: relative; width: min(104px, 100%); height: auto; aspect-ratio: 1; overflow: hidden; margin-inline: auto; border: 1px solid rgba(242,200,75,.35); border-radius: 10px; background: linear-gradient(145deg, rgba(242,200,75,.18), rgba(110,72,11,.2)); }
 .tournament-champion-portrait { width: 100%; height: 100%; object-fit: cover; object-position: 50% 16%; }
+
+.competition-summary-screen { min-height: 100vh; background: radial-gradient(circle at top, rgba(69,94,168,.2), transparent 42%), #061f30; }
+.competition-summary-shell { width: min(1480px, calc(100% - 32px)); margin: 0 auto; padding: 32px 0 56px; }
+.competition-summary-content { display: grid; gap: 24px; }
+.competition-summary-hero,
+.competition-summary-winner,
+.competition-summary-bracket { border: 1px solid rgba(140,224,191,.2); border-radius: 22px; background: rgba(6,45,66,.94); box-shadow: 0 22px 56px rgba(0,0,0,.25); }
+.competition-summary-hero { padding: 28px; color: #fff; }
+.competition-summary-hero h1 { margin: 4px 0 18px; font-size: clamp(2rem, 5vw, 4.6rem); text-transform: uppercase; }
+.competition-summary-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.competition-summary-meta span { border-radius: 999px; padding: 8px 12px; color: #dff9ef; background: rgba(140,224,191,.1); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.competition-summary-winner { display: flex; align-items: center; gap: 24px; padding: 24px; color: #fff; }
+.competition-summary-winner img { width: clamp(120px, 18vw, 220px); aspect-ratio: 1; border-radius: 18px; object-fit: cover; object-position: 50% 16%; }
+.competition-summary-winner div { display: grid; gap: 6px; }
+.competition-summary-winner span { color: #8ce0bf; font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.competition-summary-winner strong { font-size: clamp(1.5rem, 4vw, 3rem); }
+.competition-summary-bracket { overflow: hidden; padding: 24px; color: #fff; }
+.competition-summary-rounds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 16px; overflow-x: auto; padding: 12px 2px 18px; }
+.competition-summary-round { display: grid; align-content: start; gap: 10px; }
+.competition-summary-round h3 { margin: 0 0 4px; color: #8ce0bf; font-size: .75rem; text-transform: uppercase; }
+.competition-summary-finish { justify-self: center; min-width: min(360px, 100%); }
+
+@media (max-width: 700px) {
+  .competition-summary-shell { width: min(100% - 20px, 1480px); padding-top: 16px; }
+  .competition-summary-hero,
+  .competition-summary-winner,
+  .competition-summary-bracket { border-radius: 16px; padding: 18px; }
+  .competition-summary-winner { align-items: flex-start; }
+  .competition-summary-winner img { width: 112px; }
+}
 .tournament-champion-crown { position: absolute; right: 7px; bottom: 7px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(74,43,0,.78); box-shadow: 0 5px 14px rgba(0,0,0,.32); }
 .tournament-champion-crown img { width: 22px; height: 22px; object-fit: contain; }
 .tournament-champion:not(.is-crowned) .tournament-champion-visual { display: grid; place-items: center; }

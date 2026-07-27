@@ -6,7 +6,7 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const index = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.54"/);
+assert.match(app, /const GAME_VERSION = "v3\.55"/);
 assert.match(index, /data-ai-club-value="championship"/);
 assert.match(index, /<strong>Championnat<\/strong>/);
 assert.match(app, /function startChampionshipMode\(/);
