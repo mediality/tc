@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.73";
+const GAME_VERSION = "v3.74";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -6296,6 +6296,8 @@ function renderFriendlyMasterTournamentMatch(match) {
 
 function renderFriendlyMasterBoard(matches, standings) {
   const visibleEntries = friendlyMasterVisibleDrawEntries();
+  const drawPending = Boolean(state.tournament.friendlyCompetitionControl?.drawRequired);
+  const activeGroupDay = Number(/^group([1-5])$/.exec(state.tournament.stage)?.[1] || (["barrage", "quarter", "semi", "final", "complete"].includes(state.tournament.stage) ? 5 : 0));
   const groupKeys = ["A", "B", "C", "D"];
   const groupContent = `
     <section class="championship-lobby-section">
@@ -6318,25 +6320,25 @@ function renderFriendlyMasterBoard(matches, standings) {
         </section>
       `).join("")}</div>
     </section>
-    <section class="championship-lobby-section">
+    ${drawPending ? "" : `<section class="championship-lobby-section">
       <p class="championship-section-label">Calendrier</p>
-      <div class="championship-days">${[1, 2, 3, 4, 5].map((day) => `
+      <div class="championship-days">${[1, 2, 3, 4, 5].filter((day) => day <= activeGroupDay).map((day) => `
         <section class="championship-day">
           <header><strong>Journée ${day}</strong><span>${["A–F / B–E / C–D", "A–E / B–C / D–F", "A–D / B–F / C–E", "A–B / E–D / C–F", "A–C / B–D / E–F"][day - 1]}</span></header>
           <div class="championship-day-matches">${matches.filter((match) => match.day === day).map(renderFriendlyMasterTournamentMatch).join("")}</div>
         </section>
       `).join("")}</div>
-    </section>`;
-  const barrages = `<div class="championship-playoffs">${matches.filter((match) => match.round === "barrage").map(renderFriendlyMasterTournamentMatch).join("")}</div>`;
-  const finalContent = `<div class="tournament-bracket championship-final-bracket">
+    </section>`}`;
+  const barrages = drawPending ? "" : `<div class="championship-playoffs">${matches.filter((match) => match.round === "barrage").map(renderFriendlyMasterTournamentMatch).join("")}</div>`;
+  const finalContent = drawPending ? "" : `<div class="tournament-bracket championship-final-bracket">
     <div class="tournament-column"><span class="tournament-column-title">Quarts</span>${matches.filter((match) => match.round === "quarter").map(renderFriendlyMasterTournamentMatch).join("")}</div>
     <div class="tournament-column"><span class="tournament-column-title">Demi-finales</span>${matches.filter((match) => match.round === "semi").map(renderFriendlyMasterTournamentMatch).join("")}</div>
     <div class="tournament-column"><span class="tournament-column-title">Finale</span>${matches.filter((match) => match.round === "final").map(renderFriendlyMasterTournamentMatch).join("")}</div>
   </div>`;
   return `<div class="championship-lobby-content"><div class="championship-board friendly-master-board">
-    ${friendlyMasterZoneMarkup(1, "Phase de groupes", groupContent)}
-    ${friendlyMasterZoneMarkup(3, "Barrages", barrages)}
-    ${friendlyMasterZoneMarkup(4, "Tour final", finalContent)}
+    ${friendlyMasterZoneMarkup(1, "Tour 1 · Phase de groupes", groupContent)}
+    ${friendlyMasterZoneMarkup(2, "Tour 2 · Barrages", barrages)}
+    ${friendlyMasterZoneMarkup(3, "Tour 3 · Tour final", finalContent)}
   </div></div>`;
 }
 
@@ -6359,7 +6361,7 @@ function renderFriendlyLobbyScreen() {
   const launchSeconds = competitionControl?.launchAt
     ? Math.max(0, Math.ceil((Number(competitionControl.launchAt) - Date.now()) / 1000))
     : null;
-  const canStart = !FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && FRIENDLY_TOURNAMENT.canStart;
+  const canStart = !FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && selectedCount >= 1;
   const startDisabled = !canStart;
   const status = friendlyLobbyStatusText();
   const settingButton = (group, value, label, active) => `<button class="friendly-setting-button ${active ? "active" : ""}" type="button" data-friendly-setting="${group}" data-friendly-setting-value="${value}" ${settingsDisabled ? "disabled" : ""}>${label}</button>`;
@@ -6406,6 +6408,7 @@ function renderFriendlyLobbyScreen() {
       ${competitionControl?.canControl ? `<div class="friendly-master-control-actions">
         ${competitionControl.drawRequired ? '<button class="small-button" type="button" data-friendly-master-control="draw">TIRAGE AU SORT</button>' : ""}
         <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 5 S"}</button>
+        ${format === "onepointmaster" ? `<button class="small-button" type="button" data-friendly-master-control="simulate" ${competitionControl.launched ? "" : "disabled"}>SIMULER LES MATCHS</button>` : ""}
       </div>` : ""}
     </section>
   ` : "";
@@ -6506,6 +6509,7 @@ function renderFriendlyLobbyScreen() {
         `).join("")}
       </div>
     </section>
+    ${masterControlMarkup}
     ${settingsLocked ? "" : `<section class="friendly-visibility-section">
       <div>
         <p class="label">Confidentialité</p>
@@ -6519,7 +6523,6 @@ function renderFriendlyLobbyScreen() {
     </section>`}
     ${leagueGroupMarkup}
     ${masterGroupMarkup}
-    ${masterControlMarkup}
     ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
     ${matches.length && format !== "league" && format !== "onepointmaster" ? `
       <section>
@@ -6877,14 +6880,20 @@ async function pollFriendlyTournament() {
 
 async function startFriendlyTournamentFromLobby() {
   if (!FRIENDLY_TOURNAMENT.enabled || !FRIENDLY_TOURNAMENT.isCreator) return;
-  if (!FRIENDLY_TOURNAMENT.canStart) {
-    renderFriendlyLobbyScreen();
+  const selectedCount = state.tournament?.friendlyParticipants?.filter((participant) => participant.selected).length || 0;
+  if (selectedCount < 2) {
+    await showEventConfirmDialog({
+      kicker: "Sélection des joueurs",
+      title: "Deux joueurs minimum",
+      message: "Une partie ne peut pas être lancée avec un seul joueur sélectionné. Sélectionnez au moins deux joueurs.",
+      confirmLabel: "COMPRIS",
+      cancelLabel: "RETOUR",
+    });
     return;
   }
   const friendlyFormat = state.tournament?.friendlyFormat || "match";
   const formatLabel = friendlyFormat === "league" ? "LEAGUE" : friendlyFormat === "onepointmaster" ? "1 POINT MASTER" : friendlyFormat === "onepoint" ? "1 POINT MATCH" : friendlyFormat === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE";
   const setsLabel = Number(state.tournament?.targetSets || 2);
-  const selectedCount = state.tournament?.friendlyParticipants?.filter((participant) => participant.selected).length || 0;
   const confirmed = await showEventConfirmDialog({
     kicker: "Club House en ligne",
     title: `Lancer ${formatLabel} ?`,
@@ -7158,7 +7167,7 @@ function showFriendlyDrawAnimation(tournament) {
     FRIENDLY_TOURNAMENT.drawAnimating = true;
     FRIENDLY_TOURNAMENT.drawEntries = entries;
     FRIENDLY_TOURNAMENT.drawVisibleCount = 0;
-    CHAMPIONSHIP_LOBBY_UI.openZone = tournament.round === "quarter" ? 4 : 1;
+    CHAMPIONSHIP_LOBBY_UI.openZone = tournament.round === "quarter" ? 3 : 1;
     renderFriendlyLobbyScreen();
     const timer = window.setInterval(() => {
       FRIENDLY_TOURNAMENT.drawVisibleCount += 1;
@@ -7831,7 +7840,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.73");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.74");
 }
 
 function emptyMomentumState() {
@@ -16864,8 +16873,7 @@ function renderChampionshipPanel(title, final, champion) {
                 <strong>${Number(row.points || 0)}</strong><span>${formatLeagueDifference(Number(row.difference || 0))}</span><span>${Number(row.boost || 0)}</span><span>${Number(row.twoZero || 0)}</span>
               </div>`).join("")}
             </section>
-          `).join("")}</div>
-          <div class="championship-day"><header><strong>Journée ${day}</strong></header><div class="championship-day-matches">${currentMatches.map((match) => renderTournamentMatch(match)).join("")}</div></div>`;
+          `).join("")}</div>`;
       } else if (stage === "barrage") {
         currentTitle = "Barrages";
         currentContent = `<div class="championship-playoffs">${currentMatches.map((match) => renderTournamentMatch(match)).join("")}</div>`;

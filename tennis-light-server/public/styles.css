@@ -1385,6 +1385,13 @@ body.tutorial-running .boost-button strong {
   font-weight: 800;
 }
 
+.online-clubhouse-room-panel .friendly-master-controls,
+.online-clubhouse-room-panel .friendly-master-controls *,
+.online-clubhouse-room-panel .friendly-master-board,
+.online-clubhouse-room-panel .friendly-master-board * {
+  color: #173b50 !important;
+}
+
 .friendly-league-schedule {
   display: grid;
   gap: 10px;
@@ -7613,7 +7620,7 @@ h1 {
 .event-transition-countdown { display: grid; place-items: center; width: 92px; height: 92px; margin: 18px 0; border: 1px solid rgba(140,224,191,.36); border-radius: 50%; color: #fff; background: rgba(41,184,149,.16); box-shadow: 0 0 0 10px rgba(41,184,149,.05),0 0 35px rgba(41,184,149,.18); font-size: 3rem; line-height: 1; }
 .event-transition-actions { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
 .event-confirm-panel { justify-items: stretch; text-align: left; }
-.event-confirm-panel .event-transition-actions { justify-content: flex-start; }
+.event-confirm-panel .event-transition-actions { justify-content: center; }
 .return-lobby-modal { border: 1px solid rgba(140,224,191,.28); border-radius: 20px; color: #fff; background: linear-gradient(145deg,#08354e,#031f31); box-shadow: 0 30px 90px rgba(0,0,0,.48); }
 .return-lobby-modal h2 { color: #fff; }
 .return-lobby-modal > p:not(.event-transition-kicker) { color: rgba(255,255,255,.72); }

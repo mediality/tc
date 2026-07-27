@@ -4151,7 +4151,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     creatorParticipantId: tournament.creatorParticipantId,
     participantCount: activeParticipants.length,
     maxParticipants: 4,
-    canStart: tournament.status === "waiting" && selectedFriendlyParticipants(tournament).length >= 1,
+    canStart: tournament.status === "waiting" && selectedFriendlyParticipants(tournament).length >= 2,
     format: tournament.format || "classic",
     targetSets: Number(tournament.targetSets || 2),
     distribution: tournament.distribution || "random",
@@ -4251,7 +4251,7 @@ function publicFriendlyLobbyInfo(req, tournament, user = null) {
     creatorNickname: creator?.nickname || "Joueur",
     participantCount: activeParticipants.length,
     maxParticipants: 4,
-    canStart: tournament.status === "waiting" && selectedFriendlyParticipants(tournament).length >= 1,
+    canStart: tournament.status === "waiting" && selectedFriendlyParticipants(tournament).length >= 2,
     format: tournament.format || "classic",
     targetSets: Number(tournament.targetSets || 2),
     distribution: tournament.distribution || "random",
@@ -5739,8 +5739,8 @@ async function handleApi(req, res) {
       sendJson(res, 403, { error: "Seul le créateur peut lancer le tournoi." });
       return;
     }
-    if (tournament.status !== "waiting" || selectedFriendlyParticipants(tournament).length < 1) {
-      sendJson(res, 409, { error: "Sélectionnez au moins un joueur avant de lancer l'événement." });
+    if (tournament.status !== "waiting" || selectedFriendlyParticipants(tournament).length < 2) {
+      sendJson(res, 409, { error: "Sélectionnez au moins deux joueurs avant de lancer l'événement." });
       return;
     }
     tournament.status = "playing";
