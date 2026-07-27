@@ -7,11 +7,11 @@ const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "
 const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.53.0");
-assert.match(app, /const GAME_VERSION = "v3\.53"/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.53/);
-assert.match(html, /app\.js\?v=3\.53\.0/);
-assert.match(html, /styles\.css\?v=3\.53\.0/);
+assert.equal(pkg.version, "3.54.0");
+assert.match(app, /const GAME_VERSION = "v3\.54"/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.54/);
+assert.match(html, /app\.js\?v=3\.54\.0/);
+assert.match(html, /styles\.css\?v=3\.54\.0/);
 
 assert.match(app, /const singleEntryLeague = competition\.eventType === "League"/);
 assert.match(app, /const replayLocked = alreadyPlayed && singleEntryLeague/);

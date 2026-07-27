@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=3.53.0" />
-    <link rel="stylesheet" href="./mobile-game.css?v=3.53.0" />
+    <link rel="stylesheet" href="./styles.css?v=3.54.0" />
+    <link rel="stylesheet" href="./mobile-game.css?v=3.54.0" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -125,7 +125,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v3.53</span></strong>
+          <strong>Tennis Courts Academy · <span>v3.54</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -691,6 +691,10 @@
                 <img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
                 <span><small>Joueurs Pro</small><strong>Tournoi Classic</strong><em>Un tableau à élimination directe.</em></span>
               </button>
+              <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="onepoint">
+                <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
+                <span><small>Accessible à tous · 16 joueurs</small><strong>1 Point Game</strong><em>Un échange unique pour se qualifier.</em></span>
+              </button>
               <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="league" data-pro-format>
                 <img src="./assets/icons/LEAGUE.svg" alt="" aria-hidden="true" />
                 <span><small>Joueurs Pro</small><strong>League</strong><em>Une phase de groupes puis les finales.</em></span>
@@ -704,7 +708,7 @@
 
           <div class="clubhouse-configuration-layout">
             <div class="friendly-settings-panel ai-club-house-settings clubhouse-settings-card">
-            <div class="friendly-setting-row">
+            <div class="friendly-setting-row" id="aiSetsSettingRow">
               <div>
                 <strong>Sets gagnants</strong>
                 <span>Format de chaque rencontre.</span>
@@ -736,11 +740,12 @@
                 <strong>Bonus</strong>
                 <span id="aiBonusDescription">Sans · aucun bonus pour les joueurs IA.</span>
               </div>
-              <div class="friendly-setting-switch four-options" aria-label="Bonus des joueurs IA">
+              <div class="friendly-setting-switch five-options" aria-label="Bonus et récompenses">
                 <button class="friendly-setting-button active" type="button" data-ai-club-setting="bonus" data-ai-club-value="none">SANS</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="ascendant">ASCENDANT</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="domination">DOMINATION</button>
                 <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="nemesis">BÊTE NOIRE</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="bonus" data-ai-club-value="reward">RÉCOMPENSE</button>
               </div>
             </div>
 
@@ -771,7 +776,7 @@
               <p class="label">Votre sélection</p>
               <h2 id="aiClubHouseSummaryTitle">Match Solo</h2>
               <div id="aiClubHouseSummary" class="clubhouse-summary-text" aria-live="polite"></div>
-              <div id="aiClubHouseAccessNote" class="clubhouse-access-message hidden">Classic, League et Championnat sont réservés aux joueurs Pro.</div>
+              <div id="aiClubHouseAccessNote" class="clubhouse-access-message hidden">Classic, League et Championnat sont réservés aux joueurs Pro. Le 1 Point Game est accessible à tous.</div>
               <div id="aiClubHouseSaveActions" class="ai-club-house-save-actions hidden">
                 <button id="resumeAiClubHouseSaveButton" class="small-button" type="button">Continuer la partie sauvegardée</button>
                 <button id="deleteAiClubHouseSaveButton" class="small-button danger-button" type="button">Supprimer</button>
@@ -877,8 +882,8 @@
       </div>
     </div>
 
-    <script src="./tutorial-engine.js?v=3.53.0"></script>
-    <script src="./app.js?v=3.53.0"></script>
-    <script src="./mobile-game.js?v=3.53.0"></script>
+    <script src="./tutorial-engine.js?v=3.54.0"></script>
+    <script src="./app.js?v=3.54.0"></script>
+    <script src="./mobile-game.js?v=3.54.0"></script>
   </body>
 </html>

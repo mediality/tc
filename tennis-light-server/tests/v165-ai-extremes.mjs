@@ -21,9 +21,9 @@ function functionSource(name) {
 }
 
 assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.53/);
-assert.match(html, /styles\.css\?v=3\.53\.0/);
-assert.match(html, /app\.js\?v=3\.53\.0/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.54/);
+assert.match(html, /styles\.css\?v=3\.54\.0/);
+assert.match(html, /app\.js\?v=3\.54\.0/);
 assert.match(app, /const CARD_ASSET_VERSION = "170"/);
 
 const attitude = functionSource("chooseSoloAttitude");

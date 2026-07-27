@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.53";
+const GAME_VERSION = "v3.54";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.53";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.54";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -168,7 +168,7 @@ const MENU_STATE = {
 const AI_CLUB_HOUSE = {
   format: (() => {
     const storedFormat = localStorage.getItem("tennisLightAiClubFormat");
-    if (["league", "championship"].includes(storedFormat)) return storedFormat;
+    if (["league", "championship", "onepoint"].includes(storedFormat)) return storedFormat;
     if (["classic", "tournament"].includes(storedFormat)) return "classic";
     return "match";
   })(),
@@ -238,24 +238,27 @@ const HUMAN_CIRCUIT_LEVELS = [
   { level: 5, min: 5000, max: 7999, label: "Contender" },
   { level: 6, min: 8000, max: Infinity, label: "Top player" },
 ];
-const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis"];
+const AI_BONUS_LEVELS = ["none", "ascendant", "domination", "nemesis", "reward"];
 const AI_BONUS_LABELS = {
   none: "SANS",
   ascendant: "ASCENDANT",
   domination: "DOMINATION",
   nemesis: "BÊTE NOIRE",
+  reward: "RÉCOMPENSE",
 };
 const AI_BONUS_COUNTS = {
   none: 0,
   ascendant: 1,
   domination: 2,
   nemesis: 3,
+  reward: 0,
 };
 const AI_BONUS_DESCRIPTIONS = {
   none: "Sans · aucun bonus pour les joueurs IA.",
   ascendant: "Ascendant · 1 bonus aléatoire pour chaque joueur IA.",
   domination: "Domination · 2 bonus aléatoires différents pour chaque joueur IA.",
   nemesis: "Bête noire · 3 bonus aléatoires différents pour chaque joueur IA.",
+  reward: "Récompense · tout le monde commence sans bonus, puis les victoires 2–0 et 3–0 offrent des bonus pour le match suivant.",
 };
 
 const EMPTY_TOURNAMENT = {
@@ -5084,7 +5087,7 @@ function openReturnLobbyDialog() {
 
 function renderAiClubHouse() {
   const proAccess = canAccessProFeatures();
-  if (!proAccess && AI_CLUB_HOUSE.format !== "match") AI_CLUB_HOUSE.format = "match";
+  if (!proAccess && !["match", "onepoint"].includes(AI_CLUB_HOUSE.format)) AI_CLUB_HOUSE.format = "match";
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
   els.aiClubSettingButtons?.forEach((button) => {
@@ -5102,7 +5105,11 @@ function renderAiClubHouse() {
   });
   const isMatch = AI_CLUB_HOUSE.format === "match";
   const isChampionship = AI_CLUB_HOUSE.format === "championship";
+  const isOnePoint = AI_CLUB_HOUSE.format === "onepoint";
+  if (!isOnePoint && AI_CLUB_HOUSE.bonus === "reward") AI_CLUB_HOUSE.bonus = "none";
+  document.querySelector('[data-ai-club-setting="bonus"][data-ai-club-value="reward"]')?.classList.toggle("hidden", !isOnePoint);
   document.querySelectorAll("[data-competition-setting]").forEach((row) => row.classList.toggle("hidden", isMatch));
+  document.querySelector("#aiSetsSettingRow")?.classList.toggle("hidden", isOnePoint);
   document.querySelector("#aiPlayersSettingRow")?.classList.toggle("hidden", isMatch || isChampionship);
   document.querySelector("#aiDistributionSettingRow")?.classList.toggle("hidden", isMatch || isChampionship);
   els.aiBonusSettingRow?.classList.remove("setting-disabled");
@@ -5113,19 +5120,21 @@ function renderAiClubHouse() {
     els.aiBonusDescription.textContent = AI_BONUS_DESCRIPTIONS[AI_CLUB_HOUSE.bonus];
   }
   if (els.aiClubHouseSummary) {
-    const format = AI_CLUB_HOUSE.format === "championship" ? "Championnat" : AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
+    const format = AI_CLUB_HOUSE.format === "championship" ? "Championnat" : AI_CLUB_HOUSE.format === "league" ? "League" : AI_CLUB_HOUSE.format === "onepoint" ? "1 Point Game" : AI_CLUB_HOUSE.format === "classic" ? "Tournoi Classic" : "Match Solo";
     const bonusText = `bonus ${aiBonusLabel(AI_CLUB_HOUSE.bonus).toLowerCase()}`;
     const playersText = AI_CLUB_HOUSE.players === "best" ? "meilleurs joueurs" : "joueurs aléatoires";
     const distributionText = AI_CLUB_HOUSE.distribution === "ranking" ? "répartition selon classement" : "répartition aléatoire";
     els.aiClubHouseSummary.textContent = isMatch
       ? `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)}`
+      : isOnePoint
+        ? `16 joueurs · 1 échange par match · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`
       : isChampionship
         ? `24 joueurs · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · tirage aléatoire avec 8 têtes de série`
       : `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
     if (els.aiClubHouseSummaryTitle) els.aiClubHouseSummaryTitle.textContent = format;
   }
   if (els.startAiClubHouseButton) {
-    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "championship" ? "Lancer le Championnat" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
+    els.startAiClubHouseButton.textContent = isMatch ? "Lancer le match" : AI_CLUB_HOUSE.format === "onepoint" ? "Lancer le 1 Point Game" : AI_CLUB_HOUSE.format === "championship" ? "Lancer le Championnat" : AI_CLUB_HOUSE.format === "league" ? "Lancer la League" : "Lancer le tournoi";
   }
   els.aiClubHouseAccessNote?.classList.toggle("hidden", proAccess);
   els.aiClubHouseSaveActions?.classList.toggle("hidden", !proAccess || !readAiClubHouseSave());
@@ -5201,7 +5210,7 @@ function deleteAiClubHouseSave() {
 function updateAiClubHouseSetting(setting, value) {
   if (setting === "format") {
     if (["classic", "league"].includes(value) && !canAccessProFeatures()) return;
-    AI_CLUB_HOUSE.format = ["match", "classic", "league", "championship"].includes(value) ? value : "match";
+    AI_CLUB_HOUSE.format = ["match", "classic", "league", "championship", "onepoint"].includes(value) ? value : "match";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
   } else if (setting === "sets") {
     AI_CLUB_HOUSE.targetSets = Number(value) === 3 ? 3 : 2;
@@ -5256,7 +5265,8 @@ async function startAiClubHouseCompetition() {
   const selectedTargetSets = AI_CLUB_HOUSE.targetSets;
   const isMatch = selectedFormat === "match";
   const isChampionship = selectedFormat === "championship";
-  if (!isMatch && !canAccessProFeatures()) {
+  const isOnePoint = selectedFormat === "onepoint";
+  if (!isMatch && !isOnePoint && !canAccessProFeatures()) {
     showMenuScreen();
     renderAuthState("Réservé aux joueurs Pro.");
     return;
@@ -5287,6 +5297,8 @@ async function startAiClubHouseCompetition() {
         startMatchMode(selectedTargetSets, { keepSoloOpponent: true });
       } else if (isChampionship) {
         startChampionshipMode(selectedTargetSets, options);
+      } else if (isOnePoint) {
+        startOnePointTournamentMode(options);
       } else if (selectedFormat === "league") {
         startLeagueTournamentMode(selectedTargetSets, options);
       } else {
@@ -7527,7 +7539,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.53");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.54");
 }
 
 function emptyMomentumState() {
@@ -12440,6 +12452,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   };
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
+    completeOnePointTournamentMatch(winner, setScore);
   }
   state.resultInfo.activatedBonuses = updateSequenceBonusesAfterExchange(winner);
   state.log.unshift(exchangeResultLogLine(winner, winType, setScore));
@@ -12464,6 +12477,34 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
   render();
+}
+
+function completeOnePointTournamentMatch(winner, exchangeScore) {
+  if (!state.tournament?.onePointGame || !state.tournament.currentMatch) return;
+  const loser = opponentOf(winner);
+  const score = [0, 0];
+  score[winner] = Number(exchangeScore?.winnerGames || 2);
+  score[loser] = Number(exchangeScore?.loserGames || 0);
+  state.setMatch.score = [...score];
+  state.setMatch.completedScores = [[...score]];
+  state.setMatch.setOver = true;
+  state.setMatch.winner = winner;
+  state.setMatch.setsWon = winner === 0 ? [1, 0] : [0, 1];
+  state.setMatch.matchOver = true;
+  state.setMatch.matchWinner = winner;
+  state.resultInfo.setMatch = {
+    previousScore: [0, 0],
+    score: [...score],
+    completedScores: [[...score]],
+    setOver: true,
+    winner,
+    decisiveExchange: true,
+    targetSets: 1,
+    setsWon: [...state.setMatch.setsWon],
+    matchOver: true,
+    matchWinner: winner,
+  };
+  state.log.unshift(`${playerName(winner)} gagne ce match sur l’unique point (${score[0]}–${score[1]}).`);
 }
 
 function getExchangeSetScore(winner, winType) {
@@ -12608,7 +12649,9 @@ function startMatchMode(targetSets = null, options = {}) {
   state.setMatch.matchOver = false;
   state.setMatch.matchWinner = null;
   HUMAN_MATCH_TELEMETRY.forceNew = true;
-  const server = Math.random() < 0.5 ? 0 : 1;
+  const server = state.tournament?.onePointGame
+    ? onePointTournamentServer()
+    : Math.random() < 0.5 ? 0 : 1;
   confrontationIntroActive = !state.tutorial.active;
   newGame({ preserveSet: true, serverOverride: server });
   const styleLabel = aiStyleLabel();
@@ -12618,6 +12661,19 @@ function startMatchMode(targetSets = null, options = {}) {
   markServerDirtyForHostAction();
   render();
   queueConfrontationIntro();
+}
+
+function onePointTournamentServer() {
+  const match = tournamentMatchById(state.tournament?.currentMatch);
+  if (!match) return Math.random() < 0.5 ? 0 : 1;
+  const previousScores = state.tournament?.previousWinScores || {};
+  const scoreA = Number(previousScores[match.playerA] || 0);
+  const scoreB = Number(previousScores[match.playerB] || 0);
+  const servingEntry = scoreA === scoreB
+    ? (Math.random() < 0.5 ? match.playerA : match.playerB)
+    : scoreA > scoreB ? match.playerA : match.playerB;
+  const human = humanTournamentEntry();
+  return servingEntry === human ? 0 : 1;
 }
 
 function startLeagueTournamentMode(targetSets = 2, options = {}) {
@@ -13405,6 +13461,10 @@ function buildAiClubHouseClassicSetup(options = {}) {
   };
 }
 
+function startOnePointTournamentMode(options = {}) {
+  startTournamentMode(1, { ...options, onePointGame: true });
+}
+
 function startTournamentMode(targetSets = 2, options = {}) {
   if (SERVER_SYNC.enabled) {
     state.log.unshift("Le tournoi IA est disponible hors partie en ligne.");
@@ -13423,6 +13483,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     return;
   }
   const aiClubHouse = Boolean(options.aiClubHouse);
+  const onePointGame = Boolean(options.onePointGame);
   const circuitIntelligence = aiClubHouse && SOLO_AI.difficulty === "circuit";
   const bonusLevel = requestedBonusLevel;
   const tournamentSetup = aiClubHouse
@@ -13454,6 +13515,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     active: true,
     visible: false,
     bracket16: true,
+    onePointGame,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
     aiIntelligenceLevels,
@@ -13462,7 +13524,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     distribution: options.distribution || "random",
     weekly: Boolean(weeklyCompetition),
     competitionId: weeklyCompetition?.id || null,
-    competitionName: weeklyCompetition?.name || (aiClubHouse ? "TOURNOI CLUB HOUSE" : null),
+    competitionName: weeklyCompetition?.name || (onePointGame ? "1 POINT GAME" : aiClubHouse ? "TOURNOI CLUB HOUSE" : null),
     competitionCity: weeklyCompetition?.city || null,
     competitionCountry: weeklyCompetition?.country || null,
     competitionFlag: weeklyCompetition?.flag || null,
@@ -13491,6 +13553,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     seededCharacters: aiClubHouse ? [] : seededHistorics,
     dynamicBonusIds,
     matches: [],
+    previousWinScores: {},
   };
   state.tournament.matches = buildWeeklyTournamentMatches(positions, HUMAN_TOURNAMENT_ENTRY, targetSets);
   refreshTournamentDerivedSlots();
@@ -13500,9 +13563,9 @@ function startTournamentMode(targetSets = 2, options = {}) {
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.currentMatch = firstHumanMatch?.id || null;
   state.tournament.stage = firstHumanMatch?.round || "round16";
-  const tournamentLabel = weeklyCompetition?.name || `Tournoi amical ${targetSets} sets`;
+  const tournamentLabel = weeklyCompetition?.name || (onePointGame ? "1 Point Game" : `Tournoi amical ${targetSets} sets`);
   const surfaceText = weeklyCompetition?.surfaceLabel ? ` · ${weeklyCompetition.surfaceLabel}` : "";
-  state.log.unshift(`${tournamentLabel}${surfaceText} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}.`);
+  state.log.unshift(`${tournamentLabel}${surfaceText} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}${onePointGame ? " · un seul point décisif" : ""}.`);
   render();
 }
 
@@ -13642,6 +13705,15 @@ function allCircuitSeedBonuses() {
   ));
 }
 
+function onePointRewardBonusPool() {
+  return [
+    ...allCircuitSeedBonuses(),
+    { id: "rewardAce", label: "Ace · +1 précision", precision: 1 },
+    { id: "rewardSequence", label: "Enchaînement · +1 placement", placement: 1 },
+    { id: "rewardBulle", label: "Bulle · +1 puissance", power: 1 },
+  ];
+}
+
 function randomCircuitBonus(excludedIds = []) {
   const excluded = new Set(excludedIds);
   return shuffle(allCircuitSeedBonuses()).find((bonus) => !excluded.has(bonus.id)) || null;
@@ -13676,6 +13748,7 @@ function persistMatchPermanentAward(playerIndex, bonus) {
 }
 
 function applyMotivationBonus() {
+  if (state.tournament?.onePointGame && state.tournament?.bonusLevel === "reward") return;
   const ranks = state.players.map((player) => Number(player.worldRank || 0) || null);
   if (!ranks[0] || !ranks[1] || ranks[0] === ranks[1]) return;
   const lessWellRanked = ranks[0] > ranks[1] ? 0 : 1;
@@ -13693,6 +13766,7 @@ function applyMotivationBonus() {
 
 function applyHumanAscendantBonus() {
   if (!SOLO_AI.enabled || SERVER_SYNC.enabled || !state.tournament.active) return;
+  if (state.tournament.onePointGame && state.tournament.bonusLevel === "reward") return;
   const momentum = state.setMatch.momentum?.[0];
   if (!momentum || momentum.ascendantResolved) return;
   momentum.ascendantResolved = true;
@@ -14099,8 +14173,28 @@ function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tourname
   const strengthB = aiTournamentStrength(playerB);
   const winChanceA = Math.max(0.1, Math.min(0.9, 1 / (1 + Math.exp(-(strengthA - strengthB) / 9))));
   const winner = Math.random() < winChanceA ? playerA : playerB;
+  if (state.tournament?.onePointGame) {
+    const winnerIndex = winner === playerA ? 0 : 1;
+    const winnerScore = Math.random() < 0.2 ? 3 : 2;
+    const loserScore = winnerScore === 3 ? 0 : Math.random() < 0.55 ? 0 : 1;
+    const setScores = [winnerIndex === 0 ? [winnerScore, loserScore] : [loserScore, winnerScore]];
+    applyOnePointTournamentReward(winner, winnerScore, loserScore);
+    return { winner, setScores, score: formatSetScores(setScores) };
+  }
   const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
+}
+
+function applyOnePointTournamentReward(winnerEntry, winnerScore, loserScore) {
+  if (!state.tournament?.onePointGame || !winnerEntry) return;
+  state.tournament.previousWinScores ||= {};
+  state.tournament.previousWinScores[winnerEntry] = Number(winnerScore || 0);
+  if (state.tournament.bonusLevel !== "reward") return;
+  const rewardCount = winnerScore === 3 && loserScore === 0 ? 2 : winnerScore === 2 && loserScore === 0 ? 1 : 0;
+  state.tournament.surfaceBonuses ||= {};
+  state.tournament.surfaceBonuses[winnerEntry] = rewardCount
+    ? shuffle(onePointRewardBonusPool()).slice(0, rewardCount)
+    : [];
 }
 
 function aiTournamentStrength(characterId) {
@@ -14400,6 +14494,15 @@ function handleWeeklyTournamentMatchComplete() {
   match.revealedSetScores = tournamentCompletedSetScoresForMatch(match);
   match.score = formatSetScores(match.revealedSetScores);
   match.liveScore = null;
+  if (state.tournament.onePointGame) {
+    const winnerIndex = winnerEntry === match.playerA ? 0 : 1;
+    const pointScore = match.revealedSetScores[0] || [0, 0];
+    applyOnePointTournamentReward(
+      winnerEntry,
+      Number(pointScore[winnerIndex] || 0),
+      Number(pointScore[opponentOf(winnerIndex)] || 0),
+    );
+  }
   addHumanMatchPerformanceBonus(match);
   refreshWeeklyTournamentDerivedSlots();
   revealAllTournamentAiSets(match.round);
@@ -16715,7 +16818,7 @@ function renderCenterNextSetButton() {
     if (state.tournament.championship) {
       return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-championship-lobby>Retour au Club House</button>';
     }
-    return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>Sortir du tournoi</button>';
+    return `<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>${state.tournament.onePointGame ? "FIN DU TOURNOI" : "Sortir du tournoi"}</button>`;
   }
   if (state.tournament.championship && state.gameOver && state.setMatch.matchOver && state.tournament.stage === "championshipLobby") {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-championship-lobby>Retour au Club House</button>';
