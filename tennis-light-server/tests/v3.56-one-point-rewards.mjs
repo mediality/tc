@@ -7,8 +7,8 @@ const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url),
 const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.56.0");
-assert.match(app, /const GAME_VERSION = "v3\.56"/);
+assert.equal(pkg.version, "3.57.0");
+assert.match(app, /const GAME_VERSION = "v3\.57"/);
 assert.match(html, /CHAMPIONSHIP\.svg/);
 assert.match(html, /data-ai-club-value="championship" data-pro-format/);
 
@@ -33,4 +33,4 @@ assert.match(server, /function recordFriendlyOnePointResults/);
 assert.match(server, /previousWinScores:\s*tournament\.previousWinScores/);
 assert.match(server, /rewardCounts:\s*tournament\.rewardCounts/);
 
-console.log("v3.56 : récompenses humaines et priorité de service Solo/En ligne : OK");
+console.log("v3.57 : récompenses humaines et priorité de service Solo/En ligne : OK");

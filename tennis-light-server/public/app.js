@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.56";
+const GAME_VERSION = "v3.57";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.56";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.57";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7562,7 +7562,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.56");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.57");
 }
 
 function emptyMomentumState() {
@@ -8417,6 +8417,18 @@ function runSoloAITurn() {
     }
 
     const playerIndex = SOLO_AI.playerIndex;
+    const certainWinDecision = soloCertainWinDecision(playerIndex);
+    if (certainWinDecision) {
+      if (certainWinDecision.action === "pass") {
+        recordSoloAiDecision("pass_certain_win", certainWinDecision);
+        pass(playerIndex);
+      } else {
+        recordSoloAiDecision("improve_certain_win", certainWinDecision);
+        executeSoloPlanPath(playerIndex, certainWinDecision.path);
+      }
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
     if (normalizeAiIntelligence(SOLO_AI.style) === "amateur" && runAmateurSoloAITurn(playerIndex)) {
       ensureSoloProgress(beforeSignature);
       return;
@@ -10138,6 +10150,89 @@ function canSoloPassAndWin(playerIndex) {
     return false;
   }
   return exchangeWinner === playerIndex;
+}
+
+function opponentIsUnableToReply(playerIndex) {
+  const opponent = state.players[opponentOf(playerIndex)];
+  if (!opponent?.hand.length) return true;
+  if (opponent.endurance > 0) return false;
+  // À 0 endurance, l'adversaire conserve une réponse potentielle si un bonus
+  // rend au moins une de ses cartes gratuite.
+  return !opponent.hand.some((card) => effectiveCost(opponent, card) === 0);
+}
+
+function certainWinImprovementPath(playerIndex) {
+  if (!opponentIsUnableToReply(playerIndex)) return null;
+  const player = state.players[playerIndex];
+  const opponentIndex = opponentOf(playerIndex);
+  const boost = soloLegalActionInventory(playerIndex).boosts
+    .sort((a, b) => soloBoostScore(playerIndex, b.card) - soloBoostScore(playerIndex, a.card))[0];
+  if (boost) {
+    return {
+      type: "boost",
+      cardUid: boost.card.uid,
+      cardName: boost.card.name,
+      sacrificeUid: boost.sacrifice.uid,
+      guaranteedScore: "3-0",
+    };
+  }
+  const legalCoups = player.hand.filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  const smash = legalCoups
+    .filter((card) => card.effectType === "smashThreat" && !isSoloCardEffectDormant(playerIndex, card))
+    .sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
+  if (smash) {
+    return {
+      type: "normal",
+      cardUid: smash.uid,
+      cardName: smash.name,
+      guaranteedScore: "2-0",
+      finish: "smash",
+    };
+  }
+  const cleanWinner = legalCoups
+    .map((card) => {
+      const stats = getCardStats(player, card, false);
+      const projectedPowers = state.players.map((candidate, index) => (
+        candidate.power
+        + (index === playerIndex ? stats.power : 0)
+        + (index === playerIndex ? Math.max(2, state.players[opponentIndex].endurance) : 0)
+        + projectedEndBonuses(candidate)
+      ));
+      const winner = projectedPowers[playerIndex] > projectedPowers[opponentIndex]
+        ? playerIndex
+        : projectedPowers[playerIndex] < projectedPowers[opponentIndex]
+          ? opponentIndex
+          : state.server;
+      const score = getProjectedExchangeSetScore(winner, "power", projectedPowers);
+      return { card, winner, score, margin: projectedPowers[playerIndex] - projectedPowers[opponentIndex] };
+    })
+    .filter((option) => option.winner === playerIndex && option.score.loserGames === 0)
+    .sort((a, b) => b.margin - a.margin || soloCardScore(playerIndex, b.card) - soloCardScore(playerIndex, a.card))[0];
+  return cleanWinner ? {
+    type: "normal",
+    cardUid: cleanWinner.card.uid,
+    cardName: cleanWinner.card.name,
+    guaranteedScore: "2-0",
+  } : null;
+}
+
+function soloCertainWinDecision(playerIndex) {
+  if (state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
+  const projection = soloPassProjection(playerIndex);
+  if (projection.projectedWinner !== playerIndex) return null;
+  const path = certainWinImprovementPath(playerIndex);
+  return path
+    ? {
+      action: "play",
+      path,
+      reason: "l’adversaire ne peut plus répondre et une victoire d’au moins 2-0 est garantie",
+      projection,
+    }
+    : {
+      action: "pass",
+      reason: "le passage garantit immédiatement la victoire de l’échange",
+      projection,
+    };
 }
 
 function soloSecuredPassDecision(playerIndex, scenarioPlan = null) {

@@ -9,7 +9,7 @@ const mobile = fs.readFileSync(path.join(root, "public/mobile-game.js"), "utf8")
 const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "utf8");
 const styles = fs.readFileSync(path.join(root, "public/styles.css"), "utf8");
 
-assert.match(app, /const GAME_VERSION = "v3\.56"/);
+assert.match(app, /const GAME_VERSION = "v3\.57"/);
 assert.match(app, /playerSide: actorIndex < 0 \? "information" : actorIndex === localPlayerIndex \? "player" : "opponent"/);
 assert.match(mobile, /mobile-history-entry--side-\$\{escapeText\(entry\.playerSide\)\}/);
 assert.match(mobile, /mobile-history-player-name/);
