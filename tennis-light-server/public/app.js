@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.62";
+const GAME_VERSION = "v3.63";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7616,7 +7616,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.62");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.63");
 }
 
 function emptyMomentumState() {
@@ -13510,8 +13510,9 @@ function refreshChampionshipSlots() {
 
 function championshipHumanStillQualified() {
   const human = humanTournamentEntry();
-  if (state.tournament.onePointMaster && championshipMatches(1, 5).every((match) => match.winner)) {
-    return ONE_POINT_MASTER_GROUPS.some((group) => onePointMasterStandings(group).slice(0, 3).some((row) => row.entry === human));
+  if (state.tournament.onePointMaster) {
+    if (!championshipMatches(1, 5).every((match) => match.winner)) return true;
+    return ONE_POINT_MASTER_GROUPS.some((group) => onePointMasterStandings(group, 5).slice(0, 3).some((row) => row.entry === human));
   }
   if (state.tournament.championshipPhase === 1 && championshipMatches(1, 3).every((match) => match.winner)) {
     return Object.keys(state.tournament.championshipPhase1Groups).some((group) => championshipStandings(1, group, 3).slice(0, 2).some((row) => row.entry === human));
@@ -13612,6 +13613,8 @@ function handleChampionshipMatchComplete() {
   if (state.tournament.onePointMaster) {
     const score = match.revealedSetScores[0] || [0, 0];
     const winnerIndex = match.winner === match.playerA ? 0 : 1;
+    const loserEntry = match.winner === match.playerA ? match.playerB : match.playerA;
+    clearOnePointTournamentPerformance(loserEntry);
     applyOnePointTournamentReward(match.winner, Number(score[winnerIndex]), Number(score[opponentOf(winnerIndex)]));
   }
   match.liveScore = null;
@@ -14539,11 +14542,22 @@ function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tourname
     const winnerScore = Math.random() < 0.2 ? 3 : 2;
     const loserScore = winnerScore === 3 ? 0 : Math.random() < 0.55 ? 0 : 1;
     const setScores = [winnerIndex === 0 ? [winnerScore, loserScore] : [loserScore, winnerScore]];
+    clearOnePointTournamentPerformance(winner === playerA ? playerB : playerA);
     applyOnePointTournamentReward(winner, winnerScore, loserScore);
     return { winner, setScores, score: formatSetScores(setScores) };
   }
   const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
   return { winner, setScores, score: formatSetScores(setScores) };
+}
+
+function clearOnePointTournamentPerformance(entry) {
+  if (!state.tournament?.onePointGame || !entry) return;
+  state.tournament.previousWinScores ||= {};
+  state.tournament.onePointRewards ||= {};
+  state.tournament.surfaceBonuses ||= {};
+  state.tournament.previousWinScores[entry] = 0;
+  state.tournament.onePointRewards[entry] = [];
+  state.tournament.surfaceBonuses[entry] = [];
 }
 
 function applyOnePointTournamentReward(winnerEntry, winnerScore, loserScore) {
@@ -17433,6 +17447,7 @@ function completeCompetitionForSummary() {
 }
 
 function competitionSummaryFormatLabel() {
+  if (state.tournament.onePointMaster) return "1 Point Master";
   if (state.tournament.onePointGame || state.tournament.friendlyFormat === "onepoint") return "1 Point Game";
   if (state.tournament.championship) return "Championnat";
   if (state.tournament.league) return "League";
