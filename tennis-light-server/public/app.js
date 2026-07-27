@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.57";
+const GAME_VERSION = "v3.58";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.57";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.58";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -7562,7 +7562,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.57");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.58");
 }
 
 function emptyMomentumState() {
@@ -15316,11 +15316,19 @@ function renderResultPanel() {
     score,
     winner: score[0] > score[1] ? 0 : 1,
   }));
+  const isOnePointFinale = Boolean(state.tournament?.onePointGame || state.tournament?.friendlyFormat === "onepoint");
+  const victoryType = state.resultInfo?.winType === "boost"
+    ? "Victoire sur boost"
+    : state.resultInfo?.winType === "power"
+      ? `Victoire aux points · ${Number(state.players[winner]?.power || 0)}-${Number(state.players[opponentOf(winner)]?.power || 0)}`
+      : "Victoire sur effet";
   const progressionMarkup = renderRallyEndActions();
   const finaleKey = JSON.stringify({
     winner,
     players: players.map((player) => [player.name, player.lobby, player.result]),
     scores: scores.map((set) => [set.score, set.winner]),
+    isOnePointFinale,
+    victoryType,
     progressionMarkup,
   });
   els.resultPanel.classList.remove("hidden");
@@ -15328,7 +15336,7 @@ function renderResultPanel() {
   if (renderedDesktopMatchFinaleKey === finaleKey && els.resultPanel.querySelector(".match-finale-overlay")) return;
   renderedDesktopMatchFinaleKey = finaleKey;
   els.resultPanel.innerHTML = `
-    <section class="match-finale-overlay" role="dialog" aria-modal="true" aria-labelledby="matchFinaleTitle">
+    <section class="match-finale-overlay${isOnePointFinale ? " one-point-finale-overlay" : ""}" role="dialog" aria-modal="true" aria-labelledby="matchFinaleTitle">
       <header><span>Résultat final</span><h2 id="matchFinaleTitle">Match terminé</h2></header>
       <div class="match-finale-players">
         ${players.map((player, index) => `<article>
@@ -15336,6 +15344,7 @@ function renderResultPanel() {
           <div><img src="${escapeHtml(player.lobby)}" alt="${escapeHtml(player.name)}" /><img class="match-finale-result-image" src="${escapeHtml(player.result)}" alt="${escapeHtml(player.name)}" /></div>
         </article>`).join("")}
       </div>
+      ${isOnePointFinale ? `<p class="one-point-victory-type">${escapeHtml(victoryType)}</p><p class="one-point-final-score-label">Score final</p>` : ""}
       <ol>${scores.map((set, index) => `<li style="--reveal-index:${index}" class="winner-${set.winner}"><span>${set.score[0]}</span><i></i><span>${set.score[1]}</span></li>`).join("")}</ol>
       <nav>${progressionMarkup}</nav>
     </section>`;

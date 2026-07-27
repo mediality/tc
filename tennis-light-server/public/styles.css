@@ -2872,10 +2872,49 @@ h1 {
 .match-finale-overlay > ol li.winner-0 { background: var(--player-one-color, #72e0bd); color: #062b3d; }
 .match-finale-overlay > ol li.winner-1 { background: var(--player-two-color, #f2a177); color: #062b3d; }
 .match-finale-overlay > nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; opacity: 0; animation: match-finale-set 250ms ease-out 2.3s forwards; }
+.match-finale-overlay > nav button {
+  min-height: 44px;
+  padding: 11px 18px;
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.one-point-victory-type {
+  margin: -6px 0 -8px;
+  text-align: center;
+  font-size: clamp(1.15rem, 2.4vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: .035em;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: match-finale-set 260ms ease-out 1s forwards;
+}
+.one-point-final-score-label {
+  margin: 0 0 -20px;
+  text-align: center;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: match-finale-result 220ms ease-out 3s forwards;
+}
+.one-point-finale-overlay .match-finale-result-image {
+  animation-delay: 3s;
+}
+.one-point-finale-overlay > ol li {
+  animation-delay: calc(3s + var(--reveal-index) * 400ms);
+}
+.one-point-finale-overlay > nav {
+  animation-delay: 3.3s;
+}
 @keyframes match-finale-set { to { opacity: 1; transform: none; } }
 @keyframes match-finale-result { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .match-finale-result-image, .match-finale-overlay > ol li, .match-finale-overlay > nav { animation: none; opacity: 1; transform: none; }
+  .match-finale-result-image, .match-finale-overlay > ol li, .match-finale-overlay > nav, .one-point-victory-type, .one-point-final-score-label { animation: none; opacity: 1; transform: none; }
 }
 
 .result-panel {

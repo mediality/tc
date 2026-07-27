@@ -7,8 +7,8 @@ const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url),
 const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.57.0");
-assert.match(app, /const GAME_VERSION = "v3\.57"/);
+assert.equal(pkg.version, "3.58.0");
+assert.match(app, /const GAME_VERSION = "v3\.58"/);
 assert.match(html, /CHAMPIONSHIP\.svg/);
 assert.match(html, /data-ai-club-value="championship" data-pro-format/);
 
@@ -26,4 +26,4 @@ assert.match(server, /\["match", "classic", "league", "onepoint"\]/);
 assert.match(server, /tournament\.format === "onepoint" \? 1/);
 assert.match(server, /function friendlyHumanWinnerFromState[\s\S]*tournament\.format === "onepoint"/);
 
-console.log("v3.57 : résumé compétition, accès Pro et 1 Point Game en ligne : OK");
+console.log("v3.58 : résumé compétition, accès Pro et 1 Point Game en ligne : OK");
