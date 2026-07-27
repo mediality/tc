@@ -1359,6 +1359,32 @@ body.tutorial-running .boost-button strong {
   gap: 8px;
 }
 
+.friendly-draw-panel {
+  text-align: center;
+}
+
+.friendly-draw-current {
+  display: grid;
+  gap: 8px;
+  min-height: 92px;
+  place-content: center;
+  margin: 22px 0 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #102f3a;
+}
+
+.friendly-draw-current strong {
+  font-size: clamp(1.35rem, 4vw, 2.2rem);
+}
+
+.friendly-draw-current span,
+.friendly-draw-progress {
+  color: #31515b;
+  font-weight: 800;
+}
+
 .friendly-league-schedule {
   display: grid;
   gap: 10px;

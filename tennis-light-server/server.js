@@ -3994,15 +3994,14 @@ function friendlyParticipantStillQualified(tournament, participant) {
 }
 
 function friendlyControlParticipantIds(tournament) {
-  const ids = new Set([tournament.creatorParticipantId].filter(Boolean));
-  if (!friendlyOnePointFormat(tournament)) return ids;
+  if (!friendlyOnePointFormat(tournament)) return new Set([tournament.creatorParticipantId].filter(Boolean));
   const creator = activeFriendlyParticipants(tournament).find((item) => item.id === tournament.creatorParticipantId);
-  if (friendlyParticipantStillQualified(tournament, creator)) return ids;
+  if (friendlyParticipantStillQualified(tournament, creator)) return new Set([creator.id]);
   const delegate = activeFriendlyParticipants(tournament).find((item) => (
     item.selected && friendlyParticipantStillQualified(tournament, item)
   ));
-  if (delegate) ids.add(delegate.id);
-  return ids;
+  if (delegate) return new Set([delegate.id]);
+  return new Set([tournament.creatorParticipantId].filter(Boolean));
 }
 
 function friendlyParticipantCanControl(tournament, participant) {
@@ -5795,7 +5794,7 @@ async function handleApi(req, res) {
           sendJson(res, 409, { error: "Les matchs du tour sont déjà lancés." });
           return;
         }
-        control.launchAt = Date.now() + 10000;
+        control.launchAt = Date.now() + 5000;
         control.launched = false;
       } else if (action === "simulate") {
         const allHumansEliminated = selectedFriendlyParticipants(tournament)
@@ -5826,7 +5825,6 @@ async function handleApi(req, res) {
       const control = friendlyMasterControl(tournament);
       const currentRoundMatches = (tournament.matches || []).filter((match) => match.round === tournament.round);
       const currentMatches = currentRoundMatches.filter((match) => match.playerA && match.playerB);
-      const unresolved = currentMatches.some((match) => !match.winner);
       if (action === "draw") {
         if (tournament.round === "group1") {
           control.drawRequired = false;
@@ -5845,7 +5843,7 @@ async function handleApi(req, res) {
           control.roundKnown = currentMatches.every((match) => match.playerA && match.playerB);
         }
       } else if (action === "next") {
-        if (control.launched || control.launchAt || unresolved && currentMatches.some((match) => match.winner)) {
+        if (control.launched || control.launchAt) {
           sendJson(res, 409, { error: "Tous les matchs du tour doivent être terminés avant de continuer." });
           return;
         }
@@ -5874,7 +5872,7 @@ async function handleApi(req, res) {
           sendJson(res, 409, { error: "Les matchs suivants ne sont pas encore connus." });
           return;
         }
-        control.launchAt = Date.now() + 10000;
+        control.launchAt = Date.now() + 5000;
         control.launched = false;
       } else if (action === "simulate") {
         const humanMatches = currentMatches.filter((match) => friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB));

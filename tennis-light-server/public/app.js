@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.71";
+const GAME_VERSION = "v3.72";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -6358,7 +6358,7 @@ function renderFriendlyLobbyScreen() {
       </div>
       ${competitionControl?.canControl ? `<div class="friendly-master-control-actions">
         ${competitionControl.drawRequired ? '<button class="small-button" type="button" data-friendly-master-control="draw">TIRAGE AU SORT</button>' : ""}
-        <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 10 S"}</button>
+        <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 5 S"}</button>
       </div>` : ""}
     </section>
   ` : "";
@@ -6374,13 +6374,13 @@ function renderFriendlyLobbyScreen() {
     <div class="friendly-lobby-title clubhouse-room-heading">
       <div>
         <p class="label">CLUB HOUSE · ${escapeHtml(FRIENDLY_TOURNAMENT.id || "")}</p>
-        <h2>${FRIENDLY_TOURNAMENT.isSpectator ? "Vue spectateur" : "Configuration et joueurs"}</h2>
+        <h2>${FRIENDLY_TOURNAMENT.isSpectator ? "Vue spectateur" : settingsLocked ? "Club House de la compétition" : "Configuration et joueurs"}</h2>
         <p>${participants.length}/4 connectés · ${selectedCount}/${selectionLimit} sélectionnés · ${format === "league" ? "LEAGUE" : format === "onepointmaster" ? "1 POINT MASTER" : format === "onepoint" ? "1 POINT MATCH" : format === "match" ? "MATCH AMICAL" : "TOURNOI CLASSIQUE"} · ${["onepoint", "onepointmaster"].includes(format) ? "1 point décisif" : `${targetSets} sets gagnants`}</p>
       </div>
     </div>
     <div class="friendly-lobby-status">${escapeHtml(status)}</div>
     ${renderFriendlyWaitingExperience()}
-    <section class="clubhouse-format-section online-room-format-section" aria-labelledby="onlineRoomFormatTitle">
+    ${settingsLocked ? "" : `<section class="clubhouse-format-section online-room-format-section" aria-labelledby="onlineRoomFormatTitle">
       <div class="clubhouse-section-heading"><div><p class="label">Format</p><h2 id="onlineRoomFormatTitle">Configurez votre Club House</h2></div><span class="clubhouse-friendly-note">Réglages réservés à l'hôte</span></div>
       <div class="clubhouse-format-grid" aria-label="Format du Club House en ligne">
         ${formatCard("match", "Match", "Une rencontre directe entre deux joueurs.", "MATCH.svg")}
@@ -6389,9 +6389,9 @@ function renderFriendlyLobbyScreen() {
         ${formatCard("onepoint", "1 Point Match", "Un unique point par rencontre.", "power-flash.svg")}
         ${formatCard("onepointmaster", "1 Point Master", "24 joueurs, groupes, barrages et tableau final.", "power-flash.svg")}
       </div>
-    </section>
+    </section>`}
     <div class="clubhouse-configuration-layout online-room-configuration">
-    <section class="friendly-settings-panel clubhouse-settings-card ${settingsLocked ? "locked" : ""}">
+    ${settingsLocked ? "" : `<section class="friendly-settings-panel clubhouse-settings-card">
       <div class="friendly-setting-row">
         <div><strong>Niveau IA</strong><span>${escapeHtml(AI_DIFFICULTY_DESCRIPTIONS[difficulty] || AI_DIFFICULTY_DESCRIPTIONS.normal)}</span></div>
         <div class="friendly-setting-switch seven-options">
@@ -6430,11 +6430,11 @@ function renderFriendlyLobbyScreen() {
           ${settingButton("distribution", "separated", "JOUEURS SÉPARÉS", distribution === "separated")}
         </div>
       </div>
-    </section>
+    </section>`}
     <aside class="clubhouse-summary-card online-room-summary-card">
       <p class="label">Votre Club House</p>
       <h2>${format === "league" ? "League" : format === "onepointmaster" ? "1 Point Master" : format === "onepoint" ? "1 Point Match" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
-      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${["onepoint", "onepointmaster"].includes(format) ? "1 point décisif" : `${targetSets} sets gagnants`} · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
+      <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong>${settingsLocked ? "" : `<span>${["onepoint", "onepointmaster"].includes(format) ? "1 point décisif" : `${targetSets} sets gagnants`} · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span>`}</div>
       ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button" type="button" data-resume-friendly-match>REPRENDRE MON MATCH</button>` : ""}
       ${format === "onepoint" && state.tournament.friendlyCanSimulateRemainder ? '<button class="small-button" type="button" data-friendly-simulate-remainder>SIMULER LA SUITE</button>' : ""}
       ${FRIENDLY_TOURNAMENT.isSpectator || state.tournament.stage !== "waiting" ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
@@ -6459,7 +6459,7 @@ function renderFriendlyLobbyScreen() {
         `).join("")}
       </div>
     </section>
-    <section class="friendly-visibility-section">
+    ${settingsLocked ? "" : `<section class="friendly-visibility-section">
       <div>
         <p class="label">Confidentialité</p>
         <h2>Événement public ou privé</h2>
@@ -6469,7 +6469,7 @@ function renderFriendlyLobbyScreen() {
         ${settingButton("visibility", "public", "PUBLIC", visibility === "public")}
         ${settingButton("visibility", "private", "PRIVÉ", visibility === "private")}
       </div>
-    </section>
+    </section>`}
     ${leagueGroupMarkup}
     ${masterGroupMarkup}
     ${masterControlMarkup}
@@ -7072,6 +7072,63 @@ async function readyFriendlyTournamentNextMatch() {
   }
 }
 
+function friendlyDrawAnimationEntries(tournament) {
+  if (!tournament) return [];
+  if (tournament.round === "group1") {
+    return ["A", "B", "C", "D"].flatMap((group) => (
+      (tournament.groups?.[group] || []).map((player) => ({
+        label: player.nickname || tournamentPlayerLabel(player.entry),
+        detail: `Groupe ${group}`,
+      }))
+    ));
+  }
+  return (tournament.matches || [])
+    .filter((match) => match.round === tournament.round)
+    .flatMap((match) => [
+      match.playerAInfo ? { label: match.playerAInfo.nickname || tournamentPlayerLabel(match.playerA), detail: match.label } : null,
+      match.playerBInfo ? { label: match.playerBInfo.nickname || tournamentPlayerLabel(match.playerB), detail: match.label } : null,
+    ])
+    .filter(Boolean);
+}
+
+function showFriendlyDrawAnimation(tournament) {
+  const entries = friendlyDrawAnimationEntries(tournament);
+  if (!entries.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop event-transition-backdrop friendly-draw-animation";
+    backdrop.innerHTML = `
+      <section class="event-transition-panel friendly-draw-panel" role="dialog" aria-modal="true" aria-labelledby="friendlyDrawTitle">
+        <p class="event-transition-kicker">1 Point Master</p>
+        <h2 id="friendlyDrawTitle">Tirage au sort</h2>
+        <div class="friendly-draw-current" aria-live="assertive">
+          <strong data-friendly-draw-name>Préparation…</strong>
+          <span data-friendly-draw-detail></span>
+        </div>
+        <div class="friendly-draw-progress"><span data-friendly-draw-count>0</span> / ${entries.length}</div>
+      </section>
+    `;
+    document.body.appendChild(backdrop);
+    let index = 0;
+    let timer = null;
+    const reveal = () => {
+      const entry = entries[index];
+      backdrop.querySelector("[data-friendly-draw-name]").textContent = entry.label || "Participant";
+      backdrop.querySelector("[data-friendly-draw-detail]").textContent = entry.detail || "";
+      backdrop.querySelector("[data-friendly-draw-count]").textContent = String(index + 1);
+      index += 1;
+      if (index < entries.length) return;
+      window.clearInterval(timer);
+      window.setTimeout(() => {
+        backdrop.remove();
+        resolve();
+      }, 700);
+    };
+    reveal();
+    timer = window.setInterval(reveal, 1000);
+  });
+}
+
 async function controlFriendlyCompetition(action) {
   if (!FRIENDLY_TOURNAMENT.enabled || !["draw", "next", "simulate"].includes(action)) return;
   try {
@@ -7086,6 +7143,7 @@ async function controlFriendlyCompetition(action) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Commande indisponible.");
+    if (action === "draw") await showFriendlyDrawAnimation(data.tournament);
     applyFriendlyTournamentState(data.tournament, null);
     renderFriendlyLobbyScreen();
   } catch (error) {
@@ -7724,7 +7782,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.71");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.72");
 }
 
 function emptyMomentumState() {
@@ -17476,7 +17534,7 @@ function renderCenterNextSoloExchangeButton() {
 }
 
 function renderCenterNextSetButton() {
-  if (state.tournament.friendly && state.gameOver && state.setMatch.matchOver) {
+  if (state.tournament.friendly && (FRIENDLY_TOURNAMENT.awaitingClubHouseReturn || (state.gameOver && state.setMatch.matchOver))) {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-club-house>RETOURNER AU CLUB HOUSE</button>';
   }
   if (isHumanTournamentRunOver()) {
