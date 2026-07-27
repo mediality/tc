@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.67";
+const GAME_VERSION = "v3.70";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -5922,6 +5922,8 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     friendlyVisibility: payload.visibility === "private" ? "private" : "public",
     friendlySelectionLimit: Number(payload.selectionLimit || (payload.format === "match" ? 2 : 4)),
     friendlySettingsLocked: Boolean(payload.settingsLocked),
+    friendlyCompetitionControl: payload.competitionControl || null,
+    friendlyCanSimulateRemainder: Boolean(payload.canSimulateRemainder),
     bonusLevel: payload.bonus || "none",
     permanentBonuses: buildAiClubHouseBonuses(
       (payload.entries || []).filter((entry) => !String(entry?.entry || entry).startsWith("human:")).map((entry) => entry?.characterId || entry?.entry || entry),
@@ -6005,6 +6007,9 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
   }
   if (nextCurrentMatch?.id && !FRIENDLY_TOURNAMENT.inMatch && FRIENDLY_TOURNAMENT.currentMatchId !== nextCurrentMatch.id) {
     if (resumesSavedMatch && !roundJustChanged) {
+      FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
+      startFriendlyTournamentMatch(nextCurrentMatch);
+    } else if (payload.format === "onepointmaster") {
       FRIENDLY_TOURNAMENT.currentMatchId = nextCurrentMatch.id;
       startFriendlyTournamentMatch(nextCurrentMatch);
     } else {
@@ -6266,6 +6271,13 @@ function renderFriendlyLobbyScreen() {
   const selectedCount = participants.filter((participant) => participant.selected).length;
   const settingsLocked = state.tournament.stage !== "waiting" || state.tournament.friendlySettingsLocked;
   const settingsDisabled = settingsLocked || !FRIENDLY_TOURNAMENT.isCreator || FRIENDLY_TOURNAMENT.isSpectator;
+  const competitionControl = state.tournament.friendlyCompetitionControl || null;
+  const masterBarrageSimulationBlocked = format === "onepointmaster"
+    && state.tournament.stage === "barrage"
+    && matches.some((match) => match.round === "barrage" && !match.winner && (match.playerAInfo?.type === "human" || match.playerBInfo?.type === "human"));
+  const launchSeconds = competitionControl?.launchAt
+    ? Math.max(0, Math.ceil((Number(competitionControl.launchAt) - Date.now()) / 1000))
+    : null;
   const canStart = !FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "waiting" && FRIENDLY_TOURNAMENT.canStart;
   const startDisabled = !canStart;
   const status = friendlyLobbyStatusText();
@@ -6307,7 +6319,7 @@ function renderFriendlyLobbyScreen() {
       <p class="label">Classements des groupes</p>
       <div class="friendly-league-groups">
         ${["A", "B", "C", "D"].map((groupName) => `
-          <article class="friendly-league-group">
+          <article class="friendly-league-group friendly-master-standing">
             <h3>Groupe ${groupName}</h3>
             <div class="friendly-standing-head">
               <span>#</span><span>Joueur</span><span>Points</span><span>Différence</span><span>Boost</span><span>2-0</span>
@@ -6325,6 +6337,33 @@ function renderFriendlyLobbyScreen() {
           </article>
         `).join("")}
       </div>
+    </section>
+  ` : "";
+  const masterCalendarMarkup = format === "onepointmaster" && matches.length ? `
+    <section class="friendly-master-calendar">
+      <p class="label">Calendrier des groupes</p>
+      <div class="friendly-master-calendar-columns">
+        ${["A", "B", "C", "D"].map((groupName) => `
+          <section>
+            <h3>Groupe ${groupName}</h3>
+            ${matches.filter((match) => match.group === groupName).map(renderFriendlyLobbyMatchCard).join("")}
+          </section>
+        `).join("")}
+      </div>
+    </section>
+  ` : "";
+  const masterControlMarkup = format === "onepointmaster" && state.tournament.stage !== "waiting" && state.tournament.stage !== "complete" ? `
+    <section class="friendly-master-controls" aria-live="polite">
+      <div>
+        <p class="label">Pilotage de la compétition</p>
+        <h2>${launchSeconds != null ? `Départ des matchs dans ${launchSeconds} seconde${launchSeconds > 1 ? "s" : ""}` : competitionControl?.launched ? "Matchs en cours" : competitionControl?.drawRequired ? "Tirage au sort requis" : "Matchs suivants prêts"}</h2>
+        <p>${competitionControl?.canControl ? "Vous disposez des commandes du Club House." : "L’hôte pilote le tirage, les simulations et le lancement du prochain tour."}</p>
+      </div>
+      ${competitionControl?.canControl ? `<div class="friendly-master-control-actions">
+        ${competitionControl.drawRequired ? '<button class="small-button" type="button" data-friendly-master-control="draw">TIRAGE AU SORT</button>' : ""}
+        <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 10 S"}</button>
+        <button class="small-button" type="button" data-friendly-master-control="simulate" ${competitionControl.launched && !masterBarrageSimulationBlocked ? "" : "disabled"} title="${masterBarrageSimulationBlocked ? "Simulation indisponible tant qu’un joueur humain dispute les barrages" : "Simuler les rencontres IA du tour"}">SIMULER LES MATCHS IA</button>
+      </div>` : ""}
     </section>
   ` : "";
   els.friendlyLobbyContent.innerHTML = `
@@ -6401,6 +6440,7 @@ function renderFriendlyLobbyScreen() {
       <h2>${format === "league" ? "League" : format === "onepointmaster" ? "1 Point Master" : format === "onepoint" ? "1 Point Match" : format === "match" ? "Match en ligne" : "Tournoi Classic"}</h2>
       <div class="clubhouse-summary-text"><strong>${participants.length}/4 joueurs connectés</strong><span>${["onepoint", "onepointmaster"].includes(format) ? "1 point décisif" : `${targetSets} sets gagnants`} · ${AI_DIFFICULTY_LABELS[difficulty]} · ${AI_BONUS_LABELS[bonus]}</span><span>Répartition : ${distribution === "ranking" ? "classement mondial" : distribution === "separated" ? "joueurs séparés" : "aléatoire"}</span></div>
       ${FRIENDLY_TOURNAMENT.resumableMatch && !FRIENDLY_TOURNAMENT.isSpectator ? `<button class="small-button friendly-clubhouse-resume-button" type="button" data-resume-friendly-match>REPRENDRE MON MATCH</button>` : ""}
+      ${format === "onepoint" && state.tournament.friendlyCanSimulateRemainder ? '<button class="small-button" type="button" data-friendly-simulate-remainder>SIMULER LA SUITE</button>' : ""}
       ${FRIENDLY_TOURNAMENT.isSpectator || state.tournament.stage !== "waiting" ? "" : `<div class="friendly-start-selection-count"><strong>${selectedCount}</strong><span>joueur${selectedCount > 1 ? "s" : ""} sélectionné${selectedCount > 1 ? "s" : ""}</span></div><button class="primary-button friendly-lobby-start-button" type="button" data-start-friendly-tournament ${startDisabled ? "disabled" : ""}>LANCER L’ÉVÉNEMENT</button>`}
       <button class="small-button danger-button friendly-lobby-exit-button" type="button" data-leave-friendly-tournament>Sortir</button>
       ${!FRIENDLY_TOURNAMENT.isSpectator && FRIENDLY_TOURNAMENT.isCreator && state.tournament.stage === "complete" ? `<button class="primary-button friendly-new-event-button" type="button" data-new-friendly-event>NOUVEL ÉVÉNEMENT</button>` : ""}
@@ -6436,8 +6476,10 @@ function renderFriendlyLobbyScreen() {
     </section>
     ${leagueGroupMarkup}
     ${masterGroupMarkup}
+    ${masterControlMarkup}
+    ${masterCalendarMarkup}
     ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
-    ${matches.length && format !== "league" ? `
+    ${matches.length && format !== "league" && format !== "onepointmaster" ? `
       <section>
         <p class="label">${format === "onepointmaster" ? "Groupes, barrages et tour final" : format === "onepoint" ? "Tableau 1 Point Match" : "Tableau CLASSIC"}</p>
         <div class="friendly-bracket-grid">
@@ -6462,6 +6504,10 @@ function renderFriendlyLobbyScreen() {
   });
   els.friendlyLobbyContent.querySelector("[data-leave-friendly-tournament]")?.addEventListener("click", leaveFriendlyTournamentLobby);
   els.friendlyLobbyContent.querySelector("[data-new-friendly-event]")?.addEventListener("click", createNewFriendlyEventFromClubHouse);
+  els.friendlyLobbyContent.querySelector("[data-friendly-simulate-remainder]")?.addEventListener("click", () => controlFriendlyCompetition("simulate"));
+  els.friendlyLobbyContent.querySelectorAll("[data-friendly-master-control]").forEach((button) => {
+    button.addEventListener("click", () => controlFriendlyCompetition(button.dataset.friendlyMasterControl));
+  });
   els.friendlyLobbyContent.querySelectorAll("[data-watch-friendly-match]").forEach((button) => {
     button.addEventListener("click", () => startFriendlySpectator(button.dataset.watchFriendlyMatch));
   });
@@ -7022,6 +7068,28 @@ async function readyFriendlyTournamentNextMatch() {
   } catch (error) {
     state.log.unshift("Validation du match suivant impossible.");
     render();
+  }
+}
+
+async function controlFriendlyCompetition(action) {
+  if (!FRIENDLY_TOURNAMENT.enabled || !["draw", "next", "simulate"].includes(action)) return;
+  try {
+    const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/competition-control`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        participantId: FRIENDLY_TOURNAMENT.participantId,
+        token: FRIENDLY_TOURNAMENT.token,
+        action,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Commande indisponible.");
+    applyFriendlyTournamentState(data.tournament, null);
+    renderFriendlyLobbyScreen();
+  } catch (error) {
+    MENU_STATE.lobbyNotice = error.message || "Commande indisponible.";
+    renderFriendlyLobbyScreen();
   }
 }
 
@@ -7655,7 +7723,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.67");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.70");
 }
 
 function emptyMomentumState() {
@@ -8510,6 +8578,13 @@ function runSoloAITurn() {
     }
 
     const playerIndex = SOLO_AI.playerIndex;
+    const finalOnePointPass = soloFinalOnePointWinningPass(playerIndex);
+    if (finalOnePointPass) {
+      recordSoloAiDecision("pass_final_one_point_certain_win", finalOnePointPass);
+      pass(playerIndex);
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
     const certainWinDecision = soloCertainWinDecision(playerIndex);
     if (certainWinDecision) {
       if (certainWinDecision.action === "pass") {
@@ -10326,6 +10401,25 @@ function soloCertainWinDecision(playerIndex) {
       reason: "le passage garantit immédiatement la victoire de l’échange",
       projection,
     };
+}
+
+function soloFinalOnePointWinningPass(playerIndex) {
+  const match = tournamentMatchById(state.tournament?.currentMatch);
+  if (
+    !state.tournament?.onePointGame
+    || !match
+    || match.round !== "final"
+    || state.mandatoryPlacement
+    || hasPlayedThisTurn(playerIndex)
+    || !canSoloPassAndWin(playerIndex)
+  ) return null;
+  const projection = soloPassProjection(playerIndex);
+  return projection.projectedWinner === playerIndex && projection.matchClinched
+    ? {
+      reason: "en finale du 1 Point, passer garantit immédiatement la victoire",
+      projection,
+    }
+    : null;
 }
 
 function soloSecuredPassDecision(playerIndex, scenarioPlan = null) {
@@ -12882,6 +12976,19 @@ function startMatchMode(targetSets = null, options = {}) {
 function onePointTournamentServer() {
   const match = tournamentMatchById(state.tournament?.currentMatch);
   if (!match) return Math.random() < 0.5 ? 0 : 1;
+  if (state.tournament?.onePointMaster && match.round === "quarter") {
+    const groupWinners = state.tournament.friendly
+      ? Object.values(state.tournament.friendlyStandings || {})
+        .map((rows) => rows?.find((row) => Number(row.position) === 1)?.entry)
+        .filter(Boolean)
+      : state.tournament.championshipGroupWinners || [];
+    const servingEntry = groupWinners.includes(match.playerA)
+      ? match.playerA
+      : groupWinners.includes(match.playerB)
+        ? match.playerB
+        : null;
+    if (servingEntry) return servingEntry === humanTournamentEntry() ? 0 : 1;
+  }
   const previousScores = state.tournament?.previousWinScores || {};
   const scoreA = Number(previousScores[match.playerA] || 0);
   const scoreB = Number(previousScores[match.playerB] || 0);

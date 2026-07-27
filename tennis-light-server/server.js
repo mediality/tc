@@ -3973,6 +3973,42 @@ function friendlyOnePointFormat(tournament) {
   return ["onepoint", "onepointmaster"].includes(tournament?.format);
 }
 
+function friendlyMasterControl(tournament) {
+  tournament.masterControl ||= {
+    drawRequired: true,
+    roundKnown: false,
+    launched: false,
+    launchAt: null,
+  };
+  return tournament.masterControl;
+}
+
+function friendlyParticipantStillQualified(tournament, participant) {
+  if (!participant || participant.forfeitedAt || participant.eliminated) return false;
+  const entry = friendlyParticipantEntry(participant.id);
+  if (tournament.status === "complete") return tournament.champion === entry;
+  if (tournament.format === "onepointmaster" && /^group[1-5]$/.test(tournament.round)) return true;
+  if ((tournament.matches || []).some((match) => !match.winner && (match.playerA === entry || match.playerB === entry))) return true;
+  const completed = (tournament.matches || []).filter((match) => match.winner && (match.playerA === entry || match.playerB === entry));
+  return !completed.length || completed.at(-1).winner === entry;
+}
+
+function friendlyControlParticipantIds(tournament) {
+  const ids = new Set([tournament.creatorParticipantId].filter(Boolean));
+  if (tournament.format !== "onepointmaster") return ids;
+  const creator = activeFriendlyParticipants(tournament).find((item) => item.id === tournament.creatorParticipantId);
+  if (friendlyParticipantStillQualified(tournament, creator)) return ids;
+  const delegate = activeFriendlyParticipants(tournament).find((item) => (
+    item.selected && friendlyParticipantStillQualified(tournament, item)
+  ));
+  if (delegate) ids.add(delegate.id);
+  return ids;
+}
+
+function friendlyParticipantCanControl(tournament, participant) {
+  return Boolean(participant && friendlyControlParticipantIds(tournament).has(participant.id));
+}
+
 function selectedFriendlyParticipants(tournament) {
   return activeFriendlyParticipants(tournament).filter((participant) => participant.selected);
 }
@@ -4105,6 +4141,9 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
   recordFriendlyOnePointResults(tournament);
   const activeParticipants = activeFriendlyParticipants(tournament);
   const canWatchMatches = friendlyTournamentVisibility(tournament) === "public" || Boolean(participant?.selected);
+  const hideMasterInitialDraw = tournament.format === "onepointmaster"
+    && tournament.round === "group1"
+    && !friendlyMasterControl(tournament).roundKnown;
   return {
     id: tournament.id,
     status: tournament.status,
@@ -4122,7 +4161,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     playerSelection: tournament.playerSelection || "random",
     visibility: friendlyTournamentVisibility(tournament),
     selectionLimit: friendlySelectionLimit(tournament),
-    seedNumbers: tournament.distribution === "ranking"
+    seedNumbers: ["ranking", "separated"].includes(tournament.distribution)
       ? Object.fromEntries(Object.entries(tournament.seedRanks || {}).filter(([, rank]) => Number(rank) >= 1 && Number(rank) <= 8))
       : {},
     settingsLocked: tournament.status !== "waiting",
@@ -4131,7 +4170,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       nickname: item.nickname,
       characterId: item.characterId,
       isCreator: item.id === tournament.creatorParticipantId,
-      eliminated: Boolean(item.eliminated),
+      eliminated: Boolean(item.eliminated || (tournament.status === "playing" && !friendlyParticipantStillQualified(tournament, item))),
       away: Boolean(item.awayAt),
       selected: Boolean(item.selected),
       forfeited: Boolean(item.forfeitedAt),
@@ -4142,15 +4181,15 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       id: match.id,
       label: match.label,
       round: match.round,
-      playerA: match.playerA,
-      playerB: match.playerB,
+      playerA: hideMasterInitialDraw && match.round === "group1" ? null : match.playerA,
+      playerB: hideMasterInitialDraw && match.round === "group1" ? null : match.playerB,
       winner: match.winner,
       score: match.score,
       liveScore: match.liveScore || null,
       liveUpdatedAt: match.liveUpdatedAt || null,
       watchable: canWatchMatches && friendlyMatchIsWatchable(match),
-      playerAInfo: friendlyEntryPublic(tournament, match.playerA),
-      playerBInfo: friendlyEntryPublic(tournament, match.playerB),
+      playerAInfo: hideMasterInitialDraw && match.round === "group1" ? null : friendlyEntryPublic(tournament, match.playerA),
+      playerBInfo: hideMasterInitialDraw && match.round === "group1" ? null : friendlyEntryPublic(tournament, match.playerB),
       winnerInfo: friendlyEntryPublic(tournament, match.winner),
       forfeitParticipantId: match.forfeitParticipantId || null,
       group: match.group || null,
@@ -4159,13 +4198,13 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       disconnectedPlayers: friendlyDisconnectedPlayersForMatch(tournament, match),
     })),
     groups: {
-      A: (tournament.groups?.A || []).map((entry) => friendlyEntryPublic(tournament, entry)),
-      B: (tournament.groups?.B || []).map((entry) => friendlyEntryPublic(tournament, entry)),
-      C: (tournament.groups?.C || []).map((entry) => friendlyEntryPublic(tournament, entry)),
-      D: (tournament.groups?.D || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+      A: hideMasterInitialDraw ? [] : (tournament.groups?.A || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+      B: hideMasterInitialDraw ? [] : (tournament.groups?.B || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+      C: hideMasterInitialDraw ? [] : (tournament.groups?.C || []).map((entry) => friendlyEntryPublic(tournament, entry)),
+      D: hideMasterInitialDraw ? [] : (tournament.groups?.D || []).map((entry) => friendlyEntryPublic(tournament, entry)),
     },
     standings: tournament.format === "onepointmaster"
-      ? Object.fromEntries(["A", "B", "C", "D"].map((group) => [group, friendlyOnePointMasterStandings(tournament, group).map((row, index) => ({
+      ? Object.fromEntries(["A", "B", "C", "D"].map((group) => [group, hideMasterInitialDraw ? [] : friendlyOnePointMasterStandings(tournament, group).map((row, index) => ({
         ...row,
         position: index + 1,
         player: friendlyEntryPublic(tournament, row.entry),
@@ -4178,6 +4217,16 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     rewardCounts: tournament.rewardCounts || {},
     ready: tournament.ready || {},
     nextReady: tournament.nextReady || {},
+    competitionControl: tournament.format === "onepointmaster" ? {
+      ...friendlyMasterControl(tournament),
+      canControl: friendlyParticipantCanControl(tournament, participant),
+      controllerParticipantIds: [...friendlyControlParticipantIds(tournament)],
+      currentRoundComplete: (tournament.matches || [])
+        .filter((match) => match.round === tournament.round && match.playerA && match.playerB)
+        .every((match) => match.winner),
+    } : null,
+    canSimulateRemainder: tournament.format === "onepoint"
+      && participant?.id === tournament.lastEliminatedParticipantId,
     participant: participant ? {
       id: participant.id,
       token: participant.token,
@@ -4306,6 +4355,49 @@ function separatedLeagueGroups(humanEntries, aiEntries) {
   return { A: shuffleFriendlyEntries(groupA), B: shuffleFriendlyEntries(groupB) };
 }
 
+function separatedOnePointMasterGroups(rankedEntries, humanEntries) {
+  const groupNames = ["A", "B", "C", "D"];
+  const groups = Object.fromEntries(groupNames.map((group) => [group, Array(6).fill(null)]));
+  const humans = new Set(humanEntries);
+  const excludedGroups = new Set();
+  const placed = new Set();
+  const availableGroup = (slot) => shuffleFriendlyEntries(groupNames.filter((group) => (
+    !excludedGroups.has(group) && !groups[group][slot]
+  )))[0] || null;
+  for (const entry of rankedEntries.filter((candidate) => humans.has(candidate))) {
+    const rank = rankedEntries.indexOf(entry) + 1;
+    const preferredSlot = rank <= 4 ? 0 : rank <= 8 ? 1 : null;
+    let group = preferredSlot == null ? null : availableGroup(preferredSlot);
+    let slot = preferredSlot;
+    if (!group) {
+      group = shuffleFriendlyEntries(groupNames.filter((candidate) => !excludedGroups.has(candidate)))[0] || null;
+      slot = group ? groups[group].findIndex((value, index) => index >= 2 && !value) : -1;
+    }
+    if (!group || slot < 0) continue;
+    groups[group][slot] = entry;
+    placed.add(entry);
+    excludedGroups.add(group);
+  }
+  const fillPot = (entries, slot) => {
+    for (const entry of entries.filter((candidate) => !placed.has(candidate))) {
+      const group = shuffleFriendlyEntries(groupNames.filter((candidate) => !groups[candidate][slot]))[0];
+      if (!group) break;
+      groups[group][slot] = entry;
+      placed.add(entry);
+    }
+  };
+  fillPot(rankedEntries.slice(0, 4), 0);
+  fillPot(rankedEntries.slice(4, 8), 1);
+  for (const entry of rankedEntries.filter((candidate) => !placed.has(candidate))) {
+    const group = groupNames.find((candidate) => groups[candidate].some((value, index) => index >= 2 && !value));
+    if (!group) break;
+    const slot = groups[group].findIndex((value, index) => index >= 2 && !value);
+    groups[group][slot] = entry;
+    placed.add(entry);
+  }
+  return Object.fromEntries(groupNames.map((group) => [group, groups[group].filter(Boolean)]));
+}
+
 function buildFriendlyLeagueMatches(groups) {
   const schedule = [
     [[0, 3], [1, 2]],
@@ -4425,7 +4517,9 @@ async function buildFriendlyTournamentBracket(tournament) {
   const rankedEntries = await rankFriendlyEntries(tournament, fullEntries);
   if (tournament.format === "onepointmaster") {
     const groups = { A: [], B: [], C: [], D: [] };
-    if (tournament.distribution === "ranking") {
+    if (tournament.distribution === "separated") {
+      Object.assign(groups, separatedOnePointMasterGroups(rankedEntries, humanEntries));
+    } else if (tournament.distribution === "ranking") {
       const topSeeds = shuffleFriendlyEntries(rankedEntries.slice(0, 4));
       const secondSeeds = shuffleFriendlyEntries(rankedEntries.slice(4, 8));
       ["A", "B", "C", "D"].forEach((group, index) => {
@@ -4465,7 +4559,12 @@ async function buildFriendlyTournamentBracket(tournament) {
     tournament.matches.push(makeFriendlyMatch("semi2", "Demi-finale 2", "semi"));
     tournament.matches.push(makeFriendlyMatch("final", "Finale", "final"));
     tournament.round = "group1";
-    simulateFriendlyAiOnlyMatches(tournament);
+    tournament.masterControl = {
+      drawRequired: true,
+      roundKnown: false,
+      launched: false,
+      launchAt: null,
+    };
     return;
   }
   if (tournament.format === "match") {
@@ -4639,6 +4738,7 @@ function noteFriendlyHumanSetProgress(tournament, match, remoteState = null, com
 }
 
 function revealFriendlyAiRoundWhenHumansAreDone(tournament) {
+  if (tournament.format === "onepoint") return false;
   const roundMatches = (tournament.matches || []).filter((match) => (
     match.round === tournament.round && match.playerA && match.playerB
   ));
@@ -4959,6 +5059,12 @@ function friendlyOnePointMasterStandings(tournament, group) {
 }
 
 function refreshFriendlyOnePointMasterSlots(tournament) {
+  const control = friendlyMasterControl(tournament);
+  if (!control.launched && control.launchAt && Date.now() >= Number(control.launchAt)) {
+    control.launched = true;
+    control.launchAt = null;
+  }
+  if (!control.launched) return;
   resolveFriendlyDepartedForfeits(tournament);
   simulateFriendlyAiOnlyMatches(tournament);
   revealFriendlyAiRoundWhenHumansAreDone(tournament);
@@ -4966,11 +5072,16 @@ function refreshFriendlyOnePointMasterSlots(tournament) {
   const roundDone = (round) => roundMatches(round).length > 0 && roundMatches(round).every((match) => match.winner);
   if (/^group[1-4]$/.test(tournament.round) && roundDone(tournament.round)) {
     tournament.round = `group${Number(tournament.round.slice(-1)) + 1}`;
-    simulateFriendlyAiOnlyMatches(tournament);
+    tournament.masterControl = { drawRequired: false, roundKnown: true, launched: false, launchAt: null };
     return;
   }
   if (tournament.round === "group5" && roundDone("group5")) {
     const standings = ["A", "B", "C", "D"].map((group) => friendlyOnePointMasterStandings(tournament, group));
+    const qualifiedEntries = new Set(standings.flatMap((rows) => rows.slice(0, 3).map((row) => row.entry)));
+    activeFriendlyParticipants(tournament).forEach((participant) => {
+      participant.eliminated = !qualifiedEntries.has(friendlyParticipantEntry(participant.id));
+      if (participant.eliminated) participant.eliminatedAt ||= Date.now();
+    });
     const barrages = roundMatches("barrage");
     const pairings = [[0, 1], [1, 2], [2, 3], [3, 0]];
     pairings.forEach(([secondGroup, thirdGroup], index) => {
@@ -4979,31 +5090,55 @@ function refreshFriendlyOnePointMasterSlots(tournament) {
     });
     tournament.masterGroupWinners = shuffleFriendlyEntries(standings.map((rows) => rows[0]?.entry).filter(Boolean));
     tournament.round = "barrage";
-    simulateFriendlyAiOnlyMatches(tournament);
+    tournament.masterControl = { drawRequired: false, roundKnown: true, launched: false, launchAt: null };
     return;
   }
   if (tournament.round === "barrage" && roundDone("barrage")) {
-    const barrageWinners = shuffleFriendlyEntries(roundMatches("barrage").map((match) => match.winner));
-    roundMatches("quarter").forEach((match, index) => {
-      match.playerA = tournament.masterGroupWinners[index];
-      match.playerB = barrageWinners[index];
-    });
+    for (const match of roundMatches("barrage")) {
+      const loser = match.winner === match.playerA ? match.playerB : match.playerA;
+      const participant = activeFriendlyParticipants(tournament).find((item) => friendlyParticipantEntry(item.id) === loser);
+      if (participant) {
+        participant.eliminated = true;
+        participant.eliminatedAt ||= Date.now();
+      }
+    }
+    tournament.masterBarrageWinners = roundMatches("barrage").map((match) => match.winner);
     tournament.round = "quarter";
+    tournament.masterControl = { drawRequired: true, roundKnown: false, launched: false, launchAt: null };
+    return;
   }
   const quarters = roundMatches("quarter");
   const semis = roundMatches("semi");
   const final = roundMatches("final")[0];
   if (roundDone("quarter")) {
+    for (const match of quarters) {
+      const loser = match.winner === match.playerA ? match.playerB : match.playerA;
+      const participant = activeFriendlyParticipants(tournament).find((item) => friendlyParticipantEntry(item.id) === loser);
+      if (participant) participant.eliminated = true;
+    }
     semis[0].playerA = quarters[0].winner;
     semis[0].playerB = quarters[1].winner;
     semis[1].playerA = quarters[2].winner;
     semis[1].playerB = quarters[3].winner;
-    if (tournament.round === "quarter") tournament.round = "semi";
+    if (tournament.round === "quarter") {
+      tournament.round = "semi";
+      tournament.masterControl = { drawRequired: false, roundKnown: true, launched: false, launchAt: null };
+      return;
+    }
   }
   if (roundDone("semi")) {
+    for (const match of semis) {
+      const loser = match.winner === match.playerA ? match.playerB : match.playerA;
+      const participant = activeFriendlyParticipants(tournament).find((item) => friendlyParticipantEntry(item.id) === loser);
+      if (participant) participant.eliminated = true;
+    }
     final.playerA = semis[0].winner;
     final.playerB = semis[1].winner;
-    if (tournament.round === "semi") tournament.round = "final";
+    if (tournament.round === "semi") {
+      tournament.round = "final";
+      tournament.masterControl = { drawRequired: false, roundKnown: true, launched: false, launchAt: null };
+      return;
+    }
   }
   simulateFriendlyAiOnlyMatches(tournament);
   revealFriendlyAiRoundWhenHumansAreDone(tournament);
@@ -5075,6 +5210,7 @@ function currentFriendlyMatchForParticipant(tournament, participantId) {
   const participant = tournament?.participants?.find((item) => item.id === participantId);
   if (!participant || participant.forfeitedAt) return null;
   const entry = friendlyParticipantEntry(participantId);
+  if (tournament.format === "onepointmaster" && !friendlyMasterControl(tournament).launched) return null;
   if (!friendlyRoundReadyForPlay(tournament)) return null;
   return (tournament.matches || []).find((match) => (
     !match.winner
@@ -5495,11 +5631,14 @@ async function handleApi(req, res) {
       sendJson(res, 409, { error: "La configuration est verrouillée après le lancement." });
       return;
     }
+    const previousFormat = tournament.format;
     tournament.format = ["match", "classic", "league", "onepoint", "onepointmaster"].includes(payload.format) ? payload.format : "match";
     tournament.targetSets = friendlyOnePointFormat(tournament) ? 1 : Number(payload.targetSets) === 3 ? 3 : 2;
     tournament.distribution = ["random", "ranking", "separated"].includes(payload.distribution) ? payload.distribution : "random";
     tournament.difficulty = ["amateur", "normal", "expert", "champion", "legend", "ranking", "circuit"].includes(payload.difficulty) ? payload.difficulty : "normal";
-    tournament.bonus = ["none", "ascendant", "domination", "nemesis", "reward"].includes(payload.bonus) ? payload.bonus : "none";
+    tournament.bonus = tournament.format === "onepointmaster" && previousFormat !== "onepointmaster"
+      ? "reward"
+      : ["none", "ascendant", "domination", "nemesis", "reward"].includes(payload.bonus) ? payload.bonus : "none";
     tournament.playerSelection = payload.playerSelection === "best" ? "best" : "random";
     tournament.visibility = payload.visibility === "private" ? "private" : "public";
     const selected = selectedFriendlyParticipants(tournament);
@@ -5603,6 +5742,109 @@ async function handleApi(req, res) {
       sendJson(res, 409, { error: "Aucun joueur présent pour relancer le Club House." });
       return;
     }
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+    return;
+  }
+
+  const friendlyCompetitionControlMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/competition-control$/);
+  if (req.method === "POST" && friendlyCompetitionControlMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyCompetitionControlMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant || tournament.status !== "playing") {
+      sendJson(res, 404, { error: "Compétition introuvable." });
+      return;
+    }
+    const action = String(payload.action || "");
+    if (tournament.format === "onepointmaster") {
+      if (!friendlyParticipantCanControl(tournament, participant)) {
+        sendJson(res, 403, { error: "Commande réservée à l’hôte ou au joueur qualifié désigné." });
+        return;
+      }
+      const control = friendlyMasterControl(tournament);
+      const currentRoundMatches = (tournament.matches || []).filter((match) => match.round === tournament.round);
+      const currentMatches = currentRoundMatches.filter((match) => match.playerA && match.playerB);
+      const unresolved = currentMatches.some((match) => !match.winner);
+      if (action === "draw") {
+        if (tournament.round === "group1") {
+          control.drawRequired = false;
+          control.roundKnown = true;
+        } else if (tournament.round === "quarter" && tournament.masterBarrageWinners?.length === 4) {
+          const groupWinners = shuffleFriendlyEntries(tournament.masterGroupWinners || []);
+          const barrageWinners = shuffleFriendlyEntries(tournament.masterBarrageWinners || []);
+          currentRoundMatches.forEach((match, index) => {
+            match.playerA = groupWinners[index] || null;
+            match.playerB = barrageWinners[index] || null;
+          });
+          control.drawRequired = false;
+          control.roundKnown = true;
+        } else {
+          control.drawRequired = false;
+          control.roundKnown = currentMatches.every((match) => match.playerA && match.playerB);
+        }
+      } else if (action === "next") {
+        if (control.launched || control.launchAt || unresolved && currentMatches.some((match) => match.winner)) {
+          sendJson(res, 409, { error: "Tous les matchs du tour doivent être terminés avant de continuer." });
+          return;
+        }
+        if (control.drawRequired) {
+          if (tournament.round === "group1") {
+            control.drawRequired = false;
+            control.roundKnown = true;
+          } else if (tournament.round === "quarter" && tournament.masterBarrageWinners?.length === 4) {
+            const groupWinners = shuffleFriendlyEntries(tournament.masterGroupWinners || []);
+            const barrageWinners = shuffleFriendlyEntries(tournament.masterBarrageWinners || []);
+            currentRoundMatches.forEach((match, index) => {
+              match.playerA = groupWinners[index] || null;
+              match.playerB = barrageWinners[index] || null;
+            });
+            control.drawRequired = false;
+            control.roundKnown = true;
+          } else {
+            sendJson(res, 409, { error: "Effectuez d’abord le tirage au sort." });
+            return;
+          }
+          tournament.updatedAt = Date.now();
+          sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
+          return;
+        }
+        if (!control.roundKnown) {
+          sendJson(res, 409, { error: "Les matchs suivants ne sont pas encore connus." });
+          return;
+        }
+        control.launchAt = Date.now() + 10000;
+        control.launched = false;
+      } else if (action === "simulate") {
+        const humanMatches = currentMatches.filter((match) => friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB));
+        if (tournament.round === "barrage" && humanMatches.length) {
+          sendJson(res, 409, { error: "Les barrages ne peuvent pas être simulés tant qu’un joueur humain y participe." });
+          return;
+        }
+        simulateFriendlyAiOnlyMatches(tournament);
+        revealAllFriendlyAiSets(tournament, tournament.round);
+        refreshFriendlyTournamentSlots(tournament);
+      } else {
+        sendJson(res, 400, { error: "Commande inconnue." });
+        return;
+      }
+    } else if (tournament.format === "onepoint" && action === "simulate") {
+      if (participant.id !== tournament.lastEliminatedParticipantId) {
+        sendJson(res, 403, { error: "Seul le dernier joueur humain éliminé peut simuler la suite." });
+        return;
+      }
+      const currentMatches = (tournament.matches || []).filter((match) => match.round === tournament.round);
+      if (currentMatches.some((match) => !match.winner && (friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB)))) {
+        sendJson(res, 409, { error: "Un joueur humain est encore engagé dans ce tour." });
+        return;
+      }
+      simulateFriendlyAiOnlyMatches(tournament);
+      revealAllFriendlyAiSets(tournament, tournament.round);
+      refreshFriendlyTournamentSlots(tournament);
+    } else {
+      sendJson(res, 403, { error: "Commande indisponible." });
+      return;
+    }
+    tournament.updatedAt = Date.now();
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
     return;
   }
@@ -6011,6 +6253,15 @@ async function handleApi(req, res) {
     match.liveParticipantId = null;
     match.liveUpdatedAt = Date.now();
     match.resumeState = null;
+    if (tournament.format === "onepoint") {
+      const loserEntry = match.winner === match.playerA ? match.playerB : match.playerA;
+      const loserParticipant = activeFriendlyParticipants(tournament).find((item) => friendlyParticipantEntry(item.id) === loserEntry);
+      if (loserParticipant) {
+        loserParticipant.eliminated = true;
+        loserParticipant.eliminatedAt = Date.now();
+        tournament.lastEliminatedParticipantId = loserParticipant.id;
+      }
+    }
     for (const matchParticipant of activeFriendlyParticipants(tournament)) {
       if (matchParticipant.reconnectMatchId !== match.id) continue;
       matchParticipant.reconnectDeadline = null;

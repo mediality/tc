@@ -1289,6 +1289,76 @@ body.tutorial-running .boost-button strong {
   color: #0f766e;
 }
 
+.friendly-master-standing .friendly-standing-head,
+.friendly-master-standing .friendly-standing-row {
+  grid-template-columns: 24px minmax(118px, 1fr) repeat(4, minmax(58px, 70px));
+  column-gap: 10px;
+}
+
+.friendly-master-standing .friendly-standing-head > span:nth-child(n + 3),
+.friendly-master-standing .friendly-standing-row > :nth-child(n + 3) {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.friendly-master-calendar {
+  display: grid;
+  gap: 12px;
+}
+
+.friendly-master-calendar-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.friendly-master-calendar-columns > section {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 220px;
+}
+
+.friendly-master-calendar-columns h3 {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  background: #103f58;
+  text-align: center;
+}
+
+.friendly-master-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid rgba(15, 141, 104, .28);
+  border-radius: 16px;
+  padding: 18px;
+  color: #173b50;
+  background: #eff8f4;
+}
+
+.friendly-master-controls h2,
+.friendly-master-controls p {
+  margin: 0;
+}
+
+.friendly-master-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .friendly-league-schedule {
   display: grid;
   gap: 10px;
