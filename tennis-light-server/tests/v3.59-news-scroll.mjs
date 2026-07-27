@@ -6,9 +6,9 @@ const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.59.0");
-assert.match(app, /const GAME_VERSION = "v3\.59"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.59<\/span>/);
+assert.equal(pkg.version, "3.60.0");
+assert.match(app, /const GAME_VERSION = "v3\.60"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.60<\/span>/);
 
 assert.match(app, /id: "v359-new-competitions"/);
 assert.match(app, /publishedAt: "2026-07-27"/);
@@ -27,4 +27,4 @@ assert.match(styles, /\.home-news-scroll > \*[\s\S]*direction: ltr/);
 assert.match(styles, /scrollbar-width: thin/);
 assert.match(app, /String\(right\.publishedAt\)\.localeCompare\(String\(left\.publishedAt\)\)/);
 
-console.log("v3.59 : nouvelle compétition, ascenseur des actualités et archives chronologiques : OK");
+console.log("v3.60 : nouvelle compétition, ascenseur des actualités et archives chronologiques : OK");

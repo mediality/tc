@@ -7447,6 +7447,7 @@ h1 {
 
 .news-archive-shell {
   width: min(1120px, calc(100% - 28px));
+  margin-inline: auto;
 }
 
 .news-archive-heading {

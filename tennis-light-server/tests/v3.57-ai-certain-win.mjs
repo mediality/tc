@@ -5,9 +5,9 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.59.0");
-assert.match(app, /const GAME_VERSION = "v3\.59"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.59<\/span>/);
+assert.equal(pkg.version, "3.60.0");
+assert.match(app, /const GAME_VERSION = "v3\.60"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.60<\/span>/);
 
 const turnStart = app.indexOf("function runSoloAITurn(");
 const turnEnd = app.indexOf("\nfunction ", turnStart + 10);
@@ -30,4 +30,4 @@ assert.match(app, /guaranteedScore: "2-0"/);
 assert.match(app, /option\.winner === playerIndex && option\.score\.loserGames === 0/);
 assert.match(app, /action: "pass"/);
 
-console.log("v3.59 : passage universel sur victoire certaine et exceptions de score propre : OK");
+console.log("v3.60 : passage universel sur victoire certaine et exceptions de score propre : OK");

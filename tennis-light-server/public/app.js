@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.59";
+const GAME_VERSION = "v3.60";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.59";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.60";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -4232,19 +4232,10 @@ function showAiClubHouseScreen() {
   if (!canAccessProFeatures() && AI_CLUB_HOUSE.format !== "match") AI_CLUB_HOUSE.format = "match";
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
-  els.adminScreen?.classList.add("hidden");
-  els.rankingScreen?.classList.add("hidden");
-  els.circuitInfoScreen?.classList.add("hidden");
-  els.academyInfoScreen?.classList.add("hidden");
-  els.profileScreen?.classList.add("hidden");
-  els.characterScreen?.classList.add("hidden");
-  els.resetPasswordScreen?.classList.add("hidden");
-  els.friendlyLobbyScreen?.classList.add("hidden");
-  els.championshipLobbyScreen?.classList.add("hidden");
-  els.competitionSummaryScreen?.classList.add("hidden");
-  hideGameScreen();
+  hideStandaloneScreens();
   els.aiClubHouseScreen?.classList.remove("hidden");
   renderAiClubHouse();
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function showChampionshipLobbyScreen() {
@@ -7571,7 +7562,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.59");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.60");
 }
 
 function emptyMomentumState() {
