@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.63";
+const GAME_VERSION = "v3.65";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7616,7 +7616,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.63");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.65");
 }
 
 function emptyMomentumState() {
@@ -13334,7 +13334,9 @@ function startOnePointMasterMode(options = {}) {
     championshipDrawOrder: ONE_POINT_MASTER_SLOTS.flatMap((_, slot) => ONE_POINT_MASTER_GROUPS.map((group) => setup.groups[group][slot])),
     championshipDrawVisibleCount: 0,
     championshipDrawComplete: false,
-    surfaceBonuses: buildAiClubHouseBonuses(setup.ranked, "reward"),
+    // Le mode Récompense démarre sans aucun bonus, quel que soit le classement.
+    // Seules les performances réalisées pendant cette compétition en ajoutent.
+    surfaceBonuses: Object.fromEntries(setup.ranked.map((entry) => [entry, []])),
     previousWinScores: {},
     onePointRewards: {},
     matches: [],
@@ -17903,6 +17905,17 @@ function renderCard(playerIndex, card) {
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
           ${showForbidEffect ? `<img class="forbid-effect-overlay" src="${FORBID_IMAGE}" alt="Effet annulé" />` : ""}
         </button>
+        <section class="card-readable-data" aria-label="Informations lisibles de ${escapeHtml(card.name)}">
+          <header><span>${escapeHtml(card.subtitle ?? card.family)}</span><strong>${escapeHtml(card.name)}</strong></header>
+          <div class="card-readable-stats">
+            <span><small>Coût</small><strong>${cost}</strong></span>
+            <span><small>Puissance</small><strong>${stats.power}</strong></span>
+            <span><small>Précision</small><strong>${stats.precision}</strong></span>
+            <span><small>Placement</small><strong>${stats.placement}${state.turnPlacement[playerIndex] ? ` + ${state.turnPlacement[playerIndex]}` : ""}</strong></span>
+          </div>
+          <p><b>Effet</b>${escapeHtml(card.effect || "Aucun effet.")}</p>
+          <p class="card-readable-boost"><b>Boost</b>${card.boostPower} puissance · ${card.boostPrecision} précision</p>
+        </section>
       ` : `
         ${card.star ? '<div class="card-star" aria-label="Carte étoile">★</div>' : ""}
         <div class="card-top">

@@ -30,5 +30,7 @@ assert.match(service, /scoreA > scoreB \? match\.playerA : match\.playerB/);
 assert.match(styles, /\.championship-lobby-screen \{\s*background: transparent;/);
 assert.match(styles, /\.championship-practical-info > div[\s\S]*color: #243947;[\s\S]*background: #fff;/);
 assert.match(styles, /\.confrontation-intro-player img \{[\s\S]*clip-path: none;[\s\S]*image-rendering: auto;/);
+assert.match(app, /class="card-readable-data"/);
+assert.match(styles, /\.card-readable-data \{[\s\S]*text-rendering: geometricPrecision;/);
 
 console.log("v3.63 : cinq journées, expiration des bonus, service et lisibilité : OK");
