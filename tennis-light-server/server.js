@@ -4140,9 +4140,10 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
   recordFriendlyOnePointResults(tournament);
   const activeParticipants = activeFriendlyParticipants(tournament);
   const canWatchMatches = friendlyTournamentVisibility(tournament) === "public" || Boolean(participant?.selected);
+  const masterControl = tournament.format === "onepointmaster" ? friendlyMasterControl(tournament) : null;
   const hideMasterInitialDraw = tournament.format === "onepointmaster"
     && tournament.round === "group1"
-    && !friendlyMasterControl(tournament).roundKnown;
+    && !masterControl.roundKnown;
   return {
     id: tournament.id,
     status: tournament.status,
@@ -4182,14 +4183,14 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
       round: match.round,
       playerA: hideMasterInitialDraw && match.round === "group1" ? null : match.playerA,
       playerB: hideMasterInitialDraw && match.round === "group1" ? null : match.playerB,
-      winner: match.winner,
-      score: match.score,
-      liveScore: match.liveScore || null,
+      winner: masterControl && match.round === tournament.round && !masterControl.launched ? null : match.winner,
+      score: masterControl && match.round === tournament.round && !masterControl.launched ? null : match.score,
+      liveScore: masterControl && match.round === tournament.round && !masterControl.launched ? null : match.liveScore || null,
       liveUpdatedAt: match.liveUpdatedAt || null,
       watchable: canWatchMatches && friendlyMatchIsWatchable(match),
       playerAInfo: hideMasterInitialDraw && match.round === "group1" ? null : friendlyEntryPublic(tournament, match.playerA),
       playerBInfo: hideMasterInitialDraw && match.round === "group1" ? null : friendlyEntryPublic(tournament, match.playerB),
-      winnerInfo: friendlyEntryPublic(tournament, match.winner),
+      winnerInfo: masterControl && match.round === tournament.round && !masterControl.launched ? null : friendlyEntryPublic(tournament, match.winner),
       forfeitParticipantId: match.forfeitParticipantId || null,
       group: match.group || null,
       day: match.day || null,
@@ -5875,6 +5876,10 @@ async function handleApi(req, res) {
         control.launchAt = Date.now() + 5000;
         control.launched = false;
       } else if (action === "simulate") {
+        if (/^group[1-5]$/.test(tournament.round)) {
+          sendJson(res, 409, { error: "Les rencontres IA de la journée sont simulées au retour du premier joueur humain." });
+          return;
+        }
         const humanMatches = currentMatches.filter((match) => friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB));
         if (tournament.round === "barrage" && humanMatches.length) {
           sendJson(res, 409, { error: "Les barrages ne peuvent pas être simulés tant qu’un joueur humain y participe." });
@@ -5971,9 +5976,17 @@ async function handleApi(req, res) {
     markFriendlyParticipantPresent(participant);
     participant.clubHouseReturnedAt = Date.now();
     if (tournament.status === "playing" && friendlyOnePointFormat(tournament)) {
-      simulateFriendlyAiOnlyMatches(tournament);
-      revealAllFriendlyAiSets(tournament, tournament.round);
-      refreshFriendlyTournamentSlots(tournament);
+      const entry = friendlyParticipantEntry(participant.id);
+      const completedCurrentMatch = (tournament.matches || []).find((match) => (
+        match.round === tournament.round
+        && match.winner
+        && (match.playerA === entry || match.playerB === entry)
+      ));
+      if (completedCurrentMatch) {
+        simulateFriendlyAiOnlyMatches(tournament);
+        revealAllFriendlyAiSets(tournament, tournament.round);
+        refreshFriendlyTournamentSlots(tournament);
+      }
     }
     tournament.updatedAt = Date.now();
     sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });

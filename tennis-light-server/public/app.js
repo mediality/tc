@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.74";
+const GAME_VERSION = "v3.75";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -6288,10 +6288,13 @@ function renderFriendlyMasterTournamentMatch(match) {
     playerA: visibleEntries.has(match.playerA) ? match.playerA : null,
     playerB: visibleEntries.has(match.playerB) ? match.playerB : null,
   } : match;
-  const watchButton = match.watchable
-    ? `<button class="small-button friendly-master-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">REGARDER</button>`
-    : "";
-  return `${renderTournamentMatch(visibleMatch, match.round === "final")}${watchButton}`;
+  const card = renderTournamentMatch(visibleMatch, match.round === "final");
+  if (!match.watchable) return card;
+  const watchButton = `<button class="small-button friendly-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">VOIR</button>`;
+  return card.replace(
+    /(<div class="tournament-score[^]*?<\/div>)/,
+    `<div class="friendly-bracket-live-row">$1${watchButton}</div>`,
+  );
 }
 
 function renderFriendlyMasterBoard(matches, standings) {
@@ -6408,7 +6411,7 @@ function renderFriendlyLobbyScreen() {
       ${competitionControl?.canControl ? `<div class="friendly-master-control-actions">
         ${competitionControl.drawRequired ? '<button class="small-button" type="button" data-friendly-master-control="draw">TIRAGE AU SORT</button>' : ""}
         <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 5 S"}</button>
-        ${format === "onepointmaster" ? `<button class="small-button" type="button" data-friendly-master-control="simulate" ${competitionControl.launched ? "" : "disabled"}>SIMULER LES MATCHS</button>` : ""}
+        ${format === "onepointmaster" && !/^group[1-5]$/.test(state.tournament.stage) ? `<button class="small-button" type="button" data-friendly-master-control="simulate" ${competitionControl.launched ? "" : "disabled"}>SIMULER LES MATCHS</button>` : ""}
       </div>` : ""}
     </section>
   ` : "";
@@ -7840,7 +7843,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.74");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.75");
 }
 
 function emptyMomentumState() {
@@ -16387,6 +16390,10 @@ function renderTournamentPanel() {
   const semiMatches = state.tournament.matches.filter((match) => match.round === "semi");
   const final = tournamentMatchById("final");
   const champion = state.tournament.championCharacterId;
+  if (state.tournament.onePointMaster) {
+    renderChampionshipPanel(title, final, champion);
+    return;
+  }
   if (state.tournament.championship) {
     renderChampionshipPanel(title, final, champion);
     return;
