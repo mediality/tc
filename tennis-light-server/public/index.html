@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=3.75.0" />
-    <link rel="stylesheet" href="./mobile-game.css?v=3.75.0" />
+    <link rel="stylesheet" href="./styles.css?v=3.76.0" />
+    <link rel="stylesheet" href="./mobile-game.css?v=3.76.0" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -127,7 +127,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v3.75</span></strong>
+          <strong>Tennis Courts Academy · <span>v3.76</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -220,10 +220,11 @@
               <h1>Retrouvez les autres joueurs</h1>
               <p>Créez un événement ou rejoignez un Club House déjà ouvert.</p>
             </div>
-            <button id="refreshLobbyButton" class="mode-page-hero-action" type="button">Actualiser</button>
+            <button id="openOnlineInfoButton" class="mode-page-hero-action online-info-button" type="button">Découvrir les modes de jeu</button>
           </header>
           <div class="online-clubhouse-toolbar">
             <div><span class="online-status-dot" aria-hidden="true"></span><strong>Club Houses ouverts</strong><small>Match, Classic et League</small></div>
+            <button id="refreshLobbyButton" class="small-button" type="button">Actualiser</button>
             <button id="createLobbyRoomButton" class="primary-button" type="button">Créer un Club House</button>
           </div>
           <div id="lobbyRooms" class="lobby-rooms online-clubhouse-list" aria-live="polite"></div>
@@ -587,6 +588,36 @@
             <div><p class="label">Prêt à entrer sur le court ?</p><strong>Votre prochaine semaine de compétition vous attend.</strong></div>
             <button class="primary-button" type="button" data-open-lobby-section="circuit">Accéder au Circuit Pro</button>
           </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="onlineInfoScreen" class="menu-screen content-page-screen solo-info-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell solo-info-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions">
+            <button id="backToOnlineFromInfoButton" class="small-button" type="button">Retour au Mode en ligne</button>
+            <button id="onlineInfoHomeButton" class="small-button" type="button">Accueil</button>
+          </div>
+        </div>
+        <section class="menu-panel ranking-full-panel content-page-panel solo-info-panel">
+          <header class="content-page-hero solo-info-hero">
+            <img src="./assets/MODE-EN-LIGNE.jpg" alt="Joueurs réunis dans un Club House en ligne" />
+            <div class="content-page-hero-copy"><p class="label">Club House en ligne</p><h1>Les cinq modes de jeu en ligne</h1><p>Créez une compétition de 2 à 4 joueurs humains, complétée par des adversaires IA selon le format.</p></div>
+          </header>
+          <section class="solo-info-introduction">
+            <p class="label">Introduction</p><h2>Jouez ensemble dans le même Club House</h2>
+            <p>Le Mode en ligne propose cinq formats : Match, Tournoi Classic, League, 1 Point Game et 1 Point Master.</p>
+            <p>L’hôte configure l’événement et sélectionne entre deux et quatre participants humains. Les places restantes sont attribuées à l’IA. Les joueurs suivent les résultats et les tours depuis le Club House commun.</p>
+          </section>
+          <section class="solo-competition-accordions" aria-label="Les cinq modes du Mode en ligne">
+            <details class="solo-competition-accordion"><summary><img src="./assets/icons/MATCH.svg" alt="" /><span><strong>Match en ligne</strong></span><i></i></summary><div class="solo-competition-content"><p>Le Match en ligne oppose directement deux joueurs humains dans une rencontre en deux ou trois sets gagnants. Il constitue le format le plus rapide pour organiser une confrontation sans tableau ni phase de groupes.</p><p>Jusqu’à quatre joueurs peuvent rejoindre le Club House, suivre la rencontre et participer aux événements suivants.</p></div></details>
+            <details class="solo-competition-accordion"><summary><img src="./assets/icons/trophy-circuit.svg" alt="" /><span><strong>Tournoi Classic</strong></span><i></i></summary><div class="solo-competition-content"><p>Le Tournoi Classic est une compétition à élimination directe. Deux à quatre joueurs humains rejoignent le tableau, complété par des adversaires IA.</p><p>Chaque défaite élimine immédiatement le participant concerné. Le Club House permet de suivre les résultats et le parcours des joueurs encore qualifiés jusqu’à la finale.</p></div></details>
+            <details class="solo-competition-accordion"><summary><img src="./assets/icons/LEAGUE.svg" alt="" /><span><strong>League</strong></span><i></i></summary><div class="solo-competition-content"><p>La League réunit huit participants dans deux groupes de quatre. Les joueurs humains, au nombre de deux à quatre, sont répartis avec les adversaires IA.</p><p>Après trois journées, les deux premiers de chaque groupe rejoignent les demi-finales croisées, puis les vainqueurs disputent la finale.</p></div></details>
+            <details class="solo-competition-accordion"><summary><img src="./assets/icons/power-flash.svg" alt="" /><span><strong>1 Point Game</strong></span><i></i></summary><div class="solo-competition-content"><p>Le 1 Point Game est un tournoi à élimination directe dans lequel chaque rencontre se décide sur un seul échange. Deux à quatre humains intègrent le tableau avec les joueurs IA.</p><p>Après chaque rencontre, les participants retournent au Club House. L’hôte ou le joueur qualifié désigné lance le tour suivant lorsque tous les matchs humains sont terminés.</p></div></details>
+            <details class="solo-competition-accordion"><summary><img src="./assets/icons/power-flash.svg" alt="" /><span><strong>1 Point Master</strong></span><i></i></summary><div class="solo-competition-content"><p>Le 1 Point Master rassemble 24 participants dans quatre groupes de six. Entre deux et quatre humains participent avec les adversaires IA.</p><p>Le Tour 1 comprend cinq journées de groupes. Les premiers rejoignent directement le tableau final, tandis que les deuxième et troisième passent par le Tour 2, consacré aux barrages. Le Tour 3 rassemble les quarts de finale, les demi-finales et la finale.</p><p>Le Club House commun affiche les classements, les résultats du tour actuel, les tirages au sort et les commandes réservées au joueur qui pilote la compétition.</p></div></details>
+          </section>
         </section>
       </div>
     </section>
@@ -1111,8 +1142,8 @@
       </div>
     </div>
 
-    <script src="./tutorial-engine.js?v=3.75.0"></script>
-    <script src="./app.js?v=3.75.0"></script>
-    <script src="./mobile-game.js?v=3.75.0"></script>
+    <script src="./tutorial-engine.js?v=3.76.0"></script>
+    <script src="./app.js?v=3.76.0"></script>
+    <script src="./mobile-game.js?v=3.76.0"></script>
   </body>
 </html>

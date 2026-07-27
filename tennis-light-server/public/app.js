@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.75";
+const GAME_VERSION = "v3.76";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1776,6 +1776,7 @@ const els = {
   rankingScreen: document.querySelector("#rankingScreen"),
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
   soloInfoScreen: document.querySelector("#soloInfoScreen"),
+  onlineInfoScreen: document.querySelector("#onlineInfoScreen"),
   academyInfoScreen: document.querySelector("#academyInfoScreen"),
   tutorialModulesScreen: document.querySelector("#tutorialModulesScreen"),
   newsArchiveScreen: document.querySelector("#newsArchiveScreen"),
@@ -2079,6 +2080,7 @@ function visibleScreenDestination() {
   if (!els.rankingScreen?.classList.contains("hidden")) return "ranking";
   if (!els.circuitInfoScreen?.classList.contains("hidden")) return "circuit-info";
   if (!els.soloInfoScreen?.classList.contains("hidden")) return "solo-info";
+  if (!els.onlineInfoScreen?.classList.contains("hidden")) return "online-info";
   if (!els.academyInfoScreen?.classList.contains("hidden")) return "academy-info";
   if (!els.tutorialModulesScreen?.classList.contains("hidden")) return "tutorial-modules";
   if (!els.adminScreen?.classList.contains("hidden")) return "admin";
@@ -2129,6 +2131,7 @@ function returnFromProfile() {
   if (destination === "ranking") return showRankingScreen();
   if (destination === "circuit-info") return showCircuitInfoScreen();
   if (destination === "solo-info") return showSoloInfoScreen();
+  if (destination === "online-info") return showOnlineInfoScreen();
   if (destination === "academy-info") return showAcademyInfoScreen();
   if (destination === "tutorial-modules") return showTutorialModulesScreen();
   if (destination === "online-room") return showFriendlyLobbyScreen();
@@ -4167,6 +4170,7 @@ function hideStandaloneScreens() {
     els.rankingScreen,
     els.circuitInfoScreen,
     els.soloInfoScreen,
+    els.onlineInfoScreen,
     els.academyInfoScreen,
     els.tutorialModulesScreen,
     els.newsArchiveScreen,
@@ -4404,6 +4408,15 @@ function showSoloInfoScreen() {
   hideLobbySectionScreen();
   hideStandaloneScreens();
   els.soloInfoScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function showOnlineInfoScreen() {
+  els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
+  hideStandaloneScreens();
+  els.onlineInfoScreen?.classList.remove("hidden");
   applySurfaceBackground(null);
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -5881,6 +5894,9 @@ function applyFriendlyTournamentState(payload, currentMatch = null) {
     && previousRound !== nextRound
     && !["waiting", "complete"].includes(nextRound),
   );
+  if (payload.format === "onepointmaster" && previousRound !== nextRound) {
+    CHAMPIONSHIP_LOBBY_UI.openZone = /^group[1-5]$/.test(nextRound) ? 1 : nextRound === "barrage" ? 2 : 3;
+  }
   FRIENDLY_TOURNAMENT.isCreator = Boolean(payload.participant?.isCreator || payload.creatorParticipantId === FRIENDLY_TOURNAMENT.participantId);
   FRIENDLY_TOURNAMENT.isSpectator = Boolean(payload.spectator || FRIENDLY_TOURNAMENT.spectatorId);
   FRIENDLY_TOURNAMENT.entry = payload.participant?.entry || FRIENDLY_TOURNAMENT.entry;
@@ -6151,6 +6167,7 @@ function startFriendlyHumanTournamentMatch(match) {
   state.tournament.nextHumanMatchId = null;
   if (isHost && !sharedSessionStarted) {
     startMatchMode(SERVER_SYNC.targetSets);
+    applyOnlinePlayersFromRoom(players);
     state.tournament.stage = match.round;
     state.tournament.currentMatch = match.id;
     state.log.unshift(`${match.label} : session partagée entre ${players[0].nickname} et ${players[1].nickname}.`);
@@ -6332,7 +6349,7 @@ function renderFriendlyMasterBoard(matches, standings) {
         </section>
       `).join("")}</div>
     </section>`}`;
-  const barrages = drawPending ? "" : `<div class="championship-playoffs">${matches.filter((match) => match.round === "barrage").map(renderFriendlyMasterTournamentMatch).join("")}</div>`;
+  const barrages = `<div class="championship-playoffs">${matches.filter((match) => match.round === "barrage" && match.playerA && match.playerB).map(renderFriendlyMasterTournamentMatch).join("")}</div>`;
   const finalContent = drawPending ? "" : `<div class="tournament-bracket championship-final-bracket">
     <div class="tournament-column"><span class="tournament-column-title">Quarts</span>${matches.filter((match) => match.round === "quarter").map(renderFriendlyMasterTournamentMatch).join("")}</div>
     <div class="tournament-column"><span class="tournament-column-title">Demi-finales</span>${matches.filter((match) => match.round === "semi").map(renderFriendlyMasterTournamentMatch).join("")}</div>
@@ -6361,6 +6378,9 @@ function renderFriendlyLobbyScreen() {
   const settingsLocked = state.tournament.stage !== "waiting" || state.tournament.friendlySettingsLocked;
   const settingsDisabled = settingsLocked || !FRIENDLY_TOURNAMENT.isCreator || FRIENDLY_TOURNAMENT.isSpectator;
   const competitionControl = state.tournament.friendlyCompetitionControl || null;
+  const currentRoundMatches = matches.filter((match) => match.round === state.tournament.stage && match.playerA && match.playerB && !match.winner);
+  const humanInCurrentRound = currentRoundMatches.some((match) => match.playerAInfo?.type === "human" || match.playerBInfo?.type === "human");
+  const canSimulateCurrentRound = format === "onepointmaster" && currentRoundMatches.length > 0 && !humanInCurrentRound;
   const launchSeconds = competitionControl?.launchAt
     ? Math.max(0, Math.ceil((Number(competitionControl.launchAt) - Date.now()) / 1000))
     : null;
@@ -6411,7 +6431,7 @@ function renderFriendlyLobbyScreen() {
       ${competitionControl?.canControl ? `<div class="friendly-master-control-actions">
         ${competitionControl.drawRequired ? '<button class="small-button" type="button" data-friendly-master-control="draw">TIRAGE AU SORT</button>' : ""}
         <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 5 S"}</button>
-        ${format === "onepointmaster" && !/^group[1-5]$/.test(state.tournament.stage) ? `<button class="small-button" type="button" data-friendly-master-control="simulate" ${competitionControl.launched ? "" : "disabled"}>SIMULER LES MATCHS</button>` : ""}
+        ${format === "onepointmaster" && !/^group[1-5]$/.test(state.tournament.stage) ? `<button class="small-button" type="button" data-friendly-master-control="simulate" ${canSimulateCurrentRound ? "" : "disabled"}>SIMULER LES MATCHS</button>` : ""}
       </div>` : ""}
     </section>
   ` : "";
@@ -7843,7 +7863,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.75");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.76");
 }
 
 function emptyMomentumState() {
@@ -18752,6 +18772,9 @@ function initMenu() {
   els.rankingNextPageButton?.addEventListener("click", () => loadRanking(Math.min(Number(AUTH_STATE.ranking?.totalPages || 1), AUTH_STATE.rankingPage + 1)));
   els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
   els.openSoloInfoButton?.addEventListener("click", showSoloInfoScreen);
+  document.querySelector("#openOnlineInfoButton")?.addEventListener("click", showOnlineInfoScreen);
+  document.querySelector("#backToOnlineFromInfoButton")?.addEventListener("click", () => showLobbySection("online"));
+  document.querySelector("#onlineInfoHomeButton")?.addEventListener("click", showMenuScreen);
   document.querySelector("#backToSoloFromInfoButton")?.addEventListener("click", showAiClubHouseScreen);
   document.querySelector("#soloInfoHomeButton")?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromCircuitInfoButton?.addEventListener("click", () => showLobbySection("circuit"));
@@ -18836,7 +18859,7 @@ function initMenu() {
   });
   document.querySelectorAll(".direct-home-button").forEach((button) => button.addEventListener("click", showMenuScreen));
   const navigationObserver = new MutationObserver(updateGlobalPlayerDock);
-  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.soloInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen, els.gameApp, els.mobileGameApp]
+  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.soloInfoScreen, els.onlineInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen, els.gameApp, els.mobileGameApp]
     .filter(Boolean)
     .forEach((screen) => navigationObserver.observe(screen, { attributes: true, attributeFilter: ["class"] }));
   updateGlobalPlayerDock();

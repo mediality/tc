@@ -5314,6 +5314,20 @@ function friendlyHumanSessionPlayers(tournament, match) {
   });
 }
 
+function canonicalFriendlyHumanSyncState(tournament, match, remoteState) {
+  const safeState = cloneFriendlyMatchState(remoteState);
+  if (!safeState || !Array.isArray(safeState.players)) return safeState;
+  const expectedPlayers = friendlyHumanSessionPlayers(tournament, match);
+  safeState.players = safeState.players.map((player, seat) => ({
+    ...player,
+    name: friendlyAiName(expectedPlayers[seat]?.characterId),
+    nickname: expectedPlayers[seat]?.nickname || "Joueur",
+    characterId: expectedPlayers[seat]?.characterId || player?.characterId,
+    worldRank: expectedPlayers[seat]?.worldRank || null,
+  }));
+  return safeState;
+}
+
 function validateFriendlyHumanSyncState(tournament, match, remoteState) {
   if (!remoteState || typeof remoteState !== "object") return "État de match invalide.";
   if (!Array.isArray(remoteState.players) || remoteState.players.length !== 2) return "Les deux joueurs doivent partager la même partie.";
@@ -5885,6 +5899,8 @@ async function handleApi(req, res) {
           sendJson(res, 409, { error: "Les barrages ne peuvent pas être simulés tant qu’un joueur humain y participe." });
           return;
         }
+        control.launched = true;
+        control.launchAt = null;
         simulateFriendlyAiOnlyMatches(tournament);
         revealAllFriendlyAiSets(tournament, tournament.round);
         refreshFriendlyTournamentSlots(tournament);
@@ -6065,7 +6081,7 @@ async function handleApi(req, res) {
           && Number(payload.baseRevision) === Number(access.session.revision || 0)
           && !validateFriendlyHumanSyncState(tournament, currentMatch, payload.state);
         if (canStoreState) {
-          access.session.state = cloneFriendlyMatchState(payload.state);
+          access.session.state = canonicalFriendlyHumanSyncState(tournament, currentMatch, payload.state);
           access.session.revision += 1;
           access.session.updatedAt = now;
           currentMatch.liveScore = friendlyHumanScoreText(payload.state, true);
@@ -6187,7 +6203,7 @@ async function handleApi(req, res) {
       sendJson(res, 400, { error: validationError });
       return;
     }
-    access.session.state = payload.state;
+    access.session.state = canonicalFriendlyHumanSyncState(tournament, match, payload.state);
     access.session.revision += 1;
     access.session.updatedAt = Date.now();
     match.liveScore = friendlyHumanScoreText(payload.state, true);
@@ -6314,7 +6330,7 @@ async function handleApi(req, res) {
         sendJson(res, 409, { error: validationError || "Le résultat partagé n'est pas encore validé." });
         return;
       }
-      access.session.state = finalState;
+      access.session.state = canonicalFriendlyHumanSyncState(tournament, match, finalState);
       access.session.revision += 1;
       access.session.updatedAt = Date.now();
       match.winner = verifiedWinner;
