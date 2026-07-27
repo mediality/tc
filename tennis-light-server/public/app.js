@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.58";
+const GAME_VERSION = "v3.59";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.58";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.59";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -364,6 +364,15 @@ const NEW_TOURNAMENT_PLAYERS = [
 const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
+  {
+    id: "v359-new-competitions",
+    publishedAt: "2026-07-27",
+    availableAt: "2026-07-27T00:00:00+02:00",
+    title: "Deux nouveaux défis débarquent !",
+    image: "assets/news-new-competitions-v359.jpg",
+    audienceRoles: ["pro", "pro_plus", "admin"],
+    message: "Sprint ou marathon ? À vous de choisir !\n\nLe 1 Point Game vous propulse dans un tournoi express où 4 points gagnés d'affilée suffisent pour décrocher le trophée… avec un mode Récompense qui met la pression à chaque victoire.\n\nEnvie d'un vrai défi ? Le Championnat vous embarque dans une compétition longue, tactique et impitoyable où seuls les plus réguliers survivront.\n\nDeux formats, deux ambiances… mais une seule question : jusqu'où irez-vous ?",
+  },
   {
     id: "v335-kowalski-sakubara-circuit",
     publishedAt: "2026-07-26",
@@ -2286,7 +2295,7 @@ function renderHomeNewsSection() {
   if (!els.homeNewsList) return;
   const allNews = availableGameNews()
     .sort((left, right) => String(right.publishedAt).localeCompare(String(left.publishedAt)));
-  const newsItems = allNews.slice(0, 5);
+  const newsItems = allNews;
   els.homeNewsArchiveAction?.classList.toggle("hidden", allNews.length < 6);
   if (!newsItems.length) {
     els.homeNewsList.innerHTML = '<div class="home-news-empty">Les prochaines actualités de l’Academy arrivent bientôt.</div>';
@@ -7562,7 +7571,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.58");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.59");
 }
 
 function emptyMomentumState() {
