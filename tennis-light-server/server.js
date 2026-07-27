@@ -3995,7 +3995,7 @@ function friendlyParticipantStillQualified(tournament, participant) {
 
 function friendlyControlParticipantIds(tournament) {
   const ids = new Set([tournament.creatorParticipantId].filter(Boolean));
-  if (tournament.format !== "onepointmaster") return ids;
+  if (!friendlyOnePointFormat(tournament)) return ids;
   const creator = activeFriendlyParticipants(tournament).find((item) => item.id === tournament.creatorParticipantId);
   if (friendlyParticipantStillQualified(tournament, creator)) return ids;
   const delegate = activeFriendlyParticipants(tournament).find((item) => (
@@ -4217,7 +4217,7 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
     rewardCounts: tournament.rewardCounts || {},
     ready: tournament.ready || {},
     nextReady: tournament.nextReady || {},
-    competitionControl: tournament.format === "onepointmaster" ? {
+    competitionControl: friendlyOnePointFormat(tournament) ? {
       ...friendlyMasterControl(tournament),
       canControl: friendlyParticipantCanControl(tournament, participant),
       controllerParticipantIds: [...friendlyControlParticipantIds(tournament)],
@@ -4226,7 +4226,8 @@ function publicFriendlyTournamentInfo(req, tournament, participant = null, spect
         .every((match) => match.winner),
     } : null,
     canSimulateRemainder: tournament.format === "onepoint"
-      && participant?.id === tournament.lastEliminatedParticipantId,
+      && participant?.id === tournament.creatorParticipantId
+      && selectedFriendlyParticipants(tournament).every((item) => !friendlyParticipantStillQualified(tournament, item)),
     participant: participant ? {
       id: participant.id,
       token: participant.token,
@@ -4611,6 +4612,14 @@ async function buildFriendlyTournamentBracket(tournament) {
     makeFriendlyMatch("final", "Finale", "final"),
   ];
   tournament.round = "quarter";
+  if (tournament.format === "onepoint") {
+    tournament.masterControl = {
+      drawRequired: false,
+      roundKnown: true,
+      launched: false,
+      launchAt: null,
+    };
+  }
   simulateFriendlyAiOnlyMatches(tournament);
 }
 
@@ -4725,6 +4734,7 @@ function revealAllFriendlyAiSets(tournament, round = tournament.round) {
 }
 
 function noteFriendlyHumanSetProgress(tournament, match, remoteState = null, completedScore = "") {
+  if (friendlyOnePointFormat(tournament)) return false;
   if (!match || match.round !== tournament.round || friendlyAiOnlyMatch(match)) return false;
   const stateScores = friendlyHumanCompletedScores(remoteState).filter(([gamesA, gamesB]) => friendlySetIsComplete(gamesA, gamesB));
   const scoreCount = parseFriendlySetScores(completedScore).filter(([gamesA, gamesB]) => friendlySetIsComplete(gamesA, gamesB)).length;
@@ -4738,7 +4748,7 @@ function noteFriendlyHumanSetProgress(tournament, match, remoteState = null, com
 }
 
 function revealFriendlyAiRoundWhenHumansAreDone(tournament) {
-  if (tournament.format === "onepoint") return false;
+  if (friendlyOnePointFormat(tournament)) return false;
   const roundMatches = (tournament.matches || []).filter((match) => (
     match.round === tournament.round && match.playerA && match.playerB
   ));
@@ -4986,6 +4996,16 @@ function refreshFriendlyTournamentSlots(tournament) {
     refreshFriendlyOnePointMasterSlots(tournament);
     return;
   }
+  const controlledOnePoint = tournament.format === "onepoint";
+  const previousControlledRound = tournament.round;
+  if (controlledOnePoint) {
+    const control = friendlyMasterControl(tournament);
+    if (!control.launched && control.launchAt && Date.now() >= Number(control.launchAt)) {
+      control.launched = true;
+      control.launchAt = null;
+    }
+    if (!control.launched) return;
+  }
   const byId = new Map(tournament.matches.map((match) => [match.id, match]));
   const qf1 = byId.get("qf1");
   const qf2 = byId.get("qf2");
@@ -5021,6 +5041,14 @@ function refreshFriendlyTournamentSlots(tournament) {
     tournament.round = "semi";
   } else {
     tournament.round = "final";
+  }
+  if (controlledOnePoint && tournament.status !== "complete" && tournament.round !== previousControlledRound) {
+    tournament.masterControl = {
+      drawRequired: false,
+      roundKnown: true,
+      launched: false,
+      launchAt: null,
+    };
   }
 }
 
@@ -5210,7 +5238,7 @@ function currentFriendlyMatchForParticipant(tournament, participantId) {
   const participant = tournament?.participants?.find((item) => item.id === participantId);
   if (!participant || participant.forfeitedAt) return null;
   const entry = friendlyParticipantEntry(participantId);
-  if (tournament.format === "onepointmaster" && !friendlyMasterControl(tournament).launched) return null;
+  if (friendlyOnePointFormat(tournament) && !friendlyMasterControl(tournament).launched) return null;
   if (!friendlyRoundReadyForPlay(tournament)) return null;
   return (tournament.matches || []).find((match) => (
     !match.winner
@@ -5756,7 +5784,41 @@ async function handleApi(req, res) {
       return;
     }
     const action = String(payload.action || "");
-    if (tournament.format === "onepointmaster") {
+    if (tournament.format === "onepoint") {
+      if (!friendlyParticipantCanControl(tournament, participant)) {
+        sendJson(res, 403, { error: "Commande réservée à l’hôte ou au joueur qualifié désigné." });
+        return;
+      }
+      const control = friendlyMasterControl(tournament);
+      if (action === "next") {
+        if (control.launched || control.launchAt) {
+          sendJson(res, 409, { error: "Les matchs du tour sont déjà lancés." });
+          return;
+        }
+        control.launchAt = Date.now() + 10000;
+        control.launched = false;
+      } else if (action === "simulate") {
+        const allHumansEliminated = selectedFriendlyParticipants(tournament)
+          .every((item) => !friendlyParticipantStillQualified(tournament, item));
+        if (participant.id !== tournament.creatorParticipantId || !allHumansEliminated) {
+          sendJson(res, 403, { error: "Seul l’hôte peut simuler la suite lorsque tous les joueurs humains sont éliminés." });
+          return;
+        }
+        for (let step = 0; step < 8 && tournament.status === "playing"; step += 1) {
+          const roundBefore = tournament.round;
+          const simulationControl = friendlyMasterControl(tournament);
+          simulationControl.launched = true;
+          simulationControl.launchAt = null;
+          simulateFriendlyAiOnlyMatches(tournament);
+          revealAllFriendlyAiSets(tournament, tournament.round);
+          refreshFriendlyTournamentSlots(tournament);
+          if (tournament.round === roundBefore && tournament.status === "playing") break;
+        }
+      } else {
+        sendJson(res, 400, { error: "Commande inconnue." });
+        return;
+      }
+    } else if (tournament.format === "onepointmaster") {
       if (!friendlyParticipantCanControl(tournament, participant)) {
         sendJson(res, 403, { error: "Commande réservée à l’hôte ou au joueur qualifié désigné." });
         return;
@@ -5827,19 +5889,6 @@ async function handleApi(req, res) {
         sendJson(res, 400, { error: "Commande inconnue." });
         return;
       }
-    } else if (tournament.format === "onepoint" && action === "simulate") {
-      if (participant.id !== tournament.lastEliminatedParticipantId) {
-        sendJson(res, 403, { error: "Seul le dernier joueur humain éliminé peut simuler la suite." });
-        return;
-      }
-      const currentMatches = (tournament.matches || []).filter((match) => match.round === tournament.round);
-      if (currentMatches.some((match) => !match.winner && (friendlyEntryIsHuman(match.playerA) || friendlyEntryIsHuman(match.playerB)))) {
-        sendJson(res, 409, { error: "Un joueur humain est encore engagé dans ce tour." });
-        return;
-      }
-      simulateFriendlyAiOnlyMatches(tournament);
-      revealAllFriendlyAiSets(tournament, tournament.round);
-      refreshFriendlyTournamentSlots(tournament);
     } else {
       sendJson(res, 403, { error: "Commande indisponible." });
       return;
@@ -5909,6 +5958,27 @@ async function handleApi(req, res) {
       graceSeconds: paused ? FRIENDLY_RECONNECT_GRACE_MS / 1000 : null,
       reconnectDeadline: paused ? participant.reconnectDeadline : null,
     });
+    return;
+  }
+
+  const friendlyClubHouseReturnMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/clubhouse-return$/);
+  if (req.method === "POST" && friendlyClubHouseReturnMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyClubHouseReturnMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant || !["playing", "complete"].includes(tournament.status)) {
+      sendJson(res, 404, { error: "Compétition introuvable." });
+      return;
+    }
+    markFriendlyParticipantPresent(participant);
+    participant.clubHouseReturnedAt = Date.now();
+    if (tournament.status === "playing" && friendlyOnePointFormat(tournament)) {
+      simulateFriendlyAiOnlyMatches(tournament);
+      revealAllFriendlyAiSets(tournament, tournament.round);
+      refreshFriendlyTournamentSlots(tournament);
+    }
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, { tournament: publicFriendlyTournamentInfo(req, tournament, participant) });
     return;
   }
 

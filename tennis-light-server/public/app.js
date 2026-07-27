@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.70";
+const GAME_VERSION = "v3.71";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -6272,9 +6272,6 @@ function renderFriendlyLobbyScreen() {
   const settingsLocked = state.tournament.stage !== "waiting" || state.tournament.friendlySettingsLocked;
   const settingsDisabled = settingsLocked || !FRIENDLY_TOURNAMENT.isCreator || FRIENDLY_TOURNAMENT.isSpectator;
   const competitionControl = state.tournament.friendlyCompetitionControl || null;
-  const masterBarrageSimulationBlocked = format === "onepointmaster"
-    && state.tournament.stage === "barrage"
-    && matches.some((match) => match.round === "barrage" && !match.winner && (match.playerAInfo?.type === "human" || match.playerBInfo?.type === "human"));
   const launchSeconds = competitionControl?.launchAt
     ? Math.max(0, Math.ceil((Number(competitionControl.launchAt) - Date.now()) / 1000))
     : null;
@@ -6352,17 +6349,16 @@ function renderFriendlyLobbyScreen() {
       </div>
     </section>
   ` : "";
-  const masterControlMarkup = format === "onepointmaster" && state.tournament.stage !== "waiting" && state.tournament.stage !== "complete" ? `
+  const masterControlMarkup = ["onepoint", "onepointmaster"].includes(format) && state.tournament.stage !== "waiting" && state.tournament.stage !== "complete" ? `
     <section class="friendly-master-controls" aria-live="polite">
       <div>
         <p class="label">Pilotage de la compétition</p>
         <h2>${launchSeconds != null ? `Départ des matchs dans ${launchSeconds} seconde${launchSeconds > 1 ? "s" : ""}` : competitionControl?.launched ? "Matchs en cours" : competitionControl?.drawRequired ? "Tirage au sort requis" : "Matchs suivants prêts"}</h2>
-        <p>${competitionControl?.canControl ? "Vous disposez des commandes du Club House." : "L’hôte pilote le tirage, les simulations et le lancement du prochain tour."}</p>
+        <p>${competitionControl?.canControl ? "Vous disposez des commandes du Club House." : "L’hôte ou le joueur qualifié désigné lance le prochain tour."}</p>
       </div>
       ${competitionControl?.canControl ? `<div class="friendly-master-control-actions">
         ${competitionControl.drawRequired ? '<button class="small-button" type="button" data-friendly-master-control="draw">TIRAGE AU SORT</button>' : ""}
         <button class="primary-button" type="button" data-friendly-master-control="next" ${competitionControl.launched || competitionControl.launchAt ? "disabled" : ""}>${competitionControl.drawRequired ? "MATCH SUIVANT" : "MATCH SUIVANT · 10 S"}</button>
-        <button class="small-button" type="button" data-friendly-master-control="simulate" ${competitionControl.launched && !masterBarrageSimulationBlocked ? "" : "disabled"} title="${masterBarrageSimulationBlocked ? "Simulation indisponible tant qu’un joueur humain dispute les barrages" : "Simuler les rencontres IA du tour"}">SIMULER LES MATCHS IA</button>
       </div>` : ""}
     </section>
   ` : "";
@@ -6875,9 +6871,14 @@ async function leaveFriendlyTournamentLobby({ confirmed = false, returnToClubHou
     return;
   }
   const waitingRoomExit = state.tournament?.stage === "waiting";
+  const localParticipant = (state.tournament?.friendlyParticipants || [])
+    .find((participant) => participant.id === FRIENDLY_TOURNAMENT.participantId);
+  const alreadyEliminated = Boolean(localParticipant?.eliminated || localParticipant?.forfeited);
   const confirmationText = waitingRoomExit
     ? "Quitter ce CLUB HOUSE ? Vous pourrez le rejoindre de nouveau tant que le tournoi n'est pas lancé."
-    : "Quitter ce tournoi peut entraîner un forfait. Vous aurez 20 secondes pour reprendre votre match depuis le mode en ligne ou le Club House.";
+    : alreadyEliminated
+      ? "Quitter le tournoi ? Vous pourrez continuer à suivre la compétition en revenant au Club House."
+      : "Attention : quitter maintenant sera déclaré comme forfait si vous ne vous reconnectez pas dans les 20 secondes.";
   if (!confirmed && !window.confirm(confirmationText)) return;
   const currentMatch = state.tournament?.currentMatch ? tournamentMatchById(state.tournament.currentMatch) : null;
   const scoreAtDeparture = currentMatch && state.setMatch?.enabled ? friendlyLiveScoreText(currentMatch) : null;
@@ -7723,7 +7724,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.70");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.71");
 }
 
 function emptyMomentumState() {
@@ -17476,10 +17477,7 @@ function renderCenterNextSoloExchangeButton() {
 
 function renderCenterNextSetButton() {
   if (state.tournament.friendly && state.gameOver && state.setMatch.matchOver) {
-    const summaryButton = competitionSummaryAvailable()
-      ? '<button class="small-button next-set-button" type="button" data-competition-summary>RÉSUMÉ COMPÉTITION</button>'
-      : "";
-    return `<button class="primary-button next-exchange-button next-set-button" type="button" data-return-club-house>SORTIR DE LA COMPÉTITION</button>${summaryButton}`;
+    return '<button class="primary-button next-exchange-button next-set-button" type="button" data-return-club-house>RETOURNER AU CLUB HOUSE</button>';
   }
   if (isHumanTournamentRunOver()) {
     return '<button class="primary-button next-exchange-button next-set-button" type="button" data-exit-tournament>SORTIR DE LA COMPÉTITION</button><button class="small-button next-set-button" type="button" data-competition-summary>RÉSUMÉ COMPÉTITION</button>';
@@ -17537,6 +17535,7 @@ function bindProgressionButtons(root) {
 }
 
 function competitionSummaryAvailable() {
+  if (state.tournament?.friendly) return false;
   if (!state.tournament?.active || !state.gameOver || !state.setMatch?.matchOver) return false;
   const human = humanTournamentEntry();
   const humanMatches = (state.tournament.matches || []).filter((match) => (
@@ -17696,8 +17695,11 @@ function bindResultTournamentButton() {
   bindRallyEndActions(els.resultPanel);
 }
 
-function returnFriendlyMatchToClubHouse() {
+async function returnFriendlyMatchToClubHouse() {
   if (!FRIENDLY_TOURNAMENT.enabled) return;
+  const tournamentId = FRIENDLY_TOURNAMENT.id;
+  const participantId = FRIENDLY_TOURNAMENT.participantId;
+  const token = FRIENDLY_TOURNAMENT.token;
   FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
   FRIENDLY_TOURNAMENT.inMatch = false;
   FRIENDLY_TOURNAMENT.currentMatchId = null;
@@ -17707,6 +17709,22 @@ function returnFriendlyMatchToClubHouse() {
   stopSoloTimers();
   showFriendlyLobbyScreen();
   renderFriendlyLobbyScreen();
+  if (tournamentId && participantId && token) {
+    try {
+      const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(tournamentId)}/clubhouse-return`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantId, token }),
+      });
+      const payload = await response.json();
+      if (response.ok && payload.tournament) {
+        applyFriendlyTournamentState(payload.tournament, null);
+        renderFriendlyLobbyScreen();
+      }
+    } catch (error) {
+      console.warn("Retour Club House non synchronisé", error);
+    }
+  }
   pollFriendlyTournament();
 }
 
