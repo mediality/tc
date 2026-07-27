@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.60";
+const GAME_VERSION = "v3.61";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -15,7 +15,7 @@ function versionCardAsset(value) {
 }
 
 const CARD_BACK_IMAGE = versionCardAsset("assets/cards/Demo-TC-_0000_VERSO-CARTES.webp");
-const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.60";
+const REMISE_UNDERLAY_IMAGE = "assets/fond-carte-remise.jpg?v=3.61";
 const CROWN_IMAGE = "assets/crown_9418806.png";
 const FORBID_IMAGE = "assets/forbid.png";
 const SCORE_DIGIT_IMAGES = {
@@ -174,7 +174,12 @@ const AI_CLUB_HOUSE = {
   })(),
   targetSets: Number(localStorage.getItem("tennisLightAiClubSets")) === 3 ? 3 : 2,
   difficulty: localStorage.getItem("tennisLightAiClubDifficulty") || "normal",
-  bonus: localStorage.getItem("tennisLightAiClubBonus") || "none",
+  bonus: (() => {
+    const storedBonus = localStorage.getItem("tennisLightAiClubBonus");
+    const storedFormat = localStorage.getItem("tennisLightAiClubFormat");
+    if (storedFormat === "onepoint" && (!storedBonus || storedBonus === "none")) return "reward";
+    return storedBonus || "none";
+  })(),
   players: localStorage.getItem("tennisLightAiClubPlayers") === "best" ? "best" : "random",
   distribution: localStorage.getItem("tennisLightAiClubDistribution") === "ranking" ? "ranking" : "random",
 };
@@ -369,7 +374,7 @@ const GAME_NEWS = [
     publishedAt: "2026-07-27",
     availableAt: "2026-07-27T00:00:00+02:00",
     title: "Deux nouveaux défis débarquent !",
-    image: "assets/news-new-competitions-v359.jpg",
+    image: "assets/news-competition.jpg",
     audienceRoles: ["pro", "pro_plus", "admin"],
     message: "Sprint ou marathon ? À vous de choisir !\n\nLe 1 Point Game vous propulse dans un tournoi express où 4 points gagnés d'affilée suffisent pour décrocher le trophée… avec un mode Récompense qui met la pression à chaque victoire.\n\nEnvie d'un vrai défi ? Le Championnat vous embarque dans une compétition longue, tactique et impitoyable où seuls les plus réguliers survivront.\n\nDeux formats, deux ambiances… mais une seule question : jusqu'où irez-vous ?",
   },
@@ -1763,6 +1768,7 @@ const els = {
   adminScreen: document.querySelector("#adminScreen"),
   rankingScreen: document.querySelector("#rankingScreen"),
   circuitInfoScreen: document.querySelector("#circuitInfoScreen"),
+  soloInfoScreen: document.querySelector("#soloInfoScreen"),
   academyInfoScreen: document.querySelector("#academyInfoScreen"),
   tutorialModulesScreen: document.querySelector("#tutorialModulesScreen"),
   newsArchiveScreen: document.querySelector("#newsArchiveScreen"),
@@ -1834,6 +1840,7 @@ const els = {
   backToLobbyFromRankingButton: document.querySelector("#backToLobbyFromRankingButton"),
   rankingHomeButton: document.querySelector("#rankingHomeButton"),
   openCircuitInfoButton: document.querySelector("#openCircuitInfoButton"),
+  openSoloInfoButton: document.querySelector("#openSoloInfoButton"),
   backToLobbyFromCircuitInfoButton: document.querySelector("#backToLobbyFromCircuitInfoButton"),
   circuitInfoHomeButton: document.querySelector("#circuitInfoHomeButton"),
   openAcademyInfoButton: document.querySelector("#openAcademyInfoButton"),
@@ -2064,6 +2071,7 @@ function visibleScreenDestination() {
   if (!els.aiClubHouseScreen?.classList.contains("hidden")) return "solo";
   if (!els.rankingScreen?.classList.contains("hidden")) return "ranking";
   if (!els.circuitInfoScreen?.classList.contains("hidden")) return "circuit-info";
+  if (!els.soloInfoScreen?.classList.contains("hidden")) return "solo-info";
   if (!els.academyInfoScreen?.classList.contains("hidden")) return "academy-info";
   if (!els.tutorialModulesScreen?.classList.contains("hidden")) return "tutorial-modules";
   if (!els.adminScreen?.classList.contains("hidden")) return "admin";
@@ -2081,7 +2089,7 @@ function updateGlobalPlayerDock() {
   const destination = visibleScreenDestination();
   const gameActive = destination === "game";
   const hidden = !user || destination === "home";
-  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen]
+  const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.soloInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen]
     .find((screen) => screen && !screen.classList.contains("hidden"));
   const dockHost = activeScreen?.querySelector(".lobby-section-header, .mode-clubhouse-topbar, .topbar") || null;
   if (dockHost && els.globalPlayerDock) {
@@ -2113,6 +2121,7 @@ function returnFromProfile() {
   const destination = PAGE_NAVIGATION_STATE.profileReturn;
   if (destination === "ranking") return showRankingScreen();
   if (destination === "circuit-info") return showCircuitInfoScreen();
+  if (destination === "solo-info") return showSoloInfoScreen();
   if (destination === "academy-info") return showAcademyInfoScreen();
   if (destination === "tutorial-modules") return showTutorialModulesScreen();
   if (destination === "online-room") return showFriendlyLobbyScreen();
@@ -4150,6 +4159,7 @@ function hideStandaloneScreens() {
     els.adminScreen,
     els.rankingScreen,
     els.circuitInfoScreen,
+    els.soloInfoScreen,
     els.academyInfoScreen,
     els.tutorialModulesScreen,
     els.newsArchiveScreen,
@@ -4192,6 +4202,7 @@ function showGameScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.soloInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
   els.tutorialModulesScreen?.classList.add("hidden");
   els.newsArchiveScreen?.classList.add("hidden");
@@ -4218,6 +4229,7 @@ function showFriendlyLobbyScreen() {
   els.adminScreen?.classList.add("hidden");
   els.rankingScreen?.classList.add("hidden");
   els.circuitInfoScreen?.classList.add("hidden");
+  els.soloInfoScreen?.classList.add("hidden");
   els.academyInfoScreen?.classList.add("hidden");
   els.profileScreen?.classList.add("hidden");
   els.characterScreen?.classList.add("hidden");
@@ -4360,6 +4372,15 @@ function showCircuitInfoScreen() {
   els.resetPasswordScreen?.classList.add("hidden");
   hideGameScreen();
   els.circuitInfoScreen?.classList.remove("hidden");
+  applySurfaceBackground(null);
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function showSoloInfoScreen() {
+  els.menuScreen?.classList.add("hidden");
+  hideLobbySectionScreen();
+  hideStandaloneScreens();
+  els.soloInfoScreen?.classList.remove("hidden");
   applySurfaceBackground(null);
   window.scrollTo({ top: 0, behavior: "auto" });
 }
@@ -5095,6 +5116,10 @@ function renderAiClubHouse() {
   if (!proAccess && AI_CLUB_HOUSE.format !== "match") AI_CLUB_HOUSE.format = "match";
   AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(AI_CLUB_HOUSE.difficulty);
   AI_CLUB_HOUSE.bonus = normalizeAiBonusLevel(AI_CLUB_HOUSE.bonus);
+  const isMatch = AI_CLUB_HOUSE.format === "match";
+  const isChampionship = AI_CLUB_HOUSE.format === "championship";
+  const isOnePoint = AI_CLUB_HOUSE.format === "onepoint";
+  if (!isOnePoint && AI_CLUB_HOUSE.bonus === "reward") AI_CLUB_HOUSE.bonus = "none";
   els.aiClubSettingButtons?.forEach((button) => {
     const setting = button.dataset.aiClubSetting;
     const expected = {
@@ -5108,11 +5133,9 @@ function renderAiClubHouse() {
     button.classList.toggle("active", button.dataset.aiClubValue === expected);
     button.disabled = button.hasAttribute("data-pro-format") && !proAccess;
   });
-  const isMatch = AI_CLUB_HOUSE.format === "match";
-  const isChampionship = AI_CLUB_HOUSE.format === "championship";
-  const isOnePoint = AI_CLUB_HOUSE.format === "onepoint";
-  if (!isOnePoint && AI_CLUB_HOUSE.bonus === "reward") AI_CLUB_HOUSE.bonus = "none";
-  document.querySelector('[data-ai-club-setting="bonus"][data-ai-club-value="reward"]')?.classList.toggle("hidden", !isOnePoint);
+  const rewardButton = document.querySelector('[data-ai-club-setting="bonus"][data-ai-club-value="reward"]');
+  rewardButton?.classList.toggle("hidden", !isOnePoint);
+  rewardButton?.closest(".friendly-setting-switch")?.classList.toggle("reward-visible", isOnePoint);
   document.querySelectorAll("[data-competition-setting]").forEach((row) => row.classList.toggle("hidden", isMatch));
   document.querySelector("#aiSetsSettingRow")?.classList.toggle("hidden", isOnePoint);
   document.querySelector("#aiPlayersSettingRow")?.classList.toggle("hidden", isMatch || isChampionship);
@@ -5217,6 +5240,13 @@ function updateAiClubHouseSetting(setting, value) {
     if (["classic", "league", "championship", "onepoint"].includes(value) && !canAccessProFeatures()) return;
     AI_CLUB_HOUSE.format = ["match", "classic", "league", "championship", "onepoint"].includes(value) ? value : "match";
     localStorage.setItem("tennisLightAiClubFormat", AI_CLUB_HOUSE.format);
+    if (AI_CLUB_HOUSE.format === "onepoint") {
+      AI_CLUB_HOUSE.bonus = "reward";
+      localStorage.setItem("tennisLightAiClubBonus", AI_CLUB_HOUSE.bonus);
+    } else if (AI_CLUB_HOUSE.bonus === "reward") {
+      AI_CLUB_HOUSE.bonus = "none";
+      localStorage.setItem("tennisLightAiClubBonus", AI_CLUB_HOUSE.bonus);
+    }
   } else if (setting === "sets") {
     AI_CLUB_HOUSE.targetSets = Number(value) === 3 ? 3 : 2;
     localStorage.setItem("tennisLightAiClubSets", String(AI_CLUB_HOUSE.targetSets));
@@ -7562,7 +7592,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.60");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.61");
 }
 
 function emptyMomentumState() {
@@ -18030,6 +18060,9 @@ function initMenu() {
   els.rankingPrevPageButton?.addEventListener("click", () => loadRanking(Math.max(1, AUTH_STATE.rankingPage - 1)));
   els.rankingNextPageButton?.addEventListener("click", () => loadRanking(Math.min(Number(AUTH_STATE.ranking?.totalPages || 1), AUTH_STATE.rankingPage + 1)));
   els.openCircuitInfoButton?.addEventListener("click", showCircuitInfoScreen);
+  els.openSoloInfoButton?.addEventListener("click", showSoloInfoScreen);
+  document.querySelector("#backToSoloFromInfoButton")?.addEventListener("click", showAiClubHouseScreen);
+  document.querySelector("#soloInfoHomeButton")?.addEventListener("click", showMenuScreen);
   els.backToLobbyFromCircuitInfoButton?.addEventListener("click", () => showLobbySection("circuit"));
   els.circuitInfoHomeButton?.addEventListener("click", showMenuScreen);
   els.openAcademyInfoButton?.addEventListener("click", showAcademyInfoScreen);
@@ -18112,7 +18145,7 @@ function initMenu() {
   });
   document.querySelectorAll(".direct-home-button").forEach((button) => button.addEventListener("click", showMenuScreen));
   const navigationObserver = new MutationObserver(updateGlobalPlayerDock);
-  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen, els.gameApp, els.mobileGameApp]
+  [els.menuScreen, els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.soloInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen, els.gameApp, els.mobileGameApp]
     .filter(Boolean)
     .forEach((screen) => navigationObserver.observe(screen, { attributes: true, attributeFilter: ["class"] }));
   updateGlobalPlayerDock();

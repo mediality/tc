@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=3.60.0" />
-    <link rel="stylesheet" href="./mobile-game.css?v=3.60.0" />
+    <link rel="stylesheet" href="./styles.css?v=3.61.0" />
+    <link rel="stylesheet" href="./mobile-game.css?v=3.61.0" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -127,7 +127,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v3.60</span></strong>
+          <strong>Tennis Courts Academy · <span>v3.61</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -591,6 +591,127 @@
       </div>
     </section>
 
+    <section id="soloInfoScreen" class="menu-screen content-page-screen solo-info-screen hidden">
+      <div class="menu-shell ranking-shell content-page-shell solo-info-shell">
+        <div class="friendly-lobby-topbar mode-clubhouse-topbar content-page-topbar">
+          <img class="brand-logo menu-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
+          <div class="page-return-actions">
+            <button id="backToSoloFromInfoButton" class="small-button" type="button">Retour au Mode Solo</button>
+            <button id="soloInfoHomeButton" class="small-button" type="button">Accueil</button>
+          </div>
+        </div>
+        <section class="menu-panel ranking-full-panel content-page-panel solo-info-panel">
+          <header class="content-page-hero solo-info-hero">
+            <img src="./assets/infos-competition.jpg" alt="Joueurs célébrant un trophée du Mode Solo" />
+            <div class="content-page-hero-copy">
+              <p class="label">Club House Solo</p>
+              <h1>Les cinq modes de jeu du Mode Solo</h1>
+              <p>Du simple match d’entraînement au championnat de longue durée, choisissez l’expérience qui correspond à votre envie du moment.</p>
+            </div>
+          </header>
+
+          <section class="solo-info-introduction">
+            <p class="label">Introduction</p>
+            <h2>Cinq formats, cinq façons de relever le défi</h2>
+            <p>Le Mode Solo propose cinq formats de jeu, allant du simple match d’entraînement au championnat de longue durée.</p>
+            <p>Chaque mode possède son propre rythme, son organisation et ses enjeux. Le niveau des adversaires peut être personnalisé afin d’adapter l’expérience à tous les profils : découverte du jeu, entraînement tactique ou recherche d’un véritable défi.</p>
+            <p>Les compétitions du Club House Solo sont indépendantes du Circuit Pro : leurs résultats n’ont aucune incidence sur les points ou le classement de celui-ci.</p>
+            <div class="solo-match-intro">
+              <img src="./assets/icons/MATCH.svg" alt="" aria-hidden="true" />
+              <div>
+                <h3>Match Solo</h3>
+                <p>Le Match Solo est le format le plus simple et le plus immédiat. Il permet de rencontrer un coach de l’Académie, sans participer à un tournoi, une phase de groupes ou une compétition complète. Le joueur choisit une rencontre en deux ou trois sets gagnants et personnalise le niveau du coach.</p>
+                <p>Accessible à tous, ce mode permet de tester un personnage, essayer des combinaisons de cartes, apprendre à gérer l’endurance, s’entraîner face aux Boosts et aux effets, ou préparer rapidement une stratégie.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="solo-competition-accordions" aria-label="Les quatre compétitions du Mode Solo">
+            <details class="solo-competition-accordion">
+              <summary>
+                <img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
+                <span><small>Compétition 1</small><strong>Tournoi Classic</strong></span>
+                <i aria-hidden="true"></i>
+              </summary>
+              <div class="solo-competition-content">
+                <p>Le Tournoi Classic reprend le principe d’une compétition traditionnelle à élimination directe. Il réunit 16 participants : le joueur et 15 adversaires.</p>
+                <p>Le tournoi se déroule en quatre tours : huitièmes de finale, quarts de finale, demi-finales et finale. Chaque défaite entraîne une élimination immédiate. Pour remporter le trophée, le joueur doit gagner quatre rencontres consécutives, disputées en deux ou trois sets gagnants.</p>
+                <h3>Paramètres personnalisables</h3>
+                <ul>
+                  <li>le niveau des adversaires ;</li>
+                  <li>les bonus qui leur sont accordés ;</li>
+                  <li>la sélection aléatoire des participants ou la présence des meilleurs joueurs disponibles ;</li>
+                  <li>la répartition aléatoire du tableau ou son organisation selon le classement.</li>
+                </ul>
+                <p>Lorsque le tableau est construit selon le classement, les quatre joueurs les mieux classés deviennent les têtes de série. Ce format met à l’épreuve la régularité et la capacité d’adaptation : chaque victoire rapproche directement du trophée.</p>
+              </div>
+            </details>
+
+            <details class="solo-competition-accordion">
+              <summary>
+                <img src="./assets/icons/LEAGUE.svg" alt="" aria-hidden="true" />
+                <span><small>Compétition 2</small><strong>League</strong></span>
+                <i aria-hidden="true"></i>
+              </summary>
+              <div class="solo-competition-content">
+                <p>La League réunit huit joueurs et associe une phase de groupes à un tableau final à élimination directe.</p>
+                <p>Les participants sont répartis dans deux groupes de quatre. Chaque joueur affronte une fois les trois autres membres de son groupe pendant trois journées.</p>
+                <h3>Classement</h3>
+                <ol>
+                  <li>nombre de points ;</li>
+                  <li>différence de sets ;</li>
+                  <li>différence de jeux ;</li>
+                  <li>classement mondial.</li>
+                </ol>
+                <p>Les deux premiers de chaque groupe se qualifient pour les demi-finales croisées : le premier du Groupe A affronte le deuxième du Groupe B, tandis que le premier du Groupe B rencontre le deuxième du Groupe A. Les vainqueurs disputent ensuite la finale.</p>
+                <p>Une défaite en phase de groupes ne met pas nécessairement fin au parcours. Le joueur peut se rattraper, mais doit surveiller ses points, ses sets et ses jeux. Les matchs se jouent en deux ou trois sets gagnants, avec un niveau, des bonus et une sélection des participants personnalisables.</p>
+              </div>
+            </details>
+
+            <details class="solo-competition-accordion">
+              <summary>
+                <img src="./assets/icons/CHAMPIONSHIP.svg" alt="" aria-hidden="true" />
+                <span><small>Compétition 3</small><strong>Championnat</strong></span>
+                <i aria-hidden="true"></i>
+              </summary>
+              <div class="solo-competition-content">
+                <p>Le Championnat est le format le plus long et le plus complet du Mode Solo. Il réunit 24 participants dans deux phases de groupes, des barrages et un tableau final. Les huit participants les mieux classés sont désignés têtes de série. Chaque rencontre se joue en deux ou trois sets gagnants.</p>
+                <h3>Première phase : huit groupes de trois</h3>
+                <p>Chaque participant dispute deux rencontres. Une victoire rapporte un point. Le classement repose sur les points, la différence de sets, la différence de jeux, puis le classement mondial. Les deux premiers de chaque groupe se qualifient : la compétition passe de 24 à 16 joueurs.</p>
+                <h3>Deuxième phase : quatre groupes de quatre</h3>
+                <p>Chaque participant affronte les trois autres membres de son groupe. Le premier rejoint directement les quarts de finale, les deuxième et troisième passent par les barrages et le quatrième est éliminé.</p>
+                <h3>Barrages et tableau final</h3>
+                <p>Les deuxièmes et troisièmes disputent quatre barrages croisés. Les quatre vainqueurs rejoignent les quatre premiers de groupe en quarts de finale. La compétition se poursuit avec les demi-finales, puis la finale qui désigne le Champion.</p>
+                <h3>Un parcours long et exigeant</h3>
+                <p>Un joueur directement qualifié pour les quarts dispute au minimum huit rencontres pour gagner le titre. Un joueur passant par les barrages en dispute neuf. Le salon du Championnat permet de suivre le tirage, les groupes, le calendrier, les résultats, les classements, les barrages et le tableau final.</p>
+              </div>
+            </details>
+
+            <details class="solo-competition-accordion">
+              <summary>
+                <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
+                <span><small>Compétition 4</small><strong>1 Point Game</strong></span>
+                <i aria-hidden="true"></i>
+              </summary>
+              <div class="solo-competition-content">
+                <p>Le 1 Point Game est un tournoi à élimination directe réunissant 16 joueurs. Chaque rencontre se décide sur un seul échange. Pour gagner le trophée, il faut remporter quatre points décisifs consécutifs : huitième de finale, quart de finale, demi-finale et finale.</p>
+                <h3>Score de la rencontre</h3>
+                <ul>
+                  <li><strong>3–0</strong> pour une victoire grâce à un Boost ;</li>
+                  <li><strong>2–0</strong> pour une victoire sur effet, sur Smash ou une victoire nette aux points ;</li>
+                  <li><strong>2–1</strong> pour une victoire plus serrée aux points.</li>
+                </ul>
+                <p>La meilleure performance donne la priorité au service lors du tour suivant : 3–0 devance 2–0, qui devance 2–1. En cas d’égalité, le serveur est tiré au sort.</p>
+                <h3>Mode Récompense</h3>
+                <p>Activé par défaut, il accorde deux récompenses après une victoire 3–0, une récompense après une victoire 2–0 et aucune après une victoire 2–1. Ces avantages peuvent améliorer la puissance, la précision ou le placement pour la rencontre suivante.</p>
+                <p>Rapide, spectaculaire et particulièrement tendu, le 1 Point Game ne laisse aucune place à l’erreur : une seule décision peut prolonger le parcours ou y mettre immédiatement fin.</p>
+              </div>
+            </details>
+          </section>
+        </section>
+      </div>
+    </section>
+
     <section id="adminScreen" class="menu-screen hidden">
       <div class="menu-shell admin-shell">
         <p class="eyebrow">Administration</p>
@@ -677,6 +798,7 @@
               <h1>Configurez votre prochaine partie</h1>
               <p>Choisissez votre format et ajustez le niveau de vos adversaires.</p>
             </div>
+            <button id="openSoloInfoButton" class="mode-page-hero-action solo-info-button" type="button">Découvrir les modes de jeu</button>
           </header>
 
           <section class="clubhouse-format-section" aria-labelledby="soloFormatTitle">
@@ -693,10 +815,6 @@
                 <img src="./assets/icons/trophy-circuit.svg" alt="" aria-hidden="true" />
                 <span><small>Joueurs Pro</small><strong>Tournoi Classic</strong><em>Un tableau à élimination directe.</em></span>
               </button>
-              <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="onepoint" data-pro-format>
-                <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
-                <span><small>Joueurs Pro · 16 joueurs</small><strong>1 Point Game</strong><em>Un échange unique pour se qualifier.</em></span>
-              </button>
               <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="league" data-pro-format>
                 <img src="./assets/icons/LEAGUE.svg" alt="" aria-hidden="true" />
                 <span><small>Joueurs Pro</small><strong>League</strong><em>Une phase de groupes puis les finales.</em></span>
@@ -704,6 +822,10 @@
               <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="championship" data-pro-format>
                 <img src="./assets/icons/CHAMPIONSHIP.svg" alt="" aria-hidden="true" />
                 <span><small>Joueurs Pro · 24 joueurs</small><strong>Championnat</strong><em>Deux phases de groupes, barrages et tableau final.</em></span>
+              </button>
+              <button class="clubhouse-format-card" type="button" data-ai-club-setting="format" data-ai-club-value="onepoint" data-pro-format>
+                <img src="./assets/icons/power-flash.svg" alt="" aria-hidden="true" />
+                <span><small>Joueurs Pro · 16 joueurs</small><strong>1 Point Game</strong><em>Un échange unique pour se qualifier.</em></span>
               </button>
             </div>
           </section>
@@ -890,8 +1012,8 @@
       </div>
     </div>
 
-    <script src="./tutorial-engine.js?v=3.60.0"></script>
-    <script src="./app.js?v=3.60.0"></script>
-    <script src="./mobile-game.js?v=3.60.0"></script>
+    <script src="./tutorial-engine.js?v=3.61.0"></script>
+    <script src="./app.js?v=3.61.0"></script>
+    <script src="./mobile-game.js?v=3.61.0"></script>
   </body>
 </html>

@@ -6,9 +6,9 @@ const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.60.0");
-assert.match(app, /const GAME_VERSION = "v3\.60"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.60<\/span>/);
+assert.equal(pkg.version, "3.61.0");
+assert.match(app, /const GAME_VERSION = "v3\.61"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.61<\/span>/);
 assert.match(styles, /\.news-archive-shell[\s\S]*margin-inline: auto/);
 
 const start = app.indexOf("function showAiClubHouseScreen(");
@@ -21,4 +21,4 @@ assert.ok(
   "Tous les autres écrans, notamment les archives, doivent être masqués avant d’afficher le Mode Solo",
 );
 
-console.log("v3.60 : archives centrées et navigation vers le Mode Solo isolée : OK");
+console.log("v3.61 : archives centrées et navigation vers le Mode Solo isolée : OK");

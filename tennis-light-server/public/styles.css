@@ -896,6 +896,10 @@ body.tutorial-running .boost-button strong {
 }
 
 .friendly-setting-switch.five-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.friendly-setting-switch.five-options.reward-visible {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
@@ -4121,6 +4125,171 @@ h1 {
 
 .circuit-info-button {
   margin-left: auto;
+}
+
+.solo-info-button {
+  margin-left: auto;
+}
+
+.solo-info-screen {
+  width: min(1180px, calc(100vw - 32px));
+}
+
+.solo-info-shell {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+}
+
+.solo-info-hero img {
+  object-position: center 48%;
+}
+
+.solo-info-introduction {
+  display: grid;
+  gap: 10px;
+  padding: clamp(24px, 4vw, 42px);
+  color: #173b4e;
+  background: #fff;
+}
+
+.solo-info-introduction h2,
+.solo-info-introduction h3,
+.solo-competition-content h3 {
+  margin: 0;
+  color: #10364d;
+}
+
+.solo-info-introduction > p,
+.solo-match-intro p,
+.solo-competition-content p,
+.solo-competition-content li {
+  margin: 0;
+  color: #526878;
+  line-height: 1.62;
+}
+
+.solo-match-intro {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 12px;
+  border: 1px solid rgba(16, 54, 77, .12);
+  border-radius: 18px;
+  padding: 22px;
+  background: #eef7f4;
+}
+
+.solo-match-intro > img {
+  width: 64px;
+  height: 64px;
+}
+
+.solo-match-intro > div {
+  display: grid;
+  gap: 8px;
+}
+
+.solo-competition-accordions {
+  display: grid;
+  gap: 12px;
+  padding: 0 clamp(24px, 4vw, 42px) clamp(28px, 4vw, 44px);
+  background: #fff;
+}
+
+.solo-competition-accordion {
+  overflow: hidden;
+  border: 1px solid rgba(16, 54, 77, .16);
+  border-radius: 16px;
+  background: #f8fbfa;
+  box-shadow: 0 7px 18px rgba(10, 42, 58, .06);
+}
+
+.solo-competition-accordion summary {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 14px;
+  min-height: 82px;
+  padding: 14px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.solo-competition-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.solo-competition-accordion summary > img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.solo-competition-accordion summary > span {
+  display: grid;
+  gap: 3px;
+}
+
+.solo-competition-accordion summary small {
+  color: #0f8d68;
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.solo-competition-accordion summary strong {
+  color: #10364d;
+  font-size: 1.08rem;
+}
+
+.solo-competition-accordion summary i {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e3efeb;
+}
+
+.solo-competition-accordion summary i::before,
+.solo-competition-accordion summary i::after {
+  position: absolute;
+  top: 14px;
+  left: 8px;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: #0b7659;
+  content: "";
+}
+
+.solo-competition-accordion summary i::after {
+  transform: rotate(90deg);
+  transition: transform 180ms ease;
+}
+
+.solo-competition-accordion[open] summary i::after {
+  transform: rotate(0);
+}
+
+.solo-competition-accordion[open] summary {
+  border-bottom: 1px solid rgba(16, 54, 77, .12);
+  background: #eef7f4;
+}
+
+.solo-competition-content {
+  display: grid;
+  gap: 12px;
+  padding: clamp(20px, 3vw, 30px);
+}
+
+.solo-competition-content ul,
+.solo-competition-content ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 22px;
 }
 
 .info-highlight-button,
@@ -8126,6 +8295,11 @@ h1 {
   .home-news-read { grid-column: 2; grid-row: 1 / 3; font-size: 0; }
   .home-news-read span { font-size: 1.25rem; }
   .home-news-scroll { max-height: 330px; padding-right: 7px; }
+  .solo-info-screen { width: 100%; }
+  .solo-match-intro { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; padding: 17px; }
+  .solo-match-intro > img { width: 44px; height: 44px; }
+  .solo-competition-accordion summary { grid-template-columns: 44px minmax(0, 1fr) 30px; gap: 10px; padding: 12px 14px; }
+  .solo-competition-accordion summary > img { width: 40px; height: 40px; }
   .home-news-card,
   .home-news-card:only-child,
   .home-news-featured:nth-last-child(3),

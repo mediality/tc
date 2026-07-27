@@ -7,7 +7,7 @@ const css = await readFile(new URL("../public/styles.css", import.meta.url), "ut
 const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(pkg.version, "3.60.0");
+assert.equal(pkg.version, "3.61.0");
 for (const id of ["johnnyKowalski", "sakubaraGeki"]) {
   assert.match(app, new RegExp(`${id}:`));
   assert.match(server, new RegExp(`${id}:`));
@@ -53,7 +53,7 @@ assert.match(app, /state\.gameOver \? "exchange-complete-card" : "unplayable"/);
 assert.match(app, /players: players\.map\(\(player\) => \[player\.name, player\.lobby, player\.result\]\)/);
 assert.match(css, /\.result-panel\.match-finale-host \{[\s\S]*overflow: visible[\s\S]*backdrop-filter: none/);
 assert.match(css, /\.card\.exchange-complete-card \{[\s\S]*filter: none/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.60/);
+assert.match(html, /class="lobby-footer"[\s\S]*v3\.61/);
 assert.doesNotMatch(html, /<span>v169<\/span>/);
 assert.match(css, /\.hand \.card-visual > img:not\(\.forbid-effect-overlay\) \{[\s\S]*clip-path: none[\s\S]*image-rendering: auto/);
 assert.match(app, /effectDeferredUntilEndTurn:[\s\S]*turnCompleted: false/);
