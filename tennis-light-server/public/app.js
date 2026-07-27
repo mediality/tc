@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.72";
+const GAME_VERSION = "v3.73";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -92,6 +92,9 @@ const FRIENDLY_TOURNAMENT = {
   pageExitSignaled: false,
   presenceId: null,
   resumableMatch: null,
+  drawAnimating: false,
+  drawVisibleCount: null,
+  drawEntries: [],
 };
 
 const SPECTATOR_MODE = {
@@ -6256,6 +6259,87 @@ function renderFriendlyLeagueSchedule(matches) {
   `;
 }
 
+function friendlyMasterVisibleDrawEntries() {
+  if (!FRIENDLY_TOURNAMENT.drawAnimating) return null;
+  return new Set(
+    (FRIENDLY_TOURNAMENT.drawEntries || [])
+      .slice(0, Number(FRIENDLY_TOURNAMENT.drawVisibleCount || 0))
+      .map((item) => item.entry)
+      .filter(Boolean),
+  );
+}
+
+function friendlyMasterZoneMarkup(phase, title, content) {
+  const open = Number(CHAMPIONSHIP_LOBBY_UI.openZone) === phase;
+  return `
+    <section class="championship-zone ${open ? "open" : ""}">
+      <button class="championship-zone-toggle" type="button" data-friendly-master-zone="${phase}" aria-expanded="${open}">
+        <span>Zone ${phase}</span><strong>${title}</strong><span aria-hidden="true">${open ? "−" : "+"}</span>
+      </button>
+      <div class="championship-zone-content ${open ? "" : "hidden"}">${content}</div>
+    </section>
+  `;
+}
+
+function renderFriendlyMasterTournamentMatch(match) {
+  const visibleEntries = friendlyMasterVisibleDrawEntries();
+  const visibleMatch = visibleEntries ? {
+    ...match,
+    playerA: visibleEntries.has(match.playerA) ? match.playerA : null,
+    playerB: visibleEntries.has(match.playerB) ? match.playerB : null,
+  } : match;
+  const watchButton = match.watchable
+    ? `<button class="small-button friendly-master-watch-button" type="button" data-watch-friendly-match="${escapeHtml(match.id)}">REGARDER</button>`
+    : "";
+  return `${renderTournamentMatch(visibleMatch, match.round === "final")}${watchButton}`;
+}
+
+function renderFriendlyMasterBoard(matches, standings) {
+  const visibleEntries = friendlyMasterVisibleDrawEntries();
+  const groupKeys = ["A", "B", "C", "D"];
+  const groupContent = `
+    <section class="championship-lobby-section">
+      <p class="championship-section-label">Classement · 1er qualifié, 2e et 3e en barrages</p>
+      <div class="league-standings-grid championship-groups">${groupKeys.map((group, groupIndex) => `
+        <section class="league-standings championship-standings one-point-master-standings">
+          <span class="tournament-round-label">Groupe ${groupIndex + 1}</span>
+          <div class="league-standings-head"><span>Rang</span><span>Nom</span><span>Points</span><span>Différence</span><span>Boost</span><span>2-0</span></div>
+          ${(standings[group] || []).map((row, index) => {
+            const visible = !visibleEntries || visibleEntries.has(row.entry);
+            return `<div class="league-standings-row ${index < 3 && state.tournament.stage !== "group1" ? "qualified" : ""} ${visible && row.entry === FRIENDLY_TOURNAMENT.entry ? "human-player" : ""}">
+              <strong>${index + 1}</strong>
+              <span class="tournament-player-identity">${visible ? `${escapeHtml(row.player?.nickname || "Joueur")}${tournamentSeedNumberMarkup(row.entry)}` : "—"}</span>
+              <strong>${visible ? Number(row.points || 0) : 0}</strong>
+              <span>${visible ? formatLeagueDifference(Number(row.difference || 0)) : "0"}</span>
+              <span>${visible ? Number(row.boost || 0) : 0}</span>
+              <span>${visible ? Number(row.twoZero || 0) : 0}</span>
+            </div>`;
+          }).join("")}
+        </section>
+      `).join("")}</div>
+    </section>
+    <section class="championship-lobby-section">
+      <p class="championship-section-label">Calendrier</p>
+      <div class="championship-days">${[1, 2, 3, 4, 5].map((day) => `
+        <section class="championship-day">
+          <header><strong>Journée ${day}</strong><span>${["A–F / B–E / C–D", "A–E / B–C / D–F", "A–D / B–F / C–E", "A–B / E–D / C–F", "A–C / B–D / E–F"][day - 1]}</span></header>
+          <div class="championship-day-matches">${matches.filter((match) => match.day === day).map(renderFriendlyMasterTournamentMatch).join("")}</div>
+        </section>
+      `).join("")}</div>
+    </section>`;
+  const barrages = `<div class="championship-playoffs">${matches.filter((match) => match.round === "barrage").map(renderFriendlyMasterTournamentMatch).join("")}</div>`;
+  const finalContent = `<div class="tournament-bracket championship-final-bracket">
+    <div class="tournament-column"><span class="tournament-column-title">Quarts</span>${matches.filter((match) => match.round === "quarter").map(renderFriendlyMasterTournamentMatch).join("")}</div>
+    <div class="tournament-column"><span class="tournament-column-title">Demi-finales</span>${matches.filter((match) => match.round === "semi").map(renderFriendlyMasterTournamentMatch).join("")}</div>
+    <div class="tournament-column"><span class="tournament-column-title">Finale</span>${matches.filter((match) => match.round === "final").map(renderFriendlyMasterTournamentMatch).join("")}</div>
+  </div>`;
+  return `<div class="championship-lobby-content"><div class="championship-board friendly-master-board">
+    ${friendlyMasterZoneMarkup(1, "Phase de groupes", groupContent)}
+    ${friendlyMasterZoneMarkup(3, "Barrages", barrages)}
+    ${friendlyMasterZoneMarkup(4, "Tour final", finalContent)}
+  </div></div>`;
+}
+
 function renderFriendlyLobbyScreen() {
   if (!els.friendlyLobbyContent || !state.tournament?.friendly) return;
   const participants = state.tournament.friendlyParticipants || [];
@@ -6311,44 +6395,7 @@ function renderFriendlyLobbyScreen() {
       </div>
     </section>
   ` : "";
-  const masterGroupMarkup = format === "onepointmaster" ? `
-    <section>
-      <p class="label">Classements des groupes</p>
-      <div class="friendly-league-groups">
-        ${["A", "B", "C", "D"].map((groupName) => `
-          <article class="friendly-league-group friendly-master-standing">
-            <h3>Groupe ${groupName}</h3>
-            <div class="friendly-standing-head">
-              <span>#</span><span>Joueur</span><span>Points</span><span>Différence</span><span>Boost</span><span>2-0</span>
-            </div>
-            ${(standings[groupName] || []).map((row) => `
-              <div class="friendly-standing-row">
-                <span>${Number(row.position || 0)}</span>
-                <strong>${escapeHtml(row.player?.nickname || "Joueur")}${tournamentSeedNumberMarkup(row.entry)}</strong>
-                <strong class="friendly-standing-points">${Number(row.points || 0)}</strong>
-                <span>${formatLeagueDifference(Number(row.difference || 0))}</span>
-                <span>${Number(row.boost || 0)}</span>
-                <span>${Number(row.twoZero || 0)}</span>
-              </div>
-            `).join("")}
-          </article>
-        `).join("")}
-      </div>
-    </section>
-  ` : "";
-  const masterCalendarMarkup = format === "onepointmaster" && matches.length ? `
-    <section class="friendly-master-calendar">
-      <p class="label">Calendrier des groupes</p>
-      <div class="friendly-master-calendar-columns">
-        ${["A", "B", "C", "D"].map((groupName) => `
-          <section>
-            <h3>Groupe ${groupName}</h3>
-            ${matches.filter((match) => match.group === groupName).map(renderFriendlyLobbyMatchCard).join("")}
-          </section>
-        `).join("")}
-      </div>
-    </section>
-  ` : "";
+  const masterGroupMarkup = format === "onepointmaster" ? renderFriendlyMasterBoard(matches, standings) : "";
   const masterControlMarkup = ["onepoint", "onepointmaster"].includes(format) && state.tournament.stage !== "waiting" && state.tournament.stage !== "complete" ? `
     <section class="friendly-master-controls" aria-live="polite">
       <div>
@@ -6473,7 +6520,6 @@ function renderFriendlyLobbyScreen() {
     ${leagueGroupMarkup}
     ${masterGroupMarkup}
     ${masterControlMarkup}
-    ${masterCalendarMarkup}
     ${format === "league" ? renderFriendlyLeagueSchedule(matches) : ""}
     ${matches.length && format !== "league" && format !== "onepointmaster" ? `
       <section>
@@ -6503,6 +6549,13 @@ function renderFriendlyLobbyScreen() {
   els.friendlyLobbyContent.querySelector("[data-friendly-simulate-remainder]")?.addEventListener("click", () => controlFriendlyCompetition("simulate"));
   els.friendlyLobbyContent.querySelectorAll("[data-friendly-master-control]").forEach((button) => {
     button.addEventListener("click", () => controlFriendlyCompetition(button.dataset.friendlyMasterControl));
+  });
+  els.friendlyLobbyContent.querySelectorAll("[data-friendly-master-zone]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const phase = Number(button.dataset.friendlyMasterZone);
+      CHAMPIONSHIP_LOBBY_UI.openZone = Number(CHAMPIONSHIP_LOBBY_UI.openZone) === phase ? 0 : phase;
+      renderFriendlyLobbyScreen();
+    });
   });
   els.friendlyLobbyContent.querySelectorAll("[data-watch-friendly-match]").forEach((button) => {
     button.addEventListener("click", () => startFriendlySpectator(button.dataset.watchFriendlyMatch));
@@ -7017,6 +7070,9 @@ function resetFriendlyTournamentConnection() {
   FRIENDLY_TOURNAMENT.forfeitDialogOpen = false;
   FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = false;
   FRIENDLY_TOURNAMENT.resumableMatch = null;
+  FRIENDLY_TOURNAMENT.drawAnimating = false;
+  FRIENDLY_TOURNAMENT.drawVisibleCount = null;
+  FRIENDLY_TOURNAMENT.drawEntries = [];
   document.querySelector(".friendly-forfeit-dialog")?.remove();
   clearFriendlyTournamentUrlParams();
 }
@@ -7075,18 +7131,22 @@ async function readyFriendlyTournamentNextMatch() {
 function friendlyDrawAnimationEntries(tournament) {
   if (!tournament) return [];
   if (tournament.round === "group1") {
-    return ["A", "B", "C", "D"].flatMap((group) => (
-      (tournament.groups?.[group] || []).map((player) => ({
-        label: player.nickname || tournamentPlayerLabel(player.entry),
-        detail: `Groupe ${group}`,
-      }))
+    return [0, 1, 2, 3, 4, 5].flatMap((slot) => (
+      ["A", "B", "C", "D"].map((group, groupIndex) => {
+        const player = tournament.groups?.[group]?.[slot];
+        return player ? {
+          entry: player.entry,
+          label: player.nickname || tournamentPlayerLabel(player.entry),
+          detail: `Groupe ${groupIndex + 1}`,
+        } : null;
+      }).filter(Boolean)
     ));
   }
   return (tournament.matches || [])
     .filter((match) => match.round === tournament.round)
     .flatMap((match) => [
-      match.playerAInfo ? { label: match.playerAInfo.nickname || tournamentPlayerLabel(match.playerA), detail: match.label } : null,
-      match.playerBInfo ? { label: match.playerBInfo.nickname || tournamentPlayerLabel(match.playerB), detail: match.label } : null,
+      match.playerAInfo ? { entry: match.playerA, label: match.playerAInfo.nickname || tournamentPlayerLabel(match.playerA), detail: match.label } : null,
+      match.playerBInfo ? { entry: match.playerB, label: match.playerBInfo.nickname || tournamentPlayerLabel(match.playerB), detail: match.label } : null,
     ])
     .filter(Boolean);
 }
@@ -7095,37 +7155,26 @@ function showFriendlyDrawAnimation(tournament) {
   const entries = friendlyDrawAnimationEntries(tournament);
   if (!entries.length) return Promise.resolve();
   return new Promise((resolve) => {
-    const backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop event-transition-backdrop friendly-draw-animation";
-    backdrop.innerHTML = `
-      <section class="event-transition-panel friendly-draw-panel" role="dialog" aria-modal="true" aria-labelledby="friendlyDrawTitle">
-        <p class="event-transition-kicker">1 Point Master</p>
-        <h2 id="friendlyDrawTitle">Tirage au sort</h2>
-        <div class="friendly-draw-current" aria-live="assertive">
-          <strong data-friendly-draw-name>Préparation…</strong>
-          <span data-friendly-draw-detail></span>
-        </div>
-        <div class="friendly-draw-progress"><span data-friendly-draw-count>0</span> / ${entries.length}</div>
-      </section>
-    `;
-    document.body.appendChild(backdrop);
-    let index = 0;
-    let timer = null;
-    const reveal = () => {
-      const entry = entries[index];
-      backdrop.querySelector("[data-friendly-draw-name]").textContent = entry.label || "Participant";
-      backdrop.querySelector("[data-friendly-draw-detail]").textContent = entry.detail || "";
-      backdrop.querySelector("[data-friendly-draw-count]").textContent = String(index + 1);
-      index += 1;
-      if (index < entries.length) return;
-      window.clearInterval(timer);
-      window.setTimeout(() => {
-        backdrop.remove();
-        resolve();
-      }, 700);
-    };
-    reveal();
-    timer = window.setInterval(reveal, 1000);
+    FRIENDLY_TOURNAMENT.drawAnimating = true;
+    FRIENDLY_TOURNAMENT.drawEntries = entries;
+    FRIENDLY_TOURNAMENT.drawVisibleCount = 0;
+    CHAMPIONSHIP_LOBBY_UI.openZone = tournament.round === "quarter" ? 4 : 1;
+    renderFriendlyLobbyScreen();
+    const timer = window.setInterval(() => {
+      FRIENDLY_TOURNAMENT.drawVisibleCount += 1;
+      const done = FRIENDLY_TOURNAMENT.drawVisibleCount >= entries.length;
+      if (done) {
+        window.clearInterval(timer);
+        FRIENDLY_TOURNAMENT.drawVisibleCount = entries.length;
+      }
+      renderFriendlyLobbyScreen();
+      if (!done) return;
+      FRIENDLY_TOURNAMENT.drawAnimating = false;
+      FRIENDLY_TOURNAMENT.drawVisibleCount = null;
+      FRIENDLY_TOURNAMENT.drawEntries = [];
+      renderFriendlyLobbyScreen();
+      resolve();
+    }, 1000);
   });
 }
 
@@ -7143,8 +7192,8 @@ async function controlFriendlyCompetition(action) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Commande indisponible.");
-    if (action === "draw") await showFriendlyDrawAnimation(data.tournament);
     applyFriendlyTournamentState(data.tournament, null);
+    if (action === "draw") await showFriendlyDrawAnimation(data.tournament);
     renderFriendlyLobbyScreen();
   } catch (error) {
     MENU_STATE.lobbyNotice = error.message || "Commande indisponible.";
@@ -7782,7 +7831,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.72");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.73");
 }
 
 function emptyMomentumState() {
@@ -16796,6 +16845,58 @@ function startChampionshipNextFromLobby() {
 
 function renderChampionshipPanel(title, final, champion) {
   if (state.tournament.onePointMaster) {
+    if (state.tournament.friendly) {
+      const stage = state.tournament.stage;
+      const currentMatches = (state.tournament.matches || []).filter((match) => match.round === stage);
+      const groupDay = /^group([1-5])$/.exec(stage);
+      let currentTitle = "Tour final";
+      let currentContent = "";
+      if (groupDay) {
+        const day = Number(groupDay[1]);
+        currentTitle = `Journée ${day} · Phase de groupes`;
+        currentContent = `
+          <div class="league-standings-grid championship-groups">${["A", "B", "C", "D"].map((group, index) => `
+            <section class="league-standings championship-standings one-point-master-standings">
+              <span class="tournament-round-label">Groupe ${index + 1}</span>
+              <div class="league-standings-head"><span>Rang</span><span>Nom</span><span>Points</span><span>Différence</span><span>Boost</span><span>2-0</span></div>
+              ${(state.tournament.friendlyStandings?.[group] || []).map((row) => `<div class="league-standings-row ${row.entry === FRIENDLY_TOURNAMENT.entry ? "human-player" : ""}">
+                <strong>${Number(row.position || 0)}</strong><span class="tournament-player-identity">${escapeHtml(row.player?.nickname || "Joueur")}${tournamentSeedNumberMarkup(row.entry)}</span>
+                <strong>${Number(row.points || 0)}</strong><span>${formatLeagueDifference(Number(row.difference || 0))}</span><span>${Number(row.boost || 0)}</span><span>${Number(row.twoZero || 0)}</span>
+              </div>`).join("")}
+            </section>
+          `).join("")}</div>
+          <div class="championship-day"><header><strong>Journée ${day}</strong></header><div class="championship-day-matches">${currentMatches.map((match) => renderTournamentMatch(match)).join("")}</div></div>`;
+      } else if (stage === "barrage") {
+        currentTitle = "Barrages";
+        currentContent = `<div class="championship-playoffs">${currentMatches.map((match) => renderTournamentMatch(match)).join("")}</div>`;
+      } else {
+        currentTitle = stage === "quarter" ? "Quarts de finale" : stage === "semi" ? "Demi-finales" : "Finale";
+        currentContent = `<div class="tournament-bracket championship-final-bracket">
+          <div class="tournament-column"><span class="tournament-column-title">${escapeHtml(currentTitle)}</span>${currentMatches.map((match) => renderTournamentMatch(match, stage === "final")).join("")}</div>
+        </div>`;
+      }
+      els.tournamentPanel.innerHTML = `<div class="tournament-header"><div><p class="eyebrow">Compétition en cours</p><h2>${escapeHtml(title)}</h2><span class="difficulty-reminder">${escapeHtml(currentTitle)}</span></div>
+        <button class="small-button tournament-toggle-button" type="button" data-toggle-tournament>${TOURNAMENT_PANEL_UI.visible ? "Masquer le tour" : "Afficher le tour"}</button></div>
+        <div class="championship-board ${TOURNAMENT_PANEL_UI.visible ? "" : "hidden"}">
+          <section class="championship-zone open">
+            <button class="championship-zone-toggle" type="button" data-current-master-zone aria-expanded="true"><span>Tour actuel</span><strong>${escapeHtml(currentTitle)}</strong><span aria-hidden="true">−</span></button>
+            <div class="championship-zone-content">${currentContent}</div>
+          </section>
+        </div>`;
+      els.tournamentPanel.classList.remove("hidden");
+      els.tournamentPanel.querySelector("[data-toggle-tournament]")?.addEventListener("click", toggleTournamentPanel);
+      els.tournamentPanel.querySelector("[data-current-master-zone]")?.addEventListener("click", (event) => {
+        const button = event.currentTarget;
+        const zone = button.closest(".championship-zone");
+        const content = zone?.querySelector(".championship-zone-content");
+        const open = button.getAttribute("aria-expanded") !== "true";
+        button.setAttribute("aria-expanded", String(open));
+        button.querySelector("span:last-child").textContent = open ? "−" : "+";
+        zone?.classList.toggle("open", open);
+        content?.classList.toggle("hidden", !open);
+      });
+      return;
+    }
     const groups = `<div class="league-standings-grid championship-groups">${ONE_POINT_MASTER_GROUPS.map((group) => renderChampionshipStandings(1, group)).join("")}</div>`;
     const playoffs = `<div class="championship-playoffs">${championshipMatches(3).map((match) => renderTournamentMatch(match)).join("")}</div>`;
     const finals = `<div class="tournament-bracket championship-final-bracket">
