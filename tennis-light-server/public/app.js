@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.76";
+const GAME_VERSION = "v3.77";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1585,8 +1585,13 @@ const GAMEPLAY_ASSIST = {
 };
 const LOCAL_MOBILE_MATCH_STORAGE_PREFIX = "tennisLightLocalMobileMatch:";
 const LOCAL_MOBILE_MATCH_QUERY = "localMatch";
-const LOCAL_MOBILE_MATCH_EXIT_GRACE_MS = 20000;
 let localMobileMatchSaveTimer = null;
+
+function localMatchViewIsActive() {
+  return !els?.gameApp?.classList.contains("hidden")
+    || !els?.mobileGameApp?.classList.contains("hidden")
+    || document.body.classList.contains("mobile-game-view");
+}
 
 function localMobileMatchId() {
   return new URLSearchParams(window.location.search).get(LOCAL_MOBILE_MATCH_QUERY);
@@ -1597,7 +1602,7 @@ function localMobileMatchStorageKey(matchId) {
 }
 
 function ensureLocalMobileMatchSession() {
-  if (!document.body.classList.contains("mobile-game-view")
+  if (!localMatchViewIsActive()
     || SERVER_SYNC.enabled
     || FRIENDLY_TOURNAMENT.enabled
     || SPECTATOR_MODE.enabled
@@ -1636,7 +1641,7 @@ function saveLocalMobileMatchSession() {
 }
 
 function scheduleLocalMobileMatchSave() {
-  if (!document.body.classList.contains("mobile-game-view") || SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return;
+  if (!localMatchViewIsActive() || SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return;
   window.clearTimeout(localMobileMatchSaveTimer);
   localMobileMatchSaveTimer = window.setTimeout(saveLocalMobileMatchSession, 80);
 }
@@ -1648,7 +1653,9 @@ function expireLocalMobileMatchSessionAfterExit() {
     const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
     if (record) {
       record.status = state.gameOver ? "completed" : "paused";
-      record.expiresAt = state.gameOver ? record.expiresAt : Date.now() + LOCAL_MOBILE_MATCH_EXIT_GRACE_MS;
+      // Une partie interrompue reste reprenable après un retour arrière,
+      // une fermeture d'onglet ou un rechargement, sans délai arbitraire.
+      record.expiresAt = state.gameOver ? record.expiresAt : null;
       record.savedAt = new Date().toISOString();
       localStorage.setItem(localMobileMatchStorageKey(matchId), JSON.stringify(record));
     }
@@ -2070,7 +2077,13 @@ function currentUserRole() {
   return normalizeUserRole(AUTH_STATE.user?.role);
 }
 
-const PAGE_NAVIGATION_STATE = { profileReturn: "home" };
+const PAGE_NAVIGATION_STATE = {
+  profileReturn: "home",
+  current: null,
+  applyingHistory: false,
+  confirmedPop: false,
+  pendingPop: false,
+};
 
 function visibleScreenDestination() {
   if (!els.gameApp?.classList.contains("hidden") || !els.mobileGameApp?.classList.contains("hidden")) return "game";
@@ -2091,6 +2104,97 @@ function visibleScreenDestination() {
     return panel?.dataset.lobbySectionPanel || "training";
   }
   return "home";
+}
+
+function navigateToScreenDestination(destination) {
+  if (destination === "game" && state.players?.length) return showGameScreen();
+  if (destination === "online-room") return showFriendlyLobbyScreen();
+  if (destination === "solo") return showAiClubHouseScreen();
+  if (destination === "ranking") return showRankingScreen();
+  if (destination === "circuit-info") return showCircuitInfoScreen();
+  if (destination === "solo-info") return showSoloInfoScreen();
+  if (destination === "online-info") return showOnlineInfoScreen();
+  if (destination === "academy-info") return showAcademyInfoScreen();
+  if (destination === "tutorial-modules") return showTutorialModulesScreen();
+  if (destination === "admin") return showAdminScreen();
+  if (destination === "character") return showCharacterScreen();
+  if (destination === "profile") return showProfileScreen();
+  if (["training", "online", "circuit"].includes(destination)) return showLobbySection(destination);
+  return showMenuScreen();
+}
+
+function hasActiveMatchToProtect() {
+  return Boolean(state.players?.length && !state.gameOver && visibleScreenDestination() === "game");
+}
+
+async function confirmBrowserMatchExit() {
+  return showEventConfirmDialog({
+    kicker: "Partie en cours",
+    title: "Quitter temporairement cette partie ?",
+    message: SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled
+      ? "Une partie en ligne peut continuer en votre absence et entraîner un forfait."
+      : "Votre progression est sauvegardée. Vous pourrez revenir sur cette page pour reprendre exactement où vous en étiez.",
+    confirmLabel: "Quitter la page",
+    cancelLabel: "Rester en jeu",
+  });
+}
+
+function installBrowserNavigation() {
+  const initialDestination = visibleScreenDestination();
+  PAGE_NAVIGATION_STATE.current = initialDestination;
+  window.history.replaceState(
+    { ...(window.history.state || {}), tennisLightDestination: initialDestination },
+    "",
+    window.location.href,
+  );
+
+  const observer = new MutationObserver(() => {
+    if (PAGE_NAVIGATION_STATE.applyingHistory) return;
+    const destination = visibleScreenDestination();
+    if (destination === PAGE_NAVIGATION_STATE.current) return;
+    PAGE_NAVIGATION_STATE.current = destination;
+    window.history.pushState(
+      { ...(window.history.state || {}), tennisLightDestination: destination },
+      "",
+      window.location.href,
+    );
+  });
+  document.querySelectorAll("main, [id$='Screen'], #gameApp, #mobileGameApp").forEach((screen) => {
+    observer.observe(screen, { attributes: true, attributeFilter: ["class"] });
+  });
+
+  window.addEventListener("popstate", async (event) => {
+    const destination = event.state?.tennisLightDestination;
+    if (!destination) return;
+    if (PAGE_NAVIGATION_STATE.pendingPop) return;
+    if (hasActiveMatchToProtect() && !PAGE_NAVIGATION_STATE.confirmedPop) {
+      PAGE_NAVIGATION_STATE.pendingPop = true;
+      window.history.forward();
+      const confirmed = await confirmBrowserMatchExit();
+      PAGE_NAVIGATION_STATE.pendingPop = false;
+      if (confirmed) {
+        saveLocalMobileMatchSession();
+        PAGE_NAVIGATION_STATE.confirmedPop = true;
+        window.history.back();
+      }
+      return;
+    }
+    PAGE_NAVIGATION_STATE.confirmedPop = false;
+    PAGE_NAVIGATION_STATE.applyingHistory = true;
+    PAGE_NAVIGATION_STATE.current = destination;
+    navigateToScreenDestination(destination);
+    window.setTimeout(() => {
+      PAGE_NAVIGATION_STATE.applyingHistory = false;
+      PAGE_NAVIGATION_STATE.current = visibleScreenDestination();
+    }, 0);
+  });
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasActiveMatchToProtect()) return;
+    saveLocalMobileMatchSession();
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 function updateGlobalPlayerDock() {
@@ -7863,7 +7967,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.76");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.77");
 }
 
 function emptyMomentumState() {
@@ -19729,6 +19833,7 @@ initMenu();
 initFriendlyTournament();
 initServerSync();
 restoreLocalMobileMatchFromUrl();
+installBrowserNavigation();
 window.clearInterval(PROFILE_ACTIVITY.timer);
 PROFILE_ACTIVITY.timer = window.setInterval(publishProfileActivity, 1200);
 publishProfileActivity();
