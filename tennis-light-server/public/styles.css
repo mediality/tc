@@ -7189,8 +7189,23 @@ h1 {
 
 @media (max-width: 700px) {
   html,
-  body { max-width: 100%; overflow-x: clip; }
-  .menu-screen,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body,
+  body * {
+    box-sizing: border-box;
+  }
+
+  .menu-screen {
+    width: calc(100% - 20px);
+    max-width: calc(100% - 20px);
+    margin-inline: auto;
+  }
+
   .menu-shell,
   .menu-panel,
   .mode-page,
@@ -7198,6 +7213,33 @@ h1 {
   .content-page-shell,
   .content-page-panel,
   .lobby-destination-panel { width: 100%; max-width: 100%; min-width: 0; }
+
+  .lobby-mode-grid {
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 3px;
+  }
+
+  .lobby-mode-card > .lobby-mode-art {
+    inset: 5px;
+    width: calc(100% - 10px);
+    height: calc(100% - 10px);
+    border-radius: 15px;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    max-width: 100%;
+  }
   .circuit-page-hero { min-height: 310px; }
   .circuit-page-hero .mode-page-hero-copy { width: 100%; min-width: 0; padding: 22px 18px 112px; }
   .circuit-hero-countdown { right: 14px; bottom: 14px; left: 14px; max-width: none; text-align: center; }

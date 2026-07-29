@@ -5,9 +5,12 @@ const pkg = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.ur
 const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.equal(pkg.version, "3.79.0");
-assert.match(app, /const GAME_VERSION = "v3\.79"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.79<\/span>/);
+const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
+const mobileStyles = fs.readFileSync(new URL("../public/mobile-game.css", import.meta.url), "utf8");
+
+assert.equal(pkg.version, "3.80.0");
+assert.match(app, /const GAME_VERSION = "v3\.80"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.80<\/span>/);
 
 assert.match(app, /function installBrowserNavigation\(\)/);
 assert.match(app, /window\.history\.pushState\(/);
@@ -28,4 +31,9 @@ assert.doesNotMatch(app, /LOCAL_MOBILE_MATCH_EXIT_GRACE_MS/);
 assert.match(app, /record\.expiresAt = state\.gameOver \? record\.expiresAt : null/);
 assert.match(app, /const localMatchRestoredSynchronously = restoreLocalMobileMatchSession\(\)/);
 
-console.log("v3.79 Safari mobile match resume checks passed");
+assert.match(styles, /\.menu-screen \{\s*width: calc\(100% - 20px\)/);
+assert.match(styles, /\.lobby-mode-grid \{[\s\S]*?padding-inline: 3px/);
+assert.match(styles, /\.lobby-mode-card > \.lobby-mode-art \{[\s\S]*?inset: 5px/);
+assert.match(mobileStyles, /width: min\(100%, 100dvw\)/);
+
+console.log("v3.80 mobile viewport bounds checks passed");

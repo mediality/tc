@@ -14,6 +14,13 @@ body.mobile-game-view {
     linear-gradient(180deg, #062b3d 0%, #031723 100%);
 }
 
+@supports (width: 100dvw) {
+  body.mobile-game-view {
+    width: 100dvw;
+    max-width: 100dvw;
+  }
+}
+
 body.mobile-game-view .mobile-game-app {
   display: block;
   min-height: 100dvh;
@@ -37,8 +44,8 @@ body.mobile-game-view .confrontation-start-button {
   display: grid;
   align-content: start;
   gap: 6px;
-  width: 100%;
-  max-width: 100%;
+  width: min(100%, 100dvw);
+  max-width: 100dvw;
   min-height: calc(100dvh + 150px);
   padding:
     max(10px, env(safe-area-inset-top))
