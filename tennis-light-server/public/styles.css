@@ -1760,6 +1760,26 @@ body.spectator-mode .player-panel {
   border-color: rgba(148, 163, 184, 0.4);
 }
 
+.admin-code-row select {
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid rgba(15, 125, 98, .28);
+  border-radius: 8px;
+  padding: 0 9px;
+  color: #173b4e;
+  background: #fff;
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.admin-code-row select:disabled {
+  color: #64748b;
+  background: #e2e8f0;
+  cursor: not-allowed;
+  opacity: .78;
+}
+
 .admin-user-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 92px;
@@ -2170,6 +2190,14 @@ body.spectator-mode .player-panel {
   font: inherit;
   font-size: 0.9rem;
   background: #fff;
+}
+
+.admin-ai-season-total {
+  max-width: 280px;
+  margin: 4px 0 18px;
+  border-left: 4px solid #9e4766;
+  padding: 12px;
+  background: #fff4f7;
 }
 
 .profile-honor-row {

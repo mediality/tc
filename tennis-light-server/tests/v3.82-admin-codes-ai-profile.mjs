@@ -8,9 +8,11 @@ const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const mobileStyles = fs.readFileSync(new URL("../public/mobile-game.css", import.meta.url), "utf8");
 
-assert.equal(pkg.version, "3.81.0");
-assert.match(app, /const GAME_VERSION = "v3\.81"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.81<\/span>/);
+const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
+
+assert.equal(pkg.version, "3.82.0");
+assert.match(app, /const GAME_VERSION = "v3\.82"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.82<\/span>/);
 
 assert.match(app, /function installBrowserNavigation\(\)/);
 assert.match(app, /window\.history\.pushState\(/);
@@ -43,4 +45,16 @@ assert.match(html, /un jeu qui mêle deckbuilding et gestion/);
 assert.match(styles, /\.academy-comparison-table-wrap/);
 assert.match(styles, /-webkit-overflow-scrolling: touch/);
 
-console.log("v3.81 Academy comparison checks passed");
+assert.match(server, /ADD COLUMN IF NOT EXISTS admin_status/);
+assert.match(server, /pro-codes\\\/\(\[\^\/\]\+\)\\\/status/);
+assert.match(app, /data-admin-code-status/);
+assert.match(app, /ATTRIBUÉ/);
+assert.match(app, /item\.assignedTo \? "disabled" : ""/);
+assert.match(server, /adminAiScoreEditorPayload/);
+assert.match(server, /setAdminAiScorePeriods/);
+assert.match(server, /week_number, points, human_win_bonus\)[\s\S]*?VALUES \(\$1, \$2, 0, \$3, 0\)/);
+assert.match(app, /function aiAdminProfileMarkup/);
+assert.match(app, /data-ai-profile-season-total/);
+assert.match(app, /saveAiProfileRankingScores/);
+
+console.log("v3.82 admin code status and AI profile checks passed");

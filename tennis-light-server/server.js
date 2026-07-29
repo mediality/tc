@@ -1426,6 +1426,7 @@ async function initAuthStorage() {
     )
   `);
   await db.query("CREATE INDEX IF NOT EXISTS pro_codes_assigned_user_id_idx ON pro_codes(assigned_user_id)");
+  await db.query("ALTER TABLE pro_codes ADD COLUMN IF NOT EXISTS admin_status TEXT NOT NULL DEFAULT 'non'");
   await db.query(`
     INSERT INTO pro_codes (code)
     VALUES ('JUL1EN')
@@ -1762,6 +1763,92 @@ async function setAdminScorePeriods(userId, submittedPeriods = []) {
     }
   }
   return adminScoreEditorPayload(userId);
+}
+
+async function adminAiScoreEditorPayload(characterId) {
+  const current = await circuitState();
+  const periods = [
+    { ...current, label: "SEM" },
+    ...previousCircuitPeriods(current.season, current.week, 4).map((period, index) => ({ ...period, label: `S-${index + 1}` })),
+  ];
+  let values = new Map();
+  let seasonTotal = 0;
+  if (db) {
+    const result = await db.query(`
+      SELECT season_number, week_number, points + COALESCE(human_win_bonus, 0) AS points
+      FROM circuit_ai_week_scores
+      WHERE ai_character_id = $1 AND season_number = $2
+    `, [characterId, current.season]);
+    values = new Map(result.rows.map((row) => [circuitPeriodKey(row.season_number, row.week_number), Number(row.points || 0)]));
+    seasonTotal = result.rows.reduce((sum, row) => sum + Number(row.points || 0), 0);
+  } else {
+    values = new Map(periods.map((period) => [
+      circuitPeriodKey(period.season, period.week),
+      memoryAiWeekScore(characterId, period.season, period.week),
+    ]));
+    seasonTotal = Array.from({ length: CIRCUIT_SEASON_LENGTH + 1 }, (_, week) => (
+      memoryAiWeekScore(characterId, current.season, week)
+    )).reduce((sum, points) => sum + points, 0);
+  }
+  return {
+    characterId,
+    currentSeason: current.season,
+    currentWeek: current.week,
+    seasonTotal,
+    periods: periods.map((period, index) => ({
+      key: index === 0 ? "current" : `s${index}`,
+      label: period.label,
+      season: period.season,
+      week: period.week,
+      points: values.get(circuitPeriodKey(period.season, period.week)) || 0,
+    })),
+  };
+}
+
+async function setAdminAiScorePeriods(characterId, submittedPeriods = [], requestedSeasonTotal = null) {
+  const editable = await adminAiScoreEditorPayload(characterId);
+  const submitted = new Map((Array.isArray(submittedPeriods) ? submittedPeriods : [])
+    .map((item) => [String(item.key || ""), Math.max(0, Math.round(Number(item.points || 0)))]));
+  for (const period of editable.periods) {
+    if (!submitted.has(period.key)) continue;
+    const points = submitted.get(period.key);
+    if (db) {
+      await db.query(`
+        INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points, human_win_bonus)
+        VALUES ($1, $2, $3, $4, 0)
+        ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
+          SET points = EXCLUDED.points, human_win_bonus = 0, updated_at = NOW()
+      `, [characterId, period.season, period.week, points]);
+    } else {
+      const key = `${period.season}:${period.week}:${characterId}`;
+      authMemory.circuitAiWeekScores.set(key, points);
+      authMemory.circuitAiHumanBonuses.set(key, 0);
+    }
+  }
+  if (requestedSeasonTotal !== null && requestedSeasonTotal !== undefined) {
+    const targetTotal = Math.max(0, Math.round(Number(requestedSeasonTotal || 0)));
+    let regularTotal = 0;
+    if (db) {
+      const result = await db.query(`
+        SELECT COALESCE(SUM(points + COALESCE(human_win_bonus, 0)), 0)::int AS total
+        FROM circuit_ai_week_scores
+        WHERE ai_character_id = $1 AND season_number = $2 AND week_number > 0
+      `, [characterId, editable.currentSeason]);
+      regularTotal = Number(result.rows[0]?.total || 0);
+      await db.query(`
+        INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points, human_win_bonus)
+        VALUES ($1, $2, 0, $3, 0)
+        ON CONFLICT (ai_character_id, season_number, week_number) DO UPDATE
+          SET points = EXCLUDED.points, human_win_bonus = 0, updated_at = NOW()
+      `, [characterId, editable.currentSeason, targetTotal - regularTotal]);
+    } else {
+      regularTotal = Array.from({ length: CIRCUIT_SEASON_LENGTH }, (_, index) => index + 1)
+        .reduce((sum, week) => sum + memoryAiWeekScore(characterId, editable.currentSeason, week), 0);
+      authMemory.circuitAiWeekScores.set(`${editable.currentSeason}:0:${characterId}`, targetTotal - regularTotal);
+      authMemory.circuitAiHumanBonuses.set(`${editable.currentSeason}:0:${characterId}`, 0);
+    }
+  }
+  return adminAiScoreEditorPayload(characterId);
 }
 
 async function currentTournamentScoreMap(userId) {
@@ -2258,6 +2345,25 @@ async function profilePayload(user, viewer = user) {
   };
 }
 
+async function aiProfilePayload(characterId, viewer) {
+  const ranking = await buildRanking(1, 100000, viewer, "points");
+  const row = ranking.top.find((entry) => entry.id === `ai:${characterId}`) || {};
+  return {
+    isAi: true,
+    viewerIsAdmin: normalizeRole(viewer?.role) === "admin",
+    characterId,
+    user: {
+      id: `ai:${characterId}`,
+      nickname: aiCharacterName(characterId),
+      role: "ai",
+      selectedCharacterId: characterId,
+    },
+    ranking: row,
+    circuit: { season: ranking.season, week: ranking.week },
+    adminScores: normalizeRole(viewer?.role) === "admin" ? await adminAiScoreEditorPayload(characterId) : null,
+  };
+}
+
 async function findUserByEmail(email) {
   if (db) {
     const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -2298,7 +2404,7 @@ async function createUser({ email, password, nickname: requestedNickname }) {
   user.accountNumber = authMemory.users.size + 1;
   user.nickname = initialNickname && (!isReservedNickname(initialNickname) || canUseReservedNickname(user)) ? initialNickname : generateDefaultNickname(user.accountNumber);
   authMemory.users.set(user.id, user);
-  if (user.role === "admin") authMemory.proCodes.set("JUL1EN", { code: "JUL1EN", assignedUserId: user.id, redeemedAt: new Date().toISOString() });
+  if (user.role === "admin") authMemory.proCodes.set("JUL1EN", { code: "JUL1EN", assignedUserId: user.id, adminStatus: "attribue", redeemedAt: new Date().toISOString() });
   return user;
 }
 
@@ -2376,6 +2482,7 @@ async function assignProCodeToUser(user, code) {
     await db.query(`
       UPDATE pro_codes
       SET assigned_user_id = $2,
+          admin_status = 'attribue',
           redeemed_at = COALESCE(redeemed_at, NOW())
       WHERE code = $1
     `, [cleanCode, user.id]);
@@ -2387,6 +2494,7 @@ async function assignProCodeToUser(user, code) {
   user.role = user.email === ADMIN_EMAIL ? "admin" : "pro";
   user.proCode = cleanCode;
   codeRow.assignedUserId = user.id;
+  codeRow.adminStatus = "attribue";
   codeRow.redeemedAt = codeRow.redeemedAt || new Date().toISOString();
   return user;
 }
@@ -2431,7 +2539,7 @@ async function createAdminProCodes(adminUser, count = 5) {
       }
     } else {
       while (authMemory.proCodes.has(code)) code = generateProCode();
-      authMemory.proCodes.set(code, { code, createdBy: adminUser.id, assignedUserId: null, createdAt: new Date().toISOString(), redeemedAt: null });
+      authMemory.proCodes.set(code, { code, createdBy: adminUser.id, assignedUserId: null, adminStatus: "non", createdAt: new Date().toISOString(), redeemedAt: null });
       created.push(code);
     }
   }
@@ -2690,7 +2798,7 @@ async function consumePasswordResetToken(token, password) {
 async function listProCodes() {
   if (db) {
     const result = await db.query(`
-      SELECT pro_codes.code, pro_codes.created_at, pro_codes.redeemed_at,
+      SELECT pro_codes.code, pro_codes.created_at, pro_codes.redeemed_at, pro_codes.admin_status,
              users.id AS assigned_user_id, users.email AS assigned_email, users.nickname AS assigned_nickname
       FROM pro_codes
       LEFT JOIN users ON users.id = pro_codes.assigned_user_id
@@ -2700,6 +2808,7 @@ async function listProCodes() {
       code: row.code,
       createdAt: row.created_at,
       redeemedAt: row.redeemed_at,
+      adminStatus: row.assigned_user_id ? "attribue" : row.admin_status === "attribue" ? "attribue" : "non",
       assignedTo: row.assigned_user_id ? { id: row.assigned_user_id, email: row.assigned_email, nickname: row.assigned_nickname } : null,
     }));
   }
@@ -2709,6 +2818,7 @@ async function listProCodes() {
       code: row.code,
       createdAt: row.createdAt,
       redeemedAt: row.redeemedAt,
+      adminStatus: row.assignedUserId ? "attribue" : row.adminStatus === "attribue" ? "attribue" : "non",
       assignedTo: user ? { id: user.id, email: user.email, nickname: user.nickname } : null,
     };
   }).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
@@ -3073,6 +3183,23 @@ async function handleAuth(req, res, url) {
   }
 
   const adminAiPointsMatch = url.pathname.match(/^\/api\/admin\/ai-players\/([^/]+)\/points$/);
+  const adminAiRankingScoresMatch = url.pathname.match(/^\/api\/admin\/ai-players\/([^/]+)\/ranking-scores$/);
+  if ((req.method === "GET" || req.method === "POST") && adminAiRankingScoresMatch) {
+    if (!await requireAdmin(req, res)) return true;
+    const characterId = decodeURIComponent(adminAiRankingScoresMatch[1]);
+    if (!CIRCUIT_AI_CHARACTER_IDS.includes(characterId)) {
+      sendJson(res, 404, { error: "Joueur IA introuvable." });
+      return true;
+    }
+    if (req.method === "POST") {
+      const payload = await readJson(req);
+      const scores = await setAdminAiScorePeriods(characterId, payload.periods, payload.seasonTotal);
+      sendJson(res, 200, { scores });
+      return true;
+    }
+    sendJson(res, 200, { scores: await adminAiScoreEditorPayload(characterId) });
+    return true;
+  }
   if (req.method === "POST" && adminAiPointsMatch) {
     if (!await requireAdmin(req, res)) return true;
     const characterId = decodeURIComponent(adminAiPointsMatch[1]);
@@ -3368,6 +3495,37 @@ async function handleAuth(req, res, url) {
     return true;
   }
 
+  const proCodeStatusMatch = url.pathname.match(/^\/api\/admin\/pro-codes\/([^/]+)\/status$/);
+  if (req.method === "POST" && proCodeStatusMatch) {
+    if (!await requireAdmin(req, res)) return true;
+    const code = normalizeProCode(decodeURIComponent(proCodeStatusMatch[1]));
+    const payload = await readJson(req);
+    const adminStatus = payload.status === "attribue" ? "attribue" : "non";
+    if (db) {
+      const result = await db.query(
+        "UPDATE pro_codes SET admin_status = $1 WHERE code = $2 AND assigned_user_id IS NULL RETURNING code",
+        [adminStatus, code],
+      );
+      if (!result.rowCount) {
+        sendJson(res, 409, { error: "Ce code est déjà lié à un compte et ne peut plus être modifié." });
+        return true;
+      }
+    } else {
+      const row = authMemory.proCodes.get(code);
+      if (!row) {
+        sendJson(res, 404, { error: "Code Pro introuvable." });
+        return true;
+      }
+      if (row.assignedUserId) {
+        sendJson(res, 409, { error: "Ce code est déjà lié à un compte et ne peut plus être modifié." });
+        return true;
+      }
+      row.adminStatus = adminStatus;
+    }
+    sendJson(res, 200, { codes: await listProCodes() });
+    return true;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/competitions") {
     const user = await requirePro(req, res);
     if (!user) return true;
@@ -3561,7 +3719,17 @@ async function handleAuth(req, res, url) {
       sendJson(res, 401, { error: "Connexion requise." });
       return true;
     }
-    const target = await findUserById(decodeURIComponent(publicProfileMatch[1]));
+    const requestedId = decodeURIComponent(publicProfileMatch[1]);
+    if (requestedId.startsWith("ai:")) {
+      const characterId = requestedId.slice(3);
+      if (normalizeRole(viewer.role) !== "admin" || !CIRCUIT_AI_CHARACTER_IDS.includes(characterId)) {
+        sendJson(res, 404, { error: "Profil introuvable." });
+        return true;
+      }
+      sendJson(res, 200, await aiProfilePayload(characterId, viewer));
+      return true;
+    }
+    const target = await findUserById(requestedId);
     if (!target) {
       sendJson(res, 404, { error: "Profil introuvable." });
       return true;

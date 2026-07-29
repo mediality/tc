@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.81";
+const GAME_VERSION = "v3.82";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -2804,15 +2804,37 @@ function renderAdminProCodes() {
     return;
   }
   els.adminProCodesList.innerHTML = `
-    <div class="admin-code-head"><span>Code</span><span>Statut</span><span>Compte</span></div>
+    <div class="admin-code-head"><span>Code</span><span>État du code</span><span>Compte</span></div>
     ${codes.map((item) => `
       <div class="admin-code-row ${item.assignedTo ? "used" : ""}">
         <strong>${escapeHtml(item.code)}</strong>
-        <span>${item.assignedTo ? "Attribué" : "Disponible"}</span>
+        <select data-admin-code-status="${escapeHtml(item.code)}" aria-label="État du code ${escapeHtml(item.code)}" ${item.assignedTo ? "disabled" : ""}>
+          <option value="non" ${item.adminStatus !== "attribue" ? "selected" : ""}>NON</option>
+          <option value="attribue" ${item.adminStatus === "attribue" ? "selected" : ""}>ATTRIBUÉ</option>
+        </select>
         <span>${escapeHtml(item.assignedTo?.nickname || item.assignedTo?.email || "-")}</span>
       </div>
     `).join("")}
   `;
+  els.adminProCodesList.querySelectorAll("[data-admin-code-status]").forEach((select) => {
+    select.addEventListener("change", () => updateAdminProCodeStatus(select.dataset.adminCodeStatus, select.value, select));
+  });
+}
+
+async function updateAdminProCodeStatus(code, status, select) {
+  if (!canAccessAdminFeatures() || !code) return;
+  select.disabled = true;
+  try {
+    const data = await authRequest(`/api/admin/pro-codes/${encodeURIComponent(code)}/status`, { status });
+    AUTH_STATE.adminProCodes = data.codes || [];
+    renderAdminProCodes();
+  } catch (error) {
+    select.disabled = false;
+    await loadAdminProCodes();
+    if (els.adminProCodesList) {
+      els.adminProCodesList.insertAdjacentHTML("afterbegin", `<div class="admin-empty">${escapeHtml(error.message)}</div>`);
+    }
+  }
 }
 
 function updateAdminPagination() {
@@ -2916,7 +2938,7 @@ function rankingMarkup(ranking = AUTH_STATE.ranking) {
   const profileName = (row) => {
     if (row.is_ai || String(row.id || "").startsWith("ai:")) {
       return canAccessAdminFeatures()
-        ? `<button class="ranking-name-button ranking-ai-name" type="button" data-admin-ai-profile="${escapeHtml(String(row.id || "").replace(/^ai:/, ""))}" data-admin-ai-name="${escapeHtml(row.nickname)}" data-admin-ai-points="${Number(row.score_week || 0)}">${escapeHtml(row.nickname)}</button>`
+        ? `<button class="ranking-name-button ranking-ai-name" type="button" data-profile-user="${escapeHtml(row.id || "")}">${escapeHtml(row.nickname)}</button>`
         : `<span class="ranking-ai-name">${escapeHtml(row.nickname)}</span>`;
     }
     return `
@@ -2960,7 +2982,7 @@ function attachProfileLinks(container) {
   container?.querySelectorAll("[data-profile-user]").forEach((button) => {
     button.addEventListener("click", () => {
       const userId = button.dataset.profileUser;
-      if (!userId || userId.startsWith("ai:")) return;
+      if (!userId || (userId.startsWith("ai:") && !canAccessAdminFeatures())) return;
       showProfileScreen(userId);
     });
   });
@@ -3466,6 +3488,7 @@ function renderAcademyDeck() {
 }
 
 function profileMarkup(profile) {
+  if (profile?.isAi) return aiAdminProfileMarkup(profile);
   const user = profile?.user || AUTH_STATE.user;
   const ranking = profile?.ranking || {};
   const circuitLevel = humanCircuitLevelInfo(ranking.score_ref);
@@ -3700,6 +3723,48 @@ function profileMarkup(profile) {
   `;
 }
 
+function aiAdminProfileMarkup(profile) {
+  const user = profile.user || {};
+  const ranking = profile.ranking || {};
+  const scores = profile.adminScores || {};
+  const characterId = profile.characterId || user.selectedCharacterId || "coachUnknown";
+  const visuals = profileCharacterVisuals(characterId);
+  const scoreInputs = (scores.periods || []).map((period) => `
+    <label class="admin-score-period">
+      <span>${escapeHtml(period.label)} · Saison ${Number(period.season)} · Semaine ${Number(period.week)}</span>
+      <input type="number" min="0" max="100000" step="1" inputmode="numeric" value="${Number(period.points || 0)}" data-ai-profile-score-key="${escapeHtml(period.key)}" />
+    </label>
+  `).join("");
+  return `
+    <section class="profile-identity-hero ai-admin-profile-hero">
+      <div class="profile-identity-portrait"><img src="${escapeHtml(visuals.illustration)}" alt="${escapeHtml(user.nickname || "Joueur IA")}" /></div>
+      <div class="profile-identity-info">
+        <div class="profile-identity-copy"><span class="profile-role">IA</span><p class="label">Profil joueur IA</p><h2>${escapeHtml(user.nickname || "Joueur IA")}</h2><p>Points administrables pour la saison en cours.</p></div>
+        <dl class="profile-identity-metrics">
+          <div><dt>Rang mondial</dt><dd>${Number(ranking.points_rank || ranking.rank || 0) ? `#${Number(ranking.points_rank || ranking.rank)}` : "-"}</dd></div>
+          <div><dt>Points Circuit</dt><dd>${Number(ranking.score_ref || 0)}</dd></div>
+          <div><dt>Cette semaine</dt><dd>${Number(ranking.score_week || 0)}</dd></div>
+          <div><dt>Total saison</dt><dd>${Number(ranking.score_total || 0)}</dd></div>
+        </dl>
+      </div>
+    </section>
+    <div class="profile-grid">
+      <section class="profile-card profile-wide admin-profile-tools ai-admin-score-editor">
+        <div class="profile-card-heading"><div><p class="label">Administration IA</p><h3>Modifier les points</h3></div></div>
+        <div class="admin-score-periods">${scoreInputs}</div>
+        <label class="admin-score-period admin-ai-season-total">
+          <span>Total de la saison ${Number(scores.currentSeason || profile.circuit?.season || 1)}</span>
+          <input type="number" min="0" max="1000000" step="1" inputmode="numeric" value="${Number(scores.seasonTotal || 0)}" data-ai-profile-season-total />
+        </label>
+        <div class="admin-inline-actions">
+          <button id="saveAiProfileRankingScoresButton" class="primary-button" type="button" data-ai-character-id="${escapeHtml(characterId)}">Enregistrer tous les points</button>
+          <button id="backFromAiProfileButton" class="small-button" type="button">Retour au classement</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function toggleProfileCollection(event) {
   const button = event.currentTarget;
   const group = String(button?.dataset.profileToggle || "");
@@ -3733,6 +3798,8 @@ async function loadProfile(userId = null) {
       button.addEventListener("click", toggleProfileCollection);
     });
     document.querySelector("#saveProfileRankingScoresButton")?.addEventListener("click", saveProfileRankingScores);
+    document.querySelector("#saveAiProfileRankingScoresButton")?.addEventListener("click", saveAiProfileRankingScores);
+    document.querySelector("#backFromAiProfileButton")?.addEventListener("click", showRankingScreen);
     document.querySelector("#resetProfileCareerButton")?.addEventListener("click", resetProfileCareer);
     document.querySelectorAll("[data-reset-profile-tournament]").forEach((button) => {
       button.addEventListener("click", resetProfileTournament);
@@ -3806,6 +3873,24 @@ async function saveProfileRankingScores(event) {
     await authRequest(`/api/admin/users/${encodeURIComponent(userId)}/ranking-scores`, { periods, weeklyAttempts });
     await loadProfile(userId);
     await loadRanking(1);
+  } catch (error) {
+    if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
+  }
+}
+
+async function saveAiProfileRankingScores(event) {
+  if (!canAccessAdminFeatures()) return;
+  const characterId = event.currentTarget?.dataset.aiCharacterId;
+  if (!characterId) return;
+  const periods = Array.from(document.querySelectorAll("[data-ai-profile-score-key]")).map((input) => ({
+    key: input.dataset.aiProfileScoreKey,
+    points: Math.max(0, Math.round(Number(input.value || 0))),
+  }));
+  const seasonTotal = Math.max(0, Math.round(Number(document.querySelector("[data-ai-profile-season-total]")?.value || 0)));
+  try {
+    await authRequest(`/api/admin/ai-players/${encodeURIComponent(characterId)}/ranking-scores`, { periods, seasonTotal });
+    await loadRanking(1);
+    await loadProfile(`ai:${characterId}`);
   } catch (error) {
     if (els.profileContent) els.profileContent.insertAdjacentHTML("afterbegin", `<div class="lobby-empty">${escapeHtml(error.message)}</div>`);
   }
@@ -8102,7 +8187,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.81");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.82");
 }
 
 function emptyMomentumState() {
