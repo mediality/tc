@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.78";
+const GAME_VERSION = "v3.79";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -1586,6 +1586,10 @@ const GAMEPLAY_ASSIST = {
 const LOCAL_MOBILE_MATCH_STORAGE_PREFIX = "tennisLightLocalMobileMatch:";
 const LOCAL_MOBILE_MATCH_QUERY = "localMatch";
 const LOCAL_ACTIVE_MATCH_STORAGE_KEY = "tennisLightActiveLocalMatch";
+const LOCAL_MATCH_DATABASE_NAME = "tennisLightMatches";
+const LOCAL_MATCH_DATABASE_VERSION = 1;
+const LOCAL_MATCH_DATABASE_STORE = "matches";
+const LOCAL_MATCH_DATABASE_ACTIVE_KEY = "__active__";
 let localMobileMatchSaveTimer = null;
 
 function localMatchViewIsActive() {
@@ -1600,6 +1604,76 @@ function localMobileMatchId() {
 
 function localMobileMatchStorageKey(matchId) {
   return `${LOCAL_MOBILE_MATCH_STORAGE_PREFIX}${matchId}`;
+}
+
+function createLocalMatchId() {
+  if (typeof crypto?.randomUUID === "function") return crypto.randomUUID();
+  const randomPart = Array.from(crypto?.getRandomValues?.(new Uint32Array(4)) || [
+    Math.random() * 0xffffffff,
+    Math.random() * 0xffffffff,
+    Math.random() * 0xffffffff,
+    Math.random() * 0xffffffff,
+  ]).map((value) => Math.floor(value).toString(16).padStart(8, "0")).join("");
+  return `${Date.now().toString(36)}-${randomPart}`;
+}
+
+function openLocalMatchDatabase() {
+  if (!window.indexedDB) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(LOCAL_MATCH_DATABASE_NAME, LOCAL_MATCH_DATABASE_VERSION);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(LOCAL_MATCH_DATABASE_STORE)) {
+        request.result.createObjectStore(LOCAL_MATCH_DATABASE_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function writeLocalMatchDatabaseRecord(record) {
+  const database = await openLocalMatchDatabase();
+  if (!database) return false;
+  return new Promise((resolve) => {
+    const transaction = database.transaction(LOCAL_MATCH_DATABASE_STORE, "readwrite");
+    const store = transaction.objectStore(LOCAL_MATCH_DATABASE_STORE);
+    store.put(record, record.matchId);
+    if (record.status === "active" || record.status === "paused") {
+      store.put(record, LOCAL_MATCH_DATABASE_ACTIVE_KEY);
+    } else {
+      store.delete(LOCAL_MATCH_DATABASE_ACTIVE_KEY);
+    }
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(true);
+    };
+    transaction.onerror = () => {
+      database.close();
+      resolve(false);
+    };
+  });
+}
+
+async function readLocalMatchDatabaseRecord(matchId = null) {
+  const database = await openLocalMatchDatabase();
+  if (!database) return null;
+  return new Promise((resolve) => {
+    const transaction = database.transaction(LOCAL_MATCH_DATABASE_STORE, "readonly");
+    const request = transaction.objectStore(LOCAL_MATCH_DATABASE_STORE)
+      .get(matchId || LOCAL_MATCH_DATABASE_ACTIVE_KEY);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => resolve(null);
+    transaction.oncomplete = () => database.close();
+  });
+}
+
+async function clearActiveLocalMatchDatabaseRecord() {
+  const database = await openLocalMatchDatabase();
+  if (!database) return;
+  const transaction = database.transaction(LOCAL_MATCH_DATABASE_STORE, "readwrite");
+  transaction.objectStore(LOCAL_MATCH_DATABASE_STORE).delete(LOCAL_MATCH_DATABASE_ACTIVE_KEY);
+  transaction.oncomplete = () => database.close();
+  transaction.onerror = () => database.close();
 }
 
 function rememberActiveLocalMatch(matchId) {
@@ -1627,7 +1701,7 @@ function ensureLocalMobileMatchSession() {
     || !state.players?.length) return null;
   let matchId = localMobileMatchId();
   if (!matchId) {
-    matchId = crypto.randomUUID();
+    matchId = createLocalMatchId();
     const params = new URLSearchParams(window.location.search);
     params.set(LOCAL_MOBILE_MATCH_QUERY, matchId);
     window.history.replaceState(window.history.state, "", `${window.location.pathname}?${params}`);
@@ -1660,8 +1734,11 @@ function saveLocalMobileMatchSession() {
     } else {
       rememberActiveLocalMatch(matchId);
     }
+    void writeLocalMatchDatabaseRecord(record);
   } catch (error) {
-    // La partie reste jouable si le stockage local est indisponible.
+    // Safari peut refuser localStorage (quota ou navigation privée).
+    // IndexedDB reste alors la sauvegarde principale.
+    void writeLocalMatchDatabaseRecord(record);
   }
 }
 
@@ -1688,6 +1765,7 @@ function expireLocalMobileMatchSessionAfterExit() {
     // La sortie du match ne doit jamais être bloquée par le stockage.
   }
   if (rememberedActiveLocalMatchId() === matchId) rememberActiveLocalMatch(null);
+  void clearActiveLocalMatchDatabaseRecord();
   const params = new URLSearchParams(window.location.search);
   params.delete(LOCAL_MOBILE_MATCH_QUERY);
   const nextQuery = params.toString();
@@ -1722,6 +1800,26 @@ function restoreLocalMobileMatchSession() {
   } catch (error) {
     return false;
   }
+}
+
+async function restoreLocalMatchSessionFromDatabase() {
+  if (SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return false;
+  const urlMatchId = localMobileMatchId();
+  const record = await readLocalMatchDatabaseRecord(urlMatchId)
+    || (urlMatchId ? await readLocalMatchDatabaseRecord() : null);
+  if (!record?.snapshot || record.status === "completed"
+    || (record.expiresAt && Number(record.expiresAt) <= Date.now())) return false;
+  const currentUserId = authenticatedUserId() || null;
+  if (record.ownerUserId && currentUserId && record.ownerUserId !== currentUserId) return false;
+  const params = new URLSearchParams(window.location.search);
+  params.set(LOCAL_MOBILE_MATCH_QUERY, record.matchId);
+  window.history.replaceState(window.history.state, "", `${window.location.pathname}?${params}`);
+  rememberActiveLocalMatch(record.matchId);
+  if (!restoreStateSnapshot(record.snapshot)) return false;
+  showGameScreen();
+  applySurfaceBackground(state.tournament?.competitionSurface);
+  render();
+  return true;
 }
 
 const state = {
@@ -8004,7 +8102,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.78");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.79");
 }
 
 function emptyMomentumState() {
@@ -19877,8 +19975,12 @@ restoreLocalTutorialProgress(null);
 initMenu();
 initFriendlyTournament();
 initServerSync();
-restoreLocalMobileMatchSession();
-installBrowserNavigation();
+const localMatchRestoredSynchronously = restoreLocalMobileMatchSession();
+if (localMatchRestoredSynchronously) {
+  installBrowserNavigation();
+} else {
+  restoreLocalMatchSessionFromDatabase().finally(installBrowserNavigation);
+}
 window.clearInterval(PROFILE_ACTIVITY.timer);
 PROFILE_ACTIVITY.timer = window.setInterval(publishProfileActivity, 1200);
 publishProfileActivity();
