@@ -17,8 +17,11 @@ assert.match(app, /confirmBrowserMatchExit/);
 assert.match(app, /tennisLightDestination/);
 
 assert.match(app, /function localMatchViewIsActive\(\)/);
+assert.match(app, /LOCAL_ACTIVE_MATCH_STORAGE_KEY/);
+assert.match(app, /localMobileMatchId\(\) \|\| rememberedActiveLocalMatchId\(\)/);
+assert.match(app, /document\.visibilityState === "hidden"/);
 assert.doesNotMatch(app, /LOCAL_MOBILE_MATCH_EXIT_GRACE_MS/);
 assert.match(app, /record\.expiresAt = state\.gameOver \? record\.expiresAt : null/);
-assert.match(app, /restoreLocalMobileMatchFromUrl\(\);\s*installBrowserNavigation\(\);/);
+assert.match(app, /restoreLocalMobileMatchSession\(\);\s*installBrowserNavigation\(\);/);
 
 console.log("v3.77 browser navigation and match resume checks passed");

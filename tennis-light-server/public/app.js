@@ -1585,6 +1585,7 @@ const GAMEPLAY_ASSIST = {
 };
 const LOCAL_MOBILE_MATCH_STORAGE_PREFIX = "tennisLightLocalMobileMatch:";
 const LOCAL_MOBILE_MATCH_QUERY = "localMatch";
+const LOCAL_ACTIVE_MATCH_STORAGE_KEY = "tennisLightActiveLocalMatch";
 let localMobileMatchSaveTimer = null;
 
 function localMatchViewIsActive() {
@@ -1601,6 +1602,23 @@ function localMobileMatchStorageKey(matchId) {
   return `${LOCAL_MOBILE_MATCH_STORAGE_PREFIX}${matchId}`;
 }
 
+function rememberActiveLocalMatch(matchId) {
+  try {
+    if (matchId) localStorage.setItem(LOCAL_ACTIVE_MATCH_STORAGE_KEY, matchId);
+    else localStorage.removeItem(LOCAL_ACTIVE_MATCH_STORAGE_KEY);
+  } catch (error) {
+    // L'identifiant dans l'URL reste disponible si ce petit index échoue.
+  }
+}
+
+function rememberedActiveLocalMatchId() {
+  try {
+    return localStorage.getItem(LOCAL_ACTIVE_MATCH_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
 function ensureLocalMobileMatchSession() {
   if (!localMatchViewIsActive()
     || SERVER_SYNC.enabled
@@ -1612,8 +1630,9 @@ function ensureLocalMobileMatchSession() {
     matchId = crypto.randomUUID();
     const params = new URLSearchParams(window.location.search);
     params.set(LOCAL_MOBILE_MATCH_QUERY, matchId);
-    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}?${params}`);
   }
+  rememberActiveLocalMatch(matchId);
   return matchId;
 }
 
@@ -1625,6 +1644,7 @@ function saveLocalMobileMatchSession() {
     gameVersion: GAME_VERSION,
     matchId,
     status: state.gameOver ? "completed" : "active",
+    ownerUserId: authenticatedUserId() || null,
     savedAt: new Date().toISOString(),
     expiresAt: state.gameOver ? Date.now() + (7 * 24 * 60 * 60 * 1000) : null,
     snapshot: {
@@ -1635,6 +1655,11 @@ function saveLocalMobileMatchSession() {
   };
   try {
     localStorage.setItem(localMobileMatchStorageKey(matchId), JSON.stringify(record));
+    if (state.gameOver) {
+      if (rememberedActiveLocalMatchId() === matchId) rememberActiveLocalMatch(null);
+    } else {
+      rememberActiveLocalMatch(matchId);
+    }
   } catch (error) {
     // La partie reste jouable si le stockage local est indisponible.
   }
@@ -1662,20 +1687,32 @@ function expireLocalMobileMatchSessionAfterExit() {
   } catch (error) {
     // La sortie du match ne doit jamais être bloquée par le stockage.
   }
+  if (rememberedActiveLocalMatchId() === matchId) rememberActiveLocalMatch(null);
   const params = new URLSearchParams(window.location.search);
   params.delete(LOCAL_MOBILE_MATCH_QUERY);
   const nextQuery = params.toString();
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
 
-function restoreLocalMobileMatchFromUrl() {
-  const matchId = localMobileMatchId();
+function restoreLocalMobileMatchSession() {
+  // Certains navigateurs mobiles recréent la page sans conserver sa query string
+  // après une éviction mémoire. L'index local sert alors de filet de sécurité.
+  const matchId = localMobileMatchId() || rememberedActiveLocalMatchId();
   if (!matchId || SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return false;
   try {
     const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
-    if (!record?.snapshot || (record.expiresAt && Number(record.expiresAt) <= Date.now())) {
+    const currentUserId = authenticatedUserId() || null;
+    const belongsToAnotherUser = Boolean(record?.ownerUserId && currentUserId && record.ownerUserId !== currentUserId);
+    if (!record?.snapshot || record.status === "completed" || belongsToAnotherUser
+      || (record.expiresAt && Number(record.expiresAt) <= Date.now())) {
       localStorage.removeItem(localMobileMatchStorageKey(matchId));
+      if (rememberedActiveLocalMatchId() === matchId) rememberActiveLocalMatch(null);
       return false;
+    }
+    if (!localMobileMatchId()) {
+      const params = new URLSearchParams(window.location.search);
+      params.set(LOCAL_MOBILE_MATCH_QUERY, matchId);
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}?${params}`);
     }
     if (!restoreStateSnapshot(record.snapshot)) return false;
     showGameScreen();
@@ -19824,6 +19861,14 @@ window.tennisLightMobileAdapter = {
 window.forceSoloAITurn = forceSoloAITurn;
 window.tennisLightDebug = { CARD_LIBRARY, newGame, startTutorial, startSoloGame, startSetAiGame, startMatchMode, startTournamentMode, nextSetExchange, nextFullSet, startOnlineGame, pass, playCard, endTurn, restoreTurnSnapshot, getStoredMatchLogs, getStoredActionLogs, getStoredHumanMatchLogs, exportLogsFile, exportHumanMatchLogsFile, render, state };
 window.addEventListener("pagehide", signalFriendlyTournamentPageExit);
+window.addEventListener("pagehide", () => {
+  if (hasActiveMatchToProtect()) saveLocalMobileMatchSession();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && hasActiveMatchToProtect()) {
+    saveLocalMobileMatchSession();
+  }
+});
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) restoreFriendlyTournamentPresence();
 });
@@ -19832,7 +19877,7 @@ restoreLocalTutorialProgress(null);
 initMenu();
 initFriendlyTournament();
 initServerSync();
-restoreLocalMobileMatchFromUrl();
+restoreLocalMobileMatchSession();
 installBrowserNavigation();
 window.clearInterval(PROFILE_ACTIVITY.timer);
 PROFILE_ACTIVITY.timer = window.setInterval(publishProfileActivity, 1200);
