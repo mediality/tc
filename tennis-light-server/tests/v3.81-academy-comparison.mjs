@@ -8,9 +8,9 @@ const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const mobileStyles = fs.readFileSync(new URL("../public/mobile-game.css", import.meta.url), "utf8");
 
-assert.equal(pkg.version, "3.80.0");
-assert.match(app, /const GAME_VERSION = "v3\.80"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.80<\/span>/);
+assert.equal(pkg.version, "3.81.0");
+assert.match(app, /const GAME_VERSION = "v3\.81"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.81<\/span>/);
 
 assert.match(app, /function installBrowserNavigation\(\)/);
 assert.match(app, /window\.history\.pushState\(/);
@@ -36,4 +36,11 @@ assert.match(styles, /\.lobby-mode-grid \{[\s\S]*?padding-inline: 3px/);
 assert.match(styles, /\.lobby-mode-card > \.lobby-mode-art \{[\s\S]*?inset: 5px/);
 assert.match(mobileStyles, /width: min\(100%, 100dvw\)/);
 
-console.log("v3.80 mobile viewport bounds checks passed");
+assert.match(html, /id="academyComparisonTitle"/);
+assert.match(html, /48 cartes par joueur, soit 96 en tout/);
+assert.match(html, /Réserve de 2 cartes par joueur/);
+assert.match(html, /un jeu qui mêle deckbuilding et gestion/);
+assert.match(styles, /\.academy-comparison-table-wrap/);
+assert.match(styles, /-webkit-overflow-scrolling: touch/);
+
+console.log("v3.81 Academy comparison checks passed");

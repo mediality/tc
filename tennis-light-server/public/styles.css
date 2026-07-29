@@ -8133,6 +8133,92 @@ h1 {
 .academy-next-card { background: linear-gradient(145deg, #eef8f5, #fff); }
 .content-page-panel .academy-info-footer { margin: 24px 0 0; }
 
+.academy-comparison-section {
+  border: 1px solid rgba(15, 73, 88, .12) !important;
+  border-radius: 17px;
+  padding: clamp(24px, 4vw, 38px) !important;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(10, 42, 58, .07);
+}
+
+.academy-comparison-section .academy-section-heading h2 {
+  max-width: 780px;
+  color: #173b4e;
+  font-size: clamp(1.45rem, 2.8vw, 2.1rem);
+  letter-spacing: -.03em;
+}
+
+.academy-comparison-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(15, 73, 88, .14);
+  border-radius: 14px;
+  outline-offset: 3px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.academy-comparison-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  color: #405968;
+  font-size: .86rem;
+  line-height: 1.45;
+}
+
+.academy-comparison-table th,
+.academy-comparison-table td {
+  border-bottom: 1px solid rgba(15, 73, 88, .11);
+  padding: 15px 17px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.academy-comparison-table thead th {
+  color: #fff;
+  background: #0a4056;
+  font-size: .78rem;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+}
+
+.academy-comparison-table thead th:nth-child(2) { background: #16785f; }
+.academy-comparison-table thead th:nth-child(3) { background: #9e4766; }
+.academy-comparison-table tbody th {
+  width: 22%;
+  color: #173b4e;
+  background: #f1f6f5;
+  font-weight: 900;
+}
+.academy-comparison-table tbody td:nth-child(2) { width: 31%; background: #f5fbf8; }
+.academy-comparison-table tbody td:nth-child(3) { width: 47%; background: #fff8fa; }
+.academy-comparison-table tbody tr:last-child > * { border-bottom: 0; }
+
+.academy-comparison-summary {
+  margin: 22px 0 0;
+  border-left: 4px solid #0f8d68;
+  padding: 15px 18px;
+  color: #405968;
+  background: #eef8f5;
+  line-height: 1.7;
+}
+
+@media (max-width: 700px) {
+  .academy-comparison-section {
+    padding: 20px 16px !important;
+  }
+
+  .academy-comparison-table {
+    min-width: 590px;
+    font-size: .79rem;
+  }
+
+  .academy-comparison-table th,
+  .academy-comparison-table td {
+    padding: 12px;
+  }
+}
+
 .profile-page-panel,
 .character-page-panel { overflow: hidden; padding: 0; background: #f3f6f5; }
 
