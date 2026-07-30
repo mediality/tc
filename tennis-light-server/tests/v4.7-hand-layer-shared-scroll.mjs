@@ -6,10 +6,11 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.7.0");
-assert.match(html, /styles\.css\?v=4\.7\.0/);
-assert.match(html, /app\.js\?v=4\.7\.0/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.7<\/span>/);
+const [major, minor] = packageJson.version.split(".").map(Number);
+assert.ok(major > 4 || (major === 4 && minor >= 7));
+assert.match(html, /styles\.css\?v=4\.[7-9]\.\d+/);
+assert.match(html, /app\.js\?v=4\.[7-9]\.\d+/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.[7-9]<\/span>/);
 
 assert.match(css, /player-panel\[data-desktop-role="local"\]\s*\{\s*z-index:\s*24/);
 assert.match(css, /player-panel\[data-desktop-role="local"\] \.hand\s*\{\s*z-index:\s*90/);
