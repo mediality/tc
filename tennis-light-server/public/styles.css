@@ -11417,6 +11417,187 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   line-height: 1.45;
 }
 
+/* Desktop interface v4.9 ------------------------------------------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app .global-player-dock.read-only {
+    flex: 0 0 42px;
+    width: 42px;
+    max-width: 42px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  body:not(.mobile-game-view) .game-app .global-player-dock.read-only .global-player-profile {
+    grid-template-columns: 42px;
+    width: 42px;
+    padding: 0;
+    filter: none;
+    opacity: 1;
+  }
+
+  body:not(.mobile-game-view) .game-app .global-player-dock.read-only .global-player-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+  }
+
+  body:not(.mobile-game-view) .game-app .global-player-dock.read-only .global-player-copy {
+    display: none;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] {
+    z-index: 40;
+  }
+
+  body:not(.mobile-game-view) .court > .log {
+    z-index: 34;
+    width: clamp(250px, 23vw, 340px);
+    max-width: calc(100% - 24px);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card {
+    z-index: 90;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row--player {
+    bottom: -10%;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder {
+    grid-area: power;
+    width: min(132px, 100%);
+    height: 58px;
+    border-radius: 18px;
+    padding: 8px 14px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder .stat-value-row {
+    grid-template-columns: 32px minmax(0, auto);
+    gap: 7px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder .stat-symbol,
+  body:not(.mobile-game-view) .character-power-reminder .stat-symbol-power {
+    flex-basis: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder strong {
+    max-width: 3ch;
+    font-size: clamp(1.45rem, 1.9vw, 1.8rem);
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder,
+  body:not(.mobile-game-view) .character-endurance-reminder.warning-endurance {
+    grid-area: endurance;
+    width: 62px;
+    height: 62px;
+    border-radius: 17px;
+    color: #09283a;
+    background: #f4cbd5;
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder.low-endurance {
+    color: #fff;
+    background: #c92828;
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder .stat-value-row {
+    grid-template-columns: 20px minmax(0, auto);
+    gap: 3px;
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder .stat-symbol {
+    flex-basis: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder strong {
+    max-width: 2.5ch;
+    font-size: 1.25rem;
+  }
+
+  body:not(.mobile-game-view) .desktop-player-bonus-count {
+    width: 44px;
+    height: 44px;
+    border: 1px solid rgba(223, 243, 118, .32);
+    color: #dff376;
+    background: rgba(223, 243, 118, .08);
+    box-shadow: none;
+    font-size: .8rem;
+  }
+}
+
+.desktop-exchange-result {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.desktop-exchange-result-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.desktop-exchange-winner,
+.desktop-exchange-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 5px 11px;
+  color: #062b3d !important;
+  font-size: .72rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.desktop-exchange-winner--player {
+  background: #8ce0bf;
+}
+
+.desktop-exchange-winner--opponent {
+  background: #f2a37f;
+}
+
+.desktop-exchange-winner--information {
+  background: #a9b8c5;
+}
+
+.desktop-exchange-score {
+  background: #fff;
+}
+
+.desktop-history-latest .action-log-result-details,
+.desktop-history-entry .action-log-result-details {
+  display: grid;
+  gap: 5px;
+}
+
+.desktop-history-latest .action-log-result-details p,
+.desktop-history-entry .action-log-result-details p {
+  display: block;
+  width: 100%;
+  margin: 0;
+  border-left: 3px solid rgba(140, 224, 191, .58);
+  padding: 5px 7px;
+  color: rgba(255, 255, 255, .8);
+  background: rgba(255, 255, 255, .05);
+}
+
+.action-log-entry.compact .action-log-result-details p {
+  display: block;
+}
+
 .desktop-card-flight {
   position: fixed;
   z-index: 1170;

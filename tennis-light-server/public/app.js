@@ -13334,15 +13334,17 @@ function exchangeResultLogLine(winner, winType, exchangeScore) {
   added[exchangeScore.loser] = Number(exchangeScore.loserGames || 0);
   const outcome = winType === "boost" ? "Victoire sur Boost" : winType === "power" ? "Victoire aux Points" : "Victoire sur Effet";
   const scoreImpact = `Jeux ajoutés au score du set : ${playerName(0)} +${added[0]} · ${playerName(1)} +${added[1]}`;
+  const recalledScore = state.resultInfo?.setMatch?.score || added;
+  const scoreRecall = `Score du set : ${Number(recalledScore[0] || 0)}–${Number(recalledScore[1] || 0)}`;
   if (winType !== "power") {
-    return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Les points de puissance ne sont pas pris en compte pour cette victoire.|${scoreImpact}`;
+    return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Les points de puissance ne sont pas pris en compte pour cette victoire.|${scoreImpact}|${scoreRecall}`;
   }
   const powers = state.players.map((player) => Number(player.power || 0));
   const gap = Math.abs(powers[0] - powers[1]);
   const loserRule = gap < 5
     ? `Écart de ${gap}, inférieur à 5 : le perdant reçoit +1.`
     : `Écart de ${gap}, au moins égal à 5 : le perdant reçoit +0.`;
-  return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Puissance finale : ${playerName(0)} ${powers[0]} · ${playerName(1)} ${powers[1]}|Le vainqueur reçoit +2. ${loserRule}|${scoreImpact}`;
+  return `Bilan de l’échange|${outcome} — ${playerName(winner)}|Puissance finale : ${playerName(0)} ${powers[0]} · ${playerName(1)} ${powers[1]}|Le vainqueur reçoit +2. ${loserRule}|${scoreImpact}|${scoreRecall}`;
 }
 
 function isDecisiveSetScore(score = state.setMatch.score) {
@@ -19152,13 +19154,53 @@ function actionLogCardThumbnail(line) {
   return imageUrl ? `<img class="action-log-card-thumbnail" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />` : "";
 }
 
+function desktopExchangeResultData(line) {
+  if (!String(line || "").startsWith("Bilan de l’échange|")) return null;
+  const parts = String(line).split("|").slice(1).filter(Boolean);
+  const headline = parts.shift() || "Résultat de l’échange";
+  const [outcome, winnerName = "Vainqueur"] = headline.split(/\s+—\s+/, 2);
+  const normalizedWinner = String(winnerName).trim().toLocaleLowerCase("fr");
+  const winnerIndex = state.players.findIndex((player) => (
+    [displayPlayerName(player), player?.name, player?.nickname]
+      .filter(Boolean)
+      .some((name) => String(name).trim().toLocaleLowerCase("fr") === normalizedWinner)
+  ));
+  const localPlayerIndex = mobileLocalPlayerIndex();
+  const winnerSide = winnerIndex < 0 ? null : winnerIndex === localPlayerIndex ? "player" : "opponent";
+  const scoreIndex = parts.findIndex((part) => /^Score du set\s*:/i.test(part));
+  const scoreText = scoreIndex >= 0
+    ? String(parts.splice(scoreIndex, 1)[0]).replace(/^Score du set\s*:\s*/i, "")
+    : (() => {
+      const score = state.resultInfo?.setMatch?.score;
+      return Array.isArray(score) ? `${Number(score[0] || 0)}–${Number(score[1] || 0)}` : "—";
+    })();
+  return { outcome, winnerName, winnerSide, scoreText, details: parts };
+}
+
+function desktopExchangeResultMarkup(line, playerSide = "information") {
+  const result = desktopExchangeResultData(line);
+  if (!result) return "";
+  return `
+    <div class="desktop-exchange-result">
+      <div class="desktop-exchange-result-header">
+        <strong class="desktop-exchange-winner desktop-exchange-winner--${result.winnerSide || playerSide}">${escapeHtml(result.winnerName)}</strong>
+        <span class="desktop-exchange-score" aria-label="Score du set">${escapeHtml(result.scoreText)}</span>
+      </div>
+      <div class="action-log-result-details">
+        <p>${escapeHtml(result.outcome)}</p>
+        ${result.details.map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderActionLogEntry(line, index, compact = false) {
   const type = actionLogEntryType(line);
   const thumbnail = compact ? "" : actionLogCardThumbnail(line);
   const shot = String(line || "").match(/^(.+?) joue (.+?) : (.+)$/);
   const exchangeResult = String(line || "").startsWith("Bilan de l’échange|") ? String(line).split("|").slice(1) : null;
   const content = exchangeResult
-    ? `<strong class="action-log-result-title">${escapeHtml(exchangeResult[0] || "Résultat de l’échange")}</strong><div class="action-log-result-details">${exchangeResult.slice(1).map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}</div>`
+    ? desktopExchangeResultMarkup(line, mobileHistoryEntries().find((entry) => entry.message === line)?.playerSide || "information")
     : shot
       ? `<strong class="action-log-player">${escapeHtml(shot[1])}</strong><span class="action-log-action">${escapeHtml(shot[2])}</span><p>${formatLogLine(shot[3])}</p>`
       : `<p>${formatLogLine(line)}</p>`;
@@ -19180,15 +19222,18 @@ function renderLog() {
   const history = mobileHistoryEntries();
   const latestEntry = history.find((entry) => entry.type !== "system") || history[0];
   const side = latestEntry?.playerSide || "information";
+  const latestIsExchangeResult = Boolean(desktopExchangeResultData(latestEntry?.message));
   els.log.innerHTML = `
     <div class="desktop-history-progression-actions">${renderRallyEndActions()}</div>
     <div class="desktop-history-latest desktop-history-latest--${side}">
-      <div>
-        <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
-        ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
-      </div>
-      <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
-      ${latestEntry?.card?.artwork ? `<button type="button" data-open-latest-history-card aria-label="Voir ${escapeHtml(latestEntry.card.name)}"><img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" /></button>` : ""}
+      ${latestIsExchangeResult ? desktopExchangeResultMarkup(latestEntry.message, side) : `
+        <div>
+          <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
+          ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
+        </div>
+        <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
+        ${latestEntry?.card?.artwork ? `<button type="button" data-open-latest-history-card aria-label="Voir ${escapeHtml(latestEntry.card.name)}"><img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" /></button>` : ""}
+      `}
     </div>
     ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique</button>' : ""}
   `;
@@ -19223,7 +19268,9 @@ function renderDesktopHistoryEntry(entry, index) {
       <div class="desktop-history-entry-tags">
         ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
       </div>
-      <p>${desktopHistoryMessageMarkup(entry)}</p>
+      ${desktopExchangeResultData(entry.message)
+        ? desktopExchangeResultMarkup(entry.message, entry.playerSide || "information")
+        : `<p>${desktopHistoryMessageMarkup(entry)}</p>`}
       ${(entry.variations || []).length ? `
         <ul class="desktop-history-variations">
           ${entry.variations.map((variation) => `<li>${escapeHtml(variation)}</li>`).join("")}
