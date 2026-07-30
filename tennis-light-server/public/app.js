@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.85";
+const GAME_VERSION = "v3.86";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -8188,7 +8188,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.85");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.86");
 }
 
 function emptyMomentumState() {
@@ -18354,21 +18354,21 @@ function activeEffectBadges(playerIndex) {
   const rosaPassBonus = Number(state.players[opponentOf(playerIndex)]?.rosaPassPowerBonus || 0);
   if (rosaPassBonus > 0) badges.push({ text: `Pendant l’échange : si vous passez, Rosa gagne +${rosaPassBonus} puissance`, type: "constraint" });
   if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain Coup : puissance multipliée par ${player.nextPowerMultiplier}`, type: "effect", sourceUid: player.nextPowerMultiplierSourceUid });
-  if (player.exchangePrecisionBonus) badges.push({ text: `Pendant l’échange : +${player.exchangePrecisionBonus} précision sur toutes vos cartes`, type: "effect", sourceUid: preferredSourceUid(player.exchangePrecisionSources) });
-  if (player.exchangePlacementBonus) badges.push({ text: `Pendant l’échange : +${player.exchangePlacementBonus} placement sur toutes vos cartes`, type: "effect", sourceUid: preferredSourceUid(player.exchangePlacementSources) });
+  if (player.exchangePrecisionBonus) badges.push({ text: `Pendant l’échange : +${player.exchangePrecisionBonus} précision sur toutes vos cartes`, type: "effect", category: "permanent", sourceUid: preferredSourceUid(player.exchangePrecisionSources) });
+  if (player.exchangePlacementBonus) badges.push({ text: `Pendant l’échange : +${player.exchangePlacementBonus} placement sur toutes vos cartes`, type: "effect", category: "permanent", sourceUid: preferredSourceUid(player.exchangePlacementSources) });
   for (const bonus of player.exchangeFamilyPowerBonuses || []) {
     const families = bonus.families?.length
       ? bonus.families.join(", ")
       : `tous vos Coups sauf ${bonus.excludedFamilies?.join(", ") || "les familles exclues"}`;
-    badges.push({ text: `Pendant l’échange : +${bonus.value} puissance sur ${families}`, type: "effect", sourceUid: bonus.sourceUid });
+    badges.push({ text: `Pendant l’échange : +${bonus.value} puissance sur ${families}`, type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
   }
   for (const bonus of player.exchangeAfterFamilyPlacementBonuses || []) {
-    badges.push({ text: `Pendant l’échange : +${bonus.value} placement sur chaque Coup joué après un ${bonus.afterFamily}`, type: "effect", sourceUid: bonus.sourceUid });
+    badges.push({ text: `Pendant l’échange : +${bonus.value} placement sur chaque Coup joué après un ${bonus.afterFamily}`, type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
   }
   for (const bonus of player.placementPerOpponentLowPowerCardBonuses || []) {
-    badges.push({ text: `Pendant l’échange : +${bonus.value} placement par carte adverse de puissance inférieure à ${bonus.threshold}`, type: "effect", sourceUid: bonus.sourceUid });
+    badges.push({ text: `Pendant l’échange : +${bonus.value} placement par carte adverse de puissance inférieure à ${bonus.threshold}`, type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
   }
-  if (player.protectedFromRemoval) badges.push({ text: "Pendant l’échange : vos cartes ne peuvent pas être supprimées", type: "effect", sourceUid: player.protectedFromRemovalSourceUid });
+  if (player.protectedFromRemoval) badges.push({ text: "Pendant l’échange : vos cartes ne peuvent pas être supprimées", type: "effect", category: "permanent", sourceUid: player.protectedFromRemovalSourceUid });
   if (player.cancelNextOpponentEffect) badges.push({ text: "Prochain Effet adverse : annulé", type: "effect", sourceUid: player.cancelNextOpponentEffectSourceUid });
   if (opponent?.cancelNextOpponentEffect) badges.push({
     text: "Prochain Effet joué : sera annulé par l’adversaire",
@@ -18386,8 +18386,8 @@ function activeEffectBadges(playerIndex) {
     badges.push({ text: "Retour de service : Volée et Smash interdits", type: "constraint" });
   }
   for (const bonus of player.endBonuses) {
-    if (bonus.type === "doubleLastShot") badges.push({ text: "Fin de l’échange : double la puissance de votre dernière carte Coup", type: "effect", sourceUid: bonus.sourceUid });
-    if (bonus.type === "boostedBonus") badges.push({ text: `Fin de l’échange : +${bonus.value} puissance par carte jouée en BOOST`, type: "effect", sourceUid: bonus.sourceUid });
+    if (bonus.type === "doubleLastShot") badges.push({ text: "Fin de l’échange : double la puissance de votre dernière carte Coup", type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
+    if (bonus.type === "boostedBonus") badges.push({ text: `Fin de l’échange : +${bonus.value} puissance par carte jouée en BOOST`, type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
   }
   const persistentBonuses = [
     ...(player.surfaceBonuses || (player.surfaceBonus ? [player.surfaceBonus] : [])),
@@ -19755,6 +19755,11 @@ function mobilePassProjection(playerIndex) {
 function mobileHistoryEntries() {
   return state.log.map((line, index) => {
     const normalized = String(line || "").toLocaleLowerCase("fr");
+    const starMarker = String(line || "").match(/\[\[tc-effect-(blue|rose):(.+?)\]\]/i);
+    const starPlayedCard = starMarker
+      ? state.players.flatMap((candidate) => candidate?.played || []).findLast?.((card) => card.starEffectLabel === starMarker[2])
+        || [...state.players.flatMap((candidate) => candidate?.played || [])].reverse().find((card) => card.starEffectLabel === starMarker[2])
+      : null;
     const actorIndex = state.players.findIndex((player) => {
       const names = [displayPlayerName(player), player?.name, player?.nickname]
         .filter(Boolean)
@@ -19762,6 +19767,7 @@ function mobileHistoryEntries() {
       return names.some((name) => normalized.includes(name));
     });
     const localPlayerIndex = mobileLocalPlayerIndex();
+    const resolvedActorIndex = starPlayedCard?.owner ?? actorIndex;
     const card = CARD_LIBRARY.find((item) => normalized.includes(String(item.name || "").toLocaleLowerCase("fr")));
     const isPlayedLine = /^.+ joue .+ :/.test(String(line || ""));
     const playedAction = card && isPlayedLine
@@ -19785,13 +19791,24 @@ function mobileHistoryEntries() {
     return {
       id: `${state.actionLog?.length || 0}:${index}:${line}`,
       type: actionLogEntryType(line),
-      label: actionLogEntryLabel(actionLogEntryType(line)),
-      message: String(line || ""),
-      playerName: actorIndex >= 0 ? displayPlayerName(state.players[actorIndex]) : "",
-      playerSide: actorIndex < 0 ? "information" : actorIndex === localPlayerIndex ? "player" : "opponent",
-      variationTypes,
+      label: starMarker ? "Pouvoir étoile" : actionLogEntryLabel(actionLogEntryType(line)),
+      message: starMarker ? starMarker[2].trim() : String(line || ""),
+      playerName: resolvedActorIndex >= 0 ? displayPlayerName(state.players[resolvedActorIndex]) : "",
+      playerSide: resolvedActorIndex < 0 ? "information" : resolvedActorIndex === localPlayerIndex ? "player" : "opponent",
+      variationTypes: starMarker ? ["Effet"] : variationTypes,
       variations,
-      card: card ? {
+      card: starMarker ? {
+        id: `${starPlayedCard?.playedUid || index}:star`,
+        name: characterNameFromId(state.players[resolvedActorIndex]?.characterId),
+        artwork: CHARACTER_IMAGES[state.players[resolvedActorIndex]?.characterId]?.[starMarker[1].toLowerCase() === "rose" ? 1 : 0]
+          || PROFILE_CHARACTER_IMAGES[state.players[resolvedActorIndex]?.characterId]
+          || "",
+        cost: 0,
+        power: 0,
+        precision: 0,
+        placement: 0,
+        effect: starMarker[2],
+      } : card ? {
         id: card.id,
         name: card.name,
         artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,

@@ -11,9 +11,9 @@ const mobileStyles = fs.readFileSync(new URL("../public/mobile-game.css", import
 const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
 const mobileGame = fs.readFileSync(new URL("../public/mobile-game.js", import.meta.url), "utf8");
 
-assert.equal(pkg.version, "3.85.0");
-assert.match(app, /const GAME_VERSION = "v3\.85"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.85<\/span>/);
+assert.equal(pkg.version, "3.86.0");
+assert.match(app, /const GAME_VERSION = "v3\.86"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.86<\/span>/);
 
 assert.match(app, /function installBrowserNavigation\(\)/);
 assert.match(app, /window\.history\.pushState\(/);
@@ -85,5 +85,10 @@ assert.match(mobileGame, /mobile-bonus-star-icon/);
 assert.match(mobileGame, /mobile-bonus-item--star-/);
 assert.match(mobileStyles, /\.mobile-bonus-item--constraint\.mobile-bonus-item--star-blue/);
 assert.match(mobileStyles, /\.mobile-bonus-item--constraint\.mobile-bonus-item--star-rose/);
+assert.match(app, /label: starMarker \? "Pouvoir étoile"/);
+assert.match(app, /message: starMarker \? starMarker\[2\]\.trim\(\)/);
+assert.match(app, /artwork: CHARACTER_IMAGES\[state\.players\[resolvedActorIndex\]\?\.characterId\]/);
+assert.match(app, /category: "permanent", sourceUid: preferredSourceUid\(player\.exchangePrecisionSources\)/);
+assert.match(mobileStyles, /background: rgba\(30, 116, 98, 0\.56\)/);
 
-console.log("v3.85 mobile star constraints checks passed");
+console.log("v3.86 mobile star history checks passed");

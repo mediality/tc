@@ -1170,9 +1170,9 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   background: rgba(20, 126, 79, 0.32);
 }
 
-.mobile-bonus-item--permanent > span {
-  color: #042f22;
-  background: #58dda0;
+.mobile-bonus-item.mobile-bonus-item--permanent > span {
+  color: #68e6aa;
+  background: rgba(20, 126, 79, 0.72);
 }
 
 .mobile-bonus-group--permanent > h3,
@@ -1185,9 +1185,9 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   background: rgba(194, 82, 20, 0.25);
 }
 
-.mobile-bonus-item--constraint > span {
-  color: #431407;
-  background: #fb923c;
+.mobile-bonus-item.mobile-bonus-item--constraint > span {
+  color: #ffad66;
+  background: rgba(194, 82, 20, 0.72);
 }
 
 .mobile-bonus-item--constraint.mobile-bonus-item--star-blue {
@@ -1227,8 +1227,8 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   height: 34px;
   place-items: center;
   border-radius: 50%;
-  color: #062b3d;
-  background: #dff376;
+  color: #8ce0bf;
+  background: rgba(30, 116, 98, 0.56);
   font-weight: 950;
 }
 
