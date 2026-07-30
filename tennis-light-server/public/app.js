@@ -18518,6 +18518,16 @@ function renderPlayerPanel(playerIndex, root) {
     legend: "Légendaire",
   }[intelligence] || "Normal";
   const secondaryIdentity = isAiPlayer ? intelligenceLabel : player.name;
+  const effectBadges = activeEffectBadges(playerIndex);
+  const bonusLabels = [
+    ...effectBadges.map((badge) => badge.label),
+    ...surfaceBonusesForPlayer(player).map((bonus) => bonus.label),
+    ...(player.permanentBonuses ?? []).map((bonus) => bonus.label),
+  ].filter(Boolean).filter((label, index, labels) => labels.indexOf(label) === index);
+  const showPassButton = playerIndex === state.activePlayer
+    && !state.gameOver
+    && canUseSeat(playerIndex)
+    && tutorialAllowsPass();
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
     <header class="player-header">
@@ -18527,17 +18537,25 @@ function renderPlayerPanel(playerIndex, root) {
           <span class="desktop-player-rank">${escapeHtml(frenchOrdinalRank(rank))}</span>
           <span>${escapeHtml(secondaryIdentity)}</span>
         </div>
-        <div class="turn-buttons">
-          <button class="pass-button${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>
-          ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
-          ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
-        </div>
       </div>
       <div class="badges">
         ${state.server === playerIndex ? '<span class="badge server">Serveur</span>' : ""}
         ${state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : ""}
         ${state.activePlayer === playerIndex && turnEndPlacement(playerIndex) ? `<span class="badge">${turnEndPlacement(playerIndex)} placement préparé</span>` : ""}
-        ${activeEffectBadges(playerIndex).map((badge) => `<button class="effect-chip ${badge.type}" type="button" title="${escapeHtml(badge.description)}" data-effect-help data-effect-icon="${escapeHtml(badge.icon)}" data-effect-label="${escapeHtml(badge.label)}" data-effect-duration="${escapeHtml(badge.duration)}" data-effect-description="${escapeHtml(badge.description)}"><i aria-hidden="true">${escapeHtml(badge.icon)}</i><span><strong>${escapeHtml(badge.label)}</strong><small>${escapeHtml(badge.duration)}</small></span></button>`).join("")}
+        ${bonusLabels.length ? `
+          <details class="desktop-player-bonuses">
+            <summary>Bonus <span>${bonusLabels.length}</span></summary>
+            <div>
+              ${effectBadges.map((badge) => `<button class="effect-chip ${badge.type}" type="button" title="${escapeHtml(badge.description)}" data-effect-help data-effect-icon="${escapeHtml(badge.icon)}" data-effect-label="${escapeHtml(badge.label)}" data-effect-duration="${escapeHtml(badge.duration)}" data-effect-description="${escapeHtml(badge.description)}"><i aria-hidden="true">${escapeHtml(badge.icon)}</i><span><strong>${escapeHtml(badge.label)}</strong><small>${escapeHtml(badge.duration)}</small></span></button>`).join("")}
+              ${bonusLabels.filter((label) => !effectBadges.some((badge) => badge.label === label)).map((label) => `<span class="desktop-player-bonus-label">${escapeHtml(label)}</span>`).join("")}
+            </div>
+          </details>
+        ` : ""}
+      </div>
+      <div class="turn-buttons">
+        ${showPassButton ? `<button class="pass-button${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" ${passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
+        ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
+        ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
       </div>
     </header>
     ${renderCharacterCard(player, playerIndex)}
