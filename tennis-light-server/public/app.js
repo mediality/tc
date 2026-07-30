@@ -2061,6 +2061,7 @@ const els = {
   rallyFullLogButton: document.querySelector("#rallyFullLogButton"),
   rallyState: document.querySelector("#rallyState"),
   effectNotice: document.querySelector("#effectNotice"),
+  desktopMatchScore: document.querySelector("#desktopMatchScore"),
   centerPlayedCard: document.querySelector("#previousTurnCards"),
   player1Panel: document.querySelector("#player1Panel"),
   player2Panel: document.querySelector("#player2Panel"),
@@ -16303,6 +16304,7 @@ function render() {
   renderTutorialOverlay();
   renderRallyState();
   renderEffectNotice();
+  renderDesktopMatchScore();
   renderPlayerPanel(0, els.player1Panel);
   renderPlayerPanel(1, els.player2Panel);
   renderOpponentHandRevealControls();
@@ -17746,6 +17748,7 @@ function bindRallyEndActions(root = els.rallyState) {
 }
 
 function renderRallyState() {
+  if (!els.rallyState) return;
   const active = activePlayer();
   const last = state.lastCard;
   const activeConstraints = [];
@@ -17792,6 +17795,7 @@ function renderRallyState() {
 }
 
 function renderEffectNotice() {
+  if (!els.effectNotice) return;
   if (state.gameOver || !state.effectNotice) {
     els.effectNotice.className = "effect-notice muted hidden";
     els.effectNotice.innerHTML = "";
@@ -18008,6 +18012,34 @@ function renderCenterSetScore() {
       </div>` : ""}
     </div>
   `;
+}
+
+function renderDesktopMatchScore() {
+  if (!els.desktopMatchScore) return;
+  const visibleSets = mobileSetScoreState(mobileLocalPlayerIndex())
+    .filter((set) => set.player != null && set.opponent != null);
+  els.desktopMatchScore.classList.toggle("hidden", !visibleSets.length);
+  els.desktopMatchScore.innerHTML = visibleSets.length ? `
+    <ol class="desktop-match-score-list">
+      ${visibleSets.map((set, index) => {
+        const winnerClass = set.winner === "PLAYER"
+          ? " desktop-set-score--player"
+          : set.winner === "OPPONENT"
+            ? " desktop-set-score--opponent"
+            : "";
+        const winnerLabel = set.winner === "PLAYER"
+          ? ", set remporté par vous"
+          : set.winner === "OPPONENT"
+            ? ", set remporté par l’adversaire"
+            : "";
+        return `
+          <li class="desktop-set-score${winnerClass}" aria-label="Set ${index + 1} : ${set.player} à ${set.opponent}${winnerLabel}">
+            <span>${set.player}</span><i aria-hidden="true"></i><span>${set.opponent}</span>
+          </li>
+        `;
+      }).join("")}
+    </ol>
+  ` : "";
 }
 
 function renderCenterNextExchangeButton() {
@@ -18322,16 +18354,63 @@ function nextSoloExchange() {
   render();
 }
 
+let desktopStarReveal = null;
+let desktopStarRevealTimer = null;
+let desktopLastPlayedCardKey = null;
+
+function desktopPlayedCardKey(card) {
+  return card?.playedUid || card?.uid || null;
+}
+
+function desktopStarPowerMarkup(card) {
+  const player = state.players[card.owner];
+  const side = String(card.starEffectSide || "").toLowerCase().includes("rose") ? "rose" : "blue";
+  const artwork = CHARACTER_IMAGES[player?.characterId]?.[player?.characterSide === 0 ? 1 : 0]
+    || PROFILE_CHARACTER_IMAGES[player?.characterId]
+    || "";
+  return `
+    <article class="desktop-played-star-power desktop-played-star-power--${side}" role="status">
+      ${artwork ? `<img src="${escapeHtml(artwork)}" alt="${escapeHtml(characterNameFromId(player?.characterId))}" />` : ""}
+      <div>
+        <span>Pouvoir étoile · ${side === "rose" ? "Rose" : "Bleu"}</span>
+        <strong>${escapeHtml(characterNameFromId(player?.characterId))}</strong>
+        <p>${escapeHtml(card.starEffectLabel || "Bonus du personnage")}</p>
+      </div>
+    </article>
+  `;
+}
+
+function syncDesktopStarReveal(card) {
+  const cardKey = desktopPlayedCardKey(card);
+  if (cardKey === desktopLastPlayedCardKey) return;
+  desktopLastPlayedCardKey = cardKey;
+  if (desktopStarRevealTimer != null) window.clearTimeout(desktopStarRevealTimer);
+  desktopStarRevealTimer = null;
+  desktopStarReveal = card?.starEffectLabel ? { cardKey, card } : null;
+  if (!desktopStarReveal) return;
+  desktopStarRevealTimer = window.setTimeout(() => {
+    if (desktopStarReveal?.cardKey !== cardKey) return;
+    desktopStarReveal = null;
+    desktopStarRevealTimer = null;
+    renderCenterPlayedCard();
+    attachImageZoomHandlers(els.centerPlayedCard);
+    window.requestAnimationFrame(() => adjustCardMagnificationOrigins(els.centerPlayedCard));
+  }, 2000);
+}
+
 function renderCenterPlayedCard() {
   els.centerPlayedCard.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("lastCard", null)));
+  syncDesktopStarReveal(state.latestPlayedCard);
   if (!state.latestPlayedCard) {
     els.centerPlayedCard.innerHTML = `
-      ${renderCenterSetScore()}
-      <p class="previous-title">Dernière carte jouée</p>
       <div class="previous-empty">Aucune carte jouée</div>
       <div class="center-progression-actions">${renderRallyEndActions()}</div>
     `;
     bindRallyEndActions(els.centerPlayedCard);
+    return;
+  }
+  if (desktopStarReveal?.cardKey === desktopPlayedCardKey(state.latestPlayedCard)) {
+    els.centerPlayedCard.innerHTML = desktopStarPowerMarkup(desktopStarReveal.card);
     return;
   }
   const playedCards = state.players[state.latestPlayedCard.owner]?.played ?? [];
@@ -18341,8 +18420,6 @@ function renderCenterPlayedCard() {
     ? renderRemiseStack(state.latestPlayedCard, remiseCards)
     : renderCardVisualOnly(state.latestPlayedCard, "center-played");
   els.centerPlayedCard.innerHTML = `
-    ${renderCenterSetScore()}
-    <p class="previous-title">Dernière carte jouée</p>
     <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}${remiseCards.length ? " has-remise-underlay" : ""}">
       ${centerCardMarkup}
     </div>
@@ -18784,16 +18861,19 @@ function renderActionLogEntry(line, index, compact = false) {
 
 function renderLog() {
   els.log.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("history", null)));
-  const latestEntry = state.log.find((line) => actionLogEntryType(line) !== "system") || state.log[0];
+  const history = mobileHistoryEntries();
+  const latestEntry = history.find((entry) => entry.type !== "system") || history[0];
+  const side = latestEntry?.playerSide || "information";
   els.log.innerHTML = `
-    <div class="action-log-header">
-      <div><span>Déroulé de l’échange</span><strong>Dernière action importante</strong></div>
-      <small>${state.log.length} événement${state.log.length > 1 ? "s" : ""}</small>
+    <div class="desktop-history-latest desktop-history-latest--${side}">
+      <div>
+        <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
+        ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
+      </div>
+      <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
+      ${latestEntry?.card?.artwork ? `<img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" />` : ""}
     </div>
-    <div class="action-log-list">
-      ${latestEntry ? renderActionLogEntry(latestEntry, 0, true) : '<p class="action-log-empty">L’échange va commencer.</p>'}
-    </div>
-    ${state.log.length ? '<button class="action-log-open-button" type="button" data-open-full-action-log>Voir tout le déroulé</button>' : ""}
+    ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique</button>' : ""}
   `;
   els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
 }

@@ -1222,6 +1222,11 @@
   }
 
   function setForcedDesktopView(forceDesktop) {
+    const matchWasVisible = Boolean(
+      (desktopApp && !desktopApp.classList.contains("hidden"))
+      || (mobileApp && !mobileApp.classList.contains("hidden"))
+      || document.body.classList.contains("mobile-game-view"),
+    );
     document.body.classList.toggle("admin-forced-desktop-view", Boolean(forceDesktop));
     viewportMeta?.setAttribute(
       "content",
@@ -1230,7 +1235,13 @@
         : mobileViewportContent,
     );
     matchUsesMobileView = !forceDesktop && isSmartphonePortrait();
-    applySelectedView();
+    if (matchWasVisible) {
+      applySelectedView();
+      return;
+    }
+    desktopApp?.classList.add("hidden");
+    mobileApp?.classList.add("hidden");
+    document.body.classList.remove("mobile-game-view");
   }
 
   function clearSelectedView() {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=4.3.0" />
+    <link rel="stylesheet" href="./styles.css?v=4.4.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=3.86.0" />
   </head>
   <body>
@@ -127,7 +127,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v4.3</span></strong>
+          <strong>Tennis Courts Academy · <span>v4.4</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1131,29 +1131,16 @@
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
       <section id="tutorialOverlay" class="tutorial-overlay hidden" aria-live="polite"></section>
 
-      <section class="scoreboard" aria-label="État de l'échange">
-        <article class="rally-card">
-          <header class="rally-card-header">
-            <div><p class="label">État de l’échange</p><strong id="rallyPhaseLabel">Échange en cours</strong></div>
-            <div class="rally-card-actions">
-              <span id="rallyStatusBadge" class="rally-status-badge">À jouer</span>
-              <span id="rallyScoreDeltaBadge" class="rally-score-delta-badge hidden"></span>
-              <button id="rallyFullLogButton" class="rally-full-log-button" type="button">Déroulé complet</button>
-            </div>
-          </header>
-          <div id="rallyState" class="rally-state"></div>
-          <div id="effectNotice" class="effect-notice"></div>
-        </article>
-      </section>
+      <section id="desktopMatchScore" class="desktop-match-score" aria-label="Résultats du match"></section>
 
       <section class="court">
         <section id="player1Panel" class="player-panel"></section>
         <section class="center-lane">
           <div id="previousTurnCards" class="previous-turn" aria-live="polite"></div>
           <div class="net-line"></div>
-          <div id="log" class="log" aria-live="polite"></div>
         </section>
         <section id="player2Panel" class="player-panel"></section>
+        <div id="log" class="log" aria-live="polite"></div>
       </section>
     </main>
 
@@ -1175,7 +1162,7 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
-    <script src="./app.js?v=4.3.0"></script>
+    <script src="./app.js?v=4.4.0"></script>
     <script src="./mobile-game.js?v=4.2.0"></script>
   </body>
 </html>
