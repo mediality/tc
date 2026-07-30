@@ -18476,6 +18476,9 @@ function openEffectHelpDialog(button) {
 
 function renderPlayerPanel(playerIndex, root) {
   const player = state.players[playerIndex];
+  const localPlayerIndex = mobileLocalPlayerIndex();
+  root.dataset.desktopRole = playerIndex === localPlayerIndex ? "local" : "opponent";
+  root.dataset.playerIndex = String(playerIndex);
   const passDisabled = playerIndex !== state.activePlayer || state.gameOver || !canUseSeat(playerIndex) || !tutorialAllowsPass();
   const isAiPlayer = SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex;
   const tournamentEntry = isAiPlayer ? player.characterId : HUMAN_TOURNAMENT_ENTRY;
