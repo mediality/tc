@@ -9,10 +9,11 @@ const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url),
 const mobileStyles = fs.readFileSync(new URL("../public/mobile-game.css", import.meta.url), "utf8");
 
 const server = fs.readFileSync(new URL("../server.js", import.meta.url), "utf8");
+const mobileGame = fs.readFileSync(new URL("../public/mobile-game.js", import.meta.url), "utf8");
 
-assert.equal(pkg.version, "3.82.0");
-assert.match(app, /const GAME_VERSION = "v3\.82"/);
-assert.match(html, /Tennis Courts Academy · <span>v3\.82<\/span>/);
+assert.equal(pkg.version, "3.85.0");
+assert.match(app, /const GAME_VERSION = "v3\.85"/);
+assert.match(html, /Tennis Courts Academy · <span>v3\.85<\/span>/);
 
 assert.match(app, /function installBrowserNavigation\(\)/);
 assert.match(app, /window\.history\.pushState\(/);
@@ -57,4 +58,32 @@ assert.match(app, /function aiAdminProfileMarkup/);
 assert.match(app, /data-ai-profile-season-total/);
 assert.match(app, /saveAiProfileRankingScores/);
 
-console.log("v3.82 admin code status and AI profile checks passed");
+assert.match(app, /category: provisional \? "provisional" : "permanent"/);
+assert.match(app, /badge\.type === "constraint" \? "constraint" : "provisional"/);
+assert.match(mobileGame, /Bonus permanents/);
+assert.match(mobileGame, /Bonus provisoires/);
+assert.match(mobileGame, /Contraintes/);
+assert.match(mobileGame, /<span aria-hidden="true">\+<\/span>/);
+assert.match(mobileStyles, /\.mobile-bonus-item--permanent/);
+assert.match(mobileStyles, /\.mobile-bonus-item--constraint/);
+assert.match(server, /async function clampAiWeekScoresToPointMax/);
+assert.match(server, /await clampAiSeasonScoresToPointMax\(currentCircuit\.season\)/);
+assert.match(server, /const maxSem = maxWeeklyTournamentPoints\(week, `\$\{season\}:\$\{week\}`\)/);
+
+assert.match(app, /const starPower = card\.starEffectLabel/);
+assert.match(app, /lastPlayedCardSummary = activeCardSummary \? \{ \.\.\.activeCardSummary, starPower: undefined \}/);
+assert.match(mobileGame, /function starPowerPlayedMarkup/);
+assert.match(mobileGame, /resolutionSequence\.phase = "star-power"/);
+assert.match(mobileGame, /data-mobile-star-continue/);
+assert.match(mobileGame, /Voir la carte jouée/);
+assert.match(mobileStyles, /\.mobile-played-star-power/);
+assert.match(app, /starEffectSide/);
+assert.match(app, /Prochain Effet joué : sera annulé par l’adversaire/);
+assert.match(app, /Prochain Coup : coûte \$\{player\.nextExtraCost\} endurance de plus`, type: "constraint"/);
+assert.match(app, /state\.players\.flatMap/);
+assert.match(mobileGame, /mobile-bonus-star-icon/);
+assert.match(mobileGame, /mobile-bonus-item--star-/);
+assert.match(mobileStyles, /\.mobile-bonus-item--constraint\.mobile-bonus-item--star-blue/);
+assert.match(mobileStyles, /\.mobile-bonus-item--constraint\.mobile-bonus-item--star-rose/);
+
+console.log("v3.85 mobile star constraints checks passed");

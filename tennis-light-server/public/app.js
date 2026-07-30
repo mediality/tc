@@ -1,6 +1,6 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
-const GAME_VERSION = "v3.82";
+const GAME_VERSION = "v3.85";
 const CARD_ASSET_VERSION = "170";
 
 function versionCardAsset(value) {
@@ -7624,6 +7624,7 @@ function createPlayer(name, characterId, nickname = name) {
     nextPowerCap: null,
     nextPowerCapSourceUid: null,
     nextShotBasePlacementZero: false,
+    nextShotBasePlacementZeroSourceUid: null,
     rosaPassPowerBonus: 0,
     exchangePrecisionBonus: 0,
     exchangePrecisionSources: [],
@@ -8187,7 +8188,7 @@ async function exportHumanMatchLogsFile() {
     },
     matches,
   };
-  downloadJsonFile(payload, "tennis-courts-human-matches-v3.82");
+  downloadJsonFile(payload, "tennis-courts-human-matches-v3.85");
 }
 
 function emptyMomentumState() {
@@ -8719,6 +8720,7 @@ function clearNextShotBonuses(player) {
   player.nextPowerCap = null;
   player.nextPowerCapSourceUid = null;
   player.nextShotBasePlacementZero = false;
+  player.nextShotBasePlacementZeroSourceUid = null;
 }
 
 function clearNextAnyCardBonuses(player) {
@@ -12628,8 +12630,10 @@ function applyCharacterEffect(playerIndex, playedCard) {
   const effect = currentCharacterEffect(player);
   const effectSourceUid = characterEffectSourceUid(playedCard);
   playedCard.starEffectLabel = effect?.label || "Bonus du personnage";
+  playedCard.starEffectSide = effect?.side || (player.characterSide === 1 ? "Rose" : "Bleu");
   if (state.latestPlayedCard?.playedUid === playedCard.playedUid) {
     state.latestPlayedCard.starEffectLabel = playedCard.starEffectLabel;
+    state.latestPlayedCard.starEffectSide = playedCard.starEffectSide;
   }
   flipCharacter(player);
   state.log.unshift(`${character.name} active ${characterEffectLogMarker(effect)}.`);
@@ -12817,6 +12821,7 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "opponentNextShotBasePlacementZero") {
     const opponent = state.players[opponentOf(playerIndex)];
     opponent.nextShotBasePlacementZero = true;
+    opponent.nextShotBasePlacementZeroSourceUid = effectSourceUid;
     state.log.unshift(`${character.name} (${effect.side}) : le placement de base du prochain Coup de ${displayPlayerName(opponent)} est ramené à 0 ; bonus et Remises restent applicables.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
     return false;
@@ -18326,6 +18331,7 @@ function renderCenterPlayedCard() {
 
 function activeEffectBadges(playerIndex) {
   const player = state.players[playerIndex];
+  const opponent = state.players[opponentOf(playerIndex)];
   const badges = [];
   const sentence = (value) => {
     const text = String(value || "").trim().replace(/[.\s]+$/, "");
@@ -18342,7 +18348,9 @@ function activeEffectBadges(playerIndex) {
   if (player.nextPlacementBonus) badges.push({ text: `Prochain Coup : +${player.nextPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextPlacementSources) });
   if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte : +${player.nextAnyPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextAnyPlacementSources) });
   if (player.nextDiscount) badges.push({ text: `Prochain Coup : coûte ${player.nextDiscount} endurance de moins`, type: "effect", sourceUid: preferredSourceUid(player.nextDiscountSources) });
-  if (player.nextExtraCost) badges.push({ text: `Prochain Coup : coûte ${player.nextExtraCost} endurance de plus`, type: "effect", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
+  if (player.nextExtraCost) badges.push({ text: `Prochain Coup : coûte ${player.nextExtraCost} endurance de plus`, type: "constraint", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
+  if (player.nextPowerCap != null) badges.push({ text: `Prochain Coup : puissance limitée à ${player.nextPowerCap}`, type: "constraint", sourceUid: player.nextPowerCapSourceUid });
+  if (player.nextShotBasePlacementZero) badges.push({ text: "Prochain Coup : placement de base ramené à 0", type: "constraint", sourceUid: player.nextShotBasePlacementZeroSourceUid });
   const rosaPassBonus = Number(state.players[opponentOf(playerIndex)]?.rosaPassPowerBonus || 0);
   if (rosaPassBonus > 0) badges.push({ text: `Pendant l’échange : si vous passez, Rosa gagne +${rosaPassBonus} puissance`, type: "constraint" });
   if ((player.nextPowerMultiplier ?? 1) > 1) badges.push({ text: `Prochain Coup : puissance multipliée par ${player.nextPowerMultiplier}`, type: "effect", sourceUid: player.nextPowerMultiplierSourceUid });
@@ -18362,6 +18370,11 @@ function activeEffectBadges(playerIndex) {
   }
   if (player.protectedFromRemoval) badges.push({ text: "Pendant l’échange : vos cartes ne peuvent pas être supprimées", type: "effect", sourceUid: player.protectedFromRemovalSourceUid });
   if (player.cancelNextOpponentEffect) badges.push({ text: "Prochain Effet adverse : annulé", type: "effect", sourceUid: player.cancelNextOpponentEffectSourceUid });
+  if (opponent?.cancelNextOpponentEffect) badges.push({
+    text: "Prochain Effet joué : sera annulé par l’adversaire",
+    type: "constraint",
+    sourceUid: opponent.cancelNextOpponentEffectSourceUid,
+  });
   if (player.freeBoostNext) badges.push({ text: "Prochain BOOST : disponible sans condition de placement", type: "effect", sourceUid: player.freeBoostNextSourceUid });
   if (state.turnIgnoresPlacement[playerIndex]) badges.push({ text: "Ce tour : la contrainte de placement est ignorée", type: "effect" });
   if (player.limitedFamilies) badges.push({ text: `Ce tour : seules les cartes ${player.limitedFamilies.join(" / ")} peuvent être jouées`, type: "constraint", sourceUid: player.limitedFamiliesSourceUid });
@@ -18386,13 +18399,15 @@ function activeEffectBadges(playerIndex) {
     const identity = bonus?.sourceBonusId || bonus?.id || bonus?.label;
     if (!identity || seenPersistentBonuses.has(identity)) continue;
     seenPersistentBonuses.add(identity);
+    const provisional = (player.temporaryBonuses || []).includes(bonus);
     const duration = bonus?.remainingExchanges
       ? `${bonus.remainingExchanges} échange${bonus.remainingExchanges > 1 ? "s" : ""}`
-      : (player.temporaryBonuses || []).includes(bonus) ? "Provisoire" : "Match";
+      : provisional ? "Provisoire" : "Match";
     const displayedLabel = withoutDurationSuffix(bonus.label || bonus.reason || "Bonus actif");
     badges.push({
       text: `${duration} : ${displayedLabel}`,
       type: "effect",
+      category: provisional ? "provisional" : "permanent",
       description: [
         sentence(displayedLabel),
         bonus.reason && !displayedLabel.includes(bonus.reason) ? `Origine : ${sentence(bonus.reason)}` : "",
@@ -18405,14 +18420,21 @@ function activeEffectBadges(playerIndex) {
     const label = separator > 0 ? badge.text.slice(separator + 1).trim() : badge.text;
     const starBonus = String(badge.sourceUid || "").endsWith(":star");
     const starPlayedUid = starBonus ? String(badge.sourceUid).replace(/:star$/, "") : "";
-    const starLabel = starBonus
-      ? player.played.find((card) => card.playedUid === starPlayedUid)?.starEffectLabel || "Bonus du personnage"
+    const starCard = starBonus
+      ? state.players.flatMap((candidate) => candidate?.played || []).find((card) => card.playedUid === starPlayedUid)
+      : null;
+    const starLabel = starCard?.starEffectLabel || (starBonus ? "Bonus du personnage" : "");
+    const starSide = starBonus
+      ? (String(starCard?.starEffectSide || "").toLowerCase().includes("rose") ? "rose" : "blue")
       : "";
     return {
       ...badge,
+      category: badge.category || (badge.type === "constraint" ? "constraint" : "provisional"),
       label: starBonus ? `Bonus étoile · ${label}` : label,
       duration: starBonus ? "Bonus étoile" : duration,
       icon: badge.type === "constraint" ? "!" : "✦",
+      starPower: starBonus,
+      starSide,
       description: badge.description || `${starLabel ? `${sentence(starLabel)} ` : ""}${sentence(badge.text)}`,
     };
   });
@@ -19675,6 +19697,16 @@ function mobilePlayedCardSummary(card, playerIndex) {
   if (card.remiseMode === "placement") consequenceParts.push("Placement préparé pour la fin du tour");
   if (placement) consequenceParts.push(`${placement} placement au total`);
   if (card.answeredBoostConstraint) consequenceParts.push("Réponse à un Boost");
+  const ownerPlayer = state.players[card.owner];
+  const starPower = card.starEffectLabel ? {
+    id: `${card.playedUid || card.uid}:star`,
+    name: characterNameFromId(ownerPlayer?.characterId),
+    artwork: CHARACTER_IMAGES[ownerPlayer?.characterId]?.[ownerPlayer?.characterSide === 0 ? 1 : 0]
+      || PROFILE_CHARACTER_IMAGES[ownerPlayer?.characterId]
+      || "",
+    label: card.starEffectLabel,
+    owner: card.owner === playerIndex ? "PLAYER" : "OPPONENT",
+  } : null;
   return {
     id: card.playedUid || card.uid,
     artwork: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
@@ -19690,6 +19722,7 @@ function mobilePlayedCardSummary(card, playerIndex) {
     placement,
     consequence: consequenceParts.join(" · "),
     boosted: Boolean(card.boosted),
+    starPower,
   };
 }
 
@@ -19849,6 +19882,7 @@ function playSelectedMobileCard(intent = {}) {
           ? "EFFET ANNULÉ PAR L’ADVERSAIRE"
           : resolvedCard?.effect || card.effect || "",
         effectCanceledByOpponent: resolvedCard?.effectApplied === false,
+        starPower: mobilePlayedCardSummary(resolvedCard, playerIndex)?.starPower || null,
       },
       deltas: mobileResolutionDeltas(before, after),
       messages: mobileNewResolutionMessages(previousFirstLog),
@@ -19941,6 +19975,7 @@ function getMobileMatchViewState() {
   const opponent = state.players[opponentIndex];
   const activeCard = state.latestPlayedCard;
   const activeCardSummary = mobilePlayedCardSummary(activeCard, playerIndex);
+  const lastPlayedCardSummary = activeCardSummary ? { ...activeCardSummary, starPower: undefined } : null;
   let selectedCard = player?.hand?.find((card) => card.uid === mobileSelectedCardUid) || null;
   if (selectedCard && mobileCardUnavailableReason(playerIndex, selectedCard)) selectedCard = null;
   if (!selectedCard) mobileSelectedCardUid = null;
@@ -20021,7 +20056,7 @@ function getMobileMatchViewState() {
     adminTools: mobileAdminToolsState(),
     history: mobileHistoryEntries(),
     returnToMenu: mobileReturnToMenuInfo(),
-    lastPlayedCard: activeCardSummary,
+    lastPlayedCard: lastPlayedCardSummary,
   };
 }
 

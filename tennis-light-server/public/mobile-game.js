@@ -106,7 +106,7 @@
           <span>${escapeText(player.secondaryLabel)}</span>
         </button>
         <div class="mobile-player-meta">
-          ${bonusCount ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses="${side}" aria-haspopup="dialog" aria-label="${bonusCount} bonus actifs pour ${escapeText(player.name)}"><span aria-hidden="true">✦</span><b>${bonusCount}</b></button>` : ""}
+          ${bonusCount ? `<button class="mobile-bonus-button" type="button" data-mobile-open-bonuses="${side}" aria-haspopup="dialog" aria-label="${bonusCount} bonus et contraintes actifs pour ${escapeText(player.name)}"><span aria-hidden="true">+</span><b>${bonusCount}</b></button>` : ""}
           <dl class="mobile-player-stats">
             <div class="${player.endurance <= 2 ? " mobile-player-stat--critical" : ""}" data-mobile-value="${side}-endurance"><dt>END</dt><dd>${player.endurance}</dd>${deltaMarkup(side, "endurance")}</div>
             <div class="${player.handCount === 0 ? " mobile-player-stat--critical" : ""}" data-mobile-value="${side}-handCount"><dt>Cartes</dt><dd>${player.handCount}</dd>${deltaMarkup(side, "handCount")}</div>
@@ -205,6 +205,21 @@
     `;
   }
 
+  function starPowerPlayedMarkup(starPower, requireContinue = false) {
+    if (!starPower) return "";
+    return `
+      <article class="mobile-played-star-power">
+        <img src="${escapeText(starPower.artwork)}" alt="${escapeText(starPower.name)}" decoding="async" />
+        <div>
+          <span>Pouvoir étoile · ${starPower.owner === "PLAYER" ? "Votre bonus" : "Bonus adverse"}</span>
+          <strong>${escapeText(starPower.name)}</strong>
+          <p>${escapeText(starPower.label)}</p>
+        </div>
+        ${requireContinue ? '<button class="mobile-opponent-continue" type="button" data-mobile-star-continue>Voir la carte jouée</button>' : ""}
+      </article>
+    `;
+  }
+
   function opponentRevealMarkup(card, requireContinue = true) {
     if (!card) return "";
     if (!requireContinue) {
@@ -253,12 +268,26 @@
 
   function bonusesMarkup(bonuses) {
     if (!bonuses.length) return '<p class="mobile-sheet-empty">Aucun bonus actif actuellement.</p>';
-    return `<ul class="mobile-bonus-list">${bonuses.map((bonus) => `
-      <li class="mobile-bonus-item mobile-bonus-item--${bonus.type}">
-        <span aria-hidden="true">${escapeText(bonus.icon)}</span>
+    const groups = [
+      { category: "permanent", label: "Bonus permanents" },
+      { category: "provisional", label: "Bonus provisoires" },
+      { category: "constraint", label: "Contraintes" },
+    ];
+    return `<div class="mobile-bonus-groups">${groups.map((group) => {
+      const items = bonuses.filter((bonus) => (bonus.category || (bonus.type === "constraint" ? "constraint" : "provisional")) === group.category);
+      if (!items.length) return "";
+      return `<section class="mobile-bonus-group mobile-bonus-group--${group.category}">
+        <h3>${group.label}<span>${items.length}</span></h3>
+        <ul class="mobile-bonus-list">${items.map((bonus) => `
+      <li class="mobile-bonus-item mobile-bonus-item--${group.category}${bonus.starPower ? ` mobile-bonus-item--star mobile-bonus-item--star-${bonus.starSide === "rose" ? "rose" : "blue"}` : ""}">
+        <span aria-hidden="true">${bonus.starPower
+          ? '<svg class="mobile-bonus-star-icon" viewBox="0 0 24 24" focusable="false"><path d="m12 2.4 2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.21l-5.8 3.05 1.11-6.46-4.7-4.58 6.49-.94L12 2.4Z"/></svg>'
+          : escapeText(bonus.icon)}</span>
         <div><small>${escapeText(bonus.duration)}</small><strong>${escapeText(bonus.label)}</strong><p>${escapeText(bonus.description)}</p></div>
       </li>
-    `).join("")}</ul>`;
+        `).join("")}</ul>
+      </section>`;
+    }).join("")}</div>`;
   }
 
   function starCardMarkup(card) {
@@ -516,7 +545,7 @@
     const opponentCard = viewState.activeCard?.owner === "OPPONENT" ? viewState.activeCard : null;
     if (pendingOpponentReveal || !opponentCard) return;
     if (acknowledgedOpponentCardIds().has(opponentCard.id)) return;
-    pendingOpponentReveal = { ...opponentCard };
+    pendingOpponentReveal = { ...opponentCard, showStarPower: Boolean(opponentCard.starPower) };
   }
 
   function clearMatchEndPresentation() {
@@ -575,7 +604,15 @@
         : viewState.activeCard?.id === settledLocalCardId ? null : viewState.activeCard;
     const sceneMarkup = viewState.result || pendingOpponentReveal || sceneCard
         ? `<section class="mobile-scene${resolutionSequence || opponentRevealSequence ? " mobile-scene--resolving" : ""}${pendingOpponentReveal ? " mobile-scene--opponent-reveal" : ""}" aria-label="Carte active">
-            ${viewState.result ? resultMarkup(viewState.result) : pendingOpponentReveal ? opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard) : activeCardMarkup(sceneCard)}
+            ${viewState.result
+              ? resultMarkup(viewState.result)
+              : pendingOpponentReveal
+                ? pendingOpponentReveal.showStarPower
+                  ? starPowerPlayedMarkup(pendingOpponentReveal.starPower, true)
+                  : opponentRevealMarkup(pendingOpponentReveal, viewState.assistance.stopOpponentCard)
+                : resolutionSequence?.phase === "star-power" && activeResolutionReceipt?.card?.starPower
+                  ? starPowerPlayedMarkup(activeResolutionReceipt.card.starPower)
+                  : activeCardMarkup(sceneCard)}
           </section>`
         : "";
     root.innerHTML = `
@@ -773,9 +810,27 @@
       renderMobileGame(true);
       return;
     }
-    if (!await animateCardBetween(selectedImage, fromBounds, targetBounds, 320, token)) return;
     activeResolutionReceipt = receipt;
     lastResolutionReceipt = receipt;
+    if (receipt.card.starPower) {
+      resolutionSequence.phase = "star-power";
+      renderMobileGame(true);
+      setResolutionLock(true);
+      if (!await waitForResolutionStep(1100, token)) return;
+      resolutionSequence.phase = "values";
+      renderMobileGame(true);
+      setResolutionLock(true);
+      if (!await waitForResolutionStep(700, token)) return;
+      settledLocalCardId = receipt.card.id;
+      selectedPlayMode = null;
+      selectedBoostSacrificeId = null;
+      activeResolutionReceipt = null;
+      resolutionSequence = null;
+      setResolutionLock(false);
+      renderMobileGame(true);
+      return;
+    }
+    if (!await animateCardBetween(selectedImage, fromBounds, targetBounds, 320, token)) return;
     resolutionSequence.phase = "values";
     renderMobileGame(true);
     setResolutionLock(true);
@@ -823,7 +878,12 @@
     if (!pendingOpponentReveal || viewState.assistance.stopOpponentCard) return;
     opponentAutoContinueTimer = window.setTimeout(() => {
       opponentAutoContinueTimer = null;
-      continueOpponentReveal();
+      if (pendingOpponentReveal?.showStarPower) {
+        pendingOpponentReveal.showStarPower = false;
+        renderMobileGame(true);
+      } else {
+        continueOpponentReveal();
+      }
     }, 1000);
   }
 
@@ -1057,6 +1117,11 @@
     root?.querySelector("[data-mobile-opponent-continue]")?.addEventListener("click", (event) => {
       const button = event.currentTarget;
       if (button instanceof HTMLButtonElement) continueOpponentReveal(button);
+    });
+    root?.querySelector("[data-mobile-star-continue]")?.addEventListener("click", () => {
+      if (!pendingOpponentReveal) return;
+      pendingOpponentReveal.showStarPower = false;
+      renderMobileGame(true);
     });
     root?.querySelectorAll("[data-mobile-open-bonuses]").forEach((button) => {
       button.addEventListener("click", (event) => {

@@ -570,6 +570,51 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   width: min(270px, 86vw);
 }
 
+.mobile-played-star-power {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: min(330px, 100%);
+  border: 1px solid rgba(88, 221, 160, 0.5);
+  border-radius: 14px;
+  padding: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(14, 113, 75, 0.92), rgba(5, 48, 57, 0.96));
+  box-shadow: 0 12px 28px rgba(1, 20, 27, 0.34);
+}
+
+.mobile-played-star-power img {
+  width: 82px;
+  aspect-ratio: 731 / 1039;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.mobile-played-star-power div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mobile-played-star-power span {
+  color: #82edb7;
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mobile-played-star-power p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.mobile-played-star-power .mobile-opponent-continue {
+  grid-column: 1 / -1;
+}
+
 .mobile-active-card img {
   width: 82px;
   border-radius: 7px;
@@ -1080,6 +1125,36 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   list-style: none;
 }
 
+.mobile-bonus-groups,
+.mobile-bonus-group {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-bonus-group + .mobile-bonus-group {
+  margin-top: 8px;
+}
+
+.mobile-bonus-group > h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  color: #dff376;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mobile-bonus-group > h3 span {
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(223, 243, 118, 0.12);
+}
+
 .mobile-bonus-item {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
@@ -1088,6 +1163,62 @@ body.mobile-game-view .mobile-game-shell :focus-visible {
   border-radius: 12px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.05);
+}
+
+.mobile-bonus-item--permanent {
+  border-color: rgba(68, 214, 137, 0.42);
+  background: rgba(20, 126, 79, 0.32);
+}
+
+.mobile-bonus-item--permanent > span {
+  color: #042f22;
+  background: #58dda0;
+}
+
+.mobile-bonus-group--permanent > h3,
+.mobile-bonus-item--permanent small {
+  color: #68e6aa;
+}
+
+.mobile-bonus-item--constraint {
+  border-color: rgba(251, 146, 60, 0.52);
+  background: rgba(194, 82, 20, 0.25);
+}
+
+.mobile-bonus-item--constraint > span {
+  color: #431407;
+  background: #fb923c;
+}
+
+.mobile-bonus-item--constraint.mobile-bonus-item--star-blue {
+  border-color: rgba(87, 174, 232, 0.68);
+  background: rgba(38, 120, 177, 0.28);
+}
+
+.mobile-bonus-item--constraint.mobile-bonus-item--star-rose {
+  border-color: rgba(231, 120, 164, 0.7);
+  background: rgba(178, 55, 108, 0.27);
+}
+
+.mobile-bonus-item--star-blue > span {
+  color: #062b3d;
+  background: #57aee8;
+}
+
+.mobile-bonus-item--star-rose > span {
+  color: #401225;
+  background: #e778a4;
+}
+
+.mobile-bonus-star-icon {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.mobile-bonus-group--constraint > h3,
+.mobile-bonus-item--constraint small {
+  color: #ffad66;
 }
 
 .mobile-bonus-item > span {

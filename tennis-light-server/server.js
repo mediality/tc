@@ -852,6 +852,46 @@ function maxWeeklyTournamentPoints(week, randomSeed = `week:${week}`) {
   return winnersTotal + randomMargin;
 }
 
+async function clampAiWeekScoresToPointMax(season, week) {
+  const safeSeason = Math.max(1, Number(season || 1));
+  const safeWeek = Math.max(1, Math.min(CIRCUIT_SEASON_LENGTH, Number(week || 1)));
+  const pointMax = maxWeeklyTournamentPoints(safeWeek, `${safeSeason}:${safeWeek}`);
+  if (db) {
+    await db.query(`
+      UPDATE circuit_ai_week_scores
+      SET points = LEAST(points, $3),
+          human_win_bonus = LEAST(
+            human_win_bonus,
+            GREATEST(0, $3 - LEAST(points, $3))
+          ),
+          updated_at = CASE
+            WHEN points + human_win_bonus > $3 THEN NOW()
+            ELSE updated_at
+          END
+      WHERE season_number = $1 AND week_number = $2
+    `, [safeSeason, safeWeek, pointMax]);
+  } else {
+    for (const characterId of CIRCUIT_AI_CHARACTER_IDS) {
+      const key = `${safeSeason}:${safeWeek}:${characterId}`;
+      if (!authMemory.circuitAiWeekScores.has(key) && !authMemory.circuitAiHumanBonuses.has(key)) continue;
+      const points = Math.min(Number(authMemory.circuitAiWeekScores.get(key) || 0), pointMax);
+      const bonus = Math.min(
+        Number(authMemory.circuitAiHumanBonuses.get(key) || 0),
+        Math.max(0, pointMax - points),
+      );
+      authMemory.circuitAiWeekScores.set(key, points);
+      authMemory.circuitAiHumanBonuses.set(key, bonus);
+    }
+  }
+  return pointMax;
+}
+
+async function clampAiSeasonScoresToPointMax(season) {
+  for (let week = 1; week <= CIRCUIT_SEASON_LENGTH; week += 1) {
+    await clampAiWeekScoresToPointMax(season, week);
+  }
+}
+
 function aiHumanWinBonusCap(basePoints, weeklyPotential) {
   const base = Math.max(0, Number(basePoints || 0));
   const potential = Math.max(0, Number(weeklyPotential || 0));
@@ -981,6 +1021,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
               updated_at = NOW()
       `, [characterId, season, week, points, pointMax]);
     }
+    await clampAiWeekScoresToPointMax(season, week);
     return;
   }
   authMemory.circuitAiWeekScores = authMemory.circuitAiWeekScores || new Map();
@@ -992,6 +1033,7 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
       Math.min(Number(authMemory.circuitAiHumanBonuses.get(key) || 0), aiHumanWinBonusCap(points, pointMax)),
     );
   }
+  await clampAiWeekScoresToPointMax(season, week);
 }
 
 async function ensureAiCircuitWeekSimulated(season, week, options = {}) {
@@ -1066,6 +1108,7 @@ async function backfillCurrentLeagueAiPoints(current) {
       );
     }
   }
+  await clampAiWeekScoresToPointMax(current.season, current.week);
   await setAppStateValue(marker, new Date().toISOString());
   return {
     applied: true,
@@ -1811,7 +1854,10 @@ async function setAdminAiScorePeriods(characterId, submittedPeriods = [], reques
     .map((item) => [String(item.key || ""), Math.max(0, Math.round(Number(item.points || 0)))]));
   for (const period of editable.periods) {
     if (!submitted.has(period.key)) continue;
-    const points = submitted.get(period.key);
+    const points = Math.min(
+      submitted.get(period.key),
+      maxWeeklyTournamentPoints(period.week, `${period.season}:${period.week}`),
+    );
     if (db) {
       await db.query(`
         INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points, human_win_bonus)
@@ -1824,6 +1870,7 @@ async function setAdminAiScorePeriods(characterId, submittedPeriods = [], reques
       authMemory.circuitAiWeekScores.set(key, points);
       authMemory.circuitAiHumanBonuses.set(key, 0);
     }
+    await clampAiWeekScoresToPointMax(period.season, period.week);
   }
   if (requestedSeasonTotal !== null && requestedSeasonTotal !== undefined) {
     const targetTotal = Math.max(0, Math.round(Number(requestedSeasonTotal || 0)));
@@ -2223,7 +2270,7 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
     winsByAi.set(aiCharacterId, (winsByAi.get(aiCharacterId) || 0) + 1);
   }
   if (!winsByAi.size) return;
-  const maxSem = maxWeeklyTournamentPoints(week);
+  const maxSem = maxWeeklyTournamentPoints(week, `${season}:${week}`);
   for (const [aiCharacterId, wins] of winsByAi) {
     const increment = Math.min(300, wins * 25);
     if (db) {
@@ -2249,6 +2296,7 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
       );
     }
   }
+  await clampAiWeekScoresToPointMax(season, week);
 }
 
 function normalizeTournamentAchievement(value) {
@@ -3208,12 +3256,13 @@ async function handleAuth(req, res, url) {
       return true;
     }
     const payload = await readJson(req);
-    const points = Math.round(Number(payload.points));
-    if (!Number.isFinite(points) || points < 0 || points > 100000) {
+    const requestedPoints = Math.round(Number(payload.points));
+    if (!Number.isFinite(requestedPoints) || requestedPoints < 0 || requestedPoints > 100000) {
       sendJson(res, 400, { error: "Les points doivent être un entier compris entre 0 et 100000." });
       return true;
     }
     const current = await circuitState();
+    const points = Math.min(requestedPoints, maxWeeklyTournamentPoints(current.week, `${current.season}:${current.week}`));
     if (db) {
       await db.query(`
         INSERT INTO circuit_ai_week_scores (ai_character_id, season_number, week_number, points, human_win_bonus)
@@ -3226,6 +3275,7 @@ async function handleAuth(req, res, url) {
       authMemory.circuitAiWeekScores.set(key, points);
       authMemory.circuitAiHumanBonuses.set(key, 0);
     }
+    await clampAiWeekScoresToPointMax(current.season, current.week);
     sendJson(res, 200, { characterId, points, season: current.season, week: current.week });
     return true;
   }
@@ -6763,6 +6813,7 @@ initAuthStorage()
   .then(async () => {
     const currentCircuit = await circuitState();
     const leagueLaunch = await backfillCurrentLeagueAiPoints(currentCircuit);
+    await clampAiSeasonScoresToPointMax(currentCircuit.season);
     console.log(`League IA: ${leagueLaunch.applied ? "rattrapage ajouté" : leagueLaunch.reason}${leagueLaunch.competition ? ` · ${leagueLaunch.competition}` : ""}.`);
     server.listen(PORT, () => {
       console.log(`Tennis Courts Light server running on http://localhost:${PORT}`);
