@@ -4,6 +4,8 @@
   const root = document.querySelector("#mobileGameRoot");
   const mobileApp = document.querySelector("#mobileGameApp");
   const desktopApp = document.querySelector(".game-app");
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  const mobileViewportContent = viewportMeta?.getAttribute("content") || "width=device-width, initial-scale=1, viewport-fit=cover";
   let matchUsesMobileView = false;
   let resolutionSequence = null;
   let activeResolutionReceipt = null;
@@ -66,6 +68,7 @@
   }
 
   function isSmartphonePortrait() {
+    if (document.body.classList.contains("admin-forced-desktop-view")) return false;
     const previewRequested = new URLSearchParams(window.location.search).get("mobileGamePreview") === "1";
     return Math.min(window.innerWidth, window.innerHeight) <= MOBILE_MAX_WIDTH
       && (previewRequested || (hasTouchCapability() && hasMobilePlatformSignal()));
@@ -1218,6 +1221,18 @@
     applySelectedView();
   }
 
+  function setForcedDesktopView(forceDesktop) {
+    document.body.classList.toggle("admin-forced-desktop-view", Boolean(forceDesktop));
+    viewportMeta?.setAttribute(
+      "content",
+      forceDesktop
+        ? "width=1440, initial-scale=0.25, minimum-scale=0.2, maximum-scale=1, viewport-fit=cover"
+        : mobileViewportContent,
+    );
+    matchUsesMobileView = !forceDesktop && isSmartphonePortrait();
+    applySelectedView();
+  }
+
   function clearSelectedView() {
     interruptMobileResolution();
     pendingOpponentReveal = null;
@@ -1233,6 +1248,7 @@
   window.TennisLightMobileGame = {
     isSmartphonePortrait,
     selectViewForMatch,
+    setForcedDesktopView,
     clearSelectedView,
     render: renderMobileGame,
   };

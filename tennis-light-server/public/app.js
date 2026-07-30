@@ -1954,6 +1954,7 @@ const els = {
   aiClubSettingButtons: document.querySelectorAll("[data-ai-club-setting]"),
   gameApp: document.querySelector(".game-app"),
   mobileGameApp: document.querySelector("#mobileGameApp"),
+  adminDesktopViewSwitch: document.querySelector("#adminDesktopViewSwitch"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
   authEmailInput: document.querySelector("#authEmailInput"),
@@ -2390,6 +2391,26 @@ function canAccessAdminFeatures() {
   return currentUserRole() === "admin";
 }
 
+const ADMIN_DESKTOP_VIEW_KEY = "tennisLightAdminDesktopView";
+
+function adminDesktopViewForced() {
+  return canAccessAdminFeatures() && localStorage.getItem(ADMIN_DESKTOP_VIEW_KEY) === "true";
+}
+
+function syncAdminDesktopViewPreference({ applyView = false } = {}) {
+  const forced = adminDesktopViewForced();
+  document.body.classList.toggle("admin-forced-desktop-view", forced);
+  if (els.adminDesktopViewSwitch) {
+    els.adminDesktopViewSwitch.textContent = forced ? "Version mobile" : "Version desktop";
+    els.adminDesktopViewSwitch.setAttribute("aria-pressed", String(forced));
+    els.adminDesktopViewSwitch.setAttribute(
+      "aria-label",
+      forced ? "Revenir à la version mobile" : "Passer à la version desktop",
+    );
+  }
+  if (applyView) window.TennisLightMobileGame?.setForcedDesktopView(forced);
+}
+
 function canAccessAllCharacters() {
   return ["pro_plus", "admin"].includes(currentUserRole());
 }
@@ -2439,6 +2460,7 @@ function updateAccessControls() {
     if (els.adminUsersTable) els.adminUsersTable.innerHTML = "";
     if (els.adminProCodesList) els.adminProCodesList.innerHTML = "";
   }
+  syncAdminDesktopViewPreference({ applyView: true });
 }
 
 function renderAuthState(message = "") {
@@ -19224,6 +19246,11 @@ els.returnLobbyButton?.addEventListener("click", () => {
   openReturnLobbyDialog();
 });
 els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
+els.adminDesktopViewSwitch?.addEventListener("click", () => {
+  if (!canAccessAdminFeatures()) return;
+  localStorage.setItem(ADMIN_DESKTOP_VIEW_KEY, String(!adminDesktopViewForced()));
+  syncAdminDesktopViewPreference({ applyView: true });
+});
 els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GAMEPLAY_ASSIST.panelOpen));
 els.gamePreviewToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.preview = Boolean(els.gamePreviewToggle.checked);
