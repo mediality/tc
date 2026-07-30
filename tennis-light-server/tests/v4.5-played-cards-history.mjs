@@ -21,7 +21,7 @@ assert.match(app, /function desktopPlayedRowMarkup\(playerIndex, role\)/);
 assert.match(app, /desktopPlayedRowMarkup\(opponentIndex, "opponent"\)/);
 assert.match(app, /desktopPlayedRowMarkup\(localPlayerIndex, "player"\)/);
 assert.match(app, /data-desktop-played-scroll="-1"/);
-assert.match(app, /viewport\.scrollBy\(/);
+assert.match(app, /viewport\.scroll(?:By|To)\(/);
 assert.match(app, /function openDesktopPlayedCardDetail\(card\)/);
 assert.match(app, /function renderDesktopHistoryEntry\(entry, index\)/);
 assert.match(app, /const history = mobileHistoryEntries\(\)/);

@@ -10965,6 +10965,58 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
+/* Desktop board v4.7 ----------------------------------------------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] {
+    z-index: 24;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand {
+    z-index: 90;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand::before {
+    z-index: 91;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card {
+    z-index: 92;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-track {
+    --desktop-played-step: calc((var(--desktop-played-card-width) / 2) + clamp(4px, .35vw, 7px));
+    gap: 0;
+    padding-right: calc(var(--desktop-played-card-width) / 2);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-slot {
+    flex-basis: var(--desktop-played-step);
+    width: var(--desktop-played-step);
+    justify-items: start;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-board > .desktop-played-scroll {
+    top: 50%;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-progression-actions {
+    display: grid;
+    gap: 6px;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-progression-actions:empty {
+    display: none;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-progression-actions .next-exchange-button,
+  body:not(.mobile-game-view) .desktop-history-progression-actions .replay-match-button,
+  body:not(.mobile-game-view) .desktop-history-progression-actions button {
+    width: 100%;
+    min-height: 40px;
+    margin: 0;
+  }
+}
+
 .desktop-card-flight {
   position: fixed;
   z-index: 1170;

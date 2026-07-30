@@ -9,10 +9,11 @@ const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
 
-assert.equal(packageJson.version, "4.6.0");
-assert.match(html, /styles\.css\?v=4\.6\.0/);
-assert.match(html, /app\.js\?v=4\.6\.0/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.6<\/span>/);
+const [major, minor] = packageJson.version.split(".").map(Number);
+assert.ok(major > 4 || (major === 4 && minor >= 6));
+assert.match(html, /styles\.css\?v=4\.[6-9]\.\d+/);
+assert.match(html, /app\.js\?v=4\.[6-9]\.\d+/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.[6-9]<\/span>/);
 assert.doesNotMatch(html, /id="gameContextStrip"/);
 
 assert.match(app, /desktopPlayOrder: nextDesktopPlayOrder\(\)/);

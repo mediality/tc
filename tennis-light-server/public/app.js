@@ -18361,7 +18361,7 @@ let desktopStarReveal = null;
 let desktopStarRevealTimer = null;
 let desktopLastPlayedCardKey = null;
 let desktopPendingCardFlight = null;
-const DESKTOP_PLAYED_ROW_SCROLL = new Map();
+let desktopPlayedBoardScroll = 0;
 
 function desktopPlayedCardKey(card) {
   return card?.playedUid || card?.uid || null;
@@ -18522,7 +18522,6 @@ function desktopPlayedRowMarkup(playerIndex, role) {
   const player = state.players[playerIndex];
   return `
     <section class="desktop-played-row desktop-played-row--${role}" data-desktop-played-row="${playerIndex}" aria-label="Cartes jouées par ${escapeHtml(displayPlayerName(player))}">
-      <button class="desktop-played-scroll desktop-played-scroll--previous hidden" type="button" data-desktop-played-scroll="-1" aria-label="Voir les cartes précédentes">‹</button>
       <div class="desktop-played-viewport" data-desktop-played-viewport>
         <div class="desktop-played-track">
           ${sequence.length
@@ -18535,7 +18534,6 @@ function desktopPlayedRowMarkup(playerIndex, role) {
           ${sequence.length && !playerCards.length ? `<span class="desktop-played-empty desktop-played-empty--overlay">Aucune carte jouée</span>` : ""}
         </div>
       </div>
-      <button class="desktop-played-scroll desktop-played-scroll--next hidden" type="button" data-desktop-played-scroll="1" aria-label="Voir les cartes suivantes">›</button>
     </section>
   `;
 }
@@ -18600,52 +18598,66 @@ function openDesktopPlayedCardDetail(card) {
   prepareRetinaCardImages(backdrop);
 }
 
-function updateDesktopPlayedRowControls(row) {
-  const viewport = row?.querySelector("[data-desktop-played-viewport]");
-  if (!viewport) return;
-  const overflow = viewport.scrollWidth > viewport.clientWidth + 2;
-  const previous = row.querySelector('[data-desktop-played-scroll="-1"]');
-  const next = row.querySelector('[data-desktop-played-scroll="1"]');
-  row.classList.toggle("is-overflowing", overflow);
+function updateDesktopPlayedBoardControls() {
+  const board = els.centerPlayedCard?.querySelector(".desktop-played-board");
+  const viewports = [...(board?.querySelectorAll("[data-desktop-played-viewport]") || [])];
+  if (!board || !viewports.length) return;
+  const overflow = viewports.some((viewport) => viewport.scrollWidth > viewport.clientWidth + 2);
+  const previous = board.querySelector('[data-desktop-played-scroll="-1"]');
+  const next = board.querySelector('[data-desktop-played-scroll="1"]');
+  board.classList.toggle("is-overflowing", overflow);
   previous?.classList.toggle("hidden", !overflow);
   next?.classList.toggle("hidden", !overflow);
   if (!overflow) return;
-  if (previous) previous.disabled = viewport.scrollLeft <= 2;
-  if (next) next.disabled = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 2;
+  const reference = viewports[0];
+  if (previous) previous.disabled = reference.scrollLeft <= 2;
+  if (next) next.disabled = reference.scrollLeft + reference.clientWidth >= reference.scrollWidth - 2;
 }
 
 function bindDesktopPlayedRows() {
-  els.centerPlayedCard.querySelectorAll("[data-desktop-played-row]").forEach((row) => {
-    const playerIndex = Number(row.dataset.desktopPlayedRow);
-    const viewport = row.querySelector("[data-desktop-played-viewport]");
-    if (!viewport) return;
-    const rememberedScroll = DESKTOP_PLAYED_ROW_SCROLL.get(playerIndex);
-    viewport.scrollLeft = Number.isFinite(rememberedScroll) ? rememberedScroll : viewport.scrollWidth;
-    if (desktopPendingCardFlight?.playedUid) {
-      const escapedPlayedUid = window.CSS?.escape
-        ? window.CSS.escape(String(desktopPendingCardFlight.playedUid))
-        : String(desktopPendingCardFlight.playedUid).replace(/"/g, '\\"');
-      const arrivingTarget = row.querySelector(`[data-desktop-played-target="${escapedPlayedUid}"]`);
-      if (arrivingTarget) {
-        viewport.scrollLeft = Math.max(
-          0,
-          arrivingTarget.offsetLeft - ((viewport.clientWidth - arrivingTarget.offsetWidth) / 2),
-        );
-      }
-    }
+  const board = els.centerPlayedCard.querySelector(".desktop-played-board");
+  const viewports = [...els.centerPlayedCard.querySelectorAll("[data-desktop-played-viewport]")];
+  let synchronizingScroll = false;
+  viewports.forEach((viewport) => {
+    viewport.scrollLeft = Number.isFinite(desktopPlayedBoardScroll) ? desktopPlayedBoardScroll : viewport.scrollWidth;
     viewport.addEventListener("scroll", () => {
-      DESKTOP_PLAYED_ROW_SCROLL.set(playerIndex, viewport.scrollLeft);
-      updateDesktopPlayedRowControls(row);
+      if (synchronizingScroll) return;
+      synchronizingScroll = true;
+      desktopPlayedBoardScroll = viewport.scrollLeft;
+      viewports.forEach((otherViewport) => {
+        if (otherViewport !== viewport) otherViewport.scrollLeft = viewport.scrollLeft;
+      });
+      synchronizingScroll = false;
+      updateDesktopPlayedBoardControls();
     }, { passive: true });
-    row.querySelectorAll("[data-desktop-played-scroll]").forEach((button) => {
-      button.addEventListener("click", () => {
-        viewport.scrollBy({
-          left: Number(button.dataset.desktopPlayedScroll) * Math.max(180, viewport.clientWidth * .72),
-          behavior: "smooth",
-        });
+  });
+  if (desktopPendingCardFlight?.playedUid) {
+    const escapedPlayedUid = window.CSS?.escape
+      ? window.CSS.escape(String(desktopPendingCardFlight.playedUid))
+      : String(desktopPendingCardFlight.playedUid).replace(/"/g, '\\"');
+    const arrivingTarget = board?.querySelector(`[data-desktop-played-target="${escapedPlayedUid}"]`);
+    const targetViewport = arrivingTarget?.closest("[data-desktop-played-viewport]");
+    if (arrivingTarget && targetViewport) {
+      desktopPlayedBoardScroll = Math.max(
+        0,
+        arrivingTarget.offsetLeft - ((targetViewport.clientWidth - arrivingTarget.offsetWidth) / 2),
+      );
+      viewports.forEach((viewport) => {
+        viewport.scrollLeft = desktopPlayedBoardScroll;
+      });
+    }
+  }
+  board?.querySelectorAll("[data-desktop-played-scroll]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const reference = viewports[0];
+      if (!reference) return;
+      const nextScroll = reference.scrollLeft
+        + (Number(button.dataset.desktopPlayedScroll) * Math.max(180, reference.clientWidth * .72));
+      desktopPlayedBoardScroll = nextScroll;
+      viewports.forEach((viewport) => {
+        viewport.scrollTo({ left: nextScroll, behavior: "smooth" });
       });
     });
-    updateDesktopPlayedRowControls(row);
   });
   els.centerPlayedCard.querySelectorAll("[data-desktop-played-card]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -18657,15 +18669,13 @@ function bindDesktopPlayedRows() {
     });
   });
   window.requestAnimationFrame(() => {
-    els.centerPlayedCard.querySelectorAll("[data-desktop-played-row]").forEach(updateDesktopPlayedRowControls);
+    updateDesktopPlayedBoardControls();
     runDesktopCardFlightAnimation();
   });
 }
 
 window.addEventListener("resize", () => {
-  window.requestAnimationFrame(() => {
-    els.centerPlayedCard?.querySelectorAll("[data-desktop-played-row]").forEach(updateDesktopPlayedRowControls);
-  });
+  window.requestAnimationFrame(updateDesktopPlayedBoardControls);
 });
 
 function renderCenterPlayedCard() {
@@ -18678,14 +18688,14 @@ function renderCenterPlayedCard() {
     : "";
   els.centerPlayedCard.innerHTML = `
     <div class="desktop-played-board">
+      <button class="desktop-played-scroll desktop-played-scroll--previous hidden" type="button" data-desktop-played-scroll="-1" aria-label="Voir les cartes précédentes">‹</button>
       ${desktopPlayedRowMarkup(opponentIndex, "opponent")}
       ${desktopPlayedRowMarkup(localPlayerIndex, "player")}
+      <button class="desktop-played-scroll desktop-played-scroll--next hidden" type="button" data-desktop-played-scroll="1" aria-label="Voir les cartes suivantes">›</button>
       ${starMarkup}
     </div>
-    <div class="center-progression-actions">${renderRallyEndActions()}</div>
   `;
   bindDesktopPlayedRows();
-  bindRallyEndActions(els.centerPlayedCard);
 }
 
 function activeEffectBadges(playerIndex) {
@@ -19125,6 +19135,7 @@ function renderLog() {
   const latestEntry = history.find((entry) => entry.type !== "system") || history[0];
   const side = latestEntry?.playerSide || "information";
   els.log.innerHTML = `
+    <div class="desktop-history-progression-actions">${renderRallyEndActions()}</div>
     <div class="desktop-history-latest desktop-history-latest--${side}">
       <div>
         <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
@@ -19135,6 +19146,7 @@ function renderLog() {
     </div>
     ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique</button>' : ""}
   `;
+  bindRallyEndActions(els.log);
   els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
   els.log.querySelector("[data-open-latest-history-card]")?.addEventListener("click", () => {
     openDesktopPlayedCardDetail(latestEntry?.card);
