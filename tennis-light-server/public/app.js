@@ -18357,6 +18357,7 @@ function nextSoloExchange() {
 let desktopStarReveal = null;
 let desktopStarRevealTimer = null;
 let desktopLastPlayedCardKey = null;
+const DESKTOP_PLAYED_ROW_SCROLL = new Map();
 
 function desktopPlayedCardKey(card) {
   return card?.playedUid || card?.uid || null;
@@ -18393,38 +18394,183 @@ function syncDesktopStarReveal(card) {
     desktopStarReveal = null;
     desktopStarRevealTimer = null;
     renderCenterPlayedCard();
-    attachImageZoomHandlers(els.centerPlayedCard);
-    window.requestAnimationFrame(() => adjustCardMagnificationOrigins(els.centerPlayedCard));
   }, 2000);
 }
+
+function desktopPlayedCardArtwork(card) {
+  return card?.artwork || CARD_IMAGES[card?.id] || CARD_BACK_IMAGE;
+}
+
+function desktopPlayedCardMarkup(card, playerIndex) {
+  const cardKey = desktopPlayedCardKey(card);
+  const imageUrl = desktopPlayedCardArtwork(card);
+  return `
+    <button class="desktop-played-card${card.removed ? " removed" : ""}${card.boosted ? " boosted" : ""}" type="button" data-desktop-played-card="${escapeHtml(cardKey)}" data-desktop-played-owner="${playerIndex}" aria-label="Voir le détail de ${escapeHtml(card.name)}">
+      ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />
+      ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
+      ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
+      ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
+    </button>
+  `;
+}
+
+function desktopVisiblePlayedCards(playerIndex) {
+  const hiddenStarKey = desktopStarReveal?.cardKey || null;
+  return (state.players[playerIndex]?.played || [])
+    .filter((card) => desktopPlayedCardKey(card) !== hiddenStarKey);
+}
+
+function desktopPlayedRowMarkup(playerIndex, role) {
+  const cards = desktopVisiblePlayedCards(playerIndex);
+  const player = state.players[playerIndex];
+  return `
+    <section class="desktop-played-row desktop-played-row--${role}" data-desktop-played-row="${playerIndex}" aria-label="Cartes jouées par ${escapeHtml(displayPlayerName(player))}">
+      <button class="desktop-played-scroll desktop-played-scroll--previous hidden" type="button" data-desktop-played-scroll="-1" aria-label="Voir les cartes précédentes">‹</button>
+      <div class="desktop-played-viewport" data-desktop-played-viewport>
+        <div class="desktop-played-track">
+          ${cards.length
+            ? cards.map((card) => desktopPlayedCardMarkup(card, playerIndex)).join("")
+            : `<span class="desktop-played-empty">Aucune carte jouée</span>`}
+        </div>
+      </div>
+      <button class="desktop-played-scroll desktop-played-scroll--next hidden" type="button" data-desktop-played-scroll="1" aria-label="Voir les cartes suivantes">›</button>
+    </section>
+  `;
+}
+
+function desktopPlayedCardByKey(cardKey, playerIndex = null) {
+  const players = Number.isInteger(playerIndex) ? [state.players[playerIndex]] : state.players;
+  return players
+    .flatMap((player) => player?.played || [])
+    .find((card) => desktopPlayedCardKey(card) === cardKey) || null;
+}
+
+function desktopCardDetailMarkup(card) {
+  const cost = Number(card.costPaid ?? card.cost ?? 0);
+  const power = Number(card.cardPowerGained ?? card.powerGained ?? card.power ?? 0)
+    + Number(card.effectPowerGained ?? 0);
+  const precision = Number(card.precision ?? 0);
+  const placement = Number(card.turnEndPlacement ?? card.turnPlacement ?? card.placement ?? 0);
+  const effect = card.effectApplied === false
+    ? "EFFET ANNULÉ PAR L’ADVERSAIRE"
+    : card.effect || card.label || "Aucun effet";
+  return `
+    <article class="desktop-card-detail-panel">
+      <span>Détail de la carte</span>
+      <h2>${escapeHtml(card.name || "Carte jouée")}</h2>
+      <dl>
+        <div><dt>Coût</dt><dd>${cost}</dd></div>
+        <div><dt>Puissance</dt><dd>+${power}</dd></div>
+        <div><dt>Précision</dt><dd>${precision}</dd></div>
+        <div><dt>Placement</dt><dd>${placement}</dd></div>
+      </dl>
+      <p>${escapeHtml(effect)}</p>
+      ${card.boosted ? '<strong class="desktop-card-detail-boost">Carte jouée en BOOST</strong>' : ""}
+    </article>
+  `;
+}
+
+function openDesktopPlayedCardDetail(card) {
+  if (!card) return;
+  closeCardLocalPreview();
+  document.querySelector(".desktop-played-card-backdrop")?.remove();
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop desktop-played-card-backdrop";
+  backdrop.innerHTML = `
+    <button class="desktop-played-card-close" type="button" aria-label="Fermer le détail">×</button>
+    <section class="desktop-played-card-dialog" role="dialog" aria-modal="true" aria-label="Détail de ${escapeHtml(card.name || "la carte")}">
+      <img class="desktop-played-card-large" src="${escapeHtml(desktopPlayedCardArtwork(card))}" alt="${escapeHtml(card.name || "Carte jouée")}" />
+      ${desktopCardDetailMarkup(card)}
+    </section>
+  `;
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKeyDown);
+  };
+  const onKeyDown = (event) => {
+    if (event.key === "Escape") close();
+  };
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop || event.target.closest(".desktop-played-card-close")) close();
+  });
+  document.addEventListener("keydown", onKeyDown);
+  document.body.appendChild(backdrop);
+  prepareRetinaCardImages(backdrop);
+}
+
+function updateDesktopPlayedRowControls(row) {
+  const viewport = row?.querySelector("[data-desktop-played-viewport]");
+  if (!viewport) return;
+  const overflow = viewport.scrollWidth > viewport.clientWidth + 2;
+  const previous = row.querySelector('[data-desktop-played-scroll="-1"]');
+  const next = row.querySelector('[data-desktop-played-scroll="1"]');
+  row.classList.toggle("is-overflowing", overflow);
+  previous?.classList.toggle("hidden", !overflow);
+  next?.classList.toggle("hidden", !overflow);
+  if (!overflow) return;
+  if (previous) previous.disabled = viewport.scrollLeft <= 2;
+  if (next) next.disabled = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 2;
+}
+
+function bindDesktopPlayedRows() {
+  els.centerPlayedCard.querySelectorAll("[data-desktop-played-row]").forEach((row) => {
+    const playerIndex = Number(row.dataset.desktopPlayedRow);
+    const viewport = row.querySelector("[data-desktop-played-viewport]");
+    if (!viewport) return;
+    const rememberedScroll = DESKTOP_PLAYED_ROW_SCROLL.get(playerIndex);
+    viewport.scrollLeft = Number.isFinite(rememberedScroll) ? rememberedScroll : viewport.scrollWidth;
+    viewport.addEventListener("scroll", () => {
+      DESKTOP_PLAYED_ROW_SCROLL.set(playerIndex, viewport.scrollLeft);
+      updateDesktopPlayedRowControls(row);
+    }, { passive: true });
+    row.querySelectorAll("[data-desktop-played-scroll]").forEach((button) => {
+      button.addEventListener("click", () => {
+        viewport.scrollBy({
+          left: Number(button.dataset.desktopPlayedScroll) * Math.max(180, viewport.clientWidth * .72),
+          behavior: "smooth",
+        });
+      });
+    });
+    updateDesktopPlayedRowControls(row);
+  });
+  els.centerPlayedCard.querySelectorAll("[data-desktop-played-card]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = desktopPlayedCardByKey(
+        button.dataset.desktopPlayedCard,
+        Number(button.dataset.desktopPlayedOwner),
+      );
+      openDesktopPlayedCardDetail(card);
+    });
+  });
+  window.requestAnimationFrame(() => {
+    els.centerPlayedCard.querySelectorAll("[data-desktop-played-row]").forEach(updateDesktopPlayedRowControls);
+  });
+}
+
+window.addEventListener("resize", () => {
+  window.requestAnimationFrame(() => {
+    els.centerPlayedCard?.querySelectorAll("[data-desktop-played-row]").forEach(updateDesktopPlayedRowControls);
+  });
+});
 
 function renderCenterPlayedCard() {
   els.centerPlayedCard.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("lastCard", null)));
   syncDesktopStarReveal(state.latestPlayedCard);
-  if (!state.latestPlayedCard) {
-    els.centerPlayedCard.innerHTML = `
-      <div class="previous-empty">Aucune carte jouée</div>
-      <div class="center-progression-actions">${renderRallyEndActions()}</div>
-    `;
-    bindRallyEndActions(els.centerPlayedCard);
-    return;
-  }
-  if (desktopStarReveal?.cardKey === desktopPlayedCardKey(state.latestPlayedCard)) {
-    els.centerPlayedCard.innerHTML = desktopStarPowerMarkup(desktopStarReveal.card);
-    return;
-  }
-  const playedCards = state.players[state.latestPlayedCard.owner]?.played ?? [];
-  const latestIndex = playedCards.findIndex((card) => card.playedUid === state.latestPlayedCard.playedUid);
-  const remiseCards = placementRemisesForShot(playedCards, latestIndex);
-  const centerCardMarkup = remiseCards.length
-    ? renderRemiseStack(state.latestPlayedCard, remiseCards)
-    : renderCardVisualOnly(state.latestPlayedCard, "center-played");
+  const localPlayerIndex = mobileLocalPlayerIndex();
+  const opponentIndex = opponentOf(localPlayerIndex);
+  const starMarkup = desktopStarReveal?.cardKey === desktopPlayedCardKey(state.latestPlayedCard)
+    ? `<div class="desktop-star-reveal-layer">${desktopStarPowerMarkup(desktopStarReveal.card)}</div>`
+    : "";
   els.centerPlayedCard.innerHTML = `
-    <div class="center-card-wrap ${state.latestPlayedCard.boosted ? "boosted-center-wrap" : ""}${remiseCards.length ? " has-remise-underlay" : ""}">
-      ${centerCardMarkup}
+    <div class="desktop-played-board">
+      ${desktopPlayedRowMarkup(opponentIndex, "opponent")}
+      ${desktopPlayedRowMarkup(localPlayerIndex, "player")}
+      ${starMarkup}
     </div>
     <div class="center-progression-actions">${renderRallyEndActions()}</div>
   `;
+  bindDesktopPlayedRows();
   bindRallyEndActions(els.centerPlayedCard);
 }
 
@@ -18871,33 +19017,78 @@ function renderLog() {
         ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
       </div>
       <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
-      ${latestEntry?.card?.artwork ? `<img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" />` : ""}
+      ${latestEntry?.card?.artwork ? `<button type="button" data-open-latest-history-card aria-label="Voir ${escapeHtml(latestEntry.card.name)}"><img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" /></button>` : ""}
     </div>
     ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique</button>' : ""}
   `;
   els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
+  els.log.querySelector("[data-open-latest-history-card]")?.addEventListener("click", () => {
+    openDesktopPlayedCardDetail(latestEntry?.card);
+  });
 }
 
 function closeFullActionLogDialog() {
   document.querySelector(".action-log-backdrop")?.remove();
 }
 
+function desktopHistoryMessageMarkup(entry) {
+  let markup = formatLogLine(entry.message || "");
+  const playerName = String(entry.playerName || "").trim();
+  if (!playerName) return markup;
+  const escapedName = escapeHtml(playerName);
+  return markup.replace(
+    escapedName,
+    `<strong class="desktop-history-player-name">${escapedName}</strong>`,
+  );
+}
+
+function renderDesktopHistoryEntry(entry, index) {
+  const tags = [entry.label, ...(entry.variationTypes || [])]
+    .filter(Boolean)
+    .filter((tag, tagIndex, values) => values.indexOf(tag) === tagIndex);
+  return `
+    <article class="desktop-history-entry desktop-history-entry--${entry.playerSide || "information"}">
+      <div class="desktop-history-entry-tags">
+        ${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+      </div>
+      <p>${desktopHistoryMessageMarkup(entry)}</p>
+      ${(entry.variations || []).length ? `
+        <ul class="desktop-history-variations">
+          ${entry.variations.map((variation) => `<li>${escapeHtml(variation)}</li>`).join("")}
+        </ul>
+      ` : ""}
+      ${entry.card?.artwork ? `
+        <button class="desktop-history-card-button" type="button" data-desktop-history-card="${index}" aria-label="Voir le détail de ${escapeHtml(entry.card.name)}">
+          <img src="${escapeHtml(entry.card.artwork)}" alt="${escapeHtml(entry.card.name)}" />
+        </button>
+      ` : ""}
+    </article>
+  `;
+}
+
 function openFullActionLogDialog() {
   closeFullActionLogDialog();
+  const history = mobileHistoryEntries();
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop action-log-backdrop";
   backdrop.innerHTML = `
     <section class="action-log-dialog" role="dialog" aria-modal="true" aria-labelledby="actionLogDialogTitle">
       <header>
-        <div><p class="label">Historique complet</p><h2 id="actionLogDialogTitle">Déroulé de l’échange</h2></div>
-        <button class="small-button" type="button" data-close-action-log>Fermer</button>
+        <span class="action-log-dialog-grabber" aria-hidden="true"></span>
+        <h2 id="actionLogDialogTitle">Déroulé de l’échange</h2>
+        <button class="action-log-dialog-close" type="button" data-close-action-log aria-label="Fermer">×</button>
       </header>
       <div class="action-log-dialog-list">
-        ${state.log.length ? state.log.map((line, index) => renderActionLogEntry(line, index)).join("") : '<p class="action-log-empty">Aucune action enregistrée.</p>'}
+        ${history.length ? history.map((entry, index) => renderDesktopHistoryEntry(entry, index)).join("") : '<p class="action-log-empty">Aucune action enregistrée.</p>'}
       </div>
     </section>
   `;
   backdrop.querySelector("[data-close-action-log]")?.addEventListener("click", closeFullActionLogDialog);
+  backdrop.querySelectorAll("[data-desktop-history-card]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openDesktopPlayedCardDetail(history[Number(button.dataset.desktopHistoryCard)]?.card);
+    });
+  });
   backdrop.addEventListener("click", (event) => {
     if (event.target === backdrop) closeFullActionLogDialog();
   });
