@@ -10865,3 +10865,144 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     padding: 12px;
   }
 }
+
+/* Desktop board v4.6 ----------------------------------------------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  body:not(.mobile-game-view) .court {
+    grid-row: 2;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .player-header,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-zone {
+    grid-row: 2 / 4;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .player-header,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .character-zone {
+    grid-row: 1 / 3;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-track {
+    --desktop-played-card-width: clamp(96px, 8.4vw, 148px);
+    justify-content: flex-start;
+    gap: clamp(8px, 1vw, 18px);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row.is-overflowing .desktop-played-track {
+    justify-content: flex-start;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-slot {
+    position: relative;
+    flex: 0 0 var(--desktop-played-card-width);
+    display: grid;
+    place-items: center;
+    width: var(--desktop-played-card-width);
+    height: 100%;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-slot--empty {
+    pointer-events: none;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-card {
+    width: var(--desktop-played-card-width);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-empty--overlay {
+    position: absolute;
+    left: 42px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand {
+    position: relative;
+    isolation: isolate;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand::before {
+    content: "";
+    position: absolute;
+    inset: -18px -8px -8px;
+    z-index: 72;
+    border-radius: 22px 22px 0 0;
+    background:
+      linear-gradient(180deg, rgba(4, 28, 44, .42) 0%, rgba(4, 28, 44, .16) 24%, transparent 56%),
+      radial-gradient(ellipse at 50% 0%, rgba(140, 224, 191, .12), transparent 66%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    pointer-events: none;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card {
+    z-index: 71;
+  }
+
+  body:not(.mobile-game-view) .court > .log {
+    grid-column: 2 / 4;
+    justify-self: end;
+    width: min(390px, 31vw);
+    margin-right: 10px;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-latest {
+    min-height: 112px;
+    padding: 13px;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-latest p {
+    font-size: .72rem;
+    line-height: 1.42;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-button {
+    min-height: 42px;
+    font-size: .72rem;
+  }
+}
+
+.desktop-card-flight {
+  position: fixed;
+  z-index: 1170;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, .9);
+  border-radius: var(--game-card-radius);
+  background: #09283a;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .52);
+  pointer-events: none;
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.desktop-card-flight--player {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .52), 0 0 0 3px rgba(140, 224, 191, .32);
+}
+
+.desktop-card-flight--opponent {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .52), 0 0 0 3px rgba(242, 163, 127, .34);
+}
+
+.desktop-card-flight img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.desktop-played-card--arriving {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-card-flight {
+    display: none;
+  }
+
+  .desktop-played-card--arriving {
+    opacity: 1;
+  }
+}

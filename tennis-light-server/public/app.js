@@ -11803,6 +11803,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   if (boosted && !canPlayBoost(playerIndex, card)) return;
   if (!boosted && !canPlayNormal(playerIndex, card)) return;
   if (!boosted && isRemise(card) && remiseMode === "effect" && !canPlayEffectMode(playerIndex, card)) return;
+  captureDesktopCardFlight(playerIndex, card);
   state.turnDirty = true;
   markLocalServerDirty(playerIndex);
 
@@ -11855,6 +11856,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   const playedCard = {
     ...card,
     playedUid: crypto.randomUUID(),
+    desktopPlayOrder: nextDesktopPlayOrder(),
     owner: playerIndex,
     boosted,
     remiseMode: isRemise(card) ? remiseMode : null,
@@ -11875,6 +11877,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     turnCompleted: false,
     removed: false,
   };
+  completeDesktopCardFlight(playedCard);
 
   player.played.push(playedCard);
   state.turnPlayedCards[playerIndex].push(playedCard);
@@ -18357,10 +18360,89 @@ function nextSoloExchange() {
 let desktopStarReveal = null;
 let desktopStarRevealTimer = null;
 let desktopLastPlayedCardKey = null;
+let desktopPendingCardFlight = null;
 const DESKTOP_PLAYED_ROW_SCROLL = new Map();
 
 function desktopPlayedCardKey(card) {
   return card?.playedUid || card?.uid || null;
+}
+
+function nextDesktopPlayOrder() {
+  const orders = state.players
+    .flatMap((player) => player?.played || [])
+    .map((card) => Number(card.desktopPlayOrder))
+    .filter(Number.isFinite);
+  return orders.length ? Math.max(...orders) + 1 : state.players.flatMap((player) => player?.played || []).length + 1;
+}
+
+function captureDesktopCardFlight(playerIndex, card) {
+  desktopPendingCardFlight = null;
+  if (
+    !card
+    || document.body.classList.contains("mobile-game-view")
+    || window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) return;
+  const root = els.gameApp?.querySelector(`.player-panel[data-player-index="${playerIndex}"]`);
+  const escapedUid = window.CSS?.escape ? window.CSS.escape(String(card.uid)) : String(card.uid).replace(/"/g, '\\"');
+  const handCard = root?.querySelector(`[data-hand-card-uid="${escapedUid}"]`);
+  const visual = handCard?.querySelector(".card-visual, .card-back") || handCard;
+  const rect = visual?.getBoundingClientRect();
+  if (!rect?.width || !rect?.height) return;
+  desktopPendingCardFlight = {
+    cardUid: card.uid,
+    playedUid: null,
+    playerIndex,
+    imageUrl: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+    sourceRect: {
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+    },
+  };
+}
+
+function completeDesktopCardFlight(playedCard) {
+  if (!desktopPendingCardFlight || desktopPendingCardFlight.cardUid !== playedCard?.uid) return;
+  desktopPendingCardFlight.playedUid = desktopPlayedCardKey(playedCard);
+}
+
+function runDesktopCardFlightAnimation() {
+  const flight = desktopPendingCardFlight;
+  if (!flight?.playedUid || desktopStarReveal?.cardKey === flight.playedUid) return;
+  const escapedPlayedUid = window.CSS?.escape ? window.CSS.escape(String(flight.playedUid)) : String(flight.playedUid).replace(/"/g, '\\"');
+  const target = els.centerPlayedCard?.querySelector(`[data-desktop-played-target="${escapedPlayedUid}"]`);
+  const targetRect = target?.getBoundingClientRect();
+  if (!targetRect?.width || !targetRect?.height) return;
+  desktopPendingCardFlight = null;
+  target.classList.add("desktop-played-card--arriving");
+  const movingCard = document.createElement("div");
+  movingCard.className = `desktop-card-flight desktop-card-flight--${flight.playerIndex === mobileLocalPlayerIndex() ? "player" : "opponent"}`;
+  movingCard.style.top = `${flight.sourceRect.top}px`;
+  movingCard.style.left = `${flight.sourceRect.left}px`;
+  movingCard.style.width = `${flight.sourceRect.width}px`;
+  movingCard.style.height = `${flight.sourceRect.height}px`;
+  movingCard.innerHTML = `<img src="${escapeHtml(flight.imageUrl)}" alt="" />`;
+  document.body.appendChild(movingCard);
+  const translateX = targetRect.left - flight.sourceRect.left;
+  const translateY = targetRect.top - flight.sourceRect.top;
+  const scaleX = targetRect.width / flight.sourceRect.width;
+  const scaleY = targetRect.height / flight.sourceRect.height;
+  const animation = movingCard.animate([
+    { transform: "translate3d(0, 0, 0) scale(1)", opacity: 1 },
+    { transform: `translate3d(${translateX * .55}px, ${translateY * .42}px, 0) scale(${(1 + scaleX) / 2}, ${(1 + scaleY) / 2}) rotate(${flight.playerIndex === mobileLocalPlayerIndex() ? -2 : 2}deg)`, opacity: 1, offset: .56 },
+    { transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY}) rotate(0deg)`, opacity: 1 },
+  ], {
+    duration: 720,
+    easing: "cubic-bezier(.2,.78,.22,1)",
+    fill: "forwards",
+  });
+  const finish = () => {
+    movingCard.remove();
+    target.classList.remove("desktop-played-card--arriving");
+  };
+  animation.addEventListener("finish", finish, { once: true });
+  animation.addEventListener("cancel", finish, { once: true });
 }
 
 function desktopStarPowerMarkup(card) {
@@ -18405,7 +18487,7 @@ function desktopPlayedCardMarkup(card, playerIndex) {
   const cardKey = desktopPlayedCardKey(card);
   const imageUrl = desktopPlayedCardArtwork(card);
   return `
-    <button class="desktop-played-card${card.removed ? " removed" : ""}${card.boosted ? " boosted" : ""}" type="button" data-desktop-played-card="${escapeHtml(cardKey)}" data-desktop-played-owner="${playerIndex}" aria-label="Voir le détail de ${escapeHtml(card.name)}">
+    <button class="desktop-played-card${card.removed ? " removed" : ""}${card.boosted ? " boosted" : ""}" type="button" data-desktop-played-card="${escapeHtml(cardKey)}" data-desktop-played-target="${escapeHtml(cardKey)}" data-desktop-played-owner="${playerIndex}" aria-label="Voir le détail de ${escapeHtml(card.name)}">
       ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
@@ -18415,23 +18497,42 @@ function desktopPlayedCardMarkup(card, playerIndex) {
   `;
 }
 
-function desktopVisiblePlayedCards(playerIndex) {
-  const hiddenStarKey = desktopStarReveal?.cardKey || null;
-  return (state.players[playerIndex]?.played || [])
-    .filter((card) => desktopPlayedCardKey(card) !== hiddenStarKey);
+function desktopPlayedSequence() {
+  const actionOrder = new Map(
+    (state.actionLog || [])
+      .filter((entry) => entry.kind === "play_card" && entry.card?.playedUid)
+      .map((entry, index) => [entry.card.playedUid, index + 1]),
+  );
+  return state.players
+    .flatMap((player, owner) => (player?.played || []).map((card, playerOrder) => ({
+      card,
+      owner,
+      playerOrder,
+      order: Number.isFinite(Number(card.desktopPlayOrder))
+        ? Number(card.desktopPlayOrder)
+        : actionOrder.get(desktopPlayedCardKey(card)) ?? (1000 + (playerOrder * 2) + owner),
+    })))
+    .sort((left, right) => left.order - right.order || left.owner - right.owner);
 }
 
 function desktopPlayedRowMarkup(playerIndex, role) {
-  const cards = desktopVisiblePlayedCards(playerIndex);
+  const sequence = desktopPlayedSequence();
+  const playerCards = sequence.filter((entry) => entry.owner === playerIndex);
+  const hiddenStarKey = desktopStarReveal?.cardKey || null;
   const player = state.players[playerIndex];
   return `
     <section class="desktop-played-row desktop-played-row--${role}" data-desktop-played-row="${playerIndex}" aria-label="Cartes jouées par ${escapeHtml(displayPlayerName(player))}">
       <button class="desktop-played-scroll desktop-played-scroll--previous hidden" type="button" data-desktop-played-scroll="-1" aria-label="Voir les cartes précédentes">‹</button>
       <div class="desktop-played-viewport" data-desktop-played-viewport>
         <div class="desktop-played-track">
-          ${cards.length
-            ? cards.map((card) => desktopPlayedCardMarkup(card, playerIndex)).join("")
+          ${sequence.length
+            ? sequence.map(({ card, owner }) => (
+              owner === playerIndex && desktopPlayedCardKey(card) !== hiddenStarKey
+                ? `<span class="desktop-played-slot">${desktopPlayedCardMarkup(card, playerIndex)}</span>`
+                : '<span class="desktop-played-slot desktop-played-slot--empty" aria-hidden="true"></span>'
+            )).join("")
             : `<span class="desktop-played-empty">Aucune carte jouée</span>`}
+          ${sequence.length && !playerCards.length ? `<span class="desktop-played-empty desktop-played-empty--overlay">Aucune carte jouée</span>` : ""}
         </div>
       </div>
       <button class="desktop-played-scroll desktop-played-scroll--next hidden" type="button" data-desktop-played-scroll="1" aria-label="Voir les cartes suivantes">›</button>
@@ -18520,6 +18621,18 @@ function bindDesktopPlayedRows() {
     if (!viewport) return;
     const rememberedScroll = DESKTOP_PLAYED_ROW_SCROLL.get(playerIndex);
     viewport.scrollLeft = Number.isFinite(rememberedScroll) ? rememberedScroll : viewport.scrollWidth;
+    if (desktopPendingCardFlight?.playedUid) {
+      const escapedPlayedUid = window.CSS?.escape
+        ? window.CSS.escape(String(desktopPendingCardFlight.playedUid))
+        : String(desktopPendingCardFlight.playedUid).replace(/"/g, '\\"');
+      const arrivingTarget = row.querySelector(`[data-desktop-played-target="${escapedPlayedUid}"]`);
+      if (arrivingTarget) {
+        viewport.scrollLeft = Math.max(
+          0,
+          arrivingTarget.offsetLeft - ((viewport.clientWidth - arrivingTarget.offsetWidth) / 2),
+        );
+      }
+    }
     viewport.addEventListener("scroll", () => {
       DESKTOP_PLAYED_ROW_SCROLL.set(playerIndex, viewport.scrollLeft);
       updateDesktopPlayedRowControls(row);
@@ -18545,6 +18658,7 @@ function bindDesktopPlayedRows() {
   });
   window.requestAnimationFrame(() => {
     els.centerPlayedCard.querySelectorAll("[data-desktop-played-row]").forEach(updateDesktopPlayedRowControls);
+    runDesktopCardFlightAnimation();
   });
 }
 
@@ -18870,13 +18984,13 @@ function renderCard(playerIndex, card) {
   const tutorialCardFocusClass = tutorialFocusClass("card", playerIndex, card.id);
   if (isHidden) {
     return `
-      <article class="card has-visual hidden-hand-card">
+      <article class="card has-visual hidden-hand-card" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
         ${renderCardBack()}
       </article>
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : state.gameOver ? "exchange-complete-card" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : state.gameOver ? "exchange-complete-card" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
       ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
       ${imageUrl ? `
         <button class="card-visual card-effect-forbid-host card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
