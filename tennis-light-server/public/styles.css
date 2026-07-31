@@ -12123,12 +12123,12 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     transform: translateY(-50%);
   }
 
-  body:not(.mobile-game-view) .desktop-score-avatar--player .desktop-score-turn-dot {
-    left: -19px;
+  body:not(.mobile-game-view) .desktop-score-turn-dot--player {
+    left: 9px;
   }
 
-  body:not(.mobile-game-view) .desktop-score-avatar--opponent .desktop-score-turn-dot {
-    right: -19px;
+  body:not(.mobile-game-view) .desktop-score-turn-dot--opponent {
+    right: 9px;
   }
 
   body:not(.mobile-game-view) .desktop-score-turn-dot.is-active {
@@ -12147,6 +12147,7 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 
   body:not(.mobile-game-view) .desktop-live-power-score {
+    position: relative;
     display: grid;
     grid-template-columns: 1fr 34px 1fr;
     align-items: center;
@@ -12170,10 +12171,6 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 
   body:not(.mobile-game-view) .desktop-live-power-score--boost {
     background: #f1cf55;
-  }
-
-  body:not(.mobile-game-view) .desktop-live-power-score--effect {
-    background: #77cdef;
   }
 
   body:not(.mobile-game-view) .desktop-live-power-score strong {
@@ -12220,6 +12217,34 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     width: var(--choice-card-width);
     max-width: var(--choice-card-width);
     padding: 6px;
+  }
+}
+
+/* V4.15 stable rows and projected pass leader --------------------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-board {
+    --desktop-played-card-width: clamp(96px, 8.4vw, 148px);
+    --desktop-played-card-height: calc(var(--desktop-played-card-width) * 1.42135);
+    --desktop-played-stack-height: calc(var(--desktop-played-card-height) * 1.3);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row {
+    height: var(--desktop-played-stack-height);
+    transform: none;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row--opponent {
+    top: calc(50% - var(--desktop-played-stack-height) - 5px);
+    bottom: auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row--player {
+    top: calc(50% + 5px);
+    bottom: auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-track {
+    align-items: flex-start;
   }
 }
 

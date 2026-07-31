@@ -7,8 +7,8 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.14.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.14<\/span>/);
+assert.equal(packageJson.version, "4.15.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.15<\/span>/);
 
 assert.match(app, /const answersBoost = state\.mandatoryPlacement && state\.mandatoryPlacementReason === "boost";/);
 assert.match(app, /const boostWindow = answersBoost\s*\? colorBoost\s*:/);
@@ -50,7 +50,7 @@ boostContext.satisfiesColorBoostCondition = () => false;
 vm.runInNewContext("result = canPlayBoost(0, { uid: \"played\", family: \"Coup droit\" });", boostContext);
 assert.equal(boostContext.result, true, "le Boost ouvert par un placement insuffisant doit rester disponible");
 
-assert.match(app, /playerRow\.style\.setProperty\("--desktop-row-offset", `\$\{desiredGap - currentGap\}px`\);/);
+assert.match(css, /--desktop-played-stack-height:[\s\S]*?desktop-played-row--player/);
 assert.match(css, /desktop-played-row--opponent \.desktop-played-card:hover[\s\S]*?translateY\(10%\) scale\(1\.38\)/);
 assert.match(css, /desktop-played-row:has\(\.desktop-played-card:hover\) \.desktop-played-viewport[\s\S]*?overflow: visible/);
 assert.match(css, /object-position: center 20%/);

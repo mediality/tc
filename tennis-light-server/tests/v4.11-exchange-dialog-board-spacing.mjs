@@ -16,8 +16,8 @@ assert.match(css, /Desktop interface v4\.11/);
 assert.match(css, /\.desktop-match-score\s*\{[\s\S]*?position:\s*relative[\s\S]*?grid-row:\s*2/);
 assert.match(css, /\.court\s*\{\s*grid-row:\s*3/);
 assert.match(app, /function alignDesktopPlayedRows\(\)/);
-assert.match(app, /const desiredGap = 10/);
-assert.match(app, /\.desktop-boost-underlay, \.desktop-remise-underlay/);
+assert.match(css, /top: calc\(50% \+ 5px\)/);
+assert.match(css, /--desktop-played-stack-height:\s*calc\(var\(--desktop-played-card-height\) \* 1\.3\)/);
 
 assert.match(app, /desktop-exchange-power-score/);
 assert.match(app, /action-log-result-details--\$\{result\.victoryType\}/);

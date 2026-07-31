@@ -1750,6 +1750,12 @@ function saveLocalMobileMatchSession() {
 }
 
 function manuallySaveMatch() {
+  if (!state.tournament?.weekly) {
+    return {
+      ok: false,
+      message: "La sauvegarde manuelle est réservée au Circuit Pro.",
+    };
+  }
   const saved = saveLocalMobileMatchSession();
   if (!saved) {
     return {
@@ -16581,6 +16587,7 @@ function renderModeButtons() {
   }
   const completedFriendlyMatch = Boolean(FRIENDLY_TOURNAMENT.enabled && state.gameOver && state.setMatch?.matchOver);
   els.returnLobbyButton?.classList.toggle("friendly-match-complete-return", completedFriendlyMatch);
+  els.saveMatchButton?.classList.toggle("hidden", !state.tournament?.weekly);
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
@@ -18095,17 +18102,26 @@ function renderDesktopMatchScore() {
     .filter((set) => set.player != null && set.opponent != null);
   const localPower = Number(localPlayer?.power || 0);
   const opponentPower = Number(opponentPlayer?.power || 0);
+  const projectedPowers = state.players.map((player) => Number(player?.power || 0) + projectedEndBonuses(player));
+  if (!state.gameOver && !state.mandatoryPlacement && !hasPlayedThisTurn(state.activePlayer)) {
+    const passingPlayer = state.players[state.activePlayer];
+    const passWinnerCandidate = opponentOf(state.activePlayer);
+    const passBonus = Math.max(2, Number(passingPlayer?.endurance || 0));
+    const rosaBonus = state.players[passWinnerCandidate]?.characterId === "rosaBenavente"
+      ? Number(state.players[passWinnerCandidate]?.rosaPassPowerBonus || 0)
+      : 0;
+    projectedPowers[passWinnerCandidate] += passBonus + rosaBonus;
+  }
+  const projectedLeader = state.mandatoryPlacement && !state.gameOver
+    ? opponentOf(state.activePlayer)
+    : projectedPowers[0] > projectedPowers[1]
+      ? 0
+      : projectedPowers[1] > projectedPowers[0]
+        ? 1
+        : state.server;
   const constraintTone = state.mandatoryPlacementReason === "boost"
     ? "boost"
-    : state.mandatoryPlacementReason === "smash"
-      || Boolean(activePlayer()?.limitedFamilies)
-      || hasReturnServiceRestriction(state.activePlayer)
-      ? "effect"
-      : localPower > opponentPower
-        ? "player"
-        : opponentPower > localPower
-          ? "opponent"
-          : "tied";
+    : projectedLeader === localIndex ? "player" : "opponent";
   const playerAvatar = (playerIndex, player, side) => {
     const artwork = PROFILE_CHARACTER_IMAGES[player?.characterId]
       || CHARACTER_IMAGES[player?.characterId]?.[0]
@@ -18114,7 +18130,6 @@ function renderDesktopMatchScore() {
     return `
       <div class="desktop-score-avatar desktop-score-avatar--${side}" aria-label="${escapeHtml(displayPlayerName(player))}${isActive ? ", à jouer" : ""}">
         <img src="${escapeHtml(artwork || "")}" alt="" />
-        <span class="desktop-score-turn-dot${isActive ? " is-active" : ""}" aria-hidden="true">●</span>
         ${state.server === playerIndex ? '<span class="mobile-server desktop-score-server" aria-label="Au service">●</span>' : ""}
       </div>
     `;
@@ -18145,7 +18160,9 @@ function renderDesktopMatchScore() {
     <div class="desktop-exchange-score-line">
       ${playerAvatar(localIndex, localPlayer, "player")}
       <div class="desktop-live-power-score desktop-live-power-score--${constraintTone}" aria-label="Score de puissance : ${localPower} à ${opponentPower}">
+        <span class="desktop-score-turn-dot desktop-score-turn-dot--player${state.activePlayer === localIndex && !state.gameOver ? " is-active" : ""}" aria-hidden="true">●</span>
         <strong>${localPower}</strong><i aria-hidden="true"></i><strong>${opponentPower}</strong>
+        <span class="desktop-score-turn-dot desktop-score-turn-dot--opponent${state.activePlayer === opponentIndex && !state.gameOver ? " is-active" : ""}" aria-hidden="true">●</span>
       </div>
       ${playerAvatar(opponentIndex, opponentPlayer, "opponent")}
     </div>
@@ -18737,29 +18754,10 @@ function alignDesktopPlayedRows() {
   const opponentRow = board?.querySelector(".desktop-played-row--opponent");
   const playerRow = board?.querySelector(".desktop-played-row--player");
   if (!opponentRow || !playerRow) return;
+  // Les deux emplacements réservent dès le départ la hauteur maximale d'une
+  // pile Boost/Remise. Aucun recalcul après une carte ne doit déplacer la table.
   opponentRow.style.removeProperty("--desktop-row-offset");
   playerRow.style.removeProperty("--desktop-row-offset");
-  const visualBounds = (row) => {
-    const elements = [...row.querySelectorAll(
-      ".desktop-played-card, .desktop-boost-underlay, .desktop-remise-underlay",
-    )];
-    const bounds = elements
-      .map((element) => element.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 && rect.height > 0);
-    if (!bounds.length) return null;
-    return {
-      top: Math.min(...bounds.map((rect) => rect.top)),
-      bottom: Math.max(...bounds.map((rect) => rect.bottom)),
-    };
-  };
-  const opponentBounds = visualBounds(opponentRow);
-  const playerBounds = visualBounds(playerRow);
-  if (!opponentBounds || !playerBounds) return;
-  const desiredGap = 10;
-  const currentGap = playerBounds.top - opponentBounds.bottom;
-  // La rangée adverse reste fixe. Seule la rangée du joueur local est placée
-  // 10 px sous la totalité de l'empilement adverse (Boost et Remise inclus).
-  playerRow.style.setProperty("--desktop-row-offset", `${desiredGap - currentGap}px`);
 }
 
 function bindDesktopPlayedRows() {
@@ -20818,7 +20816,7 @@ function getMobileMatchViewState() {
       stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
     },
     saving: {
-      available: !SERVER_SYNC.enabled && !FRIENDLY_TOURNAMENT.enabled && !SPECTATOR_MODE.enabled,
+      available: Boolean(state.tournament?.weekly) && !SERVER_SYNC.enabled && !FRIENDLY_TOURNAMENT.enabled && !SPECTATOR_MODE.enabled,
       completed: localMatchIsCompleted(),
     },
     adminTools: mobileAdminToolsState(),
