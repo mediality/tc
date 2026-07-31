@@ -2083,6 +2083,9 @@ const els = {
   onlineModeButton: document.querySelector("#onlineModeButton"),
   resultPanel: document.querySelector("#resultPanel"),
   tournamentPanel: document.querySelector("#tournamentPanel"),
+  competitionDialogButton: document.querySelector("#competitionDialogButton"),
+  competitionDialog: document.querySelector("#competitionDialog"),
+  competitionDialogClose: document.querySelector("#competitionDialogClose"),
   tutorialOverlay: document.querySelector("#tutorialOverlay"),
   player1Summary: document.querySelector("#player1Summary"),
   player2Summary: document.querySelector("#player2Summary"),
@@ -16592,6 +16595,9 @@ function renderModeButtons() {
   const completedFriendlyMatch = Boolean(FRIENDLY_TOURNAMENT.enabled && state.gameOver && state.setMatch?.matchOver);
   els.returnLobbyButton?.classList.toggle("friendly-match-complete-return", completedFriendlyMatch);
   els.saveMatchButton?.classList.toggle("hidden", !state.tournament?.weekly);
+  const competitionAvailable = Boolean(state.tournament?.active && !SPECTATOR_MODE.enabled);
+  els.competitionDialogButton?.classList.toggle("hidden", !competitionAvailable);
+  if (!competitionAvailable) closeCompetitionDialog();
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
@@ -16626,6 +16632,22 @@ function setGameAssistPanelOpen(open) {
   GAMEPLAY_ASSIST.panelOpen = Boolean(open);
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   els.gameAssistButton?.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
+}
+
+function openCompetitionDialog() {
+  if (!state.tournament?.active || SPECTATOR_MODE.enabled) return;
+  TOURNAMENT_PANEL_UI.visible = true;
+  renderTournamentPanel();
+  els.competitionDialog?.classList.remove("hidden");
+  els.competitionDialogButton?.setAttribute("aria-expanded", "true");
+  document.body.classList.add("competition-dialog-open");
+  els.competitionDialogClose?.focus();
+}
+
+function closeCompetitionDialog() {
+  els.competitionDialog?.classList.add("hidden");
+  els.competitionDialogButton?.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("competition-dialog-open");
 }
 
 function currentMatchScoreText() {
@@ -19975,6 +19997,14 @@ els.adminDesktopViewSwitch?.addEventListener("click", () => {
   syncAdminDesktopViewPreference({ applyView: true });
 });
 els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GAMEPLAY_ASSIST.panelOpen));
+els.competitionDialogButton?.addEventListener("click", openCompetitionDialog);
+els.competitionDialogClose?.addEventListener("click", closeCompetitionDialog);
+els.competitionDialog?.addEventListener("click", (event) => {
+  if (event.target === els.competitionDialog) closeCompetitionDialog();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !els.competitionDialog?.classList.contains("hidden")) closeCompetitionDialog();
+});
 els.gameInformationToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.information = Boolean(els.gameInformationToggle.checked);
   localStorage.setItem("tennisLightAssistInformation", String(GAMEPLAY_ASSIST.information));
@@ -19996,7 +20026,8 @@ document.addEventListener("pointerover", (event) => {
   const panelBottom = panel.offsetTop + panel.scrollHeight + panelBorder;
   const overhang = Math.max(0, panelBottom - card.offsetHeight);
   const hoverScale = 1.26;
-  card.style.setProperty("--local-card-action-lift", `${Math.ceil(overhang * hoverScale)}px`);
+  const bottomSafety = 28;
+  card.style.setProperty("--local-card-action-lift", `${Math.ceil(overhang * hoverScale) + bottomSafety}px`);
 });
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.adaptiveBoard = Boolean(els.gameAdaptiveBoardToggle.checked);

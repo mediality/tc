@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=4.24.0" />
+    <link rel="stylesheet" href="./styles.css?v=4.25.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=3.86.0" />
   </head>
   <body>
@@ -126,7 +126,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v4.24</span></strong>
+          <strong>Tennis Courts Academy · <span>v4.25</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1103,6 +1103,7 @@
           <div id="topProgressionActions" class="top-progression-actions hidden" aria-live="polite"></div>
           <button id="saveMatchButton" class="small-button" type="button">Sauvegarder</button>
           <button id="returnLobbyButton" class="small-button" type="button">Retour accueil</button>
+          <button id="competitionDialogButton" class="small-button competition-dialog-button hidden" type="button" aria-expanded="false" aria-controls="competitionDialog">Compétition</button>
           <div id="gameAssistTools" class="game-assist-tools">
             <button id="gameAssistButton" class="small-button" type="button" aria-expanded="false" aria-controls="gameAssistPanel">Paramètres</button>
             <div id="gameAssistPanel" class="game-assist-panel hidden" aria-label="Paramètres de jeu">
@@ -1126,7 +1127,14 @@
         </div>
       </section>
 
-      <section id="tournamentPanel" class="tournament-panel hidden" aria-live="polite"></section>
+      <section id="competitionDialog" class="competition-dialog-backdrop hidden" aria-label="Informations de la compétition" aria-modal="true" role="dialog">
+        <div class="competition-dialog-shell">
+          <button id="competitionDialogClose" class="competition-dialog-close" type="button" aria-label="Fermer les informations de la compétition">×</button>
+          <div class="competition-dialog-scroll">
+            <section id="tournamentPanel" class="tournament-panel hidden" aria-live="polite"></section>
+          </div>
+        </div>
+      </section>
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
       <section id="tutorialOverlay" class="tutorial-overlay hidden" aria-live="polite"></section>
 
@@ -1161,7 +1169,7 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
-    <script src="./app.js?v=4.24.0"></script>
-    <script src="./mobile-game.js?v=4.24.0"></script>
+    <script src="./app.js?v=4.25.0"></script>
+    <script src="./mobile-game.js?v=4.25.0"></script>
   </body>
 </html>

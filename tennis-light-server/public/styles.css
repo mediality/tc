@@ -15,6 +15,78 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* V4.25 competition information moved out of the game board ------------ */
+.competition-dialog-open {
+  overflow: hidden;
+}
+
+.competition-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(0, 13, 24, .82);
+  backdrop-filter: blur(6px);
+}
+
+.competition-dialog-backdrop.hidden {
+  display: none;
+}
+
+.competition-dialog-shell {
+  position: relative;
+  display: grid;
+  width: min(1180px, 100%);
+  max-height: calc(100dvh - 44px);
+  overflow: hidden;
+  border: 1px solid rgba(140, 224, 191, .34);
+  border-radius: 22px;
+  background: #062d42;
+  box-shadow: 0 34px 100px rgba(0, 0, 0, .62);
+}
+
+.competition-dialog-scroll {
+  max-height: calc(100dvh - 44px);
+  overflow: auto;
+  padding: 20px;
+  scrollbar-gutter: stable;
+}
+
+.competition-dialog-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 50%;
+  color: #fff;
+  background: #173f53;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.competition-dialog-scroll .tournament-panel {
+  margin: 0;
+  padding-top: 52px;
+}
+
+.competition-dialog-scroll .tournament-toggle-button[data-toggle-tournament] {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .competition-dialog-backdrop { padding: 8px; }
+  .competition-dialog-shell,
+  .competition-dialog-scroll { max-height: calc(100dvh - 16px); }
+  .competition-dialog-scroll { padding: 10px; }
+}
+
 * {
   box-sizing: border-box;
 }
