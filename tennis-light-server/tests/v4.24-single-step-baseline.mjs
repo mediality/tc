@@ -7,7 +7,9 @@ const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import
 
 assert.equal(packageJson.version, "4.24.0");
 assert.match(html, /Tennis Courts Academy · <span>v4\.24<\/span>/);
+assert.match(app, /panel\.offsetTop \+ panel\.scrollHeight \+ panelBorder/);
 assert.match(app, /panelBottom - card\.offsetHeight/);
-assert.match(app, /--local-card-action-lift/);
+assert.match(app, /Math\.ceil\(overhang \* hoverScale\)/);
+assert.doesNotMatch(app, /const safeBottom = window\.innerHeight/);
 
-console.log("Version 4.23 : boutons et rebords inférieurs entièrement visibles : OK");
+console.log("Version 4.24 : alignement bas exact calculé en une seule étape : OK");

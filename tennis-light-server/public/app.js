@@ -19990,18 +19990,13 @@ els.gameAlwaysVisibleActionsToggle?.addEventListener("change", () => {
 document.addEventListener("pointerover", (event) => {
   const card = event.target?.closest?.('.player-panel[data-desktop-role="local"] .hand .card');
   if (!card || card.contains(event.relatedTarget)) return;
-  window.requestAnimationFrame(() => {
-    const actions = card.querySelector(".card-actions");
-    if (!actions) return;
-    const baseLift = Math.max(0, Math.ceil(actions.scrollHeight + 6));
-    card.style.setProperty("--local-card-action-lift", `${baseLift}px`);
-    window.setTimeout(() => {
-      if (!card.matches(":hover, :focus-within")) return;
-      const safeBottom = window.innerHeight - 8;
-      const overflow = Math.max(0, Math.ceil(actions.getBoundingClientRect().bottom - safeBottom));
-      card.style.setProperty("--local-card-action-lift", `${baseLift + overflow}px`);
-    }, 220);
-  });
+  const panel = card.querySelector(".card-hover-panel");
+  if (!panel) return;
+  const panelBorder = Math.max(0, panel.offsetHeight - panel.clientHeight);
+  const panelBottom = panel.offsetTop + panel.scrollHeight + panelBorder;
+  const overhang = Math.max(0, panelBottom - card.offsetHeight);
+  const hoverScale = 1.26;
+  card.style.setProperty("--local-card-action-lift", `${Math.ceil(overhang * hoverScale)}px`);
 });
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.adaptiveBoard = Boolean(els.gameAdaptiveBoardToggle.checked);

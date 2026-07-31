@@ -6,9 +6,9 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.23.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.23<\/span>/);
-assert.match(app, /actions\.scrollHeight \+ 6/);
+assert.equal(packageJson.version, "4.24.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.24<\/span>/);
+assert.match(app, /panel\.scrollHeight/);
 assert.match(app, /--local-card-action-lift/);
 assert.doesNotMatch(app, /if \(!GAMEPLAY_ASSIST\.alwaysVisibleActions\) return/);
 assert.match(css, /\.player-panel\[data-desktop-role="local"\] \.hand \.card:hover[\s\S]*?translateY\(calc\(-1 \* var\(--local-card-action-lift, 42px\)\)\) scale\(1\.26\)/);
