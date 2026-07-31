@@ -1924,7 +1924,6 @@ const els = {
   gameAssistButton: document.querySelector("#gameAssistButton"),
   desktopGameMenuToggle: document.querySelector("#desktopGameMenuToggle"),
   desktopGameMenu: document.querySelector("#desktopGameMenu"),
-  gameProfileButton: document.querySelector("#gameProfileButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gameInformationToggle: document.querySelector("#gameInformationToggle"),
   gameAlwaysVisibleActionsToggle: document.querySelector("#gameAlwaysVisibleActionsToggle"),
@@ -2379,7 +2378,11 @@ function updateGlobalPlayerDock() {
   const activeScreen = destination === "game" ? els.gameApp : [els.lobbySectionScreen, els.adminScreen, els.rankingScreen, els.circuitInfoScreen, els.soloInfoScreen, els.academyInfoScreen, els.tutorialModulesScreen, els.profileScreen, els.characterScreen, els.friendlyLobbyScreen, els.aiClubHouseScreen, els.championshipLobbyScreen]
     .find((screen) => screen && !screen.classList.contains("hidden"));
   const dockHost = activeScreen?.querySelector(".lobby-section-header, .mode-clubhouse-topbar, .topbar") || null;
-  if (dockHost && els.globalPlayerDock) {
+  if (gameActive && els.desktopGameMenu && els.globalPlayerDock) {
+    if (els.globalPlayerDock.parentElement !== els.desktopGameMenu || els.globalPlayerDock !== els.desktopGameMenu.firstElementChild) {
+      els.desktopGameMenu.insertBefore(els.globalPlayerDock, els.desktopGameMenu.firstElementChild);
+    }
+  } else if (dockHost && els.globalPlayerDock) {
     const actions = dockHost.querySelector(".page-return-actions, .top-actions")
       || Array.from(dockHost.children).find((child) => child.matches("button:not(.brand-home-button)"));
     if (els.globalPlayerDock.parentElement !== dockHost || els.globalPlayerDock.nextElementSibling !== actions) {
@@ -18197,7 +18200,7 @@ function renderDesktopMatchScore() {
         <strong>${localPower}</strong><i aria-hidden="true"></i><strong>${opponentPower}</strong>
         <span class="desktop-score-turn-dot desktop-score-turn-dot--opponent${state.activePlayer === opponentIndex && !state.gameOver ? " is-active" : ""}" aria-hidden="true">●</span>
       </div>
-      ${playerAvatar(opponentIndex, opponentPlayer, "opponent")}
+      <span class="desktop-score-avatar-placeholder" aria-hidden="true"></span>
     </div>
     <span class="desktop-score-balance" aria-hidden="true"></span>
   ` : "";
@@ -19220,6 +19223,7 @@ function renderCard(playerIndex, card) {
   const normalAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "normal", false);
   const boostAllowed = canPlayBoost(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "boost", true);
   const cardPlayable = normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed;
+  const desktopCardLocked = playerIndex === state.activePlayer && !state.gameOver && !cardPlayable;
   const cost = effectiveCost(player, card);
   const stats = getCardStats(player, card, false);
   const placementTotal = totalTurnPlacement(playerIndex, card, false);
@@ -19244,9 +19248,9 @@ function renderCard(playerIndex, card) {
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${cardPlayable ? "" : state.gameOver ? "exchange-complete-card" : "unplayable desktop-hand-card--locked"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${desktopCardLocked ? "unplayable desktop-hand-card--locked" : state.gameOver ? "exchange-complete-card" : ""}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
       ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
-      ${!cardPlayable && !state.gameOver ? '<span class="desktop-card-lock" aria-label="Carte inutilisable">🔒</span>' : ""}
+      ${desktopCardLocked ? '<span class="desktop-card-lock" aria-label="Carte inutilisable">🔒</span>' : ""}
       ${imageUrl ? `
         <button class="card-visual card-effect-forbid-host card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
@@ -20005,7 +20009,6 @@ els.desktopGameMenuToggle?.addEventListener("click", () => {
   els.desktopGameMenuToggle?.setAttribute("aria-expanded", String(open));
   els.desktopGameMenuToggle?.setAttribute("aria-label", open ? "Masquer le menu du match" : "Afficher le menu du match");
 });
-els.gameProfileButton?.addEventListener("click", showProfileScreen);
 els.adminDesktopViewSwitch?.addEventListener("click", () => {
   if (!canAccessAdminFeatures()) return;
   localStorage.setItem(ADMIN_DESKTOP_VIEW_KEY, String(!adminDesktopViewForced()));

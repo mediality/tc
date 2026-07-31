@@ -8,14 +8,13 @@ const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "u
 
 assert.equal(packageJson.version, "4.28.0");
 assert.match(html, /Tennis Courts Academy · <span>v4\.28<\/span>/);
-assert.match(html, /id="desktopGameMenuToggle"/);
+assert.doesNotMatch(html, /id="gameLogoButton"/);
 assert.doesNotMatch(html, /id="gameProfileButton"/);
+assert.match(html, /class="court-logo-watermark"/);
 assert.match(app, /const desktopCardLocked = playerIndex === state\.activePlayer/);
-assert.match(app, /desktop-hand-card--locked/);
-assert.match(app, /desktop-card-lock/);
-assert.match(app, /desktop-game-menu-open/);
-assert.match(styles, /desktop-hand-card--locked[\s\S]*grayscale\(1\)/);
-assert.match(styles, /grid-template-rows: 48px minmax\(0, 1fr\) !important/);
-assert.match(styles, /font-size: clamp\(\.42rem, \.48vw, \.52rem\) !important/);
+assert.match(app, /desktop-score-avatar-placeholder/);
+assert.match(app, /els\.desktopGameMenu\.insertBefore\(els\.globalPlayerDock/);
+assert.match(styles, /\.court-logo-watermark[\s\S]*opacity: \.5/);
+assert.match(styles, /\.game-assist-panel[\s\S]*top: calc\(100% \+ 8px\) !important/);
 
-console.log("Version 4.27 : cartes verrouillées et barre desktop compacte : OK");
+console.log("Version 4.28 : scores réalignés, filigrane et menus sous la barre : OK");

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=4.27.0" />
+    <link rel="stylesheet" href="./styles.css?v=4.28.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=3.86.0" />
   </head>
   <body>
@@ -126,7 +126,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v4.27</span></strong>
+          <strong>Tennis Courts Academy · <span>v4.28</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1093,13 +1093,9 @@
       <section class="topbar">
         <div>
           <p class="eyebrow">Tennis Courts Academy</p>
-          <button id="gameLogoButton" class="brand-home-button" type="button" aria-label="Retourner à l’accueil">
-            <img class="brand-logo" src="./assets/tcacademy.png" alt="Tennis Courts Academy" />
-          </button>
-          <button id="desktopGameMenuToggle" class="desktop-game-menu-toggle" type="button" aria-label="Afficher le menu du match" aria-expanded="false" aria-controls="desktopGameMenu">←</button>
+          <button id="desktopGameMenuToggle" class="desktop-game-menu-toggle" type="button" aria-label="Afficher le menu du match" aria-expanded="false" aria-controls="desktopGameMenu">↓</button>
         </div>
         <div id="desktopGameMenu" class="top-actions">
-          <button id="gameProfileButton" class="small-button" type="button">Profil</button>
           <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
           <button id="spectatorQuitButton" class="small-button danger-button spectator-quit-button hidden" type="button">QUITTER</button>
           <div id="topProgressionActions" class="top-progression-actions hidden" aria-live="polite"></div>
@@ -1143,6 +1139,7 @@
       <section id="desktopMatchScore" class="desktop-match-score" aria-label="Résultats du match"></section>
 
       <section class="court">
+        <img class="court-logo-watermark" src="./assets/tcacademy.png" alt="" aria-hidden="true" />
         <section id="player1Panel" class="player-panel"></section>
         <section class="center-lane">
           <div id="previousTurnCards" class="previous-turn" aria-live="polite"></div>
@@ -1171,7 +1168,7 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
-    <script src="./app.js?v=4.27.0"></script>
-    <script src="./mobile-game.js?v=4.27.0"></script>
+    <script src="./app.js?v=4.28.0"></script>
+    <script src="./mobile-game.js?v=4.28.0"></script>
   </body>
 </html>
