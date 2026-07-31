@@ -19988,16 +19988,13 @@ els.gameAlwaysVisibleActionsToggle?.addEventListener("change", () => {
   render();
 });
 document.addEventListener("pointerover", (event) => {
-  if (!GAMEPLAY_ASSIST.alwaysVisibleActions) return;
   const card = event.target?.closest?.('.player-panel[data-desktop-role="local"] .hand .card');
   if (!card || card.contains(event.relatedTarget)) return;
-  card.style.setProperty("--local-card-hover-lift", "0px");
   window.requestAnimationFrame(() => {
-    const panel = card.querySelector(".card-hover-panel");
-    if (!panel) return;
-    const safeViewportBottom = window.innerHeight - 8;
-    const lift = Math.max(0, Math.ceil(panel.getBoundingClientRect().bottom - safeViewportBottom));
-    card.style.setProperty("--local-card-hover-lift", `${lift}px`);
+    const actions = card.querySelector(".card-actions");
+    if (!actions) return;
+    const lift = Math.max(0, Math.ceil(actions.scrollHeight + 6));
+    card.style.setProperty("--local-card-action-lift", `${lift}px`);
   });
 });
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {

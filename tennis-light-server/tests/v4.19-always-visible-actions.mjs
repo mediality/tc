@@ -6,7 +6,7 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.21.0");
+assert.equal(packageJson.version, "4.22.0");
 assert.match(html, /gameAlwaysVisibleActionsToggle/);
 assert.match(html, /Boutons toujours visibles/);
 assert.match(app, /tennisLightAlwaysVisibleActions/);

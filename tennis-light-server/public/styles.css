@@ -12547,3 +12547,13 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     order: 20;
   }
 }
+
+/* V4.22 hand hover: the actions replace the lifted bottom gap ----------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:hover,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:focus-within,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within {
+    transform: translateY(calc(-1 * var(--local-card-action-lift, 42px))) scale(1.26);
+  }
+}
