@@ -13074,6 +13074,35 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 }
 
 /* V4.28 final geometry -------------------------------------------------- */
+/* V4.30 strict stacking: the local hand always covers history ---------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] {
+    position: relative !important;
+    z-index: 300 !important;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand {
+    position: relative !important;
+    z-index: 310 !important;
+    isolation: isolate;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card {
+    position: relative !important;
+    z-index: 320 !important;
+  }
+
+  body:not(.mobile-game-view) .court-logo-watermark {
+    width: clamp(360px, 42vw, 760px) !important;
+    max-height: 46% !important;
+  }
+}
+
 /* V4.29 final history, controls and safe-area overrides ---------------- */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .game-app { padding-top: max(8px, env(safe-area-inset-top)) !important; }
