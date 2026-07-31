@@ -19987,6 +19987,20 @@ els.gameAlwaysVisibleActionsToggle?.addEventListener("change", () => {
   document.body.classList.toggle("game-actions-always-visible", GAMEPLAY_ASSIST.alwaysVisibleActions);
   render();
 });
+document.addEventListener("pointerover", (event) => {
+  if (!GAMEPLAY_ASSIST.alwaysVisibleActions) return;
+  const card = event.target?.closest?.('.player-panel[data-desktop-role="local"] .hand .card');
+  if (!card || card.contains(event.relatedTarget)) return;
+  window.requestAnimationFrame(() => {
+    const panel = card.querySelector(".card-hover-panel");
+    const actions = panel?.querySelector(".card-actions");
+    if (!panel || !actions) return;
+    const expandedHeight = panel.scrollHeight;
+    const actionHeight = actions.getBoundingClientRect().height;
+    const lift = Math.max(0, Math.ceil(expandedHeight - actionHeight + 8));
+    card.style.setProperty("--local-card-hover-lift", `${lift}px`);
+  });
+});
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.adaptiveBoard = Boolean(els.gameAdaptiveBoardToggle.checked);
   localStorage.setItem("tennisLightAssistAdaptiveBoard", String(GAMEPLAY_ASSIST.adaptiveBoard));

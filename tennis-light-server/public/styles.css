@@ -12531,3 +12531,19 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     transform: translateY(-118%) scale(1.26);
   }
 }
+
+/* V4.20 measured hover lift: actions stay on the baseline --------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within {
+    transform: translateY(calc(-1 * var(--local-card-hover-lift, 0px))) scale(1.26);
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-hover-panel {
+    transition: opacity 140ms ease, visibility 140ms ease;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-actions {
+    order: 20;
+  }
+}
