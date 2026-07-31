@@ -17819,8 +17819,9 @@ function renderRallyEndActions() {
   if (!state.gameOver) return "";
   const progression = renderProgressionButtons();
   const setMatch = state.resultInfo?.setMatch;
-  const replay = setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets))
-    ? '<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button>'
+  const soloMatchOver = setMatch?.matchOver && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled && [2, 3].includes(Number(state.setMatch?.targetSets));
+  const replay = soloMatchOver
+    ? '<button class="primary-button replay-match-button" type="button" data-replay-solo-match>Rejouer le match</button><button class="small-button quit-court-button" type="button" data-quit-solo-court>Quitter le court</button>'
     : "";
   return `${progression}${replay}`;
 }
@@ -17830,6 +17831,7 @@ function bindRallyEndActions(root = els.rallyState) {
   root?.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
     startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
   });
+  root?.querySelector("[data-quit-solo-court]")?.addEventListener("click", confirmReturnToLobby);
 }
 
 function renderRallyState() {
@@ -18085,11 +18087,42 @@ function renderCenterSetScore() {
 
 function renderDesktopMatchScore() {
   if (!els.desktopMatchScore) return;
-  const visibleSets = mobileSetScoreState(mobileLocalPlayerIndex())
+  const localIndex = mobileLocalPlayerIndex();
+  const opponentIndex = opponentOf(localIndex);
+  const localPlayer = state.players[localIndex];
+  const opponentPlayer = state.players[opponentIndex];
+  const visibleSets = mobileSetScoreState(localIndex)
     .filter((set) => set.player != null && set.opponent != null);
-  els.desktopMatchScore.classList.toggle("hidden", !visibleSets.length);
-  els.desktopMatchScore.innerHTML = visibleSets.length ? `
-    <ol class="desktop-match-score-list">
+  const localPower = Number(localPlayer?.power || 0);
+  const opponentPower = Number(opponentPlayer?.power || 0);
+  const constraintTone = state.mandatoryPlacementReason === "boost"
+    ? "boost"
+    : state.mandatoryPlacementReason === "smash"
+      || Boolean(activePlayer()?.limitedFamilies)
+      || hasReturnServiceRestriction(state.activePlayer)
+      ? "effect"
+      : localPower > opponentPower
+        ? "player"
+        : opponentPower > localPower
+          ? "opponent"
+          : "tied";
+  const playerAvatar = (playerIndex, player, side) => {
+    const artwork = PROFILE_CHARACTER_IMAGES[player?.characterId]
+      || CHARACTER_IMAGES[player?.characterId]?.[0]
+      || PROFILE_CHARACTER_IMAGES.coachJu;
+    const isActive = state.activePlayer === playerIndex && !state.gameOver;
+    return `
+      <div class="desktop-score-avatar desktop-score-avatar--${side}" aria-label="${escapeHtml(displayPlayerName(player))}${isActive ? ", à jouer" : ""}">
+        <img src="${escapeHtml(artwork || "")}" alt="" />
+        <span class="desktop-score-turn-dot${isActive ? " is-active" : ""}" aria-hidden="true">●</span>
+        ${state.server === playerIndex ? '<span class="mobile-server desktop-score-server" aria-label="Au service">●</span>' : ""}
+      </div>
+    `;
+  };
+  els.desktopMatchScore.classList.toggle("hidden", !localPlayer || !opponentPlayer);
+  els.desktopMatchScore.innerHTML = localPlayer && opponentPlayer ? `
+    <div class="desktop-score-match-column">
+      <ol class="desktop-match-score-list" aria-label="Score du match">
       ${visibleSets.map((set, index) => {
         const winnerClass = set.winner === "PLAYER"
           ? " desktop-set-score--player"
@@ -18107,7 +18140,16 @@ function renderDesktopMatchScore() {
           </li>
         `;
       }).join("")}
-    </ol>
+      </ol>
+    </div>
+    <div class="desktop-exchange-score-line">
+      ${playerAvatar(localIndex, localPlayer, "player")}
+      <div class="desktop-live-power-score desktop-live-power-score--${constraintTone}" aria-label="Score de puissance : ${localPower} à ${opponentPower}">
+        <strong>${localPower}</strong><i aria-hidden="true"></i><strong>${opponentPower}</strong>
+      </div>
+      ${playerAvatar(opponentIndex, opponentPlayer, "opponent")}
+    </div>
+    <span class="desktop-score-balance" aria-hidden="true"></span>
   ` : "";
 }
 
@@ -20253,7 +20295,10 @@ function mobileProgressionActions() {
   const replayAvailable = state.resultInfo?.setMatch?.matchOver
     && !state.tournament?.active && !SERVER_SYNC.enabled && SOLO_AI.enabled
     && [2, 3].includes(Number(state.setMatch?.targetSets));
-  if (replayAvailable) actions.push({ id: "replay-match", label: "Rejouer le match" });
+  if (replayAvailable) {
+    actions.push({ id: "replay-match", label: "Rejouer le match" });
+    actions.push({ id: "quit-court", label: "Quitter le court" });
+  }
   return actions;
 }
 
@@ -20269,6 +20314,7 @@ function runMobileProgressionAction(actionId) {
   else if (actionId === "return-championship-lobby") returnChampionshipLobby();
   else if (actionId === "competition-summary") showCompetitionSummaryScreen();
   else if (actionId === "replay-match") startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+  else if (actionId === "quit-court") confirmReturnToLobby();
   return { ok: true };
 }
 

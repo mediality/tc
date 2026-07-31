@@ -12050,3 +12050,180 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     overflow: visible;
   }
 }
+
+/* V4.14 solo exit, fixed choices and live desktop score ----------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-match-score {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+    min-height: 62px;
+    padding: 4px 18px;
+    pointer-events: none;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-match-column {
+    min-width: 0;
+    justify-self: start;
+  }
+
+  body:not(.mobile-game-view) .desktop-match-score-list {
+    grid-auto-columns: 82px;
+    justify-content: start;
+  }
+
+  body:not(.mobile-game-view) .desktop-set-score {
+    width: 82px;
+    min-height: 40px;
+  }
+
+  body:not(.mobile-game-view) .desktop-exchange-score-line {
+    display: grid;
+    grid-template-columns: 54px minmax(148px, 210px) 54px;
+    align-items: center;
+    gap: 10px;
+    grid-column: 2;
+    justify-self: center;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-avatar {
+    position: relative;
+    width: 54px;
+    height: 54px;
+    border: 2px solid rgba(255, 255, 255, .72);
+    border-radius: 13px;
+    overflow: visible;
+    background: #0b4053;
+    box-shadow: 0 7px 18px rgba(0, 0, 0, .28);
+  }
+
+  body:not(.mobile-game-view) .desktop-score-avatar > img {
+    width: 100%;
+    height: 100%;
+    border-radius: 11px;
+    object-fit: cover;
+    object-position: center 18%;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-turn-dot {
+    position: absolute;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    color: #062b3d;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+
+  body:not(.mobile-game-view) .desktop-score-avatar--player .desktop-score-turn-dot {
+    left: -19px;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-avatar--opponent .desktop-score-turn-dot {
+    right: -19px;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-turn-dot.is-active {
+    opacity: 1;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-server.mobile-server {
+    right: -5px;
+    bottom: -5px;
+    width: 19px;
+    height: 19px;
+    border: 2px solid #08283a;
+    color: #d9f269;
+    background: #14715d;
+    font-size: .56rem;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score {
+    display: grid;
+    grid-template-columns: 1fr 34px 1fr;
+    align-items: center;
+    min-height: 48px;
+    border-radius: 16px;
+    padding: 7px 16px;
+    color: #062b3d;
+    background: #a9b8c5;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .25);
+    text-align: center;
+    transition: background 160ms ease;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score--player {
+    background: #8ce0bf;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score--opponent {
+    background: #f2a37f;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score--boost {
+    background: #f1cf55;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score--effect {
+    background: #77cdef;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score strong {
+    font-size: 1.34rem;
+    font-weight: 1000;
+    line-height: 1;
+  }
+
+  body:not(.mobile-game-view) .desktop-live-power-score i {
+    display: block;
+    justify-self: center;
+    width: 26px;
+    height: 32px;
+    background: currentColor;
+    mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
+    -webkit-mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
+  }
+
+  body:not(.mobile-game-view) .desktop-score-balance {
+    grid-column: 3;
+  }
+
+  .boost-choice-backdrop .modal,
+  .effect-choice-backdrop .modal,
+  .coach-choice-backdrop .modal,
+  .remove-choice-backdrop .modal {
+    width: min(900px, calc(100vw - 40px));
+  }
+
+  .boost-choice-backdrop .choice-grid,
+  .effect-choice-backdrop .choice-grid,
+  .coach-choice-backdrop .choice-grid,
+  .remove-choice-backdrop .choice-grid {
+    --choice-card-width: clamp(96px, 8.4vw, 148px);
+    grid-template-columns: repeat(auto-fit, var(--choice-card-width));
+    justify-content: center;
+    align-items: start;
+  }
+
+  .boost-choice-backdrop .choice-card,
+  .effect-choice-backdrop .choice-card,
+  .coach-choice-backdrop .choice-card,
+  .remove-choice-backdrop .choice-card {
+    width: var(--choice-card-width);
+    max-width: var(--choice-card-width);
+    padding: 6px;
+  }
+}
+
+.quit-court-button {
+  width: 100%;
+  margin-top: 8px;
+}
