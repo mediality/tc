@@ -6,8 +6,8 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.15.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.15<\/span>/);
+assert.equal(packageJson.version, "4.16.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.16<\/span>/);
 
 assert.match(app, /data-quit-solo-court>Quitter le court/);
 assert.match(app, /data-quit-solo-court\]"\)\?\.addEventListener\("click", confirmReturnToLobby\)/);

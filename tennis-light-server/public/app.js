@@ -16243,6 +16243,7 @@ function renderResultPanel() {
     const previousScore = state.resultInfo.setMatch?.previousScore || [0, 0];
     const currentScore = state.resultInfo.setMatch?.score || added;
     const resultClass = rallyEndConditionClass();
+    const winnerSide = winner === mobileLocalPlayerIndex() ? "player" : "opponent";
     const powerScore = `${Number(state.players[0]?.power || 0)}–${Number(state.players[1]?.power || 0)}`;
     const progressionMarkup = renderRallyEndActions();
     const exchangeResultKey = JSON.stringify({
@@ -16252,6 +16253,7 @@ function renderResultPanel() {
       previousScore,
       currentScore,
       resultClass,
+      winnerSide,
       powerScore,
       progressionMarkup,
     });
@@ -16261,7 +16263,7 @@ function renderResultPanel() {
       renderedDesktopExchangeResultKey = exchangeResultKey;
       renderedDesktopMatchFinaleKey = "";
       els.resultPanel.innerHTML = `
-        <section class="exchange-result-overlay ${resultClass}" role="dialog" aria-modal="true" aria-labelledby="exchangeResultTitle">
+        <section class="exchange-result-overlay ${resultClass} exchange-result-winner--${winnerSide}" role="dialog" aria-modal="true" aria-labelledby="exchangeResultTitle">
           <header>
             <img src="${escapeHtml(winnerProfile || "")}" alt="" />
             <div>

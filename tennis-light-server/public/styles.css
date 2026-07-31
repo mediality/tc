@@ -4716,12 +4716,20 @@ h1 {
     --exchange-result-accent: #8ce0bf;
   }
 
+  body:not(.mobile-game-view) .exchange-result-overlay.exchange-result-winner--player {
+    --exchange-result-winner-color: #8ce0bf;
+  }
+
+  body:not(.mobile-game-view) .exchange-result-overlay.exchange-result-winner--opponent {
+    --exchange-result-winner-color: #f2a37f;
+  }
+
   body:not(.mobile-game-view) .exchange-result-victory-type {
     display: block;
     border-radius: 12px;
     padding: 10px 14px;
     color: #062b3d;
-    background: var(--exchange-result-accent, #8ce0bf);
+    background: var(--exchange-result-winner-color, #8ce0bf);
     font-size: .92rem;
     font-weight: 1000;
     text-align: center;
@@ -4736,7 +4744,7 @@ h1 {
     border-radius: 999px;
     padding: 8px 14px;
     color: #062b3d;
-    background: var(--exchange-result-accent, #8ce0bf);
+    background: var(--exchange-result-winner-color, #8ce0bf);
     font-size: 1.12rem;
     font-weight: 1000;
     text-align: center;
@@ -12245,6 +12253,14 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 
   body:not(.mobile-game-view) .desktop-played-track {
     align-items: flex-start;
+  }
+}
+
+/* V4.16 smaller central cards and winner-colored exchange result -------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-board,
+  body:not(.mobile-game-view) .desktop-played-track {
+    --desktop-played-card-width: clamp(92px, 7.9vw, 140px);
   }
 }
 

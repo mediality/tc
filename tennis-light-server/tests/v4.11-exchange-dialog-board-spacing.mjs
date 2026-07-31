@@ -26,7 +26,7 @@ assert.match(css, /\.action-log-result-details--boost \.exchange-outcome-detail/
 assert.match(css, /\.action-log-result-details--effect \.exchange-outcome-detail/);
 assert.match(css, /\.action-log-result-details--power \.exchange-outcome-detail/);
 
-assert.match(app, /class="exchange-result-overlay \$\{resultClass\}"/);
+assert.match(app, /class="exchange-result-overlay \$\{resultClass\} exchange-result-winner--\$\{winnerSide\}"/);
 assert.match(app, /Vainqueur de l’échange/);
 assert.match(app, /exchange-result-victory-type/);
 assert.match(app, /Conséquence sur le set/);
