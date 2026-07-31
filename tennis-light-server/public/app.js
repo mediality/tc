@@ -1577,6 +1577,7 @@ let soloTournamentCountdownTimer = null;
 
 const GAMEPLAY_ASSIST = {
   information: localStorage.getItem("tennisLightAssistInformation") === "true",
+  alwaysVisibleActions: localStorage.getItem("tennisLightAlwaysVisibleActions") === "true",
   adaptiveBoard: localStorage.getItem("tennisLightAssistAdaptiveBoard") === "true",
   cardDescriptions: localStorage.getItem("tennisLightCardDescriptions") === "true",
   stopOpponentCard: localStorage.getItem("tennisLightMobileStopOpponentCard") !== "false",
@@ -1923,6 +1924,7 @@ const els = {
   gameAssistButton: document.querySelector("#gameAssistButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gameInformationToggle: document.querySelector("#gameInformationToggle"),
+  gameAlwaysVisibleActionsToggle: document.querySelector("#gameAlwaysVisibleActionsToggle"),
   gameAdaptiveBoardToggle: document.querySelector("#gameAdaptiveBoardToggle"),
   gameCardDescriptionsToggle: document.querySelector("#gameCardDescriptionsToggle"),
   gameContextStrip: document.querySelector("#gameContextStrip"),
@@ -16593,9 +16595,11 @@ function renderModeButtons() {
   if (els.gameAssistButton) els.gameAssistButton.setAttribute("aria-expanded", String(GAMEPLAY_ASSIST.panelOpen));
   els.gameAssistPanel?.classList.toggle("hidden", !GAMEPLAY_ASSIST.panelOpen);
   if (els.gameInformationToggle) els.gameInformationToggle.checked = GAMEPLAY_ASSIST.information;
+  if (els.gameAlwaysVisibleActionsToggle) els.gameAlwaysVisibleActionsToggle.checked = GAMEPLAY_ASSIST.alwaysVisibleActions;
   if (els.gameAdaptiveBoardToggle) els.gameAdaptiveBoardToggle.checked = GAMEPLAY_ASSIST.adaptiveBoard;
   if (els.gameCardDescriptionsToggle) els.gameCardDescriptionsToggle.checked = GAMEPLAY_ASSIST.cardDescriptions;
   document.body.classList.toggle("game-adaptive-board", GAMEPLAY_ASSIST.adaptiveBoard);
+  document.body.classList.toggle("game-actions-always-visible", GAMEPLAY_ASSIST.alwaysVisibleActions);
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
@@ -19975,6 +19979,12 @@ els.gameInformationToggle?.addEventListener("change", () => {
   GAMEPLAY_ASSIST.information = Boolean(els.gameInformationToggle.checked);
   localStorage.setItem("tennisLightAssistInformation", String(GAMEPLAY_ASSIST.information));
   localStorage.removeItem("tennisLightAssistPreview");
+  render();
+});
+els.gameAlwaysVisibleActionsToggle?.addEventListener("change", () => {
+  GAMEPLAY_ASSIST.alwaysVisibleActions = Boolean(els.gameAlwaysVisibleActionsToggle.checked);
+  localStorage.setItem("tennisLightAlwaysVisibleActions", String(GAMEPLAY_ASSIST.alwaysVisibleActions));
+  document.body.classList.toggle("game-actions-always-visible", GAMEPLAY_ASSIST.alwaysVisibleActions);
   render();
 });
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
