@@ -16214,15 +16214,75 @@ function renderCompactMatchScore(setMatch) {
 }
 
 let renderedDesktopMatchFinaleKey = "";
+let renderedDesktopExchangeResultKey = "";
 
 function renderResultPanel() {
-  if (!state.gameOver || !state.setMatch.matchOver || state.setMatch.matchWinner == null) {
+  if (!state.gameOver || !state.resultInfo) {
     renderedDesktopMatchFinaleKey = "";
+    renderedDesktopExchangeResultKey = "";
     els.resultPanel.classList.remove("match-finale-host");
+    els.resultPanel.classList.remove("exchange-result-host");
     els.resultPanel.innerHTML = "";
     els.resultPanel.classList.add("hidden");
     return;
   }
+  if (!state.setMatch.matchOver || state.setMatch.matchWinner == null) {
+    const winner = state.resultInfo.winner;
+    const loser = opponentOf(winner);
+    const winnerProfile = PROFILE_CHARACTER_IMAGES[state.players[winner]?.characterId]
+      || CHARACTER_IMAGES[state.players[winner]?.characterId]?.[0];
+    const added = rallyEndGamesAdded();
+    const previousScore = state.resultInfo.setMatch?.previousScore || [0, 0];
+    const currentScore = state.resultInfo.setMatch?.score || added;
+    const resultClass = rallyEndConditionClass();
+    const powerScore = `${Number(state.players[0]?.power || 0)}–${Number(state.players[1]?.power || 0)}`;
+    const progressionMarkup = renderRallyEndActions();
+    const exchangeResultKey = JSON.stringify({
+      winner,
+      winnerProfile,
+      added,
+      previousScore,
+      currentScore,
+      resultClass,
+      powerScore,
+      progressionMarkup,
+    });
+    els.resultPanel.classList.remove("hidden", "match-finale-host");
+    els.resultPanel.classList.add("exchange-result-host");
+    if (renderedDesktopExchangeResultKey !== exchangeResultKey || !els.resultPanel.querySelector(".exchange-result-overlay")) {
+      renderedDesktopExchangeResultKey = exchangeResultKey;
+      renderedDesktopMatchFinaleKey = "";
+      els.resultPanel.innerHTML = `
+        <section class="exchange-result-overlay ${resultClass}" role="dialog" aria-modal="true" aria-labelledby="exchangeResultTitle">
+          <header>
+            <img src="${escapeHtml(winnerProfile || "")}" alt="" />
+            <div>
+              <span>Vainqueur de l’échange</span>
+              <h2 id="exchangeResultTitle">${escapeHtml(displayPlayerName(state.players[winner]))}</h2>
+            </div>
+          </header>
+          <strong class="exchange-result-victory-type">${escapeHtml(rallyEndReasonLabel())}</strong>
+          ${state.resultInfo.winType === "power" ? `
+            <div class="exchange-result-power-score" aria-label="Score de puissance : ${powerScore}">
+              <span>${Number(state.players[0]?.power || 0)}</span><i aria-hidden="true"></i><span>${Number(state.players[1]?.power || 0)}</span>
+            </div>
+          ` : ""}
+          <div class="exchange-result-consequences">
+            <p><span>Jeux gagnés</span><strong>${escapeHtml(displayPlayerName(state.players[winner]))} +${added[winner]} · ${escapeHtml(displayPlayerName(state.players[loser]))} +${added[loser]}</strong></p>
+            <p><span>Conséquence sur le set</span><strong>${Number(previousScore[0] || 0)}–${Number(previousScore[1] || 0)} → ${Number(currentScore[0] || 0)}–${Number(currentScore[1] || 0)}</strong></p>
+          </div>
+          <nav>
+            ${progressionMarkup}
+            <button class="exchange-result-history-button" type="button" data-open-exchange-history>Historique</button>
+          </nav>
+        </section>
+      `;
+      bindRallyEndActions(els.resultPanel);
+      els.resultPanel.querySelector("[data-open-exchange-history]")?.addEventListener("click", openFullActionLogDialog);
+    }
+    return;
+  }
+  renderedDesktopExchangeResultKey = "";
   const winner = state.setMatch.matchWinner;
   const players = state.players.map((player, playerIndex) => {
     const lobby = PROFILE_CHARACTER_IMAGES[player.characterId] || CHARACTER_IMAGES[player.characterId]?.[0];
@@ -16252,6 +16312,7 @@ function renderResultPanel() {
     progressionMarkup,
   });
   els.resultPanel.classList.remove("hidden");
+  els.resultPanel.classList.remove("exchange-result-host");
   els.resultPanel.classList.add("match-finale-host");
   if (renderedDesktopMatchFinaleKey === finaleKey && els.resultPanel.querySelector(".match-finale-overlay")) return;
   renderedDesktopMatchFinaleKey = finaleKey;
@@ -18626,6 +18687,37 @@ function updateDesktopPlayedBoardControls() {
   if (next) next.disabled = reference.scrollLeft + reference.clientWidth >= reference.scrollWidth - 2;
 }
 
+function alignDesktopPlayedRows() {
+  if (window.innerWidth < 861) return;
+  const board = els.centerPlayedCard?.querySelector(".desktop-played-board");
+  const opponentRow = board?.querySelector(".desktop-played-row--opponent");
+  const playerRow = board?.querySelector(".desktop-played-row--player");
+  if (!opponentRow || !playerRow) return;
+  opponentRow.style.removeProperty("--desktop-row-offset");
+  playerRow.style.removeProperty("--desktop-row-offset");
+  const visualBounds = (row) => {
+    const elements = [...row.querySelectorAll(
+      ".desktop-played-card, .desktop-boost-underlay, .desktop-remise-underlay",
+    )];
+    const bounds = elements
+      .map((element) => element.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    if (!bounds.length) return null;
+    return {
+      top: Math.min(...bounds.map((rect) => rect.top)),
+      bottom: Math.max(...bounds.map((rect) => rect.bottom)),
+    };
+  };
+  const opponentBounds = visualBounds(opponentRow);
+  const playerBounds = visualBounds(playerRow);
+  if (!opponentBounds || !playerBounds) return;
+  const desiredGap = 10;
+  const currentGap = playerBounds.top - opponentBounds.bottom;
+  const halfAdjustment = (desiredGap - currentGap) / 2;
+  opponentRow.style.setProperty("--desktop-row-offset", `${-halfAdjustment}px`);
+  playerRow.style.setProperty("--desktop-row-offset", `${halfAdjustment}px`);
+}
+
 function bindDesktopPlayedRows() {
   const board = els.centerPlayedCard.querySelector(".desktop-played-board");
   const viewports = [...els.centerPlayedCard.querySelectorAll("[data-desktop-played-viewport]")];
@@ -18682,12 +18774,19 @@ function bindDesktopPlayedRows() {
   });
   window.requestAnimationFrame(() => {
     updateDesktopPlayedBoardControls();
+    alignDesktopPlayedRows();
     runDesktopCardFlightAnimation();
+  });
+  board?.querySelectorAll("img").forEach((image) => {
+    if (!image.complete) image.addEventListener("load", alignDesktopPlayedRows, { once: true });
   });
 }
 
 window.addEventListener("resize", () => {
-  window.requestAnimationFrame(updateDesktopPlayedBoardControls);
+  window.requestAnimationFrame(() => {
+    updateDesktopPlayedBoardControls();
+    alignDesktopPlayedRows();
+  });
 });
 
 function renderCenterPlayedCard() {
@@ -19108,9 +19207,22 @@ function renderCard(playerIndex, card) {
       `}
       ${imageUrl && hasDynamicStats ? `
         <div class="visual-stats">
-          ${cost !== card.cost ? `<span>Coût actuel ${cost}</span>` : ""}
-          ${stats.precision !== card.precision ? `<span>Précision actuelle ${stats.precision}</span>` : ""}
-          ${stats.placement !== card.placement || state.turnPlacement[playerIndex] ? `<span>Placement actuel ${stats.placement}${state.turnPlacement[playerIndex] ? ` + ${state.turnPlacement[playerIndex]}` : ""}</span>` : ""}
+          ${cost !== card.cost ? `
+            <span class="visual-stat visual-stat--${cost < card.cost ? "positive" : "negative"}" aria-label="Endurance : coût actuel ${cost}" title="Coût d’endurance actuel : ${cost}">
+              <i class="visual-stat-icon visual-stat-icon--endurance" aria-hidden="true"></i><strong>${cost}</strong>
+            </span>
+          ` : ""}
+          ${stats.precision !== card.precision ? `
+            <span class="visual-stat visual-stat--${stats.precision > card.precision ? "positive" : "negative"}" aria-label="Précision actuelle ${stats.precision}" title="Précision actuelle : ${stats.precision}">
+              <i class="visual-stat-icon visual-stat-icon--precision" aria-hidden="true"></i><strong>${stats.precision}</strong>
+            </span>
+          ` : ""}
+          ${stats.placement !== card.placement || state.turnPlacement[playerIndex] ? (() => {
+            const currentPlacement = Number(stats.placement || 0) + Number(state.turnPlacement[playerIndex] || 0);
+            return `<span class="visual-stat visual-stat--${currentPlacement > card.placement ? "positive" : currentPlacement < card.placement ? "negative" : "neutral"}" aria-label="Placement actuel ${currentPlacement}" title="Placement actuel : ${currentPlacement}">
+              <i class="visual-stat-icon visual-stat-icon--placement" aria-hidden="true"></i><strong>${currentPlacement}</strong>
+            </span>`;
+          })() : ""}
         </div>
       ` : ""}
       ${renderCardAssistPreview(playerIndex, card, cost, boostAllowed)}
@@ -19194,7 +19306,23 @@ function desktopExchangeResultData(line) {
       const score = state.resultInfo?.setMatch?.score;
       return Array.isArray(score) ? `${Number(score[0] || 0)}–${Number(score[1] || 0)}` : "—";
     })();
-  return { outcome, winnerName, winnerSide, scoreText, details: parts };
+  const powerIndex = parts.findIndex((part) => /^Puissance finale\s*:/i.test(part));
+  const powerDetail = powerIndex >= 0 ? String(parts.splice(powerIndex, 1)[0]) : "";
+  const powerValues = powerDetail.match(/(\d+)\s*·[^\d]*(\d+)\s*$/);
+  const victoryType = /boost/i.test(outcome)
+    ? "boost"
+    : /points/i.test(outcome)
+      ? "power"
+      : "effect";
+  return {
+    outcome,
+    winnerName,
+    winnerSide,
+    scoreText,
+    powerScore: powerValues ? [Number(powerValues[1]), Number(powerValues[2])] : null,
+    victoryType,
+    details: parts,
+  };
 }
 
 function desktopExchangeResultMarkup(line, playerSide = "information") {
@@ -19205,10 +19333,17 @@ function desktopExchangeResultMarkup(line, playerSide = "information") {
       <div class="desktop-exchange-result-header">
         <strong class="desktop-exchange-winner desktop-exchange-winner--${result.winnerSide || playerSide}">${escapeHtml(result.winnerName)}</strong>
         <span class="desktop-exchange-score" aria-label="Score du set">${escapeHtml(result.scoreText)}</span>
+        ${result.victoryType === "power" && result.powerScore ? `
+          <span class="desktop-exchange-power-score desktop-exchange-power-score--${result.winnerSide || playerSide}" aria-label="Score de puissance ${result.powerScore[0]} à ${result.powerScore[1]}">
+            <b>${result.powerScore[0]}</b><i aria-hidden="true"></i><b>${result.powerScore[1]}</b>
+          </span>
+        ` : ""}
       </div>
-      <div class="action-log-result-details">
-        <p>${escapeHtml(result.outcome)}</p>
-        ${result.details.map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}
+      <div class="action-log-result-details action-log-result-details--${result.victoryType}">
+        <p class="exchange-outcome-detail">${escapeHtml(result.outcome)}</p>
+        ${result.details.map((detail) => `
+          <p class="${/^Jeux ajoutés au score du set\s*:/i.test(detail) ? "exchange-score-consequence" : ""}">${escapeHtml(detail)}</p>
+        `).join("")}
       </div>
     </div>
   `;

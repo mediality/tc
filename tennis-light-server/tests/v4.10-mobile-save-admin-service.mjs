@@ -6,11 +6,12 @@ const mobile = fs.readFileSync(new URL("../public/mobile-game.js", import.meta.u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.10.0");
-assert.match(html, /styles\.css\?v=4\.10\.0/);
-assert.match(html, /app\.js\?v=4\.10\.0/);
-assert.match(html, /mobile-game\.js\?v=4\.10\.0/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.10<\/span>/);
+const [major, minor] = packageJson.version.split(".").map(Number);
+assert.ok(major > 4 || (major === 4 && minor >= 10));
+assert.match(html, /styles\.css\?v=4\.(?:1[0-9]|[2-9]\d)\.\d+/);
+assert.match(html, /app\.js\?v=4\.(?:1[0-9]|[2-9]\d)\.\d+/);
+assert.match(html, /mobile-game\.js\?v=4\.(?:1[0-9]|[2-9]\d)\.\d+/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.(?:1[0-9]|[2-9]\d)<\/span>/);
 
 assert.doesNotMatch(app, /La contrainte de retour de service disparaît avec le service supprimé/);
 assert.match(app, /function localMatchIsCompleted\(\)[\s\S]*state\.setMatch\?\.enabled[\s\S]*state\.setMatch\.matchOver/);

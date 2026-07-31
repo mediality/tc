@@ -1,6 +1,6 @@
 {
   "name": "tennis-courts-light-server",
-  "version": "4.10.0",
+  "version": "4.12.0",
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
@@ -9,6 +9,8 @@
     "test:v4.8": "node tests/v4.8-desktop-information-profiles.mjs",
     "test:v4.9": "node tests/v4.9-desktop-results-layout.mjs",
     "test:v4.10": "node tests/v4.10-mobile-save-admin-service.mjs",
+    "test:v4.11": "node tests/v4.11-exchange-dialog-board-spacing.mjs",
+    "test:v4.12": "node tests/v4.12-card-zoom-dynamic-icons.mjs",
     "test:v4.5": "node tests/v4.5-played-cards-history.mjs",
     "test:v4.4": "node tests/v4.4-desktop-board-flow.mjs",
     "test:v4.3": "node tests/v4.3-player-sidebars.mjs",
