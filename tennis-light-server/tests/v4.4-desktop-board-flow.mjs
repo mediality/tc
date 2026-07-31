@@ -12,9 +12,9 @@ const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
 
 const [major, minor] = packageJson.version.split(".").map(Number);
 assert.ok(major > 4 || (major === 4 && minor >= 4));
-assert.match(html, /styles\.css\?v=4\.[4-9]\.\d+/);
-assert.match(html, /app\.js\?v=4\.[4-9]\.\d+/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.[4-9]<\/span>/);
+assert.match(html, /styles\.css\?v=4\.(?:[4-9]|[1-9]\d)\.\d+/);
+assert.match(html, /app\.js\?v=4\.(?:[4-9]|[1-9]\d)\.\d+/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.(?:[4-9]|[1-9]\d)<\/span>/);
 
 assert.match(html, /id="desktopMatchScore"/);
 assert.doesNotMatch(html, /id="rallyState"/);

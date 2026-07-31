@@ -12,12 +12,12 @@ const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
 
 const [major, minor] = packageJson.version.split(".").map(Number);
 assert.ok(major > 4 || (major === 4 && minor >= 2));
-assert.match(html, /styles\.css\?v=4\.[2-9]\.\d+/);
-assert.match(html, /app\.js\?v=4\.[2-9]\.\d+/);
-assert.match(html, /mobile-game\.js\?v=4\.2\.0/);
+assert.match(html, /styles\.css\?v=4\.(?:[2-9]|[1-9]\d)\.\d+/);
+assert.match(html, /app\.js\?v=4\.(?:[2-9]|[1-9]\d)\.\d+/);
+assert.match(html, /mobile-game\.js\?v=4\.(?:[2-9]|[1-9]\d)\.\d+/);
 assert.match(html, /id="adminDesktopViewSwitch"/);
 assert.match(html, /data-required-role="admin"/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.[2-9]<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.(?:[2-9]|[1-9]\d)<\/span>/);
 
 assert.match(app, /tennisLightAdminDesktopView/);
 assert.match(app, /if \(!canAccessAdminFeatures\(\)\) return/);

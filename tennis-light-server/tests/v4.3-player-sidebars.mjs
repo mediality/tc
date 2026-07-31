@@ -11,9 +11,9 @@ const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
 
 const [major, minor] = packageJson.version.split(".").map(Number);
 assert.ok(major > 4 || (major === 4 && minor >= 3));
-assert.match(html, /styles\.css\?v=4\.[3-9]\.\d+/);
-assert.match(html, /app\.js\?v=4\.[3-9]\.\d+/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.[3-9]<\/span>/);
+assert.match(html, /styles\.css\?v=4\.(?:[3-9]|[1-9]\d)\.\d+/);
+assert.match(html, /app\.js\?v=4\.(?:[3-9]|[1-9]\d)\.\d+/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.(?:[3-9]|[1-9]\d)<\/span>/);
 assert.match(app, /class="desktop-player-(?:bonuses|bonus-count)"/);
 assert.match(app, /const showPassButton = playerIndex === state\.activePlayer/);
 assert.match(app, /showPassButton \? `<button class="pass-button/);

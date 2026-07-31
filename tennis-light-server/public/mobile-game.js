@@ -371,6 +371,7 @@
     const adminTools = viewState.adminTools;
     return `
       <nav class="mobile-match-menu-list" aria-label="Menu du match">
+        ${viewState.saving?.available ? `<button type="button" data-mobile-save-match>${viewState.saving.completed ? "Sauvegarder le match terminé" : "Sauvegarder"}</button>` : ""}
         ${viewState.modeContext.competition ? '<button type="button" data-mobile-menu-destination="competition">Compétition</button>' : ""}
         ${viewState.modeContext.competition?.league ? '<button type="button" data-mobile-menu-destination="standings">Classement</button>' : ""}
         <button type="button" data-mobile-menu-destination="assistance">Paramètres</button>
@@ -1143,6 +1144,14 @@
       button.addEventListener("click", (event) => {
         showMobilePanel(button.dataset.mobileMenuDestination, event.currentTarget);
       });
+    });
+    root?.querySelector("[data-mobile-save-match]")?.addEventListener("click", (event) => {
+      const button = event.currentTarget;
+      const result = window.tennisLightMobileAdapter?.saveMatch();
+      if (!result) return;
+      button.textContent = result.message;
+      button.classList.toggle("mobile-save-success", Boolean(result.ok));
+      window.setTimeout(() => closeMobilePanel(), 900);
     });
     root?.querySelectorAll("[data-mobile-admin-tool]").forEach((button) => {
       button.addEventListener("click", () => {

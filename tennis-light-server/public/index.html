@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=4.9.0" />
+    <link rel="stylesheet" href="./styles.css?v=4.10.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=3.86.0" />
   </head>
   <body>
@@ -27,10 +27,9 @@
                 <small id="lobbyHeaderRole">Invité</small>
               </span>
             </button>
-            <button id="lobbySettingsButton" class="lobby-icon-button" type="button" aria-label="Paramètres" aria-expanded="false">
-              <img src="./assets/icons/profil.svg" alt="" aria-hidden="true" />
+            <button id="lobbySettingsButton" class="lobby-icon-button hidden" type="button" data-required-role="admin" aria-label="Ouvrir l’administration">
+              <img src="./assets/icons/admin.svg" alt="" aria-hidden="true" />
             </button>
-            <button id="manageUsersButton" class="lobby-admin-button hidden" type="button" data-required-role="admin"><img src="./assets/icons/admin.svg" alt="" aria-hidden="true" />Administration</button>
           </div>
 
           <aside id="lobbyAccountPanel" class="lobby-account-popover hidden" aria-label="Compte et paramètres">
@@ -127,7 +126,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>v4.9</span></strong>
+          <strong>Tennis Courts Academy · <span>v4.10</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1102,6 +1101,7 @@
           <div id="modeInfoBadge" class="mode-info-badge" aria-live="polite">Mode</div>
           <button id="spectatorQuitButton" class="small-button danger-button spectator-quit-button hidden" type="button">QUITTER</button>
           <div id="topProgressionActions" class="top-progression-actions hidden" aria-live="polite"></div>
+          <button id="saveMatchButton" class="small-button" type="button">Sauvegarder</button>
           <button id="returnLobbyButton" class="small-button" type="button">Retour accueil</button>
           <div id="gameAssistTools" class="game-assist-tools">
             <button id="gameAssistButton" class="small-button" type="button" aria-expanded="false" aria-controls="gameAssistPanel">Paramètres</button>
@@ -1160,7 +1160,7 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
-    <script src="./app.js?v=4.9.0"></script>
-    <script src="./mobile-game.js?v=4.2.0"></script>
+    <script src="./app.js?v=4.10.0"></script>
+    <script src="./mobile-game.js?v=4.10.0"></script>
   </body>
 </html>

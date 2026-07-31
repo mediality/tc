@@ -8,9 +8,9 @@ const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import
 
 const [major, minor] = packageJson.version.split(".").map(Number);
 assert.ok(major > 4 || (major === 4 && minor >= 8));
-assert.match(html, /styles\.css\?v=4\.[89]\.\d+/);
-assert.match(html, /app\.js\?v=4\.[89]\.\d+/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.[89]<\/span>/);
+assert.match(html, /styles\.css\?v=4\.(?:[89]|[1-9]\d)\.\d+/);
+assert.match(html, /app\.js\?v=4\.(?:[89]|[1-9]\d)\.\d+/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.(?:[89]|[1-9]\d)<\/span>/);
 
 assert.doesNotMatch(html, /id="gamePreviewToggle"/);
 assert.doesNotMatch(html, /Prévisualiser les conséquences/);

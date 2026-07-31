@@ -1709,17 +1709,24 @@ function ensureLocalMobileMatchSession() {
   return matchId;
 }
 
+function localMatchIsCompleted() {
+  return state.setMatch?.enabled
+    ? Boolean(state.setMatch.matchOver)
+    : Boolean(state.gameOver);
+}
+
 function saveLocalMobileMatchSession() {
   const matchId = ensureLocalMobileMatchSession();
-  if (!matchId) return;
+  if (!matchId) return false;
+  const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
     gameVersion: GAME_VERSION,
     matchId,
-    status: state.gameOver ? "completed" : "active",
+    status: completed ? "completed" : "active",
     ownerUserId: authenticatedUserId() || null,
     savedAt: new Date().toISOString(),
-    expiresAt: state.gameOver ? Date.now() + (7 * 24 * 60 * 60 * 1000) : null,
+    expiresAt: completed ? Date.now() + (7 * 24 * 60 * 60 * 1000) : null,
     snapshot: {
       state: cloneData(state),
       soloAi: cloneData(SOLO_AI),
@@ -1728,7 +1735,7 @@ function saveLocalMobileMatchSession() {
   };
   try {
     localStorage.setItem(localMobileMatchStorageKey(matchId), JSON.stringify(record));
-    if (state.gameOver) {
+    if (completed) {
       if (rememberedActiveLocalMatchId() === matchId) rememberActiveLocalMatch(null);
     } else {
       rememberActiveLocalMatch(matchId);
@@ -1739,6 +1746,23 @@ function saveLocalMobileMatchSession() {
     // IndexedDB reste alors la sauvegarde principale.
     void writeLocalMatchDatabaseRecord(record);
   }
+  return true;
+}
+
+function manuallySaveMatch() {
+  const saved = saveLocalMobileMatchSession();
+  if (!saved) {
+    return {
+      ok: false,
+      message: SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled
+        ? "Cette partie est déjà sauvegardée par le serveur."
+        : "La sauvegarde n’est pas disponible pour cette partie.",
+    };
+  }
+  return {
+    ok: true,
+    message: localMatchIsCompleted() ? "Match terminé sauvegardé." : "Match sauvegardé.",
+  };
 }
 
 function scheduleLocalMobileMatchSave() {
@@ -1753,10 +1777,11 @@ function expireLocalMobileMatchSessionAfterExit() {
   try {
     const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
     if (record) {
-      record.status = state.gameOver ? "completed" : "paused";
+      const completed = localMatchIsCompleted();
+      record.status = completed ? "completed" : "paused";
       // Une partie interrompue reste reprenable après un retour arrière,
       // une fermeture d'onglet ou un rechargement, sans délai arbitraire.
-      record.expiresAt = state.gameOver ? record.expiresAt : null;
+      record.expiresAt = completed ? record.expiresAt : null;
       record.savedAt = new Date().toISOString();
       localStorage.setItem(localMobileMatchStorageKey(matchId), JSON.stringify(record));
     }
@@ -1885,6 +1910,7 @@ const els = {
   adminGameToolsButton: document.querySelector("#adminGameToolsButton"),
   adminGameToolsPanel: document.querySelector("#adminGameToolsPanel"),
   adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
+  saveMatchButton: document.querySelector("#saveMatchButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
   topProgressionActions: document.querySelector("#topProgressionActions"),
   gameAssistTools: document.querySelector("#gameAssistTools"),
@@ -1972,7 +1998,6 @@ const els = {
   redeemProCodeButton: document.querySelector("#redeemProCodeButton"),
   proCodeStatus: document.querySelector("#proCodeStatus"),
   adminPanel: document.querySelector("#adminPanel"),
-  manageUsersButton: document.querySelector("#manageUsersButton"),
   backToLobbyFromAdminButton: document.querySelector("#backToLobbyFromAdminButton"),
   adminExportHumanMatchesButton: document.querySelector("#adminExportHumanMatchesButton"),
   adminUsersTable: document.querySelector("#adminUsersTable"),
@@ -4495,7 +4520,6 @@ function hideTournamentLoadingDialog() {
 function setLobbyAccountPanelOpen(open) {
   const shouldOpen = Boolean(open);
   els.lobbyAccountPanel?.classList.toggle("hidden", !shouldOpen);
-  els.lobbySettingsButton?.setAttribute("aria-expanded", String(shouldOpen));
   els.lobbyUserButton?.setAttribute("aria-expanded", String(shouldOpen));
 }
 
@@ -12473,10 +12497,6 @@ function clearActiveEffectsFromRemovedCard(card) {
     }
     player.endBonuses = player.endBonuses.filter((bonus) => bonus.sourceUid !== card.playedUid);
   }
-  if (card.isServiceTurn && state.returnServiceRestrictionFor === opponentOf(card.owner)) {
-    state.returnServiceRestrictionFor = null;
-    state.log.unshift("La contrainte de retour de service disparaît avec le service supprimé.");
-  }
   if (state.mandatoryPlacementSourceUid === card.playedUid) {
     state.mandatoryPlacement = false;
     state.mandatoryPlacementReason = null;
@@ -19606,7 +19626,7 @@ function initMenu() {
   updateAccessControls();
   loadAuthState();
   const toggleAccountPanel = () => setLobbyAccountPanelOpen(els.lobbyAccountPanel?.classList.contains("hidden"));
-  els.lobbySettingsButton?.addEventListener("click", toggleAccountPanel);
+  els.lobbySettingsButton?.addEventListener("click", showAdminScreen);
   els.lobbyUserButton?.addEventListener("click", toggleAccountPanel);
   els.globalPlayerProfileButton?.addEventListener("click", () => {
     if (visibleScreenDestination() !== "game" && AUTH_STATE.user) showProfileScreen();
@@ -19631,7 +19651,6 @@ function initMenu() {
   els.proCodeInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") redeemProCode();
   });
-  els.manageUsersButton?.addEventListener("click", showAdminScreen);
   els.backToLobbyFromAdminButton?.addEventListener("click", showMenuScreen);
   els.adminExportHumanMatchesButton?.addEventListener("click", exportHumanMatchLogsFile);
   els.generateProCodesButton?.addEventListener("click", generateProCodes);
@@ -19752,6 +19771,17 @@ els.returnLobbyButton?.addEventListener("click", () => {
     return;
   }
   openReturnLobbyDialog();
+});
+els.saveMatchButton?.addEventListener("click", () => {
+  const result = manuallySaveMatch();
+  if (!els.saveMatchButton) return;
+  els.saveMatchButton.textContent = result.message;
+  els.saveMatchButton.classList.toggle("success", result.ok);
+  window.setTimeout(() => {
+    if (!els.saveMatchButton) return;
+    els.saveMatchButton.textContent = "Sauvegarder";
+    els.saveMatchButton.classList.remove("success");
+  }, 1800);
 });
 els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
 els.adminDesktopViewSwitch?.addEventListener("click", () => {
@@ -20604,6 +20634,10 @@ function getMobileMatchViewState() {
     assistance: {
       stopOpponentCard: GAMEPLAY_ASSIST.stopOpponentCard,
     },
+    saving: {
+      available: !SERVER_SYNC.enabled && !FRIENDLY_TOURNAMENT.enabled && !SPECTATOR_MODE.enabled,
+      completed: localMatchIsCompleted(),
+    },
     adminTools: mobileAdminToolsState(),
     history: mobileHistoryEntries(),
     returnToMenu: mobileReturnToMenuInfo(),
@@ -20625,6 +20659,7 @@ window.tennisLightMobileAdapter = {
   continueTutorial: continueMobileTutorial,
   runProgressionAction: runMobileProgressionAction,
   runAdminTool: runMobileAdminTool,
+  saveMatch: manuallySaveMatch,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;
