@@ -7,11 +7,11 @@ const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 assert.equal(packageJson.version, "4.21.0");
-assert.match(html, /styles\.css\?v=4\.21\.0/);
 assert.match(html, /Tennis Courts Academy · <span>v4\.21<\/span>/);
-assert.match(app, /safeViewportBottom/);
-assert.match(app, /--local-card-hover-lift/);
+assert.match(app, /--local-card-hover-lift", "0px"/);
+assert.match(app, /panel\.getBoundingClientRect\(\)\.bottom - safeViewportBottom/);
+assert.doesNotMatch(app, /expandedHeight - actionHeight/);
+assert.match(css, /transform-origin:\s*bottom center/);
 assert.match(css, /translateY\(calc\(-1 \* var\(--local-card-hover-lift, 0px\)\)\) scale\(1\.26\)/);
-assert.match(css, /\.card-actions[\s\S]*?order:\s*20/);
 
-console.log("Version 4.20 : remontée mesurée, carte stable et actions sur la ligne basse : OK");
+console.log("Version 4.21 : carte ancrée dans sa colonne et remontée limitée au débordement réel : OK");

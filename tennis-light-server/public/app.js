@@ -19991,13 +19991,12 @@ document.addEventListener("pointerover", (event) => {
   if (!GAMEPLAY_ASSIST.alwaysVisibleActions) return;
   const card = event.target?.closest?.('.player-panel[data-desktop-role="local"] .hand .card');
   if (!card || card.contains(event.relatedTarget)) return;
+  card.style.setProperty("--local-card-hover-lift", "0px");
   window.requestAnimationFrame(() => {
     const panel = card.querySelector(".card-hover-panel");
-    const actions = panel?.querySelector(".card-actions");
-    if (!panel || !actions) return;
-    const expandedHeight = panel.scrollHeight;
-    const actionHeight = actions.getBoundingClientRect().height;
-    const lift = Math.max(0, Math.ceil(expandedHeight - actionHeight + 8));
+    if (!panel) return;
+    const safeViewportBottom = window.innerHeight - 8;
+    const lift = Math.max(0, Math.ceil(panel.getBoundingClientRect().bottom - safeViewportBottom));
     card.style.setProperty("--local-card-hover-lift", `${lift}px`);
   });
 });
