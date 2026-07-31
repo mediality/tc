@@ -6,10 +6,10 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.12.0");
-assert.match(html, /styles\.css\?v=4\.12\.0/);
-assert.match(html, /app\.js\?v=4\.12\.0/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.12<\/span>/);
+assert.equal(packageJson.version, "4.13.0");
+assert.match(html, /styles\.css\?v=4\.13\.0/);
+assert.match(html, /app\.js\?v=4\.13\.0/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.13<\/span>/);
 
 assert.match(css, /Desktop interface v4\.12/);
 assert.match(css, /\.desktop-played-card:hover,[\s\S]*?transform:\s*translateY\(-28%\) scale\(1\.38\)/);

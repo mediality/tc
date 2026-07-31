@@ -4684,6 +4684,7 @@ h1 {
     border: 4px solid var(--exchange-result-accent, #8ce0bf);
     border-radius: 50%;
     object-fit: cover;
+    object-position: center 20%;
     background: #0b4053;
     box-shadow: 0 0 0 5px rgba(255, 255, 255, .07);
   }
@@ -4741,10 +4742,15 @@ h1 {
     text-align: center;
   }
 
-  body:not(.mobile-game-view) .exchange-result-power-score i::before,
-  .desktop-exchange-power-score i::before {
-    content: "⚡";
-    font-style: normal;
+  body:not(.mobile-game-view) .exchange-result-power-score i,
+  .desktop-exchange-power-score i {
+    display: block;
+    justify-self: center;
+    width: 24px;
+    height: 30px;
+    background: currentColor;
+    mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
+    -webkit-mask: url("assets/icons/power-flash.svg") center / contain no-repeat;
   }
 
   body:not(.mobile-game-view) .exchange-result-consequences {
@@ -4802,7 +4808,7 @@ h1 {
 
 .desktop-exchange-power-score {
   display: inline-grid;
-  grid-template-columns: auto 20px auto;
+  grid-template-columns: auto 28px auto;
   align-items: center;
   min-height: 30px;
   border-radius: 999px;
@@ -4924,6 +4930,8 @@ h1 {
 .visual-stat-icon--placement {
   mask-image: url("assets/icons/placement-pin.svg");
   -webkit-mask-image: url("assets/icons/placement-pin.svg");
+  mask-size: 132%;
+  -webkit-mask-size: 132%;
 }
 
 .visual-stat-icon--endurance {
@@ -10816,6 +10824,7 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     height: 100%;
     object-fit: cover;
   }
+
 }
 
 .desktop-played-card-backdrop {
@@ -12022,5 +12031,22 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     z-index: 220;
     transform: translateY(-28%) scale(1.38);
     box-shadow: 0 28px 70px rgba(0, 0, 0, .56), 0 0 0 2px #f6c344;
+  }
+}
+
+/* V4.13 rules and board visibility -------------------------------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-row--opponent .desktop-played-card {
+    transform-origin: top center;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row--opponent .desktop-played-card:hover,
+  body:not(.mobile-game-view) .desktop-played-row--opponent .desktop-played-card:focus-visible {
+    transform: translateY(10%) scale(1.38);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row:has(.desktop-played-card:hover) .desktop-played-viewport,
+  body:not(.mobile-game-view) .desktop-played-row:has(.desktop-played-card:focus-visible) .desktop-played-viewport {
+    overflow: visible;
   }
 }

@@ -8956,7 +8956,12 @@ function canPlayBoost(playerIndex, card) {
   const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
-  const boostWindow = state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || colorBoost;
+  // Un contre-Boost répondant à un Boost adverse n'est autorisé que par la
+  // condition de couleur. Le Boost ignore alors la contrainte de placement.
+  const answersBoost = state.mandatoryPlacement && state.mandatoryPlacementReason === "boost";
+  const boostWindow = answersBoost
+    ? colorBoost
+    : state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || colorBoost;
   if (!boostWindow || !hasSacrifice) return false;
   if (!canAfford(player, card) || !satisfiesFamilyLimit(player, card)) return false;
   if (!satisfiesReturnServiceRestriction(card)) return false;
@@ -11836,9 +11841,6 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     constraints: constraintsLogInfo(),
   };
   const answeredBoostConstraint = !boosted && Boolean(state.lastCard?.boosted || (state.mandatoryPlacement && state.mandatoryPlacementReason === "boost"));
-  if (answeredBoostConstraint && !boosted) {
-    state.turnCannotOpenBoost[playerIndex] = true;
-  }
   const endsTurn = !isRemise(card);
   const isOpeningServe = endsTurn && playerIndex === state.server && isOpeningServeAvailable();
   if (isOpeningServe) {
@@ -11854,7 +11856,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   };
   state.turnEffectPlacement[playerIndex] = isRemise(card) && remiseMode === "effect" ? rawStats.placement : 0;
   const combinedPlacement = state.turnPlacement[playerIndex] + stats.placement;
-  const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]);
+  const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
 
   player.endurance -= cost;
   clearNextAnyCardBonuses(player);
@@ -12020,7 +12022,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   state.mandatoryPlacement = boosted || hasSmashThreat;
   state.mandatoryPlacementReason = boosted ? "boost" : hasSmashThreat ? "smash" : null;
   state.mandatoryPlacementSourceUid = state.mandatoryPlacement ? playedCard.playedUid : null;
-  state.boostAvailableFor = !boosted && !answeredBoostConstraint && !state.turnCannotOpenBoost[playerIndex] && placementWasInsufficient ? opponentIndex : null;
+  state.boostAvailableFor = !boosted && placementWasInsufficient ? opponentIndex : null;
   state.turnPlacement[playerIndex] = 0;
   state.turnPlacement[opponentIndex] = 0;
   state.turnEffectPlacement[playerIndex] = 0;
@@ -12119,7 +12121,7 @@ function commitEndTurn(playerIndex) {
   const preparedPlacement = turnEndPlacement(playerIndex);
   const finalRemise = finalRemisePlayedThisTurn(playerIndex);
   const answeredBoostConstraint = Boolean(state.lastCard?.boosted || state.mandatoryPlacementReason === "boost");
-  const opensBoost = Boolean(state.lastCard && !answeredBoostConstraint && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]);
+  const opensBoost = Boolean(state.lastCard && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
   recordAction("end_turn", {
     playerIndex,
     opponentIndex,
@@ -18713,9 +18715,9 @@ function alignDesktopPlayedRows() {
   if (!opponentBounds || !playerBounds) return;
   const desiredGap = 10;
   const currentGap = playerBounds.top - opponentBounds.bottom;
-  const halfAdjustment = (desiredGap - currentGap) / 2;
-  opponentRow.style.setProperty("--desktop-row-offset", `${-halfAdjustment}px`);
-  playerRow.style.setProperty("--desktop-row-offset", `${halfAdjustment}px`);
+  // La rangée adverse reste fixe. Seule la rangée du joueur local est placée
+  // 10 px sous la totalité de l'empilement adverse (Boost et Remise inclus).
+  playerRow.style.setProperty("--desktop-row-offset", `${desiredGap - currentGap}px`);
 }
 
 function bindDesktopPlayedRows() {
@@ -19153,8 +19155,8 @@ function renderCard(playerIndex, card) {
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   const showPlacementWarning = GAMEPLAY_ASSIST.information && !state.mandatoryPlacement;
-  const riskyPlayClass = showPlacementWarning && placementIssue ? " risky-play-button" : "";
-  const riskyRemiseClass = showPlacementWarning && remisePlacementIssue ? " risky-play-button" : "";
+  const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
+  const riskyRemiseClass = remisePlacementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
   const expectedTutorialAction = tutorialExpectedAction();
   const tutorialSelectMode = state.tutorial.active && expectedTutorialAction?.kind === "selectCard" && expectedTutorialAction.playerIndex === playerIndex;
   const tutorialSelectedClass = state.tutorial.selectedCardUid === card.uid ? " tutorial-selected-card" : "";
