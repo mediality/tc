@@ -8,13 +8,10 @@ const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "u
 
 assert.equal(packageJson.version, "4.29.0");
 assert.match(html, /Tennis Courts Academy · <span>v4\.29<\/span>/);
-assert.doesNotMatch(html, /id="gameLogoButton"/);
-assert.doesNotMatch(html, /id="gameProfileButton"/);
-assert.match(html, /class="court-logo-watermark"/);
-assert.match(app, /const desktopCardLocked = playerIndex === state\.activePlayer/);
 assert.match(app, /playerAvatar\(opponentIndex, opponentPlayer, "opponent"\)/);
-assert.match(app, /els\.desktopGameMenu\.insertBefore\(els\.globalPlayerDock/);
-assert.match(styles, /\.court-logo-watermark[\s\S]*opacity: \.5/);
-assert.match(styles, /\.game-assist-panel[\s\S]*top: calc\(100% \+ 8px\) !important/);
+assert.match(styles, /padding-top: max\(8px, env\(safe-area-inset-top\)\) !important/);
+assert.match(styles, /\.court > \.log \{\s*z-index: 30/);
+assert.match(styles, /game-actions-always-visible[\s\S]*\.card-actions \{[\s\S]*pointer-events: auto !important/);
+assert.match(styles, /\.card-actions button \{[\s\S]*flex: 1 1 0/);
 
-console.log("Version 4.28 : scores réalignés, filigrane et menus sous la barre : OK");
+console.log("Version 4.29 : historique sous la main, actions actives et scores protégés : OK");

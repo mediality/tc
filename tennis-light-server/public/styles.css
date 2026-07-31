@@ -102,6 +102,49 @@
   }
 }
 
+/* V4.29 history depth, persistent actions and browser-safe score row ---- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app {
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+  }
+
+  body:not(.mobile-game-view) .desktop-match-score {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] {
+    z-index: 80;
+  }
+
+  body:not(.mobile-game-view) .court > .log {
+    z-index: 30;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-hover-panel,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .card-hover-panel,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .card-hover-panel {
+    pointer-events: none !important;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-actions {
+    position: relative;
+    z-index: 210;
+    display: flex;
+    width: 100%;
+    gap: 3px;
+    pointer-events: auto !important;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-actions button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 32px;
+    padding: 4px 3px;
+    pointer-events: auto !important;
+  }
+}
+
 /* V4.27 compact desktop header and dynamic unusable-card lock ----------- */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .game-app {
@@ -13031,6 +13074,38 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 }
 
 /* V4.28 final geometry -------------------------------------------------- */
+/* V4.29 final history, controls and safe-area overrides ---------------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app { padding-top: max(8px, env(safe-area-inset-top)) !important; }
+  body:not(.mobile-game-view) .desktop-match-score { top: max(8px, env(safe-area-inset-top)); }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] { z-index: 80; }
+  body:not(.mobile-game-view) .court > .log { z-index: 30; }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-hover-panel,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .card-hover-panel,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .card-hover-panel {
+    pointer-events: none !important;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-actions {
+    position: relative;
+    z-index: 210;
+    display: flex;
+    width: 100%;
+    gap: 3px;
+    pointer-events: auto !important;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card-actions button {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 32px;
+    padding: 4px 3px;
+    pointer-events: auto !important;
+  }
+}
+
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .desktop-match-score { right: 22px; left: 22px; }
   body:not(.mobile-game-view) .desktop-score-match-column { justify-self: start; }

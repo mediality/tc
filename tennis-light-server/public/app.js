@@ -18200,7 +18200,7 @@ function renderDesktopMatchScore() {
         <strong>${localPower}</strong><i aria-hidden="true"></i><strong>${opponentPower}</strong>
         <span class="desktop-score-turn-dot desktop-score-turn-dot--opponent${state.activePlayer === opponentIndex && !state.gameOver ? " is-active" : ""}" aria-hidden="true">●</span>
       </div>
-      <span class="desktop-score-avatar-placeholder" aria-hidden="true"></span>
+      ${playerAvatar(opponentIndex, opponentPlayer, "opponent")}
     </div>
     <span class="desktop-score-balance" aria-hidden="true"></span>
   ` : "";
