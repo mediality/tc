@@ -2375,6 +2375,15 @@ body.mobile-game-view .event-confirm-backdrop {
 }
 
 @supports (-webkit-touch-callout: none) {
+  body.mobile-game-view .mobile-game-shell img,
+  body.mobile-game-view .mobile-card,
+  body.mobile-game-view [data-mobile-card],
+  body.mobile-game-view [data-image-zoom] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   .mobile-hand-section {
     align-content: end;
     height: clamp(310px, 46dvh, 380px);

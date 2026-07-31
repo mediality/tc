@@ -12052,7 +12052,8 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 }
 
 .desktop-played-card--arriving {
-  opacity: 0;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -12064,6 +12065,51 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     opacity: 1;
   }
 }
+
+/* V4.26 compact actions, opaque settings and Club House competition UI -- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions { width: 100%; min-width: 0; gap: 4px; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions button { min-width: 0; max-width: 100%; min-height: 32px; overflow: hidden; padding: 4px 3px; line-height: 1; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions button strong { max-width: 100%; overflow: hidden; font-size: .64rem; font-weight: 1000; letter-spacing: .02em; white-space: nowrap; }
+  .card-action-cost { display: inline-flex; align-items: center; justify-content: center; gap: 3px; font-size: .62rem !important; line-height: 1; }
+  .card-action-cost i { width: 11px; height: 11px; background: currentColor; mask: url("assets/icons/endurance-heart.svg") center / contain no-repeat; -webkit-mask: url("assets/icons/endurance-heart.svg") center / contain no-repeat; }
+  .card-actions .remise-button { color: #fff; background: #257a91; }
+  .card-actions .boost-button:not(.remise-button) { color: #17212b; background: #f2c04c; }
+  .visual-stats { width: 100%; min-width: 0; }
+  .visual-stats--1 { grid-template-columns: minmax(0, 1fr); }
+  .visual-stats--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .visual-stats--3 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .visual-stats .visual-stat { min-width: 0; overflow: hidden; padding: 5px 3px; }
+  .visual-stats .visual-stat-icon { flex: 0 0 14px !important; width: 14px !important; height: 14px !important; }
+  .visual-stats .visual-stat strong { min-width: 0; font-size: .72rem; }
+}
+
+.game-assist-panel {
+  position: fixed !important;
+  top: 50% !important;
+  right: auto !important;
+  left: 50% !important;
+  z-index: 1750 !important;
+  width: min(420px, calc(100vw - 28px)) !important;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border-color: rgba(140, 224, 191, .48) !important;
+  padding: 22px !important;
+  color: #fff;
+  background: #062d42 !important;
+  box-shadow: 0 34px 100px rgba(0, 0, 0, .7) !important;
+  transform: translate(-50%, -50%);
+}
+
+.competition-dialog-shell { background: #f4f7f6; }
+.competition-dialog-scroll .tournament-panel { color: #263746; background: #fff; font-size: .78rem; }
+.competition-dialog-scroll .tournament-panel h2,
+.competition-dialog-scroll .tournament-panel strong { color: #17212b; }
+.competition-dialog-scroll .tournament-panel .eyebrow,
+.competition-dialog-scroll .tournament-panel .difficulty-reminder { color: #50636e; }
+.competition-dialog-scroll .tournament-match,
+.competition-dialog-scroll .league-standings,
+.competition-dialog-scroll .championship-zone { color: #263746; background: #f0f4f3; }
 
 /* V4.11 final desktop placement overrides. */
 @media (min-width: 861px) {
@@ -12627,5 +12673,40 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover,
   body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within {
     transform: translateY(calc(-1 * var(--local-card-action-lift, 42px))) scale(1.26);
+  }
+}
+
+/* V4.26 final card controls and stat containment ------------------------ */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions {
+    gap: 3px;
+    width: 100%;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions button {
+    min-width: 0;
+    max-width: 100%;
+    padding: 4px 3px;
+    overflow: hidden;
+    font-size: .48rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  body:not(.mobile-game-view) .visual-stats {
+    gap: 3px !important;
+    padding: 4px !important;
+  }
+
+  body:not(.mobile-game-view) .visual-stat {
+    min-width: 0;
+    gap: 2px !important;
+    padding: 4px 2px !important;
+    overflow: hidden;
+  }
+
+  body:not(.mobile-game-view) .visual-stat strong {
+    min-width: 0;
+    font-size: .72rem;
   }
 }

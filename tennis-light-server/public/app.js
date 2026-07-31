@@ -9087,7 +9087,8 @@ function maybeRunSoloAI() {
   SOLO_AI.thinking = true;
   SOLO_AI.nudgeVisible = false;
   window.clearTimeout(SOLO_AI.timer);
-  SOLO_AI.timer = window.setTimeout(runSoloAITurn, 2000);
+  const starRevealDelay = desktopStarReveal ? 2000 : 0;
+  SOLO_AI.timer = window.setTimeout(runSoloAITurn, 2000 + starRevealDelay);
   scheduleSoloAINudge();
   scheduleSoloAIWatchdog();
 }
@@ -16607,6 +16608,7 @@ function renderModeButtons() {
   document.body.classList.toggle("game-adaptive-board", GAMEPLAY_ASSIST.adaptiveBoard);
   document.body.classList.toggle("game-actions-always-visible", GAMEPLAY_ASSIST.alwaysVisibleActions);
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
+  els.adminDesktopViewSwitch?.classList.toggle("hidden", !canAccessAdminFeatures());
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
   if (!isAdminPlayer) setAdminGameToolsOpen(false);
@@ -19221,6 +19223,7 @@ function renderCard(playerIndex, card) {
   const remisePlacementIssue = isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex];
   const imageUrl = CARD_IMAGES[card.id];
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
+  const dynamicStatCount = [cost !== card.cost, stats.precision !== card.precision, stats.placement !== card.placement || state.turnPlacement[playerIndex]].filter(Boolean).length;
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
   const showPlacementWarning = GAMEPLAY_ASSIST.information && !state.mandatoryPlacement;
   const riskyPlayClass = placementIssue && !state.mandatoryPlacement ? " risky-play-button" : "";
@@ -19277,7 +19280,7 @@ function renderCard(playerIndex, card) {
       `}
       <div class="card-hover-panel">
       ${imageUrl && hasDynamicStats ? `
-        <div class="visual-stats">
+        <div class="visual-stats visual-stats--${dynamicStatCount}">
           ${cost !== card.cost ? `
             <span class="visual-stat visual-stat--${cost < card.cost ? "positive" : "negative"}" aria-label="Endurance : coût actuel ${cost}" title="Coût d’endurance actuel : ${cost}">
               <i class="visual-stat-icon visual-stat-icon--endurance" aria-hidden="true"></i><strong>${cost}</strong>
@@ -19299,11 +19302,11 @@ function renderCard(playerIndex, card) {
       ${renderCardAssistPreview(playerIndex, card, cost, boostAllowed)}
       <div class="card-actions ${isRemise(card) ? "remise-actions" : ""}">
         ${isRemise(card) ? `
-          <button class="play-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span>${cost} END</span><strong>Effet</strong></button>
-          <button class="boost-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span>${cost} END</span><strong>Remise</strong></button>
+          <button class="play-button effect-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span><strong>EFFET</strong></button>
+          <button class="boost-button remise-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span><strong>REMISE</strong></button>
         ` : `
-          <button class="play-button${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span>${cost} END</span><strong>Jouer</strong></button>
-          <button class="boost-button${tutorialFocusClass("boost", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}Boost</button>
+          <button class="play-button${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span><strong>JOUER</strong></button>
+          <button class="boost-button${tutorialFocusClass("boost", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}<strong>BOOST</strong></button>
         `}
       </div>
       ${showPlacementWarning && (placementIssue || remisePlacementIssue) ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}

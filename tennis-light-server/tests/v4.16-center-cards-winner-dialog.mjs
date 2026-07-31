@@ -6,10 +6,10 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.25.0");
-assert.match(html, /styles\.css\?v=4\.25\.0/);
-assert.match(html, /app\.js\?v=4\.25\.0/);
-assert.match(html, /Tennis Courts Academy · <span>v4\.25<\/span>/);
+assert.equal(packageJson.version, "4.26.0");
+assert.match(html, /styles\.css\?v=4\.26\.0/);
+assert.match(html, /app\.js\?v=4\.26\.0/);
+assert.match(html, /Tennis Courts Academy · <span>v4\.26<\/span>/);
 
 assert.match(css, /--desktop-played-card-width:\s*clamp\(92px, 7\.9vw, 140px\)/);
 assert.match(app, /const winnerSide = winner === mobileLocalPlayerIndex\(\) \? "player" : "opponent"/);
