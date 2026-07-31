@@ -12376,6 +12376,100 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
+/* V4.18 calmer hand controls, centered modifiers and safe hover -------- */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card.has-visual {
+    border-color: rgba(141, 205, 213, .34);
+    background: #0b4053;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:hover,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:focus-within {
+    transform: translateY(-118%) scale(1.26);
+    box-shadow: 0 28px 70px rgba(0, 0, 0, .56);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-hover-panel {
+    border-color: rgba(141, 205, 213, .38);
+    background: rgba(11, 64, 83, .99);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stats {
+    gap: 7px;
+    border-color: rgba(255, 255, 255, .16);
+    padding: 6px;
+    background: rgba(3, 31, 45, .42);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat {
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 10px;
+    color: #fff;
+    box-shadow: none;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat--positive {
+    background: #16845f;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat--negative {
+    background: #b93535;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat--neutral {
+    background: #476d7b;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat strong,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat--positive strong,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat--negative strong {
+    color: #fff;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .visual-stat-icon {
+    flex-basis: 18px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions button,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-actions button:not(:disabled),
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .risky-play-button {
+    border: 1px solid rgba(255, 255, 255, .2);
+    box-shadow: none;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .hand {
+    position: relative;
+    z-index: 245;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-row--opponent {
+    z-index: 8;
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-zone > .turn-buttons {
+    width: calc(100% - 12px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  body:not(.mobile-game-view) .turn-buttons button,
+  body:not(.mobile-game-view) .turn-buttons .pass-button {
+    min-height: 32px;
+    border-width: 1px;
+    padding: 6px 8px;
+    font-size: .6rem;
+    font-weight: 1000;
+    letter-spacing: .045em;
+    line-height: 1.05;
+    text-transform: uppercase;
+  }
+}
+
 .quit-court-button {
   width: 100%;
   margin-top: 8px;

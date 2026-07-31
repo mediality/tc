@@ -6,8 +6,8 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.17.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.17<\/span>/);
+assert.equal(packageJson.version, "4.18.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.18<\/span>/);
 
 assert.match(app, /const projectedPowers = state\.players\.map\(\(player\) => Number\(player\?\.power \|\| 0\) \+ projectedEndBonuses\(player\)\)/);
 assert.match(app, /const passBonus = Math\.max\(2, Number\(passingPlayer\?\.endurance \|\| 0\)\)/);
