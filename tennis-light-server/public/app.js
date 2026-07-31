@@ -19993,8 +19993,14 @@ document.addEventListener("pointerover", (event) => {
   window.requestAnimationFrame(() => {
     const actions = card.querySelector(".card-actions");
     if (!actions) return;
-    const lift = Math.max(0, Math.ceil(actions.scrollHeight + 6));
-    card.style.setProperty("--local-card-action-lift", `${lift}px`);
+    const baseLift = Math.max(0, Math.ceil(actions.scrollHeight + 6));
+    card.style.setProperty("--local-card-action-lift", `${baseLift}px`);
+    window.setTimeout(() => {
+      if (!card.matches(":hover, :focus-within")) return;
+      const safeBottom = window.innerHeight - 8;
+      const overflow = Math.max(0, Math.ceil(actions.getBoundingClientRect().bottom - safeBottom));
+      card.style.setProperty("--local-card-action-lift", `${baseLift + overflow}px`);
+    }, 220);
   });
 });
 els.gameAdaptiveBoardToggle?.addEventListener("change", () => {
