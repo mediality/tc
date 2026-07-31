@@ -7,8 +7,8 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.16.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.16<\/span>/);
+assert.equal(packageJson.version, "4.17.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.17<\/span>/);
 
 assert.match(app, /const answersBoost = state\.mandatoryPlacement && state\.mandatoryPlacementReason === "boost";/);
 assert.match(app, /const boostWindow = answersBoost\s*\? colorBoost\s*:/);

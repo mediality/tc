@@ -19249,6 +19249,7 @@ function renderCard(playerIndex, card) {
         </div>
         ${isRemise(card) ? '<div class="boost-box remise-note">Remise : ne termine pas le tour</div>' : `<div class="boost-box">Boost : ${card.boostPower} puissance · ${card.boostPrecision} précision</div>`}
       `}
+      <div class="card-hover-panel">
       ${imageUrl && hasDynamicStats ? `
         <div class="visual-stats">
           ${cost !== card.cost ? `
@@ -19280,6 +19281,7 @@ function renderCard(playerIndex, card) {
         `}
       </div>
       ${showPlacementWarning && (placementIssue || remisePlacementIssue) ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
+      </div>
     </article>
   `;
 }
