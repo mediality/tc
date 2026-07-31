@@ -7,8 +7,8 @@ const mobileCss = fs.readFileSync(new URL("../public/mobile-game.css", import.me
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.26.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.26<\/span>/);
+assert.equal(packageJson.version, "4.27.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.27<\/span>/);
 assert.match(app, /class="card-action-cost"/);
 assert.match(app, />EFFET<\/strong>/);
 assert.match(app, />REMISE<\/strong>/);

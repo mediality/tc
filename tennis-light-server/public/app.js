@@ -1922,6 +1922,9 @@ const els = {
   topProgressionActions: document.querySelector("#topProgressionActions"),
   gameAssistTools: document.querySelector("#gameAssistTools"),
   gameAssistButton: document.querySelector("#gameAssistButton"),
+  desktopGameMenuToggle: document.querySelector("#desktopGameMenuToggle"),
+  desktopGameMenu: document.querySelector("#desktopGameMenu"),
+  gameProfileButton: document.querySelector("#gameProfileButton"),
   gameAssistPanel: document.querySelector("#gameAssistPanel"),
   gameInformationToggle: document.querySelector("#gameInformationToggle"),
   gameAlwaysVisibleActionsToggle: document.querySelector("#gameAlwaysVisibleActionsToggle"),
@@ -19216,6 +19219,7 @@ function renderCard(playerIndex, card) {
   const placementModeAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "placement", false);
   const normalAllowed = canPlayNormal(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "normal", false);
   const boostAllowed = canPlayBoost(playerIndex, card) && tutorialAllowsPlay(playerIndex, card, "boost", true);
+  const cardPlayable = normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed;
   const cost = effectiveCost(player, card);
   const stats = getCardStats(player, card, false);
   const placementTotal = totalTurnPlacement(playerIndex, card, false);
@@ -19240,8 +19244,9 @@ function renderCard(playerIndex, card) {
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${normalAllowed || effectModeAllowed || placementModeAllowed || boostAllowed ? "" : state.gameOver ? "exchange-complete-card" : "unplayable"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${cardPlayable ? "" : state.gameOver ? "exchange-complete-card" : "unplayable desktop-hand-card--locked"}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}" data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
       ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
+      ${!cardPlayable && !state.gameOver ? '<span class="desktop-card-lock" aria-label="Carte inutilisable">🔒</span>' : ""}
       ${imageUrl ? `
         <button class="card-visual card-effect-forbid-host card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
           <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
@@ -19994,6 +19999,13 @@ els.saveMatchButton?.addEventListener("click", () => {
   }, 1800);
 });
 els.gameLogoButton?.addEventListener("click", openReturnLobbyDialog);
+els.desktopGameMenuToggle?.addEventListener("click", () => {
+  const open = !els.gameApp?.classList.contains("desktop-game-menu-open");
+  els.gameApp?.classList.toggle("desktop-game-menu-open", open);
+  els.desktopGameMenuToggle?.setAttribute("aria-expanded", String(open));
+  els.desktopGameMenuToggle?.setAttribute("aria-label", open ? "Masquer le menu du match" : "Afficher le menu du match");
+});
+els.gameProfileButton?.addEventListener("click", showProfileScreen);
 els.adminDesktopViewSwitch?.addEventListener("click", () => {
   if (!canAccessAdminFeatures()) return;
   localStorage.setItem(ADMIN_DESKTOP_VIEW_KEY, String(!adminDesktopViewForced()));

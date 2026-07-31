@@ -6,7 +6,7 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.26.0");
+assert.equal(packageJson.version, "4.27.0");
 assert.match(html, /id="competitionDialogButton"[\s\S]*?>Compétition<\/button>/);
 assert.match(html, /id="competitionDialogClose"[\s\S]*?>×<\/button>/);
 assert.match(html, /competition-dialog-scroll[\s\S]*?id="tournamentPanel"/);
