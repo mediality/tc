@@ -5,8 +5,8 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.31.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.31<\/span>/);
+assert.equal(packageJson.version, "4.32.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.32<\/span>/);
 assert.match(app, /panel\.offsetTop \+ panel\.scrollHeight \+ panelBorder/);
 assert.match(app, /panelBottom - card\.offsetHeight/);
 assert.match(app, /const bottomSafety = 28/);

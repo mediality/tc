@@ -5,8 +5,8 @@ const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.me
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.equal(packageJson.version, "4.31.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.31<\/span>/);
+assert.equal(packageJson.version, "4.32.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.32<\/span>/);
 assert.match(styles, /\.court > \.log \{[\s\S]*z-index: 1 !important/);
 assert.match(styles, /player-panel\[data-desktop-role="local"\][\s\S]*z-index: 300 !important/);
 assert.match(styles, /\.hand \.card \{[\s\S]*z-index: 320 !important/);

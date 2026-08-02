@@ -5,8 +5,8 @@ const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.me
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.equal(packageJson.version, "4.31.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.31<\/span>/);
+assert.equal(packageJson.version, "4.32.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.32<\/span>/);
 assert.match(styles, /V4\.31 compact player medallions/);
 assert.match(styles, /grid-template-rows: clamp\(76px, 12dvh, 110px\) minmax\(0, 1fr\) clamp\(178px, 29dvh, 276px\)/);
 assert.match(styles, /player-panel\[data-desktop-role="local"\] \.character-zone/);

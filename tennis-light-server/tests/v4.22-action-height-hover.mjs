@@ -6,8 +6,8 @@ const css = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "u
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "4.31.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.31<\/span>/);
+assert.equal(packageJson.version, "4.32.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.32<\/span>/);
 assert.match(app, /panel\.scrollHeight/);
 assert.match(app, /--local-card-action-lift/);
 assert.doesNotMatch(app, /if \(!GAMEPLAY_ASSIST\.alwaysVisibleActions\) return/);
