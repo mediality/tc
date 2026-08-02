@@ -15,6 +15,183 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* V4.47 final light-surface overrides must remain after the legacy tournament theme. */
+.competition-dialog-shell { background: #f4f7f6 !important; }
+.competition-dialog-scroll,
+.competition-dialog-scroll .tournament-panel { background: #fff !important; }
+.competition-dialog-scroll .tournament-meta-row .difficulty-reminder { background: #edf3f4 !important; }
+.competition-dialog-scroll .tournament-meta-row .weekly-points-reminder { background: #f6d66d !important; }
+.competition-dialog-scroll .tournament-panel :is(.tournament-toggle-button, .championship-zone-toggle) { background: #e8f0f2 !important; }
+.competition-dialog-scroll .tournament-panel :is(.tournament-match, .tournament-champion, .league-standings, .championship-zone) { background: #f0f4f3 !important; }
+.competition-dialog-scroll .tournament-panel .tournament-match.current { background: #f3f8dc !important; }
+.competition-dialog-scroll .tournament-panel .tournament-match.final-match { background: #fff7df !important; }
+.competition-dialog-scroll .tournament-player-row,
+.competition-dialog-scroll .league-standings-row { background: #f8fafb !important; }
+.competition-dialog-scroll .tournament-player-row.winner,
+.competition-dialog-scroll .league-standings-row.qualified { background: #e5f3ee !important; }
+.competition-dialog-scroll :is(.tournament-player-row, .league-standings-row).human-player { background: #fff6dc !important; }
+.competition-dialog-scroll .tournament-match-status { background: #e3eaed !important; }
+.competition-dialog-scroll .tournament-match-status.live { background: #d9f1e6 !important; }
+.competition-dialog-scroll .tournament-match-status.complete { background: #cfe9df !important; }
+.competition-dialog-scroll .tournament-score,
+.competition-dialog-scroll .tournament-set-scores span { background: #e7edef !important; }
+.competition-dialog-scroll .tournament-set-scores.live span { background: #dff2ea !important; }
+.competition-dialog-scroll .tournament-set-scores span.winner-set { background: #d5ece3 !important; }
+.competition-dialog-scroll .championship-zone-content { background: #f7faf9 !important; }
+
+/* V4.47 readable competition information on every light surface. */
+.competition-dialog-shell {
+  color: #17212b;
+  background: #f4f7f6;
+}
+
+.competition-dialog-close {
+  color: #fff;
+  background: #17384a;
+}
+
+.competition-dialog-scroll,
+.competition-dialog-scroll .tournament-panel {
+  color: #17212b !important;
+  background: #fff;
+}
+
+.competition-dialog-scroll .tournament-panel :is(h1, h2, h3, h4, p, span, strong, b, small, li, dt, dd, label) {
+  color: #17212b !important;
+}
+
+.competition-dialog-scroll .tournament-panel :is(
+  .eyebrow,
+  .difficulty-reminder,
+  .tournament-location-reminder,
+  .tournament-round-label,
+  .tournament-column-title,
+  .league-standings-head,
+  .championship-empty-round,
+  .league-rank
+) {
+  color: #465b68 !important;
+}
+
+.competition-dialog-scroll .tournament-header {
+  border-bottom-color: #d5e0e3;
+}
+
+.competition-dialog-scroll .tournament-meta-row .difficulty-reminder {
+  border-color: #cbd8dc;
+  color: #344957 !important;
+  background: #edf3f4;
+}
+
+.competition-dialog-scroll .tournament-meta-row .weekly-points-reminder {
+  border-color: #d4a82d;
+  color: #382900 !important;
+  background: #f6d66d;
+}
+
+.competition-dialog-scroll .tournament-panel :is(.tournament-toggle-button, .championship-zone-toggle) {
+  border-color: #bfd1d6;
+  color: #17212b !important;
+  background: #e8f0f2;
+}
+
+.competition-dialog-scroll .tournament-panel button :is(span, strong, b, small) {
+  color: inherit !important;
+}
+
+.competition-dialog-scroll .tournament-panel :is(.tournament-match, .tournament-champion, .league-standings, .championship-zone) {
+  border-color: #cbd8dc;
+  color: #17212b !important;
+  background: #f0f4f3;
+  box-shadow: 0 6px 16px rgba(23, 33, 43, .08);
+}
+
+.competition-dialog-scroll .tournament-panel .tournament-match.current {
+  border-color: #8aaa39;
+  background: #f3f8dc;
+}
+
+.competition-dialog-scroll .tournament-panel .tournament-match.final-match {
+  border-color: #d1aa43;
+  background: #fff7df;
+}
+
+.competition-dialog-scroll .tournament-player-row,
+.competition-dialog-scroll .league-standings-row {
+  border-color: #d8e2e5;
+  color: #17212b !important;
+  background: #f8fafb;
+}
+
+.competition-dialog-scroll .tournament-player-row.winner,
+.competition-dialog-scroll .league-standings-row.qualified {
+  border-color: #79a895;
+  color: #183f35 !important;
+  background: #e5f3ee;
+  box-shadow: none;
+}
+
+.competition-dialog-scroll :is(.tournament-player-row, .league-standings-row).human-player {
+  border-color: #c69d2f;
+  color: #3d310d !important;
+  background: #fff6dc;
+}
+
+.competition-dialog-scroll .tournament-match-status {
+  color: #41545f !important;
+  background: #e3eaed;
+}
+
+.competition-dialog-scroll .tournament-match-status.live {
+  color: #155e43 !important;
+  background: #d9f1e6;
+}
+
+.competition-dialog-scroll .tournament-match-status.complete {
+  color: #164d3d !important;
+  background: #cfe9df;
+}
+
+.competition-dialog-scroll .tournament-match-status.upcoming {
+  color: #465b68 !important;
+  background: #e3eaed;
+}
+
+.competition-dialog-scroll .tournament-score,
+.competition-dialog-scroll .tournament-set-scores span {
+  border-color: #c7d4d8;
+  color: #263d49 !important;
+  background: #e7edef;
+}
+
+.competition-dialog-scroll .tournament-set-scores.live span {
+  border-color: #79a895;
+  color: #155e43 !important;
+  background: #dff2ea;
+}
+
+.competition-dialog-scroll .tournament-set-scores span.winner-set {
+  border-color: #79a895;
+  color: #164d3d !important;
+  background: #d5ece3;
+  box-shadow: none;
+}
+
+.competition-dialog-scroll .championship-zone-toggle > span:first-child,
+.competition-dialog-scroll .championship-day > header strong {
+  color: #315f52 !important;
+}
+
+.competition-dialog-scroll .championship-zone-content {
+  color: #17212b;
+  background: #f7faf9;
+}
+
+.competition-dialog-scroll .championship-day > header,
+.competition-dialog-scroll .championship-day > header span {
+  color: #465b68 !important;
+}
+
 /* V4.28 restored score geometry and overlays ---------------------------- */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .game-app .topbar > div:first-child {
@@ -14288,3 +14465,36 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     min-width: 0;
   }
 }
+
+/* V4.47 final competition contrast overrides. Keep after legacy tournament rules. */
+.competition-dialog-shell { color: #17212b; background: #f4f7f6 !important; }
+.competition-dialog-close { color: #fff; background: #17384a; }
+.competition-dialog-scroll,
+.competition-dialog-scroll .tournament-panel { color: #17212b !important; background: #fff !important; }
+.competition-dialog-scroll .tournament-panel :is(h1, h2, h3, h4, p, span, strong, b, small, li, dt, dd, label) { color: #17212b !important; }
+.competition-dialog-scroll .tournament-panel :is(.eyebrow, .difficulty-reminder, .tournament-location-reminder, .tournament-round-label, .tournament-column-title, .league-standings-head, .championship-empty-round, .league-rank) { color: #465b68 !important; }
+.competition-dialog-scroll .tournament-meta-row .difficulty-reminder { color: #344957 !important; background: #edf3f4 !important; }
+.competition-dialog-scroll .tournament-meta-row .weekly-points-reminder { color: #382900 !important; background: #f6d66d !important; }
+.competition-dialog-scroll .tournament-panel :is(.tournament-toggle-button, .championship-zone-toggle) { color: #17212b !important; background: #e8f0f2 !important; }
+.competition-dialog-scroll .tournament-panel button :is(span, strong, b, small) { color: inherit !important; }
+.competition-dialog-scroll .tournament-panel :is(.tournament-match, .tournament-champion, .league-standings, .championship-zone) { border-color: #cbd8dc; color: #17212b !important; background: #f0f4f3 !important; }
+.competition-dialog-scroll .tournament-panel .tournament-match.current { background: #f3f8dc !important; }
+.competition-dialog-scroll .tournament-panel .tournament-match.final-match { background: #fff7df !important; }
+.competition-dialog-scroll .tournament-player-row,
+.competition-dialog-scroll .league-standings-row { color: #17212b !important; background: #f8fafb !important; }
+.competition-dialog-scroll .tournament-player-row.winner,
+.competition-dialog-scroll .league-standings-row.qualified { color: #183f35 !important; background: #e5f3ee !important; box-shadow: none; }
+.competition-dialog-scroll :is(.tournament-player-row, .league-standings-row).human-player { color: #3d310d !important; background: #fff6dc !important; }
+.competition-dialog-scroll .tournament-match-status { color: #41545f !important; background: #e3eaed !important; }
+.competition-dialog-scroll .tournament-match-status.live { color: #155e43 !important; background: #d9f1e6 !important; }
+.competition-dialog-scroll .tournament-match-status.complete { color: #164d3d !important; background: #cfe9df !important; }
+.competition-dialog-scroll .tournament-match-status.upcoming { color: #465b68 !important; background: #e3eaed !important; }
+.competition-dialog-scroll .tournament-score,
+.competition-dialog-scroll .tournament-set-scores span { color: #263d49 !important; background: #e7edef !important; }
+.competition-dialog-scroll .tournament-set-scores.live span { color: #155e43 !important; background: #dff2ea !important; }
+.competition-dialog-scroll .tournament-set-scores span.winner-set { color: #164d3d !important; background: #d5ece3 !important; box-shadow: none; }
+.competition-dialog-scroll .championship-zone-toggle > span:first-child,
+.competition-dialog-scroll .championship-day > header strong { color: #315f52 !important; }
+.competition-dialog-scroll .championship-zone-content { color: #17212b; background: #f7faf9 !important; }
+.competition-dialog-scroll .championship-day > header,
+.competition-dialog-scroll .championship-day > header span { color: #465b68 !important; }
