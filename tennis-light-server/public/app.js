@@ -1574,6 +1574,7 @@ let confrontationIntroTimer = null;
 let confrontationIntroActive = false;
 let confrontationIntroSequenceTimers = [];
 let soloTournamentCountdownTimer = null;
+let desktopHistoryExpanded = false;
 
 const GAMEPLAY_ASSIST = {
   information: localStorage.getItem("tennisLightAssistInformation") === "true",
@@ -8283,6 +8284,7 @@ function resetSetMatch() {
 
 function newGame(options = {}) {
   const { preserveSet = false, serverOverride = null } = options;
+  if (!preserveSet) desktopHistoryExpanded = false;
   if (SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut relancer un échange en ligne pour le moment.");
     render();
@@ -19135,7 +19137,8 @@ function renderPlayerPanel(playerIndex, root) {
   const showPassButton = playerIndex === state.activePlayer
     && !state.gameOver
     && canUseSeat(playerIndex)
-    && tutorialAllowsPass();
+    && tutorialAllowsPass()
+    && !hasPlayedThisTurn(playerIndex);
   const passProjection = showPassButton ? mobilePassProjection(playerIndex) : null;
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
@@ -19466,21 +19469,36 @@ function renderLog() {
   const latestEntry = history.find((entry) => entry.type !== "system") || history[0];
   const side = latestEntry?.playerSide || "information";
   const latestIsExchangeResult = Boolean(desktopExchangeResultData(latestEntry?.message));
+  const progressionActions = renderRallyEndActions();
+  if (progressionActions) desktopHistoryExpanded = true;
+  els.log.classList.toggle("desktop-history-drawer--open", desktopHistoryExpanded);
   els.log.innerHTML = `
-    <div class="desktop-history-progression-actions">${renderRallyEndActions()}</div>
-    <div class="desktop-history-latest desktop-history-latest--${side}">
-      ${latestIsExchangeResult ? desktopExchangeResultMarkup(latestEntry.message, side) : `
-        <div>
-          <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
-          ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
-        </div>
-        <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
-        ${latestEntry?.card?.artwork ? `<button type="button" data-open-latest-history-card aria-label="Voir ${escapeHtml(latestEntry.card.name)}"><img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" /></button>` : ""}
-      `}
+    <button class="desktop-history-drawer-toggle" type="button" data-toggle-history-drawer aria-expanded="${desktopHistoryExpanded}" aria-label="${desktopHistoryExpanded ? "Replier" : "Ouvrir"} l’historique">
+      <span aria-hidden="true">${desktopHistoryExpanded ? "→" : "←"}</span><strong>Historique</strong>
+    </button>
+    <div class="desktop-history-drawer-content">
+      <div class="desktop-history-progression-actions">${progressionActions}</div>
+      <div class="desktop-history-latest desktop-history-latest--${side}">
+        ${latestIsExchangeResult ? desktopExchangeResultMarkup(latestEntry.message, side) : `
+          <div>
+            <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
+            ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
+          </div>
+          <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
+          ${latestEntry?.card?.artwork ? `<button type="button" data-open-latest-history-card aria-label="Voir ${escapeHtml(latestEntry.card.name)}"><img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" /></button>` : ""}
+        `}
+      </div>
+      ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique complet</button>' : ""}
     </div>
-    ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique</button>' : ""}
   `;
   bindRallyEndActions(els.log);
+  els.log.querySelector("[data-toggle-history-drawer]")?.addEventListener("click", (event) => {
+    desktopHistoryExpanded = !desktopHistoryExpanded;
+    els.log.classList.toggle("desktop-history-drawer--open", desktopHistoryExpanded);
+    event.currentTarget.setAttribute("aria-expanded", String(desktopHistoryExpanded));
+    event.currentTarget.setAttribute("aria-label", `${desktopHistoryExpanded ? "Replier" : "Ouvrir"} l’historique`);
+    event.currentTarget.querySelector("span").textContent = desktopHistoryExpanded ? "→" : "←";
+  });
   els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
   els.log.querySelector("[data-open-latest-history-card]")?.addEventListener("click", () => {
     openDesktopPlayedCardDetail(latestEntry?.card);
