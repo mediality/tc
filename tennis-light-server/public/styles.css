@@ -14133,3 +14133,21 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     flex-basis: 18px;
   }
 }
+
+/* V4.41 rounded center-board cards matching the player's hand. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-card {
+    border-radius: var(--game-card-radius);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-card > img:not(.remise-forbid-overlay) {
+    border-radius: var(--game-card-radius);
+    clip-path: inset(0 round 7.2% / 5.2%);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-card .desktop-remise-underlay,
+  body:not(.mobile-game-view) .desktop-played-card .desktop-boost-underlay,
+  body:not(.mobile-game-view) .desktop-played-card .boost-sacrifice-back {
+    border-radius: var(--game-card-radius);
+  }
+}
