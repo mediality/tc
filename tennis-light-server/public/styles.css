@@ -14160,9 +14160,19 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     inset: 0;
     z-index: 12;
     box-sizing: border-box;
-    border: 2px solid #fff;
+    border: 0;
+    border-left: 2px solid #fff;
     border-radius: var(--game-card-radius);
     pointer-events: none;
+  }
+}
+
+/* V4.44 restore only the obscured shot edge, without doubling its outline. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-card.preceded-by-effect::after {
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
   }
 }
 
