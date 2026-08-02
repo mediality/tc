@@ -14183,3 +14183,10 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     display: none;
   }
 }
+
+/* V4.45 the same single restored edge also applies between consecutive Effect cards. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-card.preceded-by-effect::after {
+    border-left: 2px solid #fff;
+  }
+}
