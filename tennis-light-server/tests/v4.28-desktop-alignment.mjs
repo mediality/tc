@@ -6,8 +6,8 @@ const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.equal(packageJson.version, "4.30.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.30<\/span>/);
+assert.equal(packageJson.version, "4.31.0");
+assert.match(html, /Tennis Courts Academy · <span>v4\.31<\/span>/);
 assert.doesNotMatch(html, /id="gameLogoButton"/);
 assert.doesNotMatch(html, /id="gameProfileButton"/);
 assert.match(html, /class="court-logo-watermark"/);
