@@ -18061,7 +18061,7 @@ function effectCardPrecedesCard(playedCards, cardIndex) {
   for (let index = cardIndex - 1; index >= 0; index -= 1) {
     const card = playedCards[index];
     if (card.turnCompleted || !isRemise(card)) break;
-    if (card.remiseMode === "effect" && !card.removed) return true;
+    if (card.remiseMode === "effect") return true;
   }
   return false;
 }
@@ -18720,10 +18720,10 @@ function desktopPlayedRowMarkup(playerIndex, role) {
       <div class="desktop-played-viewport" data-desktop-played-viewport>
         <div class="desktop-played-track">
           ${sequence.length
-            ? sequence.map(({ card, owner, remiseCards, precededByEffect }) => (
+            ? sequence.map(({ card, owner, remiseCards, precededByEffect }, sequenceIndex) => (
               owner === playerIndex && desktopPlayedCardKey(card) !== hiddenStarKey
-                ? `<span class="desktop-played-slot">${desktopPlayedCardMarkup(card, playerIndex, remiseCards, precededByEffect)}</span>`
-                : '<span class="desktop-played-slot desktop-played-slot--empty" aria-hidden="true"></span>'
+                ? `<span class="desktop-played-slot" style="--desktop-played-layer: ${sequenceIndex + 1}">${desktopPlayedCardMarkup(card, playerIndex, remiseCards, precededByEffect)}</span>`
+                : `<span class="desktop-played-slot desktop-played-slot--empty" style="--desktop-played-layer: ${sequenceIndex + 1}" aria-hidden="true"></span>`
             )).join("")
             : `<span class="desktop-played-empty">Aucune carte jouée</span>`}
           ${sequence.length && !playerCards.length ? `<span class="desktop-played-empty desktop-played-empty--overlay">Aucune carte jouée</span>` : ""}
@@ -19348,7 +19348,7 @@ function renderCard(playerIndex, card) {
           <button class="boost-button${tutorialFocusClass("boost", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}<strong>BOOST</strong></button>
         `}
       </div>
-      ${showPlacementWarning && (placementIssue || remisePlacementIssue) ? '<div class="stat placement boost-warning">Placement total insuffisant : <strong>BOOST</strong> adverse possible</div>' : ""}
+      ${showPlacementWarning && (placementIssue || remisePlacementIssue) ? '<div class="stat placement boost-warning">PLACEMENT INSUFFISANT · <strong>BOOST ADVERSE POSSIBLE</strong></div>' : ""}
       </div>
     </article>
   `;
