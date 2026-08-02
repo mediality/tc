@@ -14154,7 +14154,7 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 
 /* V4.42 complete white outline above stacked effect + shot cards. */
 @media (min-width: 861px) {
-  body:not(.mobile-game-view) .desktop-played-card.has-remise-underlay::after {
+  body:not(.mobile-game-view) .desktop-played-card.preceded-by-effect::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -14163,5 +14163,13 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     border: 2px solid #fff;
     border-radius: var(--game-card-radius);
     pointer-events: none;
+  }
+}
+
+/* V4.43 outline applies to Effect + Shot only, never Remise + Shot. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-card.has-remise-underlay:not(.preceded-by-effect)::after {
+    content: none;
+    display: none;
   }
 }
