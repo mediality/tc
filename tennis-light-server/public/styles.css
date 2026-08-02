@@ -13786,6 +13786,60 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
+/* V4.37 content-height history drawer and readable double-digit power. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    height: auto;
+    max-height: calc(100% - 92px);
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle,
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    height: auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    grid-template-rows: auto auto auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content .desktop-history-latest {
+    height: auto;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder.double-digit-power {
+    padding-inline: 3px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder.double-digit-power .stat-value-power {
+    grid-template-columns: 14px minmax(0, auto);
+    justify-content: center;
+    width: 100%;
+    gap: 1px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder.double-digit-power .stat-symbol-power {
+    width: 14px;
+    height: 14px;
+    flex-basis: 14px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder.double-digit-power strong {
+    min-width: 0;
+    overflow: visible;
+    font-size: .84rem;
+    font-weight: 1000;
+    letter-spacing: -.04em;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 861px) and (max-height: 700px) {
+  body:not(.mobile-game-view) .court > .log {
+    height: auto;
+    max-height: calc(100% - 62px);
+  }
+}
+
 /* V4.34 stable card angles, persistent energy, clipped portraits and adjustable opponent tuck. */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .court {
