@@ -13615,3 +13615,74 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     height: 27px;
   }
 }
+
+/* V4.34 stable card angles, persistent energy, clipped portraits and adjustable opponent tuck. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court {
+    --opponent-hand-tuck: 50%;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .hand {
+    align-self: start;
+    transform: translateY(calc(-1 * var(--opponent-hand-tuck)));
+    transition: transform 180ms ease;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:nth-child(6n + 1) { --local-card-angle: -4deg; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:nth-child(6n + 2) { --local-card-angle: -2.4deg; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:nth-child(6n + 3) { --local-card-angle: -.8deg; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:nth-child(6n + 4) { --local-card-angle: .8deg; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:nth-child(6n + 5) { --local-card-angle: 2.4deg; }
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:nth-child(6n) { --local-card-angle: 4deg; }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:hover,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:focus,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:focus-within,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:active {
+    transform: rotate(var(--local-card-angle, 0deg));
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:hover,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card:focus-within {
+    transform: translateY(calc(-1 * var(--local-card-action-lift, 42px))) scale(1.26) rotate(var(--local-card-angle, 0deg)) !important;
+  }
+
+  body:not(.mobile-game-view) .character-card {
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  body:not(.mobile-game-view) .character-card img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 50%;
+    clip-path: circle(50% at 50% 50%);
+    object-fit: cover;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-stats,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-endurance-reminder,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-endurance-reminder.low-endurance,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-endurance-reminder.warning-endurance,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-endurance-reminder .stat-value-row,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-endurance-reminder strong {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-endurance-reminder {
+    display: grid !important;
+    z-index: 4;
+  }
+}
+
+@media (min-width: 861px) and (max-height: 760px) {
+  body:not(.mobile-game-view) .court { --opponent-hand-tuck: 56%; }
+}
+
+@media (min-width: 861px) and (max-height: 620px) {
+  body:not(.mobile-game-view) .court { --opponent-hand-tuck: 64%; }
+}
