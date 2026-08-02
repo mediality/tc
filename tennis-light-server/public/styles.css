@@ -13786,6 +13786,39 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
+/* V4.39 compact history tab and explicit seventh-card angle inheritance. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    height: auto;
+    align-items: center;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle {
+    align-self: center;
+    height: auto !important;
+    min-height: 0;
+    grid-template-rows: auto auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    align-self: center;
+    height: auto;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card.drawn-card-inherited-angle,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card.drawn-card-inherited-angle:focus,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card.drawn-card-inherited-angle:active {
+    --local-card-angle: var(--drawn-card-angle);
+    transform: rotate(var(--drawn-card-angle)) !important;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card.drawn-card-inherited-angle:hover,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card.drawn-card-inherited-angle:focus-within {
+    --local-card-angle: var(--drawn-card-angle);
+    transform: translateY(calc(-1 * var(--local-card-action-lift, 42px))) scale(1.26) rotate(var(--drawn-card-angle)) !important;
+  }
+}
+
 /* V4.37 content-height history drawer and readable double-digit power. */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .court > .log {
@@ -14011,5 +14044,25 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 
   body:not(.mobile-game-view) .court > .log.desktop-history-drawer--open {
     transform: translate(0, -50%);
+  }
+}
+
+/* V4.39 final cascade lock: the tab stays compact beside the content-height drawer. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    height: auto;
+    align-items: center;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle {
+    align-self: center;
+    height: auto !important;
+    min-height: 0;
+    grid-template-rows: auto auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    align-self: center;
+    height: auto;
   }
 }
