@@ -14151,3 +14151,17 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     border-radius: var(--game-card-radius);
   }
 }
+
+/* V4.42 complete white outline above stacked effect + shot cards. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-card.has-remise-underlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 12;
+    box-sizing: border-box;
+    border: 2px solid #fff;
+    border-radius: var(--game-card-radius);
+    pointer-events: none;
+  }
+}
