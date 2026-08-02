@@ -13616,6 +13616,176 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
+/* V4.36 equal-height history drawer and locked player medallion geometry. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    height: clamp(230px, 40vh, 390px);
+    max-height: calc(100% - 92px);
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle,
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content .desktop-history-latest {
+    align-content: start;
+    min-height: 0;
+    height: 100%;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] {
+    --desktop-player-color: #f2a37f;
+    --desktop-player-ink: #3f1d15;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] {
+    --desktop-player-color: #8ce0bf;
+    --desktop-player-ink: #062e2b;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .character-zone {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    align-self: start;
+    margin: 10px 6px 6px;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-zone {
+    grid-column: 1;
+    grid-row: 2 / 4;
+    align-self: end;
+    margin: 6px 6px 14px;
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-zone {
+    grid-template-columns: repeat(3, minmax(42px, 1fr));
+    grid-template-rows: 92px 24px 34px auto auto;
+    width: min(164px, calc(100% - 12px));
+    min-width: 144px;
+    overflow: visible;
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-stats {
+    position: static;
+    grid-column: 1 / 3;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(42px, 1fr));
+    align-self: stretch;
+    width: 100%;
+    min-width: 0;
+    gap: 4px;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-stats .character-power-reminder,
+  body:not(.mobile-game-view) .player-panel .character-stats .character-endurance-reminder {
+    position: relative;
+    grid-column: auto;
+    grid-row: auto;
+    display: grid !important;
+    align-self: stretch;
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    height: 31px;
+    min-height: 31px;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  body:not(.mobile-game-view) .desktop-player-bonus-count {
+    position: relative;
+    grid-column: 3;
+    grid-row: 3;
+    align-self: stretch;
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    height: 31px;
+    min-height: 31px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder,
+  body:not(.mobile-game-view) .character-power-reminder.leading-power {
+    border: 1px solid color-mix(in srgb, var(--desktop-player-color) 70%, white);
+    color: var(--desktop-player-ink);
+    background: var(--desktop-player-color);
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder strong {
+    color: var(--desktop-player-ink);
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder .stat-symbol,
+  body:not(.mobile-game-view) .character-power-reminder .stat-symbol-power {
+    background-color: var(--desktop-player-ink);
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder,
+  body:not(.mobile-game-view) .character-endurance-reminder.warning-endurance {
+    border: 1px solid var(--desktop-player-color);
+    color: var(--desktop-player-color);
+    background: rgba(5, 28, 43, .96);
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder strong {
+    color: var(--desktop-player-color);
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder .stat-symbol,
+  body:not(.mobile-game-view) .character-endurance-reminder .stat-symbol-endurance {
+    background-color: var(--desktop-player-color);
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder.low-endurance {
+    border-color: #ff7b73;
+    color: #fff;
+    background: #b83232;
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder.low-endurance strong {
+    color: #fff;
+  }
+
+  body:not(.mobile-game-view) .character-endurance-reminder.low-endurance .stat-symbol,
+  body:not(.mobile-game-view) .character-endurance-reminder.low-endurance .stat-symbol-endurance {
+    background-color: #fff;
+  }
+}
+
+@media (min-width: 861px) and (max-height: 700px) {
+  body:not(.mobile-game-view) .court > .log {
+    height: clamp(190px, 38vh, 300px);
+    max-height: calc(100% - 62px);
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-zone {
+    grid-template-columns: repeat(3, minmax(39px, 1fr));
+    grid-template-rows: 72px 21px 29px auto auto;
+    width: min(146px, calc(100% - 10px));
+    min-width: 132px;
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-stats {
+    grid-template-columns: repeat(2, minmax(39px, 1fr));
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-stats .character-power-reminder,
+  body:not(.mobile-game-view) .player-panel .character-stats .character-endurance-reminder,
+  body:not(.mobile-game-view) .desktop-player-bonus-count {
+    height: 27px;
+    min-height: 27px;
+  }
+}
+
 /* V4.34 stable card angles, persistent energy, clipped portraits and adjustable opponent tuck. */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .court {
