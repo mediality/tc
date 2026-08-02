@@ -13840,6 +13840,22 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
+/* V4.38 measured history toggle and inherited angle for drawn cards. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    align-items: start;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle,
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    align-self: start;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle {
+    box-sizing: border-box;
+  }
+}
+
 /* V4.34 stable card angles, persistent energy, clipped portraits and adjustable opponent tuck. */
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .court {
