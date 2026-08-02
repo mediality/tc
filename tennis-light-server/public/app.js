@@ -19476,45 +19476,16 @@ function renderActionLogEntry(line, index, compact = false) {
 
 function renderLog() {
   els.log.classList.toggle("tutorial-focus-target", Boolean(tutorialFocusClass("history", null)));
-  const history = mobileHistoryEntries();
-  const latestEntry = history.find((entry) => entry.type !== "system") || history[0];
-  const side = latestEntry?.playerSide || "information";
-  const latestIsExchangeResult = Boolean(desktopExchangeResultData(latestEntry?.message));
   const progressionActions = renderRallyEndActions();
-  if (progressionActions) desktopHistoryExpanded = true;
-  els.log.classList.toggle("desktop-history-drawer--open", desktopHistoryExpanded);
+  els.log.classList.remove("desktop-history-drawer--open");
   els.log.innerHTML = `
-    <button class="desktop-history-drawer-toggle" type="button" data-toggle-history-drawer aria-expanded="${desktopHistoryExpanded}" aria-label="${desktopHistoryExpanded ? "Replier" : "Ouvrir"} l’historique">
-      <span aria-hidden="true">${desktopHistoryExpanded ? "→" : "←"}</span><strong>Historique</strong>
+    <div class="desktop-history-progression-actions">${progressionActions}</div>
+    <button class="desktop-history-drawer-toggle" type="button" data-open-full-action-log aria-label="Ouvrir l’historique dans une boîte de dialogue">
+      <span aria-hidden="true">←</span><strong>Historique</strong>
     </button>
-    <div class="desktop-history-drawer-content">
-      <div class="desktop-history-progression-actions">${progressionActions}</div>
-      <div class="desktop-history-latest desktop-history-latest--${side}">
-        ${latestIsExchangeResult ? desktopExchangeResultMarkup(latestEntry.message, side) : `
-          <div>
-            <span>${latestEntry ? escapeHtml(latestEntry.label) : "Dernier coup"}</span>
-            ${latestEntry?.playerName ? `<strong>${escapeHtml(latestEntry.playerName)}</strong>` : ""}
-          </div>
-          <p>${latestEntry ? formatLogLine(latestEntry.message) : "L’échange va commencer."}</p>
-          ${latestEntry?.card?.artwork ? `<button type="button" data-open-latest-history-card aria-label="Voir ${escapeHtml(latestEntry.card.name)}"><img src="${escapeHtml(latestEntry.card.artwork)}" alt="${escapeHtml(latestEntry.card.name)}" /></button>` : ""}
-        `}
-      </div>
-      ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique complet</button>' : ""}
-    </div>
   `;
   bindRallyEndActions(els.log);
-  const historyToggle = els.log.querySelector("[data-toggle-history-drawer]");
-  historyToggle?.addEventListener("click", (event) => {
-    desktopHistoryExpanded = !desktopHistoryExpanded;
-    els.log.classList.toggle("desktop-history-drawer--open", desktopHistoryExpanded);
-    event.currentTarget.setAttribute("aria-expanded", String(desktopHistoryExpanded));
-    event.currentTarget.setAttribute("aria-label", `${desktopHistoryExpanded ? "Replier" : "Ouvrir"} l’historique`);
-    event.currentTarget.querySelector("span").textContent = desktopHistoryExpanded ? "→" : "←";
-  });
   els.log.querySelector("[data-open-full-action-log]")?.addEventListener("click", openFullActionLogDialog);
-  els.log.querySelector("[data-open-latest-history-card]")?.addEventListener("click", () => {
-    openDesktopPlayedCardDetail(latestEntry?.card);
-  });
 }
 
 function closeFullActionLogDialog() {
