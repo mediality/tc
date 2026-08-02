@@ -14190,3 +14190,101 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     border-left: 2px solid #fff;
   }
 }
+
+/* V4.46 stable removed-card layers, readable overlays and consistent information rows. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .desktop-played-slot {
+    position: relative;
+    z-index: var(--desktop-played-layer, 1);
+  }
+
+  body:not(.mobile-game-view) .desktop-played-card.removed {
+    z-index: auto;
+    filter: none;
+    opacity: 1;
+  }
+
+  body:not(.mobile-game-view) .desktop-played-card.removed > img:not(.remise-forbid-overlay),
+  body:not(.mobile-game-view) .desktop-played-card.removed .desktop-remise-underlay,
+  body:not(.mobile-game-view) .desktop-played-card.removed .desktop-boost-underlay {
+    filter: grayscale(1) brightness(.62);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data {
+    position: absolute;
+    inset: 4px;
+    z-index: 12;
+    display: grid !important;
+    align-content: start;
+    gap: 6px;
+    overflow: auto;
+    border: 1px solid rgba(140, 224, 191, .45);
+    border-radius: var(--game-card-radius);
+    padding: 8px;
+    color: #f7fbff;
+    background: rgba(3, 24, 38, .97);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
+    pointer-events: none;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data header span,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data header strong,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data p,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data p b {
+    color: #f7fbff;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data .card-readable-stats > span {
+    color: #f7fbff;
+    background: rgba(255, 255, 255, .1);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data .card-readable-stats small,
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data .card-readable-stats strong {
+    color: #f7fbff;
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .card-readable-data .card-readable-boost {
+    color: #fff;
+    background: rgba(125, 47, 47, .78);
+  }
+
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .boost-warning {
+    width: 100%;
+    min-height: 0;
+    padding: 4px 5px;
+    font-size: .46rem;
+    font-weight: 900;
+    line-height: 1.12;
+    letter-spacing: .035em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .card-hover-panel,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .card-hover-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: auto;
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .card-assist-preview,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .card-assist-preview {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .card-assist-preview.has-boost,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .card-assist-preview.has-boost {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .card-assist-preview span,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .card-assist-preview span,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:hover .boost-warning,
+  body:not(.mobile-game-view).game-actions-always-visible .player-panel[data-desktop-role="local"] .hand .card:focus-within .boost-warning {
+    width: 100%;
+    min-width: 0;
+  }
+}
