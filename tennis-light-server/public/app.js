@@ -18055,6 +18055,17 @@ function placementRemisesForShot(playedCards, shotIndex) {
   return remises;
 }
 
+function effectCardPrecedesShot(playedCards, shotIndex) {
+  const shot = playedCards[shotIndex];
+  if (!shot || isRemise(shot)) return false;
+  for (let index = shotIndex - 1; index >= 0; index -= 1) {
+    const card = playedCards[index];
+    if (card.turnCompleted || !isRemise(card)) break;
+    if (card.remiseMode === "effect" && !card.removed) return true;
+  }
+  return false;
+}
+
 function renderRemiseStack(shot, remiseCards) {
   const placementBonus = remiseCards.reduce((total, card) => total + Number(card.placement || 0), 0);
   const details = remiseCards.map((card) => `${card.name} +${Number(card.placement || 0)}`).join(", ");
@@ -18657,12 +18668,12 @@ function desktopPlayedCardArtwork(card) {
   return card?.artwork || CARD_IMAGES[card?.id] || CARD_BACK_IMAGE;
 }
 
-function desktopPlayedCardMarkup(card, playerIndex, remiseCards = []) {
+function desktopPlayedCardMarkup(card, playerIndex, remiseCards = [], precededByEffect = false) {
   const cardKey = desktopPlayedCardKey(card);
   const imageUrl = desktopPlayedCardArtwork(card);
   const remiseValue = remiseCards.reduce((total, remise) => total + Number(remise.placement || 0), 0);
   return `
-    <button class="desktop-played-card${card.removed ? " removed" : ""}${card.boosted ? " boosted" : ""}${remiseCards.length ? " has-remise-underlay" : ""}" type="button" data-desktop-played-card="${escapeHtml(cardKey)}" data-desktop-played-target="${escapeHtml(cardKey)}" data-desktop-played-owner="${playerIndex}" aria-label="Voir le détail de ${escapeHtml(card.name)}">
+    <button class="desktop-played-card${card.removed ? " removed" : ""}${card.boosted ? " boosted" : ""}${remiseCards.length ? " has-remise-underlay" : ""}${precededByEffect && !remiseCards.length ? " preceded-by-effect" : ""}" type="button" data-desktop-played-card="${escapeHtml(cardKey)}" data-desktop-played-target="${escapeHtml(cardKey)}" data-desktop-played-owner="${playerIndex}" aria-label="Voir le détail de ${escapeHtml(card.name)}">
       ${card.boosted ? `<span class="boost-sacrifice-layer desktop-boost-underlay"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte utilisée pour le BOOST" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       ${remiseCards.length ? `<span class="desktop-remise-underlay"><img src="${REMISE_UNDERLAY_IMAGE}" alt="Carte de Remise" /><span>+${remiseValue}</span></span>` : ""}
       <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />
@@ -18690,6 +18701,7 @@ function desktopPlayedSequence() {
         owner,
         playerOrder,
         remiseCards: placementRemisesForShot(playedCards, playerOrder),
+        precededByEffect: effectCardPrecedesShot(playedCards, playerOrder),
         order: Number.isFinite(Number(card.desktopPlayOrder))
           ? Number(card.desktopPlayOrder)
           : actionOrder.get(desktopPlayedCardKey(card)) ?? (1000 + (playerOrder * 2) + owner),
@@ -18708,9 +18720,9 @@ function desktopPlayedRowMarkup(playerIndex, role) {
       <div class="desktop-played-viewport" data-desktop-played-viewport>
         <div class="desktop-played-track">
           ${sequence.length
-            ? sequence.map(({ card, owner, remiseCards }) => (
+            ? sequence.map(({ card, owner, remiseCards, precededByEffect }) => (
               owner === playerIndex && desktopPlayedCardKey(card) !== hiddenStarKey
-                ? `<span class="desktop-played-slot">${desktopPlayedCardMarkup(card, playerIndex, remiseCards)}</span>`
+                ? `<span class="desktop-played-slot">${desktopPlayedCardMarkup(card, playerIndex, remiseCards, precededByEffect)}</span>`
                 : '<span class="desktop-played-slot desktop-played-slot--empty" aria-hidden="true"></span>'
             )).join("")
             : `<span class="desktop-played-empty">Aucune carte jouée</span>`}
