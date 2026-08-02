@@ -18055,10 +18055,10 @@ function placementRemisesForShot(playedCards, shotIndex) {
   return remises;
 }
 
-function effectCardPrecedesShot(playedCards, shotIndex) {
-  const shot = playedCards[shotIndex];
-  if (!shot || isRemise(shot)) return false;
-  for (let index = shotIndex - 1; index >= 0; index -= 1) {
+function effectCardPrecedesCard(playedCards, cardIndex) {
+  const targetCard = playedCards[cardIndex];
+  if (!targetCard || targetCard.remiseMode === "placement") return false;
+  for (let index = cardIndex - 1; index >= 0; index -= 1) {
     const card = playedCards[index];
     if (card.turnCompleted || !isRemise(card)) break;
     if (card.remiseMode === "effect" && !card.removed) return true;
@@ -18701,7 +18701,7 @@ function desktopPlayedSequence() {
         owner,
         playerOrder,
         remiseCards: placementRemisesForShot(playedCards, playerOrder),
-        precededByEffect: effectCardPrecedesShot(playedCards, playerOrder),
+        precededByEffect: effectCardPrecedesCard(playedCards, playerOrder),
         order: Number.isFinite(Number(card.desktopPlayOrder))
           ? Number(card.desktopPlayOrder)
           : actionOrder.get(desktopPlayedCardKey(card)) ?? (1000 + (playerOrder * 2) + owner),
