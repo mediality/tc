@@ -18009,7 +18009,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
         </div>
       </div>
       <div class="character-stats">
-        <div class="character-power-reminder${leaderClass}${tutorialFocusClass("power", playerIndex)}" data-tutorial-target="power-${playerIndex}">
+        <div class="character-power-reminder${player.power > 9 ? " double-digit-power" : ""}${leaderClass}${tutorialFocusClass("power", playerIndex)}" data-tutorial-target="power-${playerIndex}">
           ${crown}
           <div class="stat-value-row stat-value-power">
             <span class="stat-symbol stat-symbol-power" aria-hidden="true"></span>
