@@ -1575,7 +1575,6 @@ let confrontationIntroActive = false;
 let confrontationIntroSequenceTimers = [];
 let soloTournamentCountdownTimer = null;
 let desktopHistoryExpanded = false;
-let desktopHistoryResizeObserver = null;
 
 const GAMEPLAY_ASSIST = {
   information: localStorage.getItem("tennisLightAssistInformation") === "true",
@@ -19255,18 +19254,19 @@ function renderCard(playerIndex, card) {
   const tutorialSelectMode = state.tutorial.active && expectedTutorialAction?.kind === "selectCard" && expectedTutorialAction.playerIndex === playerIndex;
   const tutorialSelectedClass = state.tutorial.selectedCardUid === card.uid ? " tutorial-selected-card" : "";
   const tutorialCardFocusClass = tutorialFocusClass("card", playerIndex, card.id);
+  const inheritedDrawAngleClass = card.desktopHandAngle ? " drawn-card-inherited-angle" : "";
   const desktopHandAngleStyle = card.desktopHandAngle
-    ? ` style="--local-card-angle: ${escapeHtml(card.desktopHandAngle)}"`
+    ? ` style="--drawn-card-angle: ${escapeHtml(card.desktopHandAngle)}"`
     : "";
   if (isHidden) {
     return `
-      <article class="card has-visual hidden-hand-card"${desktopHandAngleStyle} data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
+      <article class="card has-visual hidden-hand-card${inheritedDrawAngleClass}"${desktopHandAngleStyle} data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
         ${renderCardBack()}
       </article>
     `;
   }
   return `
-    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${desktopCardLocked ? "unplayable desktop-hand-card--locked" : state.gameOver ? "exchange-complete-card" : ""}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}"${desktopHandAngleStyle} data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
+    <article class="card ${imageUrl ? "has-visual" : ""} ${isRemise(card) ? "remise-card" : ""} ${desktopCardLocked ? "unplayable desktop-hand-card--locked" : state.gameOver ? "exchange-complete-card" : ""}${tutorialSelectMode ? " tutorial-selectable-card" : ""}${tutorialSelectedClass}${tutorialCardFocusClass}${inheritedDrawAngleClass}"${desktopHandAngleStyle} data-tutorial-card="${card.uid}" data-tutorial-card-id="${card.id}" data-tutorial-player="${playerIndex}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
       ${tutorialSelectMode ? `<button class="tutorial-card-selector" type="button" data-tutorial-select="${card.uid}" data-tutorial-player="${playerIndex}" aria-label="Sélectionner ${escapeHtml(card.name)}"></button>` : ""}
       ${desktopCardLocked ? '<span class="desktop-card-lock" aria-label="Carte inutilisable">🔒</span>' : ""}
       ${imageUrl ? `
@@ -19502,20 +19502,8 @@ function renderLog() {
       ${state.log.length ? '<button class="desktop-history-button" type="button" data-open-full-action-log>Historique complet</button>' : ""}
     </div>
   `;
-  const historyToggle = els.log.querySelector("[data-toggle-history-drawer]");
-  const historyContent = els.log.querySelector(".desktop-history-drawer-content");
-  desktopHistoryResizeObserver?.disconnect();
-  const syncHistoryToggleHeight = () => {
-    if (!historyToggle || !historyContent) return;
-    historyToggle.style.height = `${Math.ceil(historyContent.getBoundingClientRect().height)}px`;
-  };
-  syncHistoryToggleHeight();
-  requestAnimationFrame(syncHistoryToggleHeight);
-  if (historyContent && typeof ResizeObserver !== "undefined") {
-    desktopHistoryResizeObserver = new ResizeObserver(syncHistoryToggleHeight);
-    desktopHistoryResizeObserver.observe(historyContent);
-  }
   bindRallyEndActions(els.log);
+  const historyToggle = els.log.querySelector("[data-toggle-history-drawer]");
   historyToggle?.addEventListener("click", (event) => {
     desktopHistoryExpanded = !desktopHistoryExpanded;
     els.log.classList.toggle("desktop-history-drawer--open", desktopHistoryExpanded);
