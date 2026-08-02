@@ -14066,3 +14066,70 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     height: auto;
   }
 }
+
+/* V4.40 direct centered history dialog and larger profile power bolts. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .court > .log {
+    display: flex;
+    width: auto;
+    max-height: none;
+    align-items: center;
+    transform: translate(0, -50%);
+  }
+
+  body:not(.mobile-game-view) .court > .log.desktop-history-drawer--open {
+    transform: translate(0, -50%);
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-content {
+    display: none;
+  }
+
+  body:not(.mobile-game-view) .desktop-history-progression-actions {
+    width: min(320px, 28vw);
+  }
+
+  body:not(.mobile-game-view) .desktop-history-drawer-toggle {
+    flex: 0 0 46px;
+    border-right: 1px solid rgba(242, 163, 127, .72);
+    border-radius: 18px 0 0 18px;
+  }
+
+  body:not(.mobile-game-view) .action-log-backdrop {
+    align-items: center;
+    padding: 24px;
+  }
+
+  body:not(.mobile-game-view) .action-log-dialog {
+    width: min(940px, calc(100vw - 48px));
+    height: min(78vh, 760px);
+    border: 1px solid rgba(140, 224, 191, .22);
+    border-radius: 24px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder {
+    padding-inline: 3px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder .stat-value-power {
+    grid-template-columns: 20px minmax(0, auto);
+    gap: 2px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder .stat-symbol-power {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder.double-digit-power .stat-value-power {
+    grid-template-columns: 18px minmax(0, auto);
+    gap: 1px;
+  }
+
+  body:not(.mobile-game-view) .character-power-reminder.double-digit-power .stat-symbol-power {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+}
