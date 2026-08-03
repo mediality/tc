@@ -8444,30 +8444,45 @@ function resetSetMatch() {
 
 function buildUltimateDeck(playerIndex) {
   const config = ultimatePlayerConfig(playerIndex);
+  const playerLabel = config.key === "conti" ? "Conti" : "Brentwood";
+  const auditedShots = (window.ULTIMATE_CARD_DATA || []).filter((card) => card.player === playerLabel && card.type === "COUP");
   const shots = CARD_LIBRARY.filter((card) => !isRemise(card));
   const officialShots = Array.from({ length: 36 }, (_, index) => {
     const base = shots[index % shots.length];
+    const audited = auditedShots[index];
     const card = cloneCard(base, `ultimate-${config.key}-shot-${index + 1}`);
     card.id = `ultimate-${config.key}-shot-${index + 1}`;
     card.artwork = `assets/ultimate/${config.key}/card-${String(index + 1).padStart(2, "0")}.png`;
     card.ultimateOwner = playerIndex;
     card.ultimateOfficial = true;
-    // Les deux cartes argentées centrales portent les étoiles qui déclenchent le pouvoir.
-    card.star = index === 1 || index === 2;
-    if (index === 0) {
-      card.name = "Coup spécial de service";
-      card.family = "Service";
-      card.effectType = "serviceCard";
-    } else if (index === 1) {
-      card.name = config.key === "conti" ? "Revers spécial" : "Volée spéciale";
-      card.family = config.key === "conti" ? "Revers" : "Volée";
-    } else if (index === 2) {
-      card.name = config.key === "conti" ? "Coup droit spécial" : "Smash spécial";
-      card.family = config.key === "conti" ? "Coup droit" : "Smash";
-    } else if (index === 3) {
-      card.name = "Frappe spéciale";
-      card.family = config.key === "brentwood" ? "Service" : "Coup droit";
+    if (audited) {
+      card.name = audited.name;
+      card.family = audited.name.includes("SERVICE") ? "Service"
+        : audited.name.includes("REVERS") ? "Revers"
+          : audited.name.includes("VOLEE") ? "Volée"
+            : audited.name.includes("SMASH") ? "Smash"
+              : audited.name.includes("LOB") ? "Lob"
+                : audited.name.includes("AMORTIE") ? "Amortie"
+                  : audited.name.includes("PASSING") ? "Passing"
+                    : "Coup droit";
+      card.cost = audited.cost;
+      card.power = audited.power;
+      card.precision = audited.precision;
+      card.placement = audited.placement;
+      card.boostPower = audited.boostPower;
+      card.boostPrecision = audited.boostPrecision;
+      card.effect = audited.effect;
+      card.boostCondition = audited.boostCondition;
+      card.effectType = null;
+      if (/Au SERVICE, cette frappe peut être BOOSTÉE/i.test(audited.effect)) card.effectType = "serviceCard";
+      else if (/Peut être jouée en BOOST après un SERVICE non BOOSTÉ/i.test(audited.effect)) card.effectType = "serviceBoostHint";
+      else if (/Piochez 2 cartes/i.test(audited.effect)) { card.effectType = "drawCard"; card.effectValue = 2; }
+      else if (/Piochez (une|1) carte/i.test(audited.effect)) { card.effectType = "drawCard"; card.effectValue = 1; }
+      else if (/Annulez l’effet de la prochaine carte adverse/i.test(audited.effect)) card.effectType = "cancelOpponentNextEffect";
+      else if (/prochain coup gagne \+2 précision/i.test(audited.effect)) { card.effectType = "nextPrecision"; card.effectValue = 2; }
+      else if (/prochain coup gagne \+2 placement/i.test(audited.effect)) { card.effectType = "nextPlacement"; card.effectValue = 2; }
     }
+    card.star = /SILVER/i.test(audited?.filename || "");
     return card;
   });
   const effectCards = ULTIMATE_EFFECT_DEFINITIONS.map((definition, index) => ({
@@ -8675,7 +8690,10 @@ function confirmUltimatePlayer(characterIndex) {
   els.ultimatePlayerDialog?.classList.add("hidden");
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  newGame();
+  resetSetMatch();
+  state.setMatch.enabled = true;
+  state.setMatch.targetSets = 2;
+  newGame({ preserveSet: true });
   els.ultimateRulesDialog?.classList.remove("hidden");
   beginUltimateDraft(0, 0);
 }
@@ -8688,6 +8706,7 @@ function newGame(options = {}) {
       characterStarActive: Boolean(player.characterStarActive), played: [...(player.played || [])],
     }))
     : null;
+  if (ULTIMATE_MODE.active && ULTIMATE_MODE.postExchange?.completed) ULTIMATE_MODE.postExchange = null;
   if (!preserveSet) desktopHistoryExpanded = false;
   if (SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut relancer un échange en ligne pour le moment.");
@@ -13851,7 +13870,6 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
   render();
-  if (ULTIMATE_MODE.active) window.setTimeout(() => beginUltimatePostExchange(winner), 0);
 }
 
 function completeOnePointTournamentMatch(winner, exchangeScore) {
@@ -16547,6 +16565,11 @@ function nextSetExchange() {
     render();
     return;
   }
+  if (ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed) {
+    if (!ULTIMATE_MODE.postExchange) beginUltimatePostExchange(state.resultInfo?.winner ?? 0);
+    else renderUltimatePostExchangeChoice();
+    return;
+  }
   const server = nextSetServer();
   newGame({ preserveSet: true, serverOverride: server });
   markServerDirtyForHostAction();
@@ -16557,6 +16580,11 @@ function nextFullSet() {
   if (SERVER_SYNC.enabled && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut lancer le set suivant en ligne.");
     render();
+    return;
+  }
+  if (ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed) {
+    if (!ULTIMATE_MODE.postExchange) beginUltimatePostExchange(state.resultInfo?.winner ?? 0);
+    else renderUltimatePostExchangeChoice();
     return;
   }
   const completedScores = state.setMatch.completedScores.map((score) => [...score]);
@@ -16583,6 +16611,7 @@ function nextFullSet() {
   state.log.unshift("Nouveau set lancé.");
   markServerDirtyForHostAction();
   render();
+  if (ULTIMATE_MODE.active) beginUltimateDraft(0, 0, "set-start");
 }
 
 function canAdminSimulateMatchScore() {
@@ -18528,7 +18557,6 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
         <img src="${imageUrl}" alt="${character.name}" />
       </div>
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
-        ${ultimateCharacter ? `<img class="ultimate-profile-avatar" src="${escapeHtml(ultimateCharacter.lobby)}" alt="Profil de ${escapeHtml(ultimateCharacter.name)}" />` : ""}
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
         <div>
           <span>${escapeHtml(frenchOrdinalRank(panel.rank))}</span>
@@ -18752,7 +18780,8 @@ function renderDesktopMatchScore() {
 
 function renderCenterNextExchangeButton() {
   if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return "";
-  return '<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>';
+  const label = ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed ? "Continuer vers la réserve" : "Échange suivant";
+  return `<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>${label}</button>`;
 }
 
 function renderCenterNextSoloExchangeButton() {
@@ -18787,7 +18816,8 @@ function renderCenterNextSetButton() {
     }
   }
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
-  return '<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>Set suivant</button>';
+  const label = ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed ? "Continuer vers la réserve" : "Set suivant";
+  return `<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>${label}</button>`;
 }
 
 function isHumanTournamentRunOver() {
@@ -19653,24 +19683,30 @@ function openDesktopBonusDialog(playerIndex) {
 function renderUltimateResources(playerIndex) {
   if (!ULTIMATE_MODE.active) return "";
   const player = state.players[playerIndex];
-  const reserve = player.reserve || [];
   const discard = state.ultimateDiscards[playerIndex] || [];
-  const reserveSlots = [0, 1].map((slot) => {
-    const card = reserve[slot];
-    if (!card) return `<span class="ultimate-reserve-slot empty">Réserve ${slot + 1}</span>`;
-    const image = card.artwork || CARD_IMAGES[card.id];
-    return `<button class="ultimate-reserve-slot filled" type="button" data-use-reserve="${escapeHtml(card.uid)}" ${state.gameOver ? "disabled" : ""} title="Utiliser ${escapeHtml(card.name)}">
-      ${image ? `<img src="${escapeHtml(image)}" alt="" />` : ""}<span>${escapeHtml(card.name)}</span>
-    </button>`;
-  }).join("");
   return `<section class="ultimate-resources" aria-label="Ressources Ultimate de ${escapeHtml(displayPlayerName(player))}">
     <div class="ultimate-energy"><span>💡 ÉNERGIE</span><strong>${player.energy}/${ULTIMATE_STARTING_ENERGY}</strong>
       <button type="button" data-ultimate-energy="draft" ${player.energy <= 0 || state.gameOver ? "disabled" : ""}>Draft</button>
       <button type="button" data-ultimate-energy="endurance" ${player.energy <= 0 || state.gameOver || player.endurance >= STARTING_ENDURANCE ? "disabled" : ""}>+2 END</button>
     </div>
-    <div class="ultimate-reserve"><span class="ultimate-reserve-divider">RÉSERVE</span>${reserveSlots}</div>
     <button class="ultimate-discard-button" type="button" data-open-ultimate-discard="${playerIndex}">Défausse · ${discard.length}</button>
   </section>`;
+}
+
+function renderUltimateReserveInHand(playerIndex) {
+  if (!ULTIMATE_MODE.active) return "";
+  const player = state.players[playerIndex];
+  const reserve = player.reserve || [];
+  if (!reserve.length) return '<span class="ultimate-reserve-hand-divider empty">RÉSERVE · 0/2</span>';
+  return `<span class="ultimate-reserve-hand-divider">RÉSERVE · ${reserve.length}/2</span>${reserve.map((card) => {
+    const image = cardArtwork(card);
+    const usable = canUseSeat(playerIndex) && !state.gameOver;
+    return `<article class="card has-visual ultimate-reserve-hand-card" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
+      <span class="ultimate-reserve-hand-badge">RÉSERVE</span>
+      <button class="card-visual card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(image)}" data-image-label="${escapeHtml(card.name)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" /></button>
+      ${usable ? `<button class="ultimate-use-reserve-button" type="button" data-use-reserve="${escapeHtml(card.uid)}">Utiliser</button>` : ""}
+    </article>`;
+  }).join("")}`;
 }
 
 function openUltimateDiscard(playerIndex) {
@@ -19733,6 +19769,7 @@ function renderPlayerPanel(playerIndex, root) {
     ${renderUltimateResources(playerIndex)}
     <div class="hand${tutorialFocusClass("hand", playerIndex)}">
       ${player.hand.map((card) => renderCard(playerIndex, card)).join("")}
+      ${renderUltimateReserveInHand(playerIndex)}
     </div>
     <div class="played-history">
       <p class="engaged-title">Cartes jouées</p>
