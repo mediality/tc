@@ -14498,3 +14498,38 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 .competition-dialog-scroll .championship-zone-content { color: #17212b; background: #f7faf9 !important; }
 .competition-dialog-scroll .championship-day > header,
 .competition-dialog-scroll .championship-day > header span { color: #465b68 !important; }
+
+/* V4.50 online match menu and explicit walkover action. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app > .topbar {
+    z-index: 520 !important;
+    overflow: visible;
+  }
+
+  body:not(.mobile-game-view) .desktop-game-menu-toggle {
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
+  }
+
+  body:not(.mobile-game-view) .game-app.desktop-game-menu-open .top-actions {
+    z-index: 540 !important;
+    display: flex !important;
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body:not(.mobile-game-view) .game-app.desktop-game-menu-open .top-actions > :not(.hidden) {
+    pointer-events: auto;
+  }
+}
+
+.online-forfeit-button {
+  color: #fff;
+  background: #b83232;
+}
+
+.online-forfeit-dialog .modal {
+  border-color: rgba(217, 75, 75, .5);
+}
