@@ -10,13 +10,15 @@ const css = fs.readFileSync(path.join(root, "public/styles.css"), "utf8");
 const mobileJs = fs.readFileSync(path.join(root, "public/mobile-game.js"), "utf8");
 const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "utf8");
 
-assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="admin"/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.3<\/span>/);
+assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
+assert.match(html, /ultimate\/ultimate-home\.jpg/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.4<\/span>/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
 assert.match(html, /Énergie 💡/);
 assert.match(html, /deux emplacements de réserve/i);
 assert.match(app, /ULTIMATE_STARTING_ENERGY = 3/);
+assert.match(app, /function canAccessUltimateFeatures\(\)[\s\S]*\["pro_plus", "admin"\]/);
 assert.match(app, /ULTIMATE_DECK_SIZE = 48/);
 assert.match(app, /playerOrder: \[0, 1\]/);
 assert.match(app, /ULTIMATE_MODE\.playerOrder = characterIndex === 0 \? \[0, 1\] : \[1, 0\]/);

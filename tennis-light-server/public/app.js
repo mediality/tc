@@ -2508,6 +2508,10 @@ function canAccessAdminFeatures() {
   return currentUserRole() === "admin";
 }
 
+function canAccessUltimateFeatures() {
+  return ["pro_plus", "admin"].includes(currentUserRole());
+}
+
 const ADMIN_DESKTOP_VIEW_KEY = "tennisLightAdminDesktopView";
 
 function adminDesktopViewForced() {
@@ -2565,6 +2569,11 @@ function updateAccessControls() {
   document.querySelectorAll("[data-required-role='admin']").forEach((control) => {
     control.classList.toggle("hidden", !hasAdminAccess);
     if ("disabled" in control) control.disabled = !hasAdminAccess;
+  });
+  document.querySelectorAll("[data-required-role='pro_plus']").forEach((control) => {
+    const hasUltimateAccess = canAccessUltimateFeatures();
+    control.classList.toggle("hidden", !hasUltimateAccess);
+    if ("disabled" in control) control.disabled = !hasUltimateAccess;
   });
   const hasInlineAdminContent = Boolean(els.adminPanel?.childElementCount || els.adminPanel?.textContent?.trim());
   els.adminPanel?.classList.toggle("hidden", !hasAdminAccess || !hasInlineAdminContent);
@@ -8653,7 +8662,7 @@ function spendUltimateEnergy(playerIndex, action) {
 }
 
 function startUltimateGame() {
-  if (!canAccessAdminFeatures()) return;
+  if (!canAccessUltimateFeatures()) return;
   ULTIMATE_MODE.active = true;
   ULTIMATE_MODE.postExchange = null;
   showGameScreen();

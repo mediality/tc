@@ -14559,17 +14559,7 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   border-color: #d8b85a;
   background: linear-gradient(135deg, #101826, #35280e);
 }
-.ultimate-mode-art {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 224, 130, .12);
-  font-size: clamp(2rem, 5vw, 5rem);
-  font-weight: 1000;
-  letter-spacing: .12em;
-  transform: rotate(-7deg);
-}
+.lobby-mode-ultimate > .lobby-mode-art { object-position: 50% 48%; }
 .ultimate-mode-icon { color: #ffd76a; font-size: 2rem; }
 .lobby-mode-ultimate .lobby-mode-card-copy { position: relative; z-index: 2; }
 
