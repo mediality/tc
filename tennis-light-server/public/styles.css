@@ -14548,3 +14548,6 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 
   body:not(.mobile-game-view) .desktop-match-score.hidden {
+    display: none !important;
+  }
+}
