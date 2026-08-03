@@ -2605,6 +2605,12 @@ body.mobile-game-view .event-confirm-backdrop {
   font-weight: 850;
 }
 
+.mobile-match-menu-list .mobile-menu-forfeit {
+  border-color: rgba(217, 75, 75, .42);
+  color: #fff;
+  background: #b83232;
+}
+
 .mobile-match-admin-tools {
   display: grid;
   gap: 8px;
