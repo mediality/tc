@@ -13,8 +13,9 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.6<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.6\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.7<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.7\.0/);
+assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
 assert.match(html, /Énergie 💡/);
@@ -48,6 +49,10 @@ assert.match(app, /window\.confirm\(`Dépenser 1 ÉNERGIE/);
 assert.match(app, /ultimateDecks: \[\[\], \[\]\]/);
 assert.match(app, /player\.endurance = STARTING_ENDURANCE/);
 assert.match(app, /card\._fromReserve = true/);
+assert.match(app, /beginUltimateDraft\(0, 0, "set-start"\)/);
+assert.match(app, /openUltimateHandDiscardChoice/);
+assert.match(app, /openUltimateReserveTrimChoice/);
+assert.match(css, /ultimate-reserve-mark/);
 assert.match(css, /@media \(max-width: 860px\)[\s\S]*\.ultimate-resources/);
 assert.doesNotMatch(mobileJs, /ULTIMATE_MODE|ultimate-resources|ultimateModeButton/);
 assert.doesNotMatch(mobileCss, /ultimate-resources|lobby-mode-ultimate/);

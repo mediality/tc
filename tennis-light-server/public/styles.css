@@ -14627,6 +14627,22 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 .ultimate-reserve-hand-card { position: relative; border: 3px solid #ffd76a !important; border-radius: 14px; box-shadow: 0 0 0 3px rgba(255,215,106,.18), 0 8px 22px rgba(0,0,0,.28); }
 .ultimate-reserve-hand-badge { position: absolute; top: -10px; left: 50%; z-index: 8; padding: .22rem .45rem; border-radius: 999px; color: #17202b; background: #ffd76a; font-size: .55rem; font-weight: 950; transform: translateX(-50%); }
 .ultimate-use-reserve-button { position: absolute; right: 6px; bottom: 6px; left: 6px; z-index: 8; padding: .4rem; border: 0; border-radius: 8px; color: #17202b; background: #ffd76a; font-weight: 900; }
+.ultimate-reserve-mark { position: absolute; top: 50%; left: 50%; z-index: 9; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 50%; background: #177de3; box-shadow: 0 2px 10px rgba(0,0,0,.5); pointer-events: none; transform: translate(-50%,-50%); }
+.ultimate-reserve-readonly { cursor: default; }
+.ultimate-resources { display: grid; grid-template-columns: auto 1fr auto; }
+.ultimate-energy-summary { display: grid; gap: .1rem; padding-right: .8rem; border-right: 3px solid var(--player-color, #ffd76a); }
+.ultimate-energy-summary span { font-size: .68rem; font-weight: 900; letter-spacing: .08em; }
+.ultimate-energy-summary strong { color: #ffd76a; font-size: 1.1rem; }
+.ultimate-energy-actions { display: flex; align-items: center; gap: .45rem; }
+.ultimate-energy-actions button { padding: .45rem .7rem; border-radius: 8px; font-weight: 850; }
+.ultimate-energy-actions span { color: #8fa5b5; font-size: .65rem; font-weight: 900; text-transform: uppercase; }
+.ultimate-discard-button { display: grid; place-items: center; min-width: 74px; }
+.ultimate-discard-button strong { font-size: 1.1rem; }
+.ultimate-ai-levels { margin: 1rem 0 0; padding: .8rem; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; }
+.ultimate-ai-levels legend { padding: 0 .4rem; color: #ffd76a; font-weight: 900; }
+.ultimate-ai-levels div { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
+.ultimate-ai-levels button { padding: .55rem .8rem; border: 2px solid transparent; border-radius: 999px; }
+.ultimate-ai-levels button.selected { border-color: #ffd76a; color: #17202b; background: #ffd76a; }
 
 @media (max-width: 860px) {
   .lobby-mode-ultimate, .ultimate-dialog, .ultimate-resources { display: none !important; }

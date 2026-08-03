@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=5.5.0" />
+    <link rel="stylesheet" href="./styles.css?v=5.7.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=4.52.0" />
   </head>
   <body>
@@ -95,7 +95,7 @@
           <button id="ultimateModeButton" class="lobby-mode-card lobby-mode-ultimate hidden" type="button" data-required-role="pro_plus">
             <img class="lobby-mode-art" src="./assets/ultimate/ultimate-home.jpg" alt="" />
             <span class="lobby-mode-icon ultimate-mode-icon" aria-hidden="true">★</span>
-            <span class="lobby-mode-card-copy"><strong>Tennis Courts Ultimate</strong><small>V5.6 · Decks personnels, draft et énergie</small></span>
+            <span class="lobby-mode-card-copy"><strong>Tennis Courts Ultimate</strong><small>V5.7 · Decks personnels, draft et énergie</small></span>
             <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
           </button>
         </nav>
@@ -132,7 +132,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>V5.6</span></strong>
+          <strong>Tennis Courts Academy · <span>V5.7</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1144,9 +1144,19 @@
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
       <section id="ultimatePlayerDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimatePlayerTitle">
         <div class="ultimate-dialog-card ultimate-player-dialog-card">
-          <p class="eyebrow">Tennis Courts Ultimate · V5.6</p>
+          <p class="eyebrow">Tennis Courts Ultimate · V5.7</p>
           <h2 id="ultimatePlayerTitle">Choisissez votre joueur</h2>
           <p>Vous utiliserez ses 48 cartes. Votre adversaire incarnera automatiquement l’autre joueur.</p>
+          <fieldset class="ultimate-ai-levels">
+            <legend>Niveau de l’IA</legend>
+            <div>
+              <button type="button" data-ultimate-ai="amateur">Amateur</button>
+              <button type="button" data-ultimate-ai="normal" class="selected">Normal</button>
+              <button type="button" data-ultimate-ai="expert">Expert</button>
+              <button type="button" data-ultimate-ai="champion">Champion</button>
+              <button type="button" data-ultimate-ai="legend">Légendaire</button>
+            </div>
+          </fieldset>
           <div id="ultimatePlayerChoices" class="ultimate-player-choices">
             <button class="ultimate-player-choice" type="button" data-ultimate-player="0">
               <img src="./assets/ultimate/conti/lobby.png" alt="Alessandra Conti" />
@@ -1184,7 +1194,7 @@
       </section>
       <section id="ultimatePostExchangeDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimatePostExchangeTitle">
         <div class="ultimate-dialog-card">
-          <p class="eyebrow">Fin de l’échange · V5.6</p>
+          <p class="eyebrow">Fin de l’échange · V5.7</p>
           <h2 id="ultimatePostExchangeTitle">Choisissez une carte pour la réserve</h2>
           <p id="ultimatePostExchangeInstruction">Vous pouvez conserver une carte COUP visible.</p>
           <div id="ultimatePostExchangeCards" class="ultimate-draft-cards ultimate-post-exchange-cards"></div>
@@ -1228,8 +1238,8 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
-    <script src="./ultimate-card-data.js?v=5.6.0"></script>
-    <script src="./app.js?v=5.6.0"></script>
+    <script src="./ultimate-card-data.js?v=5.7.0"></script>
+    <script src="./app.js?v=5.7.0"></script>
     <script src="./mobile-game.js?v=4.52.0"></script>
   </body>
 </html>
