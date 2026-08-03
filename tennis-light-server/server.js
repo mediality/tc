@@ -4059,6 +4059,37 @@ function publicRoomInfo(req, room) {
   };
 }
 
+function roomForfeitState(room, forfeitingSeat) {
+  const winnerSeat = forfeitingSeat === 0 ? 1 : 0;
+  const targetSets = Math.max(1, Number(room?.targetSets || room?.state?.setMatch?.targetSets || 2));
+  const setScore = winnerSeat === 0 ? [6, 0] : [0, 6];
+  const nextState = cloneFriendlyMatchState(room?.state) || {};
+  nextState.gameOver = true;
+  nextState.activePlayer = winnerSeat;
+  nextState.setMatch = {
+    ...(nextState.setMatch || {}),
+    enabled: true,
+    targetSets,
+    completedScores: Array.from({ length: targetSets }, () => [...setScore]),
+    score: [...setScore],
+    setsWon: winnerSeat === 0 ? [targetSets, 0] : [0, targetSets],
+    setOver: true,
+    matchOver: true,
+    matchWinner: winnerSeat,
+  };
+  nextState.resultInfo = {
+    ...(nextState.resultInfo || {}),
+    kind: "forfeit",
+    winner: winnerSeat,
+    loser: forfeitingSeat,
+    reason: "FORFAIT",
+    setMatch: cloneFriendlyMatchState(nextState.setMatch),
+  };
+  nextState.log = Array.isArray(nextState.log) ? nextState.log : [];
+  nextState.log.unshift(`${room?.players?.[forfeitingSeat]?.nickname || "Le joueur"} déclare forfait.`);
+  return nextState;
+}
+
 function liveScoreFromState(remoteState, perspectiveIndex = 0) {
   const match = remoteState?.setMatch;
   if (!match?.enabled) return "Échange en cours";
@@ -6144,6 +6175,32 @@ async function handleApi(req, res) {
     return;
   }
 
+  const friendlyForfeitMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/forfeit$/);
+  if (req.method === "POST" && friendlyForfeitMatch) {
+    const payload = await readJson(req);
+    const tournament = friendlyTournaments.get(friendlyForfeitMatch[1]);
+    const participant = participantForToken(tournament, payload.participantId, payload.token);
+    if (!tournament || !participant || tournament.status !== "playing") {
+      sendJson(res, 404, { error: "Compétition indisponible." });
+      return;
+    }
+    const currentMatch = currentFriendlyMatchForParticipant(tournament, participant.id);
+    if (currentMatch && !currentMatch.winner) {
+      forfeitFriendlyMatchAfterDisconnect(tournament, currentMatch, participant);
+    } else {
+      lockFriendlyParticipantForfeit(tournament, participant);
+    }
+    resolveFriendlyDepartedForfeits(tournament);
+    refreshFriendlyTournamentSlots(tournament);
+    tournament.updatedAt = Date.now();
+    sendJson(res, 200, {
+      ok: true,
+      competitionForfeit: true,
+      tournament: publicFriendlyTournamentInfo(req, tournament, participant),
+    });
+    return;
+  }
+
   const friendlyPresenceMatch = url.pathname.match(/^\/api\/friendly-tournaments\/([^/]+)\/presence$/);
   if (req.method === "POST" && friendlyPresenceMatch) {
     const payload = await readJson(req);
@@ -6719,6 +6776,24 @@ async function handleApi(req, res) {
     room.updatedAt = Date.now();
     room.revision += 1;
     sendJson(res, 200, { ok: true, closed: false, room: publicRoomInfo(req, room), revision: room.revision });
+    return;
+  }
+
+  const roomForfeitMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/forfeit$/);
+  if (req.method === "POST" && roomForfeitMatch) {
+    const room = rooms.get(roomForfeitMatch[1]);
+    const payload = await readJson(req);
+    const seat = room ? seatForToken(room, payload.token) : null;
+    if (!room || seat == null || !room.players[seat] || !room.players[seat === 0 ? 1 : 0]) {
+      sendJson(res, 404, { error: "Match en ligne indisponible." });
+      return;
+    }
+    if (!room.state?.setMatch?.matchOver) room.state = roomForfeitState(room, seat);
+    room.status = "complete";
+    room.forfeitSeat = seat;
+    room.revision += 1;
+    room.updatedAt = Date.now();
+    sendJson(res, 200, { ok: true, winnerSeat: seat === 0 ? 1 : 0, revision: room.revision, state: room.state });
     return;
   }
 
