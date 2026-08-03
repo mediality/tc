@@ -375,6 +375,7 @@
         ${viewState.modeContext.competition ? '<button type="button" data-mobile-menu-destination="competition">Compétition</button>' : ""}
         ${viewState.modeContext.competition?.league ? '<button type="button" data-mobile-menu-destination="standings">Classement</button>' : ""}
         <button type="button" data-mobile-menu-destination="assistance">Paramètres</button>
+        ${viewState.modeContext.canForfeit ? '<button class="mobile-menu-forfeit" type="button" data-mobile-forfeit>Déclarer forfait</button>' : ""}
         <button type="button" data-mobile-open-return>Quitter le match</button>
         ${adminTools ? `
           <section class="mobile-match-admin-tools" aria-labelledby="mobileMatchAdminTitle">
@@ -1152,6 +1153,10 @@
       button.textContent = result.message;
       button.classList.toggle("mobile-save-success", Boolean(result.ok));
       window.setTimeout(() => closeMobilePanel(), 900);
+    });
+    root?.querySelector("[data-mobile-forfeit]")?.addEventListener("click", () => {
+      closeMobilePanel();
+      window.tennisLightMobileAdapter?.openForfeitDialog();
     });
     root?.querySelectorAll("[data-mobile-admin-tool]").forEach((button) => {
       button.addEventListener("click", () => {
