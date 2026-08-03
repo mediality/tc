@@ -15,6 +15,7 @@ const ULTIMATE_MODE = {
   draftSelected: new Set(),
   postExchange: null,
   aiDifficulty: "normal",
+  markChoice: null,
 };
 
 function ultimatePlayerConfig(playerIndex) {
@@ -8734,8 +8735,23 @@ function completeUltimatePostExchangeDistribution() {
   state.log.unshift("Fin de l’échange terminée : réserves choisies et 2 nouvelles cartes attribuées à chaque joueur.");
   render();
   if (!state.setMatch.setOver && !state.setMatch.matchOver) {
-    window.setTimeout(() => nextSetExchange(), 0);
+    window.setTimeout(startNextUltimateExchange, 0);
   }
+}
+
+function startNextUltimateExchange() {
+  if (!ULTIMATE_MODE.active || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return;
+  state.players.forEach((player, playerIndex) => {
+    const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
+    const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
+    state.ultimateDiscards[playerIndex].push(...toDiscard);
+    player.played = [];
+  });
+  const server = nextSetServer();
+  newGame({ preserveSet: true, serverOverride: server });
+  window.setTimeout(() => {
+    if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
+  }, 180);
 }
 
 function spendUltimateEnergy(playerIndex, action, confirmed = false) {
@@ -9677,7 +9693,7 @@ function renderOpponentHandRevealControls() {
 }
 
 function maybeRunSoloAI() {
-  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive) return;
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive || ULTIMATE_MODE.markChoice) return;
   if (state.activePlayer !== SOLO_AI.playerIndex) return;
   if (SOLO_AI.thinking || SOLO_AI.executing) return;
   SOLO_AI.thinking = true;
@@ -13045,15 +13061,17 @@ function applyEffect(playerIndex, card) {
         setEffectNotice("sans effet", card, `${displayPlayerName(opponent)} protège ses cartes des marqueurs défausse.`);
         break;
       }
-      if (card.effectType === "ultimateMarkTwoOrDiscardReserve" && opponent.reserve.length) {
-        const discarded = opponent.reserve.shift();
-        state.ultimateDiscards[opponentIndex].push(discarded);
-        state.log.unshift(`${discarded.name} est défaussée depuis la réserve adverse.`);
-        break;
-      }
       const count = card.effectType === "ultimateMarkOpponentOne" ? 1 : 2;
-      opponent.played.filter((target) => isShot(target) && !target.removed && !target.markedForDiscard).slice(-count).forEach((target) => { target.markedForDiscard = true; });
-      state.log.unshift(`${count} carte(s) adverse(s) reçoivent un marqueur défausse.`);
+      const allowReserveDiscard = card.effectType === "ultimateMarkTwoOrDiscardReserve";
+      if (playerIndex === 0) openUltimateMarkChoice(playerIndex, count, allowReserveDiscard, card);
+      else {
+        if (allowReserveDiscard && opponent.reserve.length) {
+          const discarded = opponent.reserve.shift();
+          state.ultimateDiscards[opponentIndex].push(discarded);
+        } else {
+          opponent.played.filter((target) => isShot(target) && !target.removed && !target.markedForDiscard).slice(-count).forEach((target) => { target.markedForDiscard = true; });
+        }
+      }
       break;
     }
     case "ultimateDrawPerDefendedBoost":
@@ -18881,6 +18899,7 @@ function renderCardVisualOnly(card, className = "") {
       ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${ultimateCardBackForPlayer(card.owner)}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
       ${card._fromReserve ? '<span class="ultimate-reserve-mark" aria-label="Carte jouée depuis la réserve"></span>' : ""}
+      ${card.markedForDiscard ? '<span class="ultimate-discard-mark" aria-label="Carte marquée pour la défausse"></span>' : ""}
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -19616,6 +19635,7 @@ function desktopPlayedCardMarkup(card, playerIndex, remiseCards = [], precededBy
       ${remiseCards.length ? `<span class="desktop-remise-underlay"><img src="${REMISE_UNDERLAY_IMAGE}" alt="Carte de Remise" /><span>+${remiseValue}</span></span>` : ""}
       <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />
       ${card._fromReserve ? '<span class="ultimate-reserve-mark" aria-label="Carte jouée depuis la réserve"></span>' : ""}
+      ${card.markedForDiscard ? '<span class="ultimate-discard-mark" aria-label="Carte marquée pour la défausse"></span>' : ""}
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -20128,6 +20148,48 @@ function openUltimateCardRecoveryChoice(playerIndex, source) {
     dialog.remove();
     render();
   }));
+  document.body.appendChild(dialog);
+}
+
+function openUltimateMarkChoice(playerIndex, requiredCount, allowReserveDiscard, sourceCard) {
+  const opponentIndex = opponentOf(playerIndex);
+  const opponent = state.players[opponentIndex];
+  const candidates = opponent.played.filter((card) => isShot(card) && !card.removed && !card.markedForDiscard);
+  if (!candidates.length && !(allowReserveDiscard && opponent.reserve.length)) {
+    setEffectNotice("sans cible", sourceCard, "Aucun COUP adverse visible ne peut recevoir de marqueur.");
+    return;
+  }
+  const selected = new Set();
+  ULTIMATE_MODE.markChoice = { playerIndex, requiredCount };
+  const dialog = document.createElement("section");
+  dialog.className = "ultimate-dialog";
+  const paint = () => {
+    const needed = Math.min(requiredCount, candidates.length);
+    dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Pouvoir · marqueur défausse</p><h2>Choisissez ${needed} COUP${needed > 1 ? "S" : ""} adverse${needed > 1 ? "s" : ""}</h2><p>Les cartes choisies seront marquées en bleu sur le plateau et ne pourront pas rejoindre la réserve.</p><div class="ultimate-draft-cards">${candidates.map((card) => `<button class="ultimate-draft-card ${selected.has(card.playedUid) ? "selected" : ""}" type="button" data-mark-card="${escapeHtml(card.playedUid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div>${allowReserveDiscard && opponent.reserve.length ? `<button class="small-button ultimate-mark-reserve-choice" type="button" data-mark-discard-reserve>À la place, défausser une carte de la réserve adverse</button>` : ""}<button class="primary-button" type="button" data-confirm-marks ${selected.size === needed ? "" : "disabled"}>Confirmer les marqueurs</button></div>`;
+    dialog.querySelectorAll("[data-mark-card]").forEach((button) => button.addEventListener("click", () => {
+      const uid = button.dataset.markCard;
+      if (selected.has(uid)) selected.delete(uid);
+      else if (selected.size < needed) selected.add(uid);
+      paint();
+    }));
+    dialog.querySelector("[data-confirm-marks]")?.addEventListener("click", () => {
+      candidates.filter((card) => selected.has(card.playedUid)).forEach((card) => { card.markedForDiscard = true; });
+      state.log.unshift(`${selected.size} COUP${selected.size > 1 ? "S" : ""} adverse${selected.size > 1 ? "s" : ""} marqué${selected.size > 1 ? "s" : ""} pour la défausse.`);
+      ULTIMATE_MODE.markChoice = null;
+      dialog.remove();
+      render();
+      maybeRunSoloAI();
+    });
+    dialog.querySelector("[data-mark-discard-reserve]")?.addEventListener("click", () => {
+      const discarded = opponent.reserve.shift();
+      if (discarded) state.ultimateDiscards[opponentIndex].push(discarded);
+      ULTIMATE_MODE.markChoice = null;
+      dialog.remove();
+      render();
+      maybeRunSoloAI();
+    });
+  };
+  paint();
   document.body.appendChild(dialog);
 }
 
