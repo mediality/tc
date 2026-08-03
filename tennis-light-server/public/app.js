@@ -16423,8 +16423,13 @@ function render() {
   renderRallyState();
   renderEffectNotice();
   renderDesktopMatchScore();
-  renderPlayerPanel(0, els.player1Panel);
-  renderPlayerPanel(1, els.player2Panel);
+  const desktopPlayers = desktopPlayerPresentation();
+  if (els.gameApp) {
+    els.gameApp.dataset.desktopLocalPlayer = String(desktopPlayers.local);
+    els.gameApp.dataset.desktopOpponentPlayer = String(desktopPlayers.opponent);
+  }
+  renderPlayerPanel(desktopPlayers.local, els.player1Panel);
+  renderPlayerPanel(desktopPlayers.opponent, els.player2Panel);
   renderOpponentHandRevealControls();
   renderCenterPlayedCard();
   renderLog();
@@ -20138,6 +20143,14 @@ function mobileLocalPlayerIndex() {
   if (SERVER_SYNC.enabled && Number.isInteger(SERVER_SYNC.seat)) return SERVER_SYNC.seat;
   if (SOLO_AI.enabled) return opponentOf(SOLO_AI.playerIndex);
   return 0;
+}
+
+function desktopPlayerPresentation() {
+  const local = mobileLocalPlayerIndex();
+  return {
+    local,
+    opponent: opponentOf(local),
+  };
 }
 
 function mobileSetScoreState(playerIndex) {
