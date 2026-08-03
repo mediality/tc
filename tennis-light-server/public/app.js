@@ -8733,6 +8733,9 @@ function completeUltimatePostExchangeDistribution() {
   els.ultimatePostExchangeDialog?.classList.add("hidden");
   state.log.unshift("Fin de l’échange terminée : réserves choisies et 2 nouvelles cartes attribuées à chaque joueur.");
   render();
+  if (!state.setMatch.setOver && !state.setMatch.matchOver) {
+    window.setTimeout(() => nextSetExchange(), 0);
+  }
 }
 
 function spendUltimateEnergy(playerIndex, action, confirmed = false) {
@@ -18921,7 +18924,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : "",
   ].filter(Boolean).join("");
   const ultimateProfileResources = ULTIMATE_MODE.active ? `
-    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="${player.energy} énergie${player.energy > 1 ? "s" : ""} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || !canUseSeat(playerIndex) ? "disabled" : ""}><strong>${player.energy}</strong></button>
+    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="Utiliser une énergie · ${player.energy} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || playerIndex === SOLO_AI.playerIndex ? "disabled" : ""}><strong>${player.energy}</strong></button>
   ` : "";
   const ultimateDiscard = ULTIMATE_MODE.active ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>` : "";
   return `
