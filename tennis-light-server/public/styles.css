@@ -14645,6 +14645,22 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 .ultimate-ai-levels div { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
 .ultimate-ai-levels button { padding: .55rem .8rem; border: 2px solid transparent; border-radius: 999px; }
 .ultimate-ai-levels button.selected { border-color: #ffd76a; color: #17202b; background: #ffd76a; }
+.ultimate-energy-dialog { width: min(620px, 94vw); }
+.ultimate-energy-dialog-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+.ultimate-energy-dialog-actions button { display: grid; gap: .35rem; min-height: 110px; padding: 1rem; border: 2px solid rgba(255,215,106,.42); border-radius: 16px; color: #fff; background: #1d2938; }
+.ultimate-energy-dialog-actions button strong { color: #ffd76a; font-size: 1rem; }
+.ultimate-character-state-dialog { width: min(520px, 94vw); text-align: center; }
+.ultimate-character-state-dialog > img { display: block; width: min(300px, 80%); max-height: 58vh; margin: 1rem auto; object-fit: contain; border-radius: 14px; }
+.ultimate-character-state-label { display: block; color: #ffd76a; }
+
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app .character-card { padding: 0; border-style: solid; background: transparent; cursor: pointer; }
+  body:not(.mobile-game-view) .game-app .ultimate-profile-energy { position: absolute; top: 43px; left: 43px; z-index: 12; display: grid; place-items: center; width: 31px; height: 31px; padding: 0; border: 3px solid #092b3c; border-radius: 50%; color: #082536; background: #ffd76a; box-shadow: 0 3px 10px rgba(0,0,0,.45); cursor: pointer; }
+  body:not(.mobile-game-view) .game-app .ultimate-profile-energy strong { font-size: .82rem; font-weight: 950; }
+  body:not(.mobile-game-view) .game-app .ultimate-profile-energy:disabled { opacity: .72; cursor: default; }
+  body:not(.mobile-game-view) .game-app .ultimate-profile-discard { grid-column: 2 / 4; grid-row: 3; min-height: 23px; padding: 2px 8px; border: 1px solid rgba(255,215,106,.45); border-radius: 0 0 10px 10px; color: #eef5f8; background: rgba(7,25,36,.95); font-size: .55rem; font-weight: 900; letter-spacing: .05em; }
+  body:not(.mobile-game-view) .game-app .ultimate-profile-discard strong { color: #ffd76a; }
+}
 
 @media (max-width: 860px) {
   .lobby-mode-ultimate, .ultimate-dialog, .ultimate-resources { display: none !important; }

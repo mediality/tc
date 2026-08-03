@@ -7834,6 +7834,18 @@ function createPlayer(name, characterId, nickname = name) {
     characterStarActive: false,
     ultimateNextCostOne: false,
     ultimateRecoverEnergyOnNextShot: false,
+    ultimateReserveLockedNext: false,
+    ultimateReserveLockedExchange: false,
+    ultimateEffectLimit: false,
+    ultimateNoRepeatedFamily: false,
+    ultimateOpponentPrecisionAfterThird: false,
+    ultimatePowerCapThree: false,
+    ultimateBoostExtraCost: false,
+    ultimateGrowingPrecision: false,
+    ultimateDiscardMarkProtection: false,
+    ultimateDrawPerDefendedBoost: false,
+    ultimateBoostFromDiscard: false,
+    ultimateNextExchangeEndurance: 0,
     knownOpponentHand: null,
     played: [],
     nextPrecisionBonus: 0,
@@ -8478,10 +8490,42 @@ function buildUltimateDeck(playerIndex) {
       if (/Au SERVICE, cette frappe peut être BOOSTÉE/i.test(audited.effect)) card.effectType = "serviceCard";
       else if (/Peut être jouée en BOOST après un SERVICE non BOOSTÉ/i.test(audited.effect)) card.effectType = "serviceBoostHint";
       else if (/Piochez 2 cartes/i.test(audited.effect)) { card.effectType = "drawCard"; card.effectValue = 2; }
-      else if (/Piochez (une|1) carte/i.test(audited.effect)) { card.effectType = "drawCard"; card.effectValue = 1; }
+      else if (/Piochez (une|1) carte/i.test(audited.effect) && !/par BOOST adverse repoussé/i.test(audited.effect)) { card.effectType = "drawCard"; card.effectValue = 1; }
       else if (/Annulez l’effet de la prochaine carte adverse/i.test(audited.effect)) card.effectType = "cancelOpponentNextEffect";
       else if (/prochain coup gagne \+2 précision/i.test(audited.effect)) { card.effectType = "nextPrecision"; card.effectValue = 2; }
       else if (/prochain coup gagne \+2 placement/i.test(audited.effect)) { card.effectType = "nextPlacement"; card.effectValue = 2; }
+      else if (/Côté faible.*limité à REVERS, LOB ou REMISE/i.test(audited.effect)) { card.effectType = "limitOpponentFamilies"; card.effectFamilies = ["Revers", "Lob", "Remise"]; }
+      else if (/Votre prochain coup coûte 1 endurance de moins/i.test(audited.effect)) { card.effectType = "nextDiscount"; card.effectValue = 1; }
+      else if (/Le prochain COUP adverse coûte \+1 endurance/i.test(audited.effect)) { card.effectType = "ultimateOpponentNextExtraCost"; card.effectValue = 1; }
+      else if (/Chaque autre carte COUP visible.*\+1 puissance/i.test(audited.effect)) card.effectType = "ultimateOtherShotsEndPower";
+      else if (/À partir du 3e coup adverse.*-2 précision/i.test(audited.effect)) card.effectType = "ultimateOpponentPrecisionAfterThird";
+      else if (/Si vous gagnez, commencez l’échange suivant avec \+1 endurance/i.test(audited.effect)) card.effectType = "ultimateWinnerNextEndurance";
+      else if (/Chaque carte BOOSTÉE.*\+2 puissance/i.test(audited.effect)) { card.effectType = "boostedBonusAtEnd"; card.effectValue = 2; }
+      else if (/ne peut pas jouer de carte de sa réserve au prochain coup/i.test(audited.effect)) card.effectType = "ultimateLockReserveNext";
+      else if (/ne peut plus utiliser sa réserve pendant cet échange/i.test(audited.effect)) card.effectType = "ultimateLockReserveExchange";
+      else if (/ne peut engager qu’une seule carte EFFET/i.test(audited.effect)) card.effectType = "ultimateLimitOpponentEffect";
+      else if (/ne peut plus rejouer une famille de COUP/i.test(audited.effect)) card.effectType = "ultimateNoRepeatedFamily";
+      else if (/(prochain COUP.*puissance.*1|COUP adverse ne vaut que 1 puissance)/i.test(audited.effect)) card.effectType = "ultimateOpponentPowerOneIfMiss";
+      else if (/cartes adverses suivantes valent au maximum 3 puissance/i.test(audited.effect)) card.effectType = "ultimateOpponentPowerCapThree";
+      else if (/Doublez la puissance du premier COUP/i.test(audited.effect)) card.effectType = "ultimateDoubleFirstShot";
+      else if (/Doublez en fin d’échange la carte la plus puissante/i.test(audited.effect)) card.effectType = "ultimateDoubleStrongestAfter";
+      else if (/chaque nouveau COUP.*précision croissante/i.test(audited.effect)) card.effectType = "ultimateGrowingPrecision";
+      else if (/Récupérez 1 endurance par énergie/i.test(audited.effect)) card.effectType = "ultimateEndurancePerEnergy";
+      else if (/Choisissez une carte dans votre pioche/i.test(audited.effect)) card.effectType = "recoverUndealt";
+      else if (/BOOST adverses coûtent \+1 endurance/i.test(audited.effect)) card.effectType = "ultimateOpponentBoostExtraCost";
+      else if (/Après 3 coups identiques, effectuez une DRAFT/i.test(audited.effect)) card.effectType = "ultimateDraftAfterThreeFamily";
+      else if (/Après 3 coups identiques, gagnez \+4 puissance/i.test(audited.effect)) card.effectType = "ultimatePowerAfterThreeFamily";
+      else if (/Vous pourrez tenter un BOOST sur votre prochain coup/i.test(audited.effect)) card.effectType = "ultimateFreeBoostNext";
+      else if (/Peut être BOOSTÉE si votre endurance est inférieure/i.test(audited.effect)) card.effectType = "ultimateLowEnduranceBoost";
+      else if (/Récupérez une carte dans votre défausse/i.test(audited.effect)) card.effectType = "ultimateRecoverDiscard";
+      else if (/Empêche l’adversaire de marquer vos cartes/i.test(audited.effect)) card.effectType = "ultimateProtectDiscardMarks";
+      else if (/Placez un marqueur défausse sur une carte adverse/i.test(audited.effect)) card.effectType = "ultimateMarkOpponentOne";
+      else if (/Placez deux marqueurs défausse/i.test(audited.effect)) card.effectType = "ultimateMarkOpponentTwo";
+      else if (/Marquez deux cartes adverses.*ou défaussez une carte de sa réserve/i.test(audited.effect)) card.effectType = "ultimateMarkTwoOrDiscardReserve";
+      else if (/Piochez 1 carte par BOOST adverse repoussé/i.test(audited.effect)) card.effectType = "ultimateDrawPerDefendedBoost";
+      else if (/BOOSTER avec une carte provenant de votre défausse/i.test(audited.effect)) card.effectType = "ultimateBoostFromDiscard";
+      else if (/COUP le plus faible prend la puissance du COUP le plus fort/i.test(audited.effect)) card.effectType = "ultimateWeakestCopiesStrongest";
+      else if (/Si l’adversaire ne répond pas avec assez de placement/i.test(audited.effect)) card.effectType = "ultimateInstantPlacementWin";
     }
     card.star = /SILVER/i.test(audited?.filename || "");
     return card;
@@ -8581,7 +8625,7 @@ function confirmUltimateDraft() {
 function ultimateReserveCandidates(playerIndex) {
   const player = state.players[playerIndex];
   if (!player) return [];
-  return (player.played || []).filter((card) => !isRemise(card) && !card._fromReserve && !card.removed);
+  return (player.played || []).filter((card) => !isRemise(card) && !card._fromReserve && !card.markedForDiscard && !card.removed);
 }
 
 function renderUltimatePostExchangeChoice() {
@@ -8691,12 +8735,12 @@ function completeUltimatePostExchangeDistribution() {
   render();
 }
 
-function spendUltimateEnergy(playerIndex, action) {
+function spendUltimateEnergy(playerIndex, action, confirmed = false) {
   if (!ULTIMATE_MODE.active || state.gameOver) return;
   const player = state.players[playerIndex];
   if (!player || player.energy <= 0 || !canUseSeat(playerIndex)) return;
   const label = action === "draft" ? "faire une DRAFT" : "récupérer 2 ENDURANCE";
-  if (!window.confirm(`Dépenser 1 ÉNERGIE pour ${label} ?`)) return;
+  if (!confirmed && !window.confirm(`Dépenser 1 ÉNERGIE pour ${label} ?`)) return;
   player.energy -= 1;
   if (action === "endurance") {
     player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
@@ -8705,6 +8749,23 @@ function spendUltimateEnergy(playerIndex, action) {
     return;
   }
   if (action === "draft") beginUltimateDraft(playerIndex, 0, "energy");
+}
+
+function openUltimateEnergyChoice(playerIndex) {
+  const player = state.players[playerIndex];
+  if (!ULTIMATE_MODE.active || !player || player.energy <= 0 || !canUseSeat(playerIndex) || state.gameOver) return;
+  const dialog = document.createElement("section");
+  dialog.className = "ultimate-dialog";
+  dialog.innerHTML = `<div class="ultimate-dialog-card ultimate-energy-dialog"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Énergie disponible · ${player.energy}</p><h2>Utiliser une énergie ?</h2><div class="ultimate-energy-dialog-actions"><button type="button" data-energy-choice="draft"><strong>DRAFT</strong><span>Piochez 3 cartes et conservez-en 2</span></button><button type="button" data-energy-choice="endurance" ${player.endurance >= STARTING_ENDURANCE ? "disabled" : ""}><strong>+2 ENDURANCE</strong><span>Récupérez immédiatement 2 endurance</span></button></div></div>`;
+  const close = () => dialog.remove();
+  dialog.querySelector(".ultimate-dialog-close").addEventListener("click", close);
+  dialog.querySelectorAll("[data-energy-choice]").forEach((button) => button.addEventListener("click", () => {
+    const action = button.dataset.energyChoice;
+    close();
+    spendUltimateEnergy(playerIndex, action, true);
+  }));
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
+  document.body.appendChild(dialog);
 }
 
 function startUltimateGame() {
@@ -8757,6 +8818,7 @@ function newGame(options = {}) {
     ? state.players.map((player) => ({
       hand: [...player.hand], reserve: [...(player.reserve || [])], energy: player.energy,
       characterStarActive: Boolean(player.characterStarActive), played: [...(player.played || [])],
+      ultimateNextExchangeEndurance: Number(player.ultimateNextExchangeEndurance || 0),
     }))
     : null;
   if (ULTIMATE_MODE.active && ULTIMATE_MODE.postExchange?.completed) ULTIMATE_MODE.postExchange = null;
@@ -8806,6 +8868,8 @@ function newGame(options = {}) {
       player.reserve = previous.reserve;
       player.energy = previous.energy;
       player.characterStarActive = previous.characterStarActive;
+      player.endurance = STARTING_ENDURANCE + previous.ultimateNextExchangeEndurance;
+      player.ultimateNextExchangeEndurance = 0;
     });
   }
   if (SERVER_SYNC.enabled) {
@@ -9238,12 +9302,12 @@ function playerHasSurfaceBonus(player, bonusId) {
   return surfaceBonusesForPlayer(player).some((bonus) => bonus.id === bonusId);
 }
 
-function effectiveCost(player, card) {
+function effectiveCost(player, card, boosted = false) {
   const remiseDiscount = isRemise(card) && playerHasSurfaceBonus(player, "grassCheapRemise") ? 1 : 0;
-  if (ULTIMATE_MODE.active && !isRemise(card) && player.ultimateNextCostOne) return 1;
+  if (ULTIMATE_MODE.active && !isRemise(card) && player.ultimateNextCostOne) return Math.max(1, 1 + (boosted && player.ultimateBoostExtraCost ? 1 : 0));
   return isRemise(card)
     ? Math.max(0, card.cost - remiseDiscount)
-    : Math.max(0, card.cost - player.nextDiscount + (player.nextExtraCost ?? 0));
+    : Math.max(0, card.cost - player.nextDiscount + (player.nextExtraCost ?? 0) + (boosted && player.ultimateBoostExtraCost ? 1 : 0));
 }
 
 function addNextPrecisionBonus(player, value, sourceUid = null) {
@@ -9321,6 +9385,10 @@ function getCardStats(player, card, boosted) {
   const permanentPlacementBonus = (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.placement || 0), 0);
   const permanentPowerBonus = isRemise(card) ? 0 : (player.permanentBonuses ?? []).reduce((sum, bonus) => sum + Number(bonus.power || 0), 0);
   let precision = (boosted ? card.boostPrecision : card.precision) + (player.exchangePrecisionBonus ?? 0) + player.nextPrecisionBonus * shotBonus;
+  if (!isRemise(card) && player.ultimateOpponentPrecisionAfterThird && player.played.filter((played) => isShot(played) && !played.removed).length >= 2) precision -= 2;
+  if (!isRemise(card) && Number.isInteger(player.ultimateGrowingPrecisionStart)) {
+    precision += Math.max(1, player.played.filter((played) => isShot(played) && !played.removed).length - player.ultimateGrowingPrecisionStart + 1);
+  }
   precision += permanentPrecisionBonus;
   const basePlacement = !isRemise(card) && player.nextShotBasePlacementZero ? 0 : card.placement;
   let placement = basePlacement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
@@ -9344,6 +9412,7 @@ function getCardStats(player, card, boosted) {
     }
   }
   let power = (basePower + permanentPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
+  if (!isRemise(card) && player.ultimatePowerCapThree) power = Math.min(power, 3);
   if (!isRemise(card) && player.nextPowerCap != null) power = Math.min(power, Number(player.nextPowerCap));
   return {
     power,
@@ -9357,7 +9426,9 @@ function canAfford(player, card) {
 }
 
 function satisfiesFamilyLimit(player, card) {
-  return !player.limitedFamilies || player.limitedFamilies.includes(card.family);
+  if (player.limitedFamilies && !player.limitedFamilies.includes(card.family)) return false;
+  if (player.ultimateNoRepeatedFamily && !isRemise(card) && player.played.some((played) => isShot(played) && !played.removed && played.family === card.family)) return false;
+  return true;
 }
 
 function hasReturnServiceRestriction(playerIndex) {
@@ -9442,7 +9513,7 @@ function canPlayNormal(playerIndex, card) {
   if (state.gameOver || playerIndex !== state.activePlayer) return false;
   if (!canUseSeat(playerIndex)) return false;
   const player = state.players[playerIndex];
-  if (!canAfford(player, card) || !satisfiesFamilyLimit(player, card)) return false;
+  if (player.endurance < effectiveCost(player, card) || !satisfiesFamilyLimit(player, card)) return false;
   if (isRemise(card)) return true;
   if (!satisfiesReturnServiceRestriction(card)) return false;
   const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
@@ -9454,6 +9525,7 @@ function canPlayEffectMode(playerIndex, card) {
   if (!isRemise(card) || state.gameOver || playerIndex !== state.activePlayer) return false;
   if (!canUseSeat(playerIndex)) return false;
   const player = state.players[playerIndex];
+  if (player.ultimateEffectLimit && player.played.some((played) => isRemise(played) && played.remiseMode === "effect" && !played.removed)) return false;
   // Le mode Effet d'une Remise reste disponible face à un service ou un
   // retour boosté : la contrainte de placement s'applique à la clôture du tour.
   return canAfford(player, card) && satisfiesFamilyLimit(player, card);
@@ -9480,9 +9552,11 @@ function canPlayBoost(playerIndex, card) {
   if (isRemise(card)) return false;
   const player = state.players[playerIndex];
   const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid)
-    || (ULTIMATE_MODE.active && (player.reserve || []).some((candidate) => candidate.uid !== card.uid));
+    || (ULTIMATE_MODE.active && (player.reserve || []).some((candidate) => candidate.uid !== card.uid))
+    || (ULTIMATE_MODE.active && player.ultimateBoostFromDiscard && (state.ultimateDiscards[playerIndex] || []).length > 0);
   const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && isOpeningServeAvailable();
   const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
+  const lowEnduranceBoost = card.effectType === "ultimateLowEnduranceBoost" && player.endurance < state.players[opponentOf(playerIndex)].endurance;
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
   // Un contre-Boost répondant à un Boost adverse n'est autorisé que par la
@@ -9490,9 +9564,9 @@ function canPlayBoost(playerIndex, card) {
   const answersBoost = state.mandatoryPlacement && state.mandatoryPlacementReason === "boost";
   const boostWindow = answersBoost
     ? colorBoost
-    : state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || colorBoost;
+    : state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || lowEnduranceBoost || colorBoost;
   if (!boostWindow || !hasSacrifice) return false;
-  if (!canAfford(player, card) || !satisfiesFamilyLimit(player, card)) return false;
+  if (player.endurance < effectiveCost(player, card, true) || !satisfiesFamilyLimit(player, card)) return false;
   if (!satisfiesReturnServiceRestriction(card)) return false;
   return true;
 }
@@ -9625,6 +9699,7 @@ function runSoloAITurn() {
     }
 
     const playerIndex = SOLO_AI.playerIndex;
+    maybeSpendUltimateEnergyForAI(playerIndex);
     const finalOnePointPass = soloFinalOnePointWinningPass(playerIndex);
     if (finalOnePointPass) {
       recordSoloAiDecision("pass_final_one_point_certain_win", finalOnePointPass);
@@ -9839,6 +9914,28 @@ function runSoloAITurn() {
     SOLO_AI.executing = false;
     maybeRunSoloAI();
   }
+}
+
+function maybeSpendUltimateEnergyForAI(playerIndex) {
+  if (!ULTIMATE_MODE.active) return false;
+  const player = state.players[playerIndex];
+  if (!player || player.energy <= 0) return false;
+  if (player.endurance <= 3) {
+    player.energy -= 1;
+    player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
+    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie et récupère 2 endurance.`);
+    return true;
+  }
+  if (player.hand.length <= 2) {
+    const choices = ultimateDrawThree(playerIndex);
+    const ranked = [...choices].sort((left, right) => soloCardScore(playerIndex, right) - soloCardScore(playerIndex, left));
+    player.hand.push(...ranked.slice(0, 2));
+    state.ultimateDiscards[playerIndex].push(...ranked.slice(2));
+    player.energy -= 1;
+    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie et effectue une draft.`);
+    return true;
+  }
+  return false;
 }
 
 function chooseAmateurOption(options, scoreOf = (option) => option.score) {
@@ -12054,7 +12151,7 @@ function soloImmediateEffectValue(playerIndex, card) {
 function isSoloRemovalWorthCost(playerIndex, card, target) {
   if (!card || !target) return false;
   const player = state.players[playerIndex];
-  const cost = effectiveCost(player, card);
+  const cost = effectiveCost(player, card, boosted);
   const targetValue = removalTargetScore(target);
   const isMandatoryDefense = state.mandatoryPlacement
     && state.mandatoryPlacementSourceUid === target.playedUid;
@@ -12368,7 +12465,23 @@ function activateUltimateCharacterIfReady(playerIndex) {
     player.power += bonus;
     state.log.unshift(`Pouvoir étoile de Calvin Brentwood : +2 endurance et +${bonus} puissance pour ses Volées, Smash et Amorties visibles.`);
   }
+  window.setTimeout(() => openUltimateCharacterState(playerIndex, true), 0);
   return true;
+}
+
+function openUltimateCharacterState(playerIndex, powerJustActivated = false) {
+  if (!ULTIMATE_MODE.active) return;
+  const player = state.players[playerIndex];
+  const config = ultimatePlayerConfig(playerIndex);
+  if (!player || !config) return;
+  const powered = Boolean(player.characterStarActive);
+  const dialog = document.createElement("section");
+  dialog.className = "ultimate-dialog";
+  dialog.innerHTML = `<div class="ultimate-dialog-card ultimate-character-state-dialog"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">${powerJustActivated ? "Pouvoir étoile déclenché" : "État du personnage"}</p><h2>${escapeHtml(config.name)}</h2><img src="${escapeHtml(powered ? config.power : config.character)}" alt="Carte personnage ${powered ? "retournée" : "normale"}"><strong class="ultimate-character-state-label">${powered ? "CARTE RETOURNÉE · POUVOIR ACTIF" : "CARTE NORMALE · 7 DANS LE ROND BLEU"}</strong><p>${powered ? (playerIndex === 0 ? "Le prochain COUP coûte 1 endurance et rendra 1 énergie." : "Le bonus de puissance des Volées, Smash et Amorties est actif.") : "Le pouvoir se déclenche lorsque 2 cartes COUP étoilées sont visibles pendant le même échange."}</p></div>`;
+  const close = () => dialog.remove();
+  dialog.querySelector(".ultimate-dialog-close").addEventListener("click", close);
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
+  document.body.appendChild(dialog);
 }
 
 function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, remiseMode = "effect") {
@@ -12410,6 +12523,10 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   };
   state.turnEffectPlacement[playerIndex] = isRemise(card) && remiseMode === "effect" ? rawStats.placement : 0;
   const combinedPlacement = state.turnPlacement[playerIndex] + stats.placement;
+  if (endsTurn && player.ultimateConditionalPowerCap) {
+    if (combinedPlacement < player.ultimateConditionalPowerCap.precision) stats.power = Math.min(stats.power, player.ultimateConditionalPowerCap.cap);
+    player.ultimateConditionalPowerCap = null;
+  }
   const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
 
   player.endurance -= cost;
@@ -12427,12 +12544,15 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   let sacrificedCard = null;
   if (boosted) {
     sacrificedCard = player.hand.find((item) => item.uid === sacrificeUid)
-      || (ULTIMATE_MODE.active ? (player.reserve || []).find((item) => item.uid === sacrificeUid) : null);
+      || (ULTIMATE_MODE.active ? (player.reserve || []).find((item) => item.uid === sacrificeUid) : null)
+      || (ULTIMATE_MODE.active && player.ultimateBoostFromDiscard ? (state.ultimateDiscards[playerIndex] || []).find((item) => item.uid === sacrificeUid) : null);
     if (!sacrificedCard) return;
     if (player.hand.some((item) => item.uid === sacrificeUid)) removeFromHand(player, sacrificeUid);
-    else {
+    else if (player.reserve.some((item) => item.uid === sacrificeUid)) {
       player.reserve = player.reserve.filter((item) => item.uid !== sacrificeUid);
       sacrificedCard._fromReserve = true;
+    } else {
+      state.ultimateDiscards[playerIndex] = state.ultimateDiscards[playerIndex].filter((item) => item.uid !== sacrificeUid);
     }
   }
 
@@ -12463,6 +12583,24 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   completeDesktopCardFlight(playedCard);
 
   player.played.push(playedCard);
+  if (ULTIMATE_MODE.active && answeredBoostConstraint && player.ultimateDrawPerDefendedBoost && !placementWasInsufficient) {
+    const drawn = drawCards(player, 1);
+    if (drawn) state.log.unshift(`${displayPlayerName(player)} pioche 1 carte après avoir repoussé un BOOST adverse.`);
+  }
+  if (ULTIMATE_MODE.active && player.ultimateDraftAfterThreeFamily && isShot(playedCard)) {
+    const sameFamilyCount = player.played.filter((candidate) => isShot(candidate) && !candidate.removed && candidate.family === playedCard.family).length;
+    if (sameFamilyCount >= 3) {
+      player.ultimateDraftAfterThreeFamily = false;
+      if (playerIndex === 0) window.setTimeout(() => beginUltimateDraft(playerIndex, 0, "energy"), 0);
+      else {
+        const choices = ultimateDrawThree(playerIndex);
+        const ranked = [...choices].sort((left, right) => soloCardScore(playerIndex, right) - soloCardScore(playerIndex, left));
+        player.hand.push(...ranked.slice(0, 2));
+        state.ultimateDiscards[playerIndex].push(...ranked.slice(2));
+      }
+      state.log.unshift(`${displayPlayerName(player)} déclenche une DRAFT après trois COUPS de la même famille.`);
+    }
+  }
   state.turnPlayedCards[playerIndex].push(playedCard);
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
@@ -12510,6 +12648,12 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     ? `, placement de clôture ${rawStats.placement}`
     : "";
   state.log.unshift(`${displayPlayerName(player)} joue ${card.name}${boostText}${remiseText} : +${stats.power} puissance, précision ${stats.precision}, placement ${stats.placement}${effectPlacementText}${endsTurn ? `, placement total ${combinedPlacement}` : ""}.`);
+  if (placementWasInsufficient && player.ultimateInstantPlacementLossTo != null) {
+    const winnerIndex = player.ultimateInstantPlacementLossTo;
+    player.ultimateInstantPlacementLossTo = null;
+    finishGame({ forcedWinner: winnerIndex, winType: "effect", reason: `${displayPlayerName(player)} ne répond pas avec assez de placement : ${displayPlayerName(state.players[winnerIndex])} gagne immédiatement l’échange grâce à son pouvoir.` });
+    return;
+  }
   const effectCanceled = state.players[opponentIndex].cancelNextOpponentEffect;
   let effectResolution = "applied";
   if (!appliesEffect) {
@@ -12603,6 +12747,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   state.turnCannotOpenBoost[playerIndex] = false;
   state.turnCannotOpenBoost[opponentIndex] = false;
   rememberPreviousTurn(playerIndex);
+  player.ultimateReserveLockedNext = false;
   player.limitedFamilies = null;
   player.limitedFamiliesSourceUid = null;
   if (state.returnServiceRestrictionFor === playerIndex) {
@@ -12797,6 +12942,7 @@ function applyEffect(playerIndex, card) {
     case "nextDiscount":
       addNextDiscount(player, card.effectValue, card.playedUid);
       state.log.unshift(`Le prochain coup de ${displayPlayerName(player)} coûte ${card.effectValue} endurance en moins.`);
+      setEffectNotice("appliqué", card, `La réduction est déjà incluse dans le coût affiché sur chaque carte COUP jouable.`);
       break;
     case "cancelOpponentNextEffect":
       player.cancelNextOpponentEffect = true;
@@ -12807,6 +12953,117 @@ function applyEffect(playerIndex, card) {
       opponent.limitedFamilies = card.effectFamilies;
       opponent.limitedFamiliesSourceUid = card.playedUid;
       state.log.unshift(`${displayPlayerName(opponent)} devra jouer ${card.effectFamilies.join(", ")} au prochain coup.`);
+      setEffectNotice("appliqué", card, `${displayPlayerName(opponent)} est limité à Revers, Lob ou Remise sur son prochain coup.`);
+      break;
+    case "ultimateOpponentNextExtraCost":
+      addNextExtraCost(opponent, card.effectValue || 1, card.playedUid);
+      state.log.unshift(`Le prochain coup de ${displayPlayerName(opponent)} coûte ${card.effectValue || 1} endurance de plus.`);
+      setEffectNotice("appliqué", card, `Le surcoût est déjà inclus dans les coûts affichés à ${displayPlayerName(opponent)}.`);
+      break;
+    case "ultimateOtherShotsEndPower":
+      player.endBonuses.push({ type: "ultimateOtherShots", sourceUid: card.playedUid });
+      state.log.unshift(`${displayPlayerName(player)} gagnera +1 par autre COUP visible en fin d’échange.`);
+      break;
+    case "ultimateOpponentPrecisionAfterThird":
+      opponent.ultimateOpponentPrecisionAfterThird = true;
+      state.log.unshift(`À partir de son 3e COUP, ${displayPlayerName(opponent)} subira -2 précision.`);
+      break;
+    case "ultimateWinnerNextEndurance":
+      player.endBonuses.push({ type: "ultimateWinnerNextEndurance", sourceUid: card.playedUid });
+      break;
+    case "ultimateLockReserveNext":
+      opponent.ultimateReserveLockedNext = true;
+      setEffectNotice("appliqué", card, `${displayPlayerName(opponent)} ne peut pas jouer sa réserve sur son prochain coup.`);
+      break;
+    case "ultimateLockReserveExchange":
+      opponent.ultimateReserveLockedExchange = true;
+      setEffectNotice("appliqué", card, `${displayPlayerName(opponent)} ne peut plus utiliser sa réserve pendant cet échange.`);
+      break;
+    case "ultimateLimitOpponentEffect":
+      opponent.ultimateEffectLimit = true;
+      setEffectNotice("appliqué", card, `${displayPlayerName(opponent)} ne peut engager qu’une seule carte EFFET pendant cet échange.`);
+      break;
+    case "ultimateNoRepeatedFamily":
+      opponent.ultimateNoRepeatedFamily = true;
+      setEffectNotice("appliqué", card, `${displayPlayerName(opponent)} ne peut plus rejouer une famille de COUP déjà utilisée.`);
+      break;
+    case "ultimateOpponentPowerOneIfMiss":
+      opponent.ultimateConditionalPowerCap = { cap: 1, precision: Number(card.precision || 0), sourceUid: card.playedUid };
+      state.log.unshift(`Si le placement de ${displayPlayerName(opponent)} est insuffisant, son prochain COUP sera limité à 1 puissance.`);
+      break;
+    case "ultimateOpponentPowerCapThree":
+      opponent.ultimatePowerCapThree = true;
+      setEffectNotice("appliqué", card, `Les prochains COUPS de ${displayPlayerName(opponent)} sont limités à 3 puissance, BOOST compris.`);
+      break;
+    case "ultimateDoubleFirstShot":
+      player.endBonuses.push({ type: "ultimateDoubleFirstShot", sourceUid: card.playedUid });
+      break;
+    case "ultimateDoubleStrongestAfter":
+      player.endBonuses.push({ type: "ultimateDoubleStrongestAfter", sourceUid: card.playedUid });
+      break;
+    case "ultimateGrowingPrecision":
+      player.ultimateGrowingPrecisionStart = player.played.filter((played) => isShot(played) && !played.removed).length;
+      break;
+    case "ultimateEndurancePerEnergy": {
+      const gained = Number(player.energy || 0);
+      player.endurance += gained;
+      state.log.unshift(`${displayPlayerName(player)} récupère ${gained} endurance grâce à ses ${player.energy} énergies disponibles.`);
+      break;
+    }
+    case "ultimateOpponentBoostExtraCost":
+      opponent.ultimateBoostExtraCost = true;
+      setEffectNotice("appliqué", card, `Chaque BOOST de ${displayPlayerName(opponent)} coûte +1 endurance pendant cet échange.`);
+      break;
+    case "ultimateDraftAfterThreeFamily":
+      player.ultimateDraftAfterThreeFamily = true;
+      break;
+    case "ultimatePowerAfterThreeFamily":
+      player.endBonuses.push({ type: "ultimatePowerAfterThreeFamily", sourceUid: card.playedUid });
+      break;
+    case "ultimateFreeBoostNext":
+      player.freeBoostNext = true;
+      player.freeBoostNextSourceUid = card.playedUid;
+      break;
+    case "ultimateRecoverDiscard": {
+      if (playerIndex === 0) openUltimateCardRecoveryChoice(playerIndex, "discard");
+      else {
+        const recovered = state.ultimateDiscards[playerIndex].pop();
+        if (recovered) player.hand.push(recovered);
+      }
+      break;
+    }
+    case "ultimateProtectDiscardMarks":
+      player.ultimateDiscardMarkProtection = true;
+      break;
+    case "ultimateMarkOpponentOne":
+    case "ultimateMarkOpponentTwo":
+    case "ultimateMarkTwoOrDiscardReserve": {
+      if (opponent.ultimateDiscardMarkProtection) {
+        setEffectNotice("sans effet", card, `${displayPlayerName(opponent)} protège ses cartes des marqueurs défausse.`);
+        break;
+      }
+      if (card.effectType === "ultimateMarkTwoOrDiscardReserve" && opponent.reserve.length) {
+        const discarded = opponent.reserve.shift();
+        state.ultimateDiscards[opponentIndex].push(discarded);
+        state.log.unshift(`${discarded.name} est défaussée depuis la réserve adverse.`);
+        break;
+      }
+      const count = card.effectType === "ultimateMarkOpponentOne" ? 1 : 2;
+      opponent.played.filter((target) => isShot(target) && !target.removed && !target.markedForDiscard).slice(-count).forEach((target) => { target.markedForDiscard = true; });
+      state.log.unshift(`${count} carte(s) adverse(s) reçoivent un marqueur défausse.`);
+      break;
+    }
+    case "ultimateDrawPerDefendedBoost":
+      player.ultimateDrawPerDefendedBoost = true;
+      break;
+    case "ultimateBoostFromDiscard":
+      player.ultimateBoostFromDiscard = true;
+      break;
+    case "ultimateWeakestCopiesStrongest":
+      player.endBonuses.push({ type: "ultimateWeakestCopiesStrongest", sourceUid: card.playedUid });
+      break;
+    case "ultimateInstantPlacementWin":
+      opponent.ultimateInstantPlacementLossTo = playerIndex;
       break;
     case "discardOpponent":
       if (opponent.protectedFromRemoval) {
@@ -12895,11 +13152,14 @@ function applyEffect(playerIndex, card) {
       state.log.unshift(`${displayPlayerName(player)} pioche 2 cartes et récupère sa réserve en main.`);
       break;
     case "recoverUndealt": {
-      const deck = state.ultimateDecks[playerIndex] || [];
-      const selected = deck.shift();
-      if (selected) player.hand.push(selected);
-      state.ultimateDecks[playerIndex] = shuffle(deck);
-      state.log.unshift(`${displayPlayerName(player)} prend une carte dans sa pioche puis la mélange.`);
+      if (playerIndex === 0) openUltimateCardRecoveryChoice(playerIndex, "deck");
+      else {
+        const deck = state.ultimateDecks[playerIndex] || [];
+        const selected = [...deck].sort((left, right) => soloCardScore(playerIndex, right) - soloCardScore(playerIndex, left))[0];
+        if (selected) player.hand.push(selected);
+        state.ultimateDecks[playerIndex] = shuffle(deck.filter((card) => card.uid !== selected?.uid));
+      }
+      state.log.unshift(`${displayPlayerName(player)} choisit une carte puis mélange sa pioche.`);
       break;
     }
     case "ultimateAllShotsPower": {
@@ -13894,6 +14154,12 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
     state.players.forEach((player) => { player.endurance = STARTING_ENDURANCE; });
   }
   const winner = forcedWinner ?? getWinner();
+  state.players.forEach((player, playerIndex) => {
+    if (playerIndex === winner && player.endBonuses.some((bonus) => bonus.type === "ultimateWinnerNextEndurance")) {
+      player.ultimateNextExchangeEndurance = 1;
+      state.log.unshift(`${displayPlayerName(player)} commencera le prochain échange avec +1 endurance.`);
+    }
+  });
   const p1 = state.players[0];
   const p2 = state.players[1];
   const setScore = getExchangeSetScore(winner, winType);
@@ -16997,6 +17263,36 @@ function applyEndBonuses() {
         if (gained) details.push({ playerIndex: state.players.indexOf(player), label: `Bonus cartes boostées (${count})`, points: gained });
         state.log.unshift(`${displayPlayerName(player)} gagne +${gained} puissance pour ses cartes boostées.`);
       }
+      if (bonus.type === "ultimateOtherShots") {
+        const count = Math.max(0, player.played.filter((card) => isShot(card) && !card.removed).length - 1);
+        player.power += count;
+        if (count) details.push({ playerIndex: state.players.indexOf(player), label: "Autres COUPS visibles", points: count });
+      }
+      if (bonus.type === "ultimateDoubleFirstShot") {
+        const target = player.played.find((card) => isShot(card) && !card.removed);
+        const gained = Number(target?.cardPowerGained ?? target?.powerGained ?? 0);
+        player.power += gained;
+        if (gained) details.push({ playerIndex: state.players.indexOf(player), label: `Premier COUP doublé · ${target.name}`, points: gained });
+      }
+      if (bonus.type === "ultimateDoubleStrongestAfter") {
+        const sourceIndex = player.played.findIndex((card) => card.playedUid === bonus.sourceUid);
+        const target = player.played.slice(sourceIndex + 1).filter((card) => isShot(card) && !card.removed).sort((a, b) => Number(b.cardPowerGained || 0) - Number(a.cardPowerGained || 0))[0];
+        const gained = Number(target?.cardPowerGained ?? 0);
+        player.power += gained;
+        if (gained) details.push({ playerIndex: state.players.indexOf(player), label: `COUP le plus puissant doublé · ${target.name}`, points: gained });
+      }
+      if (bonus.type === "ultimatePowerAfterThreeFamily") {
+        const counts = new Map();
+        player.played.filter((card) => isShot(card) && !card.removed).forEach((card) => counts.set(card.family, (counts.get(card.family) || 0) + 1));
+        if ([...counts.values()].some((count) => count >= 3)) { player.power += 4; details.push({ playerIndex: state.players.indexOf(player), label: "Trois COUPS identiques", points: 4 }); }
+      }
+      if (bonus.type === "ultimateWeakestCopiesStrongest") {
+        const shots = player.played.filter((card) => isShot(card) && !card.boosted && !card.removed);
+        const powers = shots.map((card) => Number(card.cardPowerGained || 0));
+        const gained = powers.length ? Math.max(...powers) - Math.min(...powers) : 0;
+        player.power += Math.max(0, gained);
+        if (gained > 0) details.push({ playerIndex: state.players.indexOf(player), label: "COUP faible aligné sur le plus fort", points: gained });
+      }
     }
   }
   return details;
@@ -18624,11 +18920,16 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     state.server === playerIndex ? '<span class="badge server">Serveur</span>' : "",
     state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : "",
   ].filter(Boolean).join("");
+  const ultimateProfileResources = ULTIMATE_MODE.active ? `
+    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="${player.energy} énergie${player.energy > 1 ? "s" : ""} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || !canUseSeat(playerIndex) ? "disabled" : ""}><strong>${player.energy}</strong></button>
+  ` : "";
+  const ultimateDiscard = ULTIMATE_MODE.active ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>` : "";
   return `
     <div class="character-zone">
-      <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+      <button class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" type="button" data-ultimate-character-state="${playerIndex}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
-      </div>
+      </button>
+      ${ultimateProfileResources}
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
         <div>
@@ -18654,6 +18955,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
       <button class="desktop-player-bonus-count" type="button" data-open-desktop-bonuses="${playerIndex}" aria-label="Voir les ${panel.bonusCount} bonus et malus de ${escapeHtml(displayPlayerName(player))}">
         ${panel.bonusCount}
       </button>
+      ${ultimateDiscard}
       ${statusBadges ? `<div class="desktop-player-status">${statusBadges}</div>` : ""}
       <div class="turn-buttons">
         ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
@@ -19559,6 +19861,14 @@ function activeEffectBadges(playerIndex) {
   if (player.nextPlacementBonus) badges.push({ text: `Prochain Coup : +${player.nextPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextPlacementSources) });
   if (player.nextAnyPlacementBonus) badges.push({ text: `Prochaine carte : +${player.nextAnyPlacementBonus} placement`, type: "effect", sourceUid: preferredSourceUid(player.nextAnyPlacementSources) });
   if (player.nextDiscount) badges.push({ text: `Prochain Coup : coûte ${player.nextDiscount} endurance de moins`, type: "effect", sourceUid: preferredSourceUid(player.nextDiscountSources) });
+  if (player.ultimateNextCostOne) badges.push({ text: "Pouvoir étoile : prochain Coup limité à 1 endurance", type: "effect", category: "permanent" });
+  if (player.ultimateReserveLockedNext) badges.push({ text: "Prochain Coup : réserve interdite", type: "constraint" });
+  if (player.ultimateReserveLockedExchange) badges.push({ text: "Pendant l’échange : réserve interdite", type: "constraint", category: "permanent" });
+  if (player.ultimateEffectLimit) badges.push({ text: "Pendant l’échange : 1 seule carte EFFET autorisée", type: "constraint", category: "permanent" });
+  if (player.ultimateNoRepeatedFamily) badges.push({ text: "Pendant l’échange : impossible de rejouer une famille de COUP", type: "constraint", category: "permanent" });
+  if (player.ultimateOpponentPrecisionAfterThird) badges.push({ text: "À partir du 3e COUP : -2 précision", type: "constraint", category: "permanent" });
+  if (player.ultimatePowerCapThree) badges.push({ text: "Pendant l’échange : puissance des COUPS limitée à 3", type: "constraint", category: "permanent" });
+  if (player.ultimateBoostExtraCost) badges.push({ text: "Pendant l’échange : chaque BOOST coûte +1 endurance", type: "constraint", category: "permanent" });
   if (player.nextExtraCost) badges.push({ text: `Prochain Coup : coûte ${player.nextExtraCost} endurance de plus`, type: "constraint", sourceUid: preferredSourceUid(player.nextExtraCostSources) });
   if (player.nextPowerCap != null) badges.push({ text: `Prochain Coup : puissance limitée à ${player.nextPowerCap}`, type: "constraint", sourceUid: player.nextPowerCapSourceUid });
   if (player.nextShotBasePlacementZero) badges.push({ text: "Prochain Coup : placement de base ramené à 0", type: "constraint", sourceUid: player.nextShotBasePlacementZeroSourceUid });
@@ -19755,14 +20065,7 @@ function openDesktopBonusDialog(playerIndex) {
 }
 
 function renderUltimateResources(playerIndex) {
-  if (!ULTIMATE_MODE.active) return "";
-  const player = state.players[playerIndex];
-  const discard = state.ultimateDiscards[playerIndex] || [];
-  return `<section class="ultimate-resources" aria-label="Ressources Ultimate de ${escapeHtml(displayPlayerName(player))}">
-    <div class="ultimate-energy-summary"><span>💡 ÉNERGIE</span><strong>${player.energy}/${ULTIMATE_STARTING_ENERGY}</strong></div>
-    <div class="ultimate-energy-actions"><button type="button" data-ultimate-energy="draft" ${player.energy <= 0 || state.gameOver ? "disabled" : ""}>Faire une draft</button><span>ou</span><button type="button" data-ultimate-energy="endurance" ${player.energy <= 0 || state.gameOver || player.endurance >= STARTING_ENDURANCE ? "disabled" : ""}>Récupérer +2 END</button></div>
-    <button class="ultimate-discard-button" type="button" data-open-ultimate-discard="${playerIndex}"><span>Défausse</span><strong>${discard.length}</strong></button>
-  </section>`;
+  return "";
 }
 
 function renderUltimateReserveInHand(playerIndex) {
@@ -19772,7 +20075,7 @@ function renderUltimateReserveInHand(playerIndex) {
   if (!reserve.length) return '<span class="ultimate-reserve-hand-divider empty">RÉSERVE · 0/2</span>';
   return `<span class="ultimate-reserve-hand-divider">RÉSERVE · ${reserve.length}/2</span>${reserve.map((card) => {
     const image = cardArtwork(card);
-    const usable = playerIndex === 0 && canUseSeat(playerIndex) && !state.gameOver;
+    const usable = playerIndex === 0 && canUseSeat(playerIndex) && !state.gameOver && !player.ultimateReserveLockedNext && !player.ultimateReserveLockedExchange;
     const player = state.players[playerIndex];
     const cost = effectiveCost(player, card);
     const normalAllowed = usable && canPlayNormal(playerIndex, card);
@@ -19793,6 +20096,29 @@ function openUltimateDiscard(playerIndex) {
   const close = () => dialog.remove();
   dialog.querySelector("button").addEventListener("click", close);
   dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
+  document.body.appendChild(dialog);
+}
+
+function openUltimateCardRecoveryChoice(playerIndex, source) {
+  const player = state.players[playerIndex];
+  const cards = source === "deck" ? (state.ultimateDecks[playerIndex] || []) : (state.ultimateDiscards[playerIndex] || []);
+  if (!cards.length) {
+    state.log.unshift(source === "deck" ? "La pioche est vide." : "La défausse est vide.");
+    return;
+  }
+  const dialog = document.createElement("section");
+  dialog.className = "ultimate-dialog";
+  dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Choix dans ${source === "deck" ? "la pioche" : "la défausse"}</p><h2>Choisissez une carte à récupérer</h2><div class="ultimate-discard-grid">${cards.map((card) => `<button class="ultimate-draft-card" type="button" data-recover-ultimate="${escapeHtml(card.uid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div></div>`;
+  dialog.querySelectorAll("[data-recover-ultimate]").forEach((button) => button.addEventListener("click", () => {
+    const selected = cards.find((card) => card.uid === button.dataset.recoverUltimate);
+    if (!selected) return;
+    player.hand.push(selected);
+    if (source === "deck") state.ultimateDecks[playerIndex] = shuffle(state.ultimateDecks[playerIndex].filter((card) => card.uid !== selected.uid));
+    else state.ultimateDiscards[playerIndex] = state.ultimateDiscards[playerIndex].filter((card) => card.uid !== selected.uid);
+    state.log.unshift(`${displayPlayerName(player)} récupère ${selected.name}.`);
+    dialog.remove();
+    render();
+  }));
   document.body.appendChild(dialog);
 }
 
@@ -19892,11 +20218,14 @@ function renderPlayerPanel(playerIndex, root) {
       completeTutorialAction({ kind: "pass", playerIndex });
     });
   });
-  root.querySelectorAll("[data-ultimate-energy]").forEach((button) => {
-    button.addEventListener("click", () => spendUltimateEnergy(playerIndex, button.dataset.ultimateEnergy));
+  root.querySelectorAll("[data-open-ultimate-energy]").forEach((button) => {
+    button.addEventListener("click", () => openUltimateEnergyChoice(Number(button.dataset.openUltimateEnergy)));
   });
   root.querySelectorAll("[data-open-ultimate-discard]").forEach((button) => {
     button.addEventListener("click", () => openUltimateDiscard(Number(button.dataset.openUltimateDiscard)));
+  });
+  root.querySelectorAll("[data-ultimate-character-state]").forEach((button) => {
+    button.addEventListener("click", () => openUltimateCharacterState(Number(button.dataset.ultimateCharacterState)));
   });
   root.querySelectorAll("[data-use-reserve]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -20320,7 +20649,8 @@ function renderBoostModal() {
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop boost-choice-backdrop";
   const reserveChoices = ULTIMATE_MODE.active ? (player.reserve || []) : [];
-  const choices = [...player.hand.filter((item) => item.uid !== cardUid), ...reserveChoices];
+  const discardChoices = ULTIMATE_MODE.active && player.ultimateBoostFromDiscard ? (state.ultimateDiscards[playerIndex] || []) : [];
+  const choices = [...player.hand.filter((item) => item.uid !== cardUid), ...reserveChoices, ...discardChoices];
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir la carte de boost">
       <h2>Choisir la carte à sacrifier</h2>
@@ -20342,7 +20672,7 @@ function renderBoostModal() {
     button.addEventListener("click", () => {
       const sacrificeUid = button.dataset.sacrifice;
       const boostCard = player.hand.find((item) => item.uid === cardUid);
-      const sacrificeCard = player.hand.find((item) => item.uid === sacrificeUid) || (player.reserve || []).find((item) => item.uid === sacrificeUid);
+      const sacrificeCard = player.hand.find((item) => item.uid === sacrificeUid) || (player.reserve || []).find((item) => item.uid === sacrificeUid) || (state.ultimateDiscards[playerIndex] || []).find((item) => item.uid === sacrificeUid);
       state.pendingBoost = null;
       if (boostCard?._pendingReserveBoost) delete boostCard._pendingReserveBoost;
       playCard(playerIndex, cardUid, true, sacrificeUid);
