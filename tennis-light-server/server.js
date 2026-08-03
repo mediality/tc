@@ -5137,10 +5137,7 @@ function forfeitFriendlyMatchAfterDisconnect(tournament, match, participant) {
   const entry = friendlyParticipantEntry(participant.id);
   if (match.playerA !== entry && match.playerB !== entry) return false;
   match.winner = match.playerA === entry ? match.playerB : match.playerA;
-  const scoreAtDeparture = String(participant.disconnectScore || match.liveScore || "0/0")
-    .replace(/\s*·\s*EN DIRECT\s*$/i, "")
-    .slice(0, 80);
-  match.score = `${scoreAtDeparture || "0/0"} · FORFAIT`;
+  match.score = friendlyForfeitScore(tournament, match, match.winner);
   match.liveScore = match.score;
   match.liveState = null;
   match.liveParticipantId = null;
@@ -5176,7 +5173,9 @@ function resolveFriendlyDepartedForfeits(tournament) {
     const playerBLeft = friendlyEntryHasLeft(tournament, match.playerB);
     if (!playerALeft && !playerBLeft) continue;
     match.winner = playerALeft && !playerBLeft ? match.playerB : match.playerA;
-    match.score = playerALeft && playerBLeft ? "DOUBLE FORFAIT" : "FORFAIT";
+    match.score = playerALeft && playerBLeft
+      ? "DOUBLE FORFAIT"
+      : friendlyForfeitScore(tournament, match, match.winner);
     const departedEntry = playerALeft ? match.playerA : match.playerB;
     match.forfeitParticipantId = String(departedEntry || "").replace(/^human:/, "") || null;
     match.liveScore = match.score;
@@ -5184,6 +5183,16 @@ function resolveFriendlyDepartedForfeits(tournament) {
     match.liveParticipantId = null;
     match.liveUpdatedAt = Date.now();
   }
+}
+
+function friendlyForfeitScore(tournament, match, winnerEntry) {
+  const winnerIsPlayerA = winnerEntry === match?.playerA;
+  const winnerGames = friendlyOnePointFormat(tournament) ? 3 : 6;
+  const setCount = friendlyOnePointFormat(tournament)
+    ? 1
+    : Math.max(1, Number(tournament?.targetSets || 2));
+  const setScore = winnerIsPlayerA ? `${winnerGames}/0` : `0/${winnerGames}`;
+  return `${Array.from({ length: setCount }, () => setScore).join(" - ")} · FORFAIT`;
 }
 
 function refreshFriendlyTournamentSlots(tournament) {
