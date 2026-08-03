@@ -17779,36 +17779,9 @@ function toggleTournamentPanel() {
 }
 
 function renderServerSyncPanel() {
-  let panel = document.querySelector("#serverSyncPanel");
-  if (!SERVER_SYNC.enabled) {
-    panel?.remove();
-    return;
-  }
-  if (!panel) {
-    panel = document.createElement("section");
-    panel.id = "serverSyncPanel";
-    panel.className = "sync-panel";
-    document.querySelector(".topbar")?.append(panel);
-  }
-  const inviteUrl = !SERVER_SYNC.friendlyMatch && canAccessAdminFeatures() ? (SERVER_SYNC.inviteUrl ?? "") : "";
-  const localPlayer = state.players[SERVER_SYNC.seat];
-  const localLabel = localPlayer ? `${localPlayer.nickname ?? localPlayer.name} · ${localPlayer.name}` : `Siège ${SERVER_SYNC.seat + 1}`;
-  panel.innerHTML = `
-    <p><strong>${SERVER_SYNC.friendlyMatch ? "Match humain du tournoi" : "Partie en ligne"}</strong> ${SERVER_SYNC.friendlyMatch ? state.tournament?.competitionName || "Tournoi en ligne" : `Salon ${SERVER_SYNC.roomId}`} · ${localLabel}</p>
-    ${inviteUrl ? `<label>Lien adversaire<input id="inviteLinkInput" readonly value="${inviteUrl}" /></label><button class="small-button copy-link-button" type="button" data-copy-invite>Copier le lien</button>` : ""}
-    <span>${SERVER_SYNC.ready ? "Synchronisé" : "Connexion..."}</span>
-  `;
-  panel.querySelector("[data-copy-invite]")?.addEventListener("click", async () => {
-    const input = panel.querySelector("#inviteLinkInput");
-    if (!input) return;
-    try {
-      await navigator.clipboard.writeText(input.value);
-    } catch (error) {
-      input.select();
-      document.execCommand("copy");
-    }
-    panel.querySelector("[data-copy-invite]").textContent = "Lien copié";
-  });
+  // La synchronisation reste silencieuse sur le court : le header en ligne
+  // doit être strictement identique au solo, avec la seule flèche du menu.
+  document.querySelector("#serverSyncPanel")?.remove();
 }
 
 function renderWaitingRoomModal() {
