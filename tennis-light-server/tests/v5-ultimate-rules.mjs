@@ -13,8 +13,8 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.5<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.5\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.6<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.6\.0/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
 assert.match(html, /Énergie 💡/);
@@ -24,6 +24,8 @@ assert.match(app, /function canAccessUltimateFeatures\(\)[\s\S]*\["pro_plus", "a
 assert.match(app, /ULTIMATE_DECK_SIZE = 48/);
 assert.match(app, /window\.ULTIMATE_CARD_DATA/);
 assert.match(app, /state\.setMatch\.enabled = true/);
+assert.match(app, /newGame\(\{ preserveSet: true, resetUltimate: true \}\)/);
+assert.match(app, /!resetUltimate && state\.players\.length === 2/);
 assert.match(app, /renderUltimateReserveInHand/);
 assert.doesNotMatch(app, /ultimate-profile-avatar/);
 assert.match(ultimateData, /window\.ULTIMATE_CARD_DATA/);

@@ -8,8 +8,8 @@ const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url),
 
 assert.equal(packageJson.version, "4.52.0");
 assert.match(indexHtml, /styles\.css\?v=5\.5\.0/);
-assert.match(indexHtml, /app\.js\?v=5\.5\.0/);
-assert.match(indexHtml, /Tennis Courts Academy · <span>V5\.5<\/span>/);
+assert.match(indexHtml, /app\.js\?v=5\.6\.0/);
+assert.match(indexHtml, /Tennis Courts Academy · <span>V5\.6<\/span>/);
 
 const desktopScoreFunction = app.slice(
   app.indexOf("function renderDesktopMatchScore()"),

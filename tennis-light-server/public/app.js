@@ -8680,6 +8680,11 @@ function startUltimateGame() {
   if (!canAccessUltimateFeatures()) return;
   ULTIMATE_MODE.active = true;
   ULTIMATE_MODE.postExchange = null;
+  ULTIMATE_MODE.draftChoices = [];
+  ULTIMATE_MODE.draftSelected = new Set();
+  els.ultimateDraftDialog?.classList.add("hidden");
+  els.ultimateRulesDialog?.classList.add("hidden");
+  els.ultimatePostExchangeDialog?.classList.add("hidden");
   showGameScreen();
   els.ultimatePlayerDialog?.classList.remove("hidden");
 }
@@ -8690,17 +8695,19 @@ function confirmUltimatePlayer(characterIndex) {
   els.ultimatePlayerDialog?.classList.add("hidden");
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
+  state.ultimateDecks = [[], []];
+  state.ultimateDiscards = [[], []];
   resetSetMatch();
   state.setMatch.enabled = true;
   state.setMatch.targetSets = 2;
-  newGame({ preserveSet: true });
+  newGame({ preserveSet: true, resetUltimate: true });
   els.ultimateRulesDialog?.classList.remove("hidden");
   beginUltimateDraft(0, 0);
 }
 
 function newGame(options = {}) {
-  const { preserveSet = false, serverOverride = null } = options;
-  const previousUltimatePlayers = ULTIMATE_MODE.active && preserveSet && state.players.length === 2
+  const { preserveSet = false, serverOverride = null, resetUltimate = false } = options;
+  const previousUltimatePlayers = ULTIMATE_MODE.active && preserveSet && !resetUltimate && state.players.length === 2
     ? state.players.map((player) => ({
       hand: [...player.hand], reserve: [...(player.reserve || [])], energy: player.energy,
       characterStarActive: Boolean(player.characterStarActive), played: [...(player.played || [])],
