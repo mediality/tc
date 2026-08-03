@@ -14628,6 +14628,8 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 .ultimate-reserve-hand-badge { position: absolute; top: -10px; left: 50%; z-index: 8; padding: .22rem .45rem; border-radius: 999px; color: #17202b; background: #ffd76a; font-size: .55rem; font-weight: 950; transform: translateX(-50%); }
 .ultimate-use-reserve-button { position: absolute; right: 6px; bottom: 6px; left: 6px; z-index: 8; padding: .4rem; border: 0; border-radius: 8px; color: #17202b; background: #ffd76a; font-weight: 900; }
 .ultimate-reserve-mark { position: absolute; top: 50%; left: 50%; z-index: 9; width: 34px; height: 34px; border: 3px solid #fff; border-radius: 50%; background: #177de3; box-shadow: 0 2px 10px rgba(0,0,0,.5); pointer-events: none; transform: translate(-50%,-50%); }
+.ultimate-reserve-actions { position: absolute; right: 6px; bottom: 6px; left: 6px; z-index: 10; display: flex; gap: .35rem; }
+.ultimate-reserve-actions > button { flex: 1; min-height: 34px; }
 .ultimate-reserve-readonly { cursor: default; }
 .ultimate-resources { display: grid; grid-template-columns: auto 1fr auto; }
 .ultimate-energy-summary { display: grid; gap: .1rem; padding-right: .8rem; border-right: 3px solid var(--player-color, #ffd76a); }

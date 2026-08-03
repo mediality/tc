@@ -8623,7 +8623,6 @@ function reserveUltimateCard(playerIndex, cardUid) {
   if (!card) return false;
   player.played = player.played.filter((candidate) => candidate.uid !== card.uid);
   player.reserve.push(card);
-  card._reserveMarked = true;
   state.log.unshift(`${displayPlayerName(player)} conserve ${card.name} dans sa réserve.`);
   return true;
 }
@@ -8710,6 +8709,19 @@ function spendUltimateEnergy(playerIndex, action) {
 
 function startUltimateGame() {
   if (!canAccessUltimateFeatures()) return;
+  const replayingCompletedUltimateMatch = ULTIMATE_MODE.active && state.gameOver && state.setMatch?.matchOver;
+  if (replayingCompletedUltimateMatch) {
+    state.players.forEach((player) => {
+      player.hand = [];
+      player.reserve = [];
+      player.energy = ULTIMATE_STARTING_ENERGY;
+      player.characterStarActive = false;
+    });
+    state.ultimateDecks = [[], []];
+    state.ultimateDiscards = [[], []];
+    ULTIMATE_MODE.aiDifficulty = "normal";
+    els.ultimatePlayerDialog?.querySelectorAll("[data-ultimate-ai]").forEach((choice) => choice.classList.toggle("selected", choice.dataset.ultimateAi === "normal"));
+  }
   ULTIMATE_MODE.active = true;
   ULTIMATE_MODE.postExchange = null;
   ULTIMATE_MODE.draftChoices = [];
@@ -9467,7 +9479,8 @@ function canPlayBoost(playerIndex, card) {
   if (!canUseSeat(playerIndex)) return false;
   if (isRemise(card)) return false;
   const player = state.players[playerIndex];
-  const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid);
+  const hasSacrifice = player.hand.some((candidate) => candidate.uid !== card.uid)
+    || (ULTIMATE_MODE.active && (player.reserve || []).some((candidate) => candidate.uid !== card.uid));
   const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && isOpeningServeAvailable();
   const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
   if (card.family === "Service" && !openingServiceBoost) return false;
@@ -12136,7 +12149,8 @@ function isVulnerableToJuBoostPressure(playerIndex) {
 
 function chooseSoloSacrifice(playerIndex, boostedCard) {
   const player = state.players[playerIndex];
-  const candidates = player.hand.filter((candidate) => candidate.uid !== boostedCard.uid);
+  const candidates = [...player.hand, ...(ULTIMATE_MODE.active ? (player.reserve || []) : [])]
+    .filter((candidate) => candidate.uid !== boostedCard.uid);
   const preservesSuppression = candidates.filter((candidate) => candidate.effectType !== "removeOpponentLast");
   const pool = !state.mandatoryPlacement && preservesSuppression.length ? preservesSuppression : candidates;
   return pool
@@ -12412,9 +12426,14 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 
   let sacrificedCard = null;
   if (boosted) {
-    sacrificedCard = player.hand.find((item) => item.uid === sacrificeUid);
+    sacrificedCard = player.hand.find((item) => item.uid === sacrificeUid)
+      || (ULTIMATE_MODE.active ? (player.reserve || []).find((item) => item.uid === sacrificeUid) : null);
     if (!sacrificedCard) return;
-    removeFromHand(player, sacrificeUid);
+    if (player.hand.some((item) => item.uid === sacrificeUid)) removeFromHand(player, sacrificeUid);
+    else {
+      player.reserve = player.reserve.filter((item) => item.uid !== sacrificeUid);
+      sacrificedCard._fromReserve = true;
+    }
   }
 
   const playedCard = {
@@ -16627,11 +16646,7 @@ function nextFullSet() {
     render();
     return;
   }
-  if (ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed) {
-    if (!ULTIMATE_MODE.postExchange) beginUltimatePostExchange(state.resultInfo?.winner ?? 0);
-    else renderUltimatePostExchangeChoice();
-    return;
-  }
+  if (ULTIMATE_MODE.active) ULTIMATE_MODE.postExchange = null;
   const completedScores = state.setMatch.completedScores.map((score) => [...score]);
   const targetSets = state.setMatch.targetSets;
   const setsWon = [...state.setMatch.setsWon];
@@ -17004,6 +17019,17 @@ function openBoostModal(playerIndex, cardUid) {
 }
 
 function closeBoostModal() {
+  if (ULTIMATE_MODE.active && state.pendingBoost) {
+    const { playerIndex, cardUid } = state.pendingBoost;
+    const player = state.players[playerIndex];
+    const card = player?.hand.find((item) => item.uid === cardUid && item._pendingReserveBoost);
+    if (card) {
+      player.hand = player.hand.filter((item) => item.uid !== cardUid);
+      delete card._pendingReserveBoost;
+      delete card._fromReserve;
+      player.reserve.push(card);
+    }
+  }
   state.pendingBoost = null;
   render();
 }
@@ -18465,7 +18491,8 @@ function renderRallyEndActions() {
 function bindRallyEndActions(root = els.rallyState) {
   bindProgressionButtons(root);
   root?.querySelector("[data-replay-solo-match]")?.addEventListener("click", () => {
-    startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+    if (ULTIMATE_MODE.active) startUltimateGame();
+    else startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
   });
   root?.querySelector("[data-quit-solo-court]")?.addEventListener("click", confirmReturnToLobby);
 }
@@ -18548,6 +18575,7 @@ function renderCardVisualOnly(card, className = "") {
     <button class="played-visual ${className} ${card.removed ? "removed" : ""}" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
       ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${ultimateCardBackForPlayer(card.owner)}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
+      ${card._fromReserve ? '<span class="ultimate-reserve-mark" aria-label="Carte jouée depuis la réserve"></span>' : ""}
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -18861,7 +18889,7 @@ function renderCenterNextSetButton() {
     }
   }
   if (!state.setMatch.enabled || !state.gameOver || !state.setMatch.setOver || state.setMatch.matchOver) return "";
-  const label = ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed ? "Continuer vers la réserve" : "Set suivant";
+  const label = "Set suivant";
   return `<button class="primary-button next-exchange-button next-set-button" type="button" data-next-full-set>${label}</button>`;
 }
 
@@ -19276,6 +19304,7 @@ function desktopPlayedCardMarkup(card, playerIndex, remiseCards = [], precededBy
       ${card.boosted ? `<span class="boost-sacrifice-layer desktop-boost-underlay"><img class="boost-sacrifice-back" src="${ultimateCardBackForPlayer(playerIndex)}" alt="Carte utilisée pour le BOOST" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       ${remiseCards.length ? `<span class="desktop-remise-underlay"><img src="${REMISE_UNDERLAY_IMAGE}" alt="Carte de Remise" /><span>+${remiseValue}</span></span>` : ""}
       <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />
+      ${card._fromReserve ? '<span class="ultimate-reserve-mark" aria-label="Carte jouée depuis la réserve"></span>' : ""}
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
       ${card.removed ? '<span class="played-chip removed-chip">RETIRÉE</span>' : ""}
@@ -19744,11 +19773,14 @@ function renderUltimateReserveInHand(playerIndex) {
   return `<span class="ultimate-reserve-hand-divider">RÉSERVE · ${reserve.length}/2</span>${reserve.map((card) => {
     const image = cardArtwork(card);
     const usable = playerIndex === 0 && canUseSeat(playerIndex) && !state.gameOver;
+    const player = state.players[playerIndex];
+    const cost = effectiveCost(player, card);
+    const normalAllowed = usable && canPlayNormal(playerIndex, card);
+    const boostAllowed = usable && canPlayBoost(playerIndex, card);
     return `<article class="card has-visual ultimate-reserve-hand-card${usable ? "" : " ultimate-reserve-readonly"}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
       <span class="ultimate-reserve-hand-badge">RÉSERVE</span>
-      <span class="ultimate-reserve-mark" aria-label="Carte marquée"></span>
       <button class="card-visual card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(image)}" data-image-label="${escapeHtml(card.name)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" /></button>
-      ${usable ? `<button class="ultimate-use-reserve-button" type="button" data-use-reserve="${escapeHtml(card.uid)}">JOUER</button>` : ""}
+      ${usable ? `<div class="ultimate-reserve-actions"><button class="play-button" type="button" data-use-reserve="${escapeHtml(card.uid)}" aria-label="Jouer ${escapeHtml(card.name)} pour ${cost} endurance" ${normalAllowed ? "" : "disabled"}><span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span></button>${boostAllowed ? `<button class="boost-button" type="button" data-boost-reserve="${escapeHtml(card.uid)}">BOOST</button>` : ""}</div>` : ""}
     </article>`;
   }).join("")}`;
 }
@@ -19877,10 +19909,22 @@ function renderPlayerPanel(playerIndex, root) {
       playCard(playerIndex, card.uid, false, null, isRemise(card) ? "effect" : "normal");
       if (player.hand.some((item) => item.uid === card.uid)) {
         player.hand = player.hand.filter((item) => item.uid !== card.uid);
+        delete card._fromReserve;
         player.reserve.push(card);
         state.log.shift();
         render();
       }
+    });
+  });
+  root.querySelectorAll("[data-boost-reserve]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = player.reserve.find((item) => item.uid === button.dataset.boostReserve);
+      if (!card || state.gameOver) return;
+      player.reserve = player.reserve.filter((item) => item.uid !== card.uid);
+      card._fromReserve = true;
+      card._pendingReserveBoost = true;
+      player.hand.push(card);
+      openBoostModal(playerIndex, card.uid);
     });
   });
   root.querySelectorAll("[data-end-turn]").forEach((button) => {
@@ -20275,11 +20319,12 @@ function renderBoostModal() {
 
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop boost-choice-backdrop";
-  const choices = player.hand.filter((item) => item.uid !== cardUid);
+  const reserveChoices = ULTIMATE_MODE.active ? (player.reserve || []) : [];
+  const choices = [...player.hand.filter((item) => item.uid !== cardUid), ...reserveChoices];
   backdrop.innerHTML = `
     <section class="modal" role="dialog" aria-modal="true" aria-label="Choisir la carte de boost">
       <h2>Choisir la carte à sacrifier</h2>
-      <p>${escapeHtml(displayPlayerName(player))} booste <strong>${card.name}</strong>. Sélectionne une carte de la main à glisser dessous.</p>
+      <p>${escapeHtml(displayPlayerName(player))} booste <strong>${card.name}</strong>. Sélectionnez une carte de la main ou de la réserve à glisser dessous.</p>
       <button class="small-button" type="button" data-close-modal>Annuler</button>
       <div class="choice-grid">
         ${choices.map((choice) => `
@@ -20297,8 +20342,9 @@ function renderBoostModal() {
     button.addEventListener("click", () => {
       const sacrificeUid = button.dataset.sacrifice;
       const boostCard = player.hand.find((item) => item.uid === cardUid);
-      const sacrificeCard = player.hand.find((item) => item.uid === sacrificeUid);
+      const sacrificeCard = player.hand.find((item) => item.uid === sacrificeUid) || (player.reserve || []).find((item) => item.uid === sacrificeUid);
       state.pendingBoost = null;
+      if (boostCard?._pendingReserveBoost) delete boostCard._pendingReserveBoost;
       playCard(playerIndex, cardUid, true, sacrificeUid);
       completeTutorialAction({ kind: "play", playerIndex, cardId: boostCard?.id, mode: "boost", sacrificeCardId: sacrificeCard?.id });
     });
@@ -21134,7 +21180,10 @@ function runMobileProgressionAction(actionId) {
   else if (actionId === "return-club-house") returnFriendlyMatchToClubHouse();
   else if (actionId === "return-championship-lobby") returnChampionshipLobby();
   else if (actionId === "competition-summary") showCompetitionSummaryScreen();
-  else if (actionId === "replay-match") startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+  else if (actionId === "replay-match") {
+    if (ULTIMATE_MODE.active) startUltimateGame();
+    else startMatchMode(Number(state.setMatch.targetSets), { keepSoloOpponent: true });
+  }
   else if (actionId === "quit-court") confirmReturnToLobby();
   return { ok: true };
 }
