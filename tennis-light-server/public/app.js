@@ -1922,6 +1922,7 @@ const els = {
   adminSimulateScoreButton: document.querySelector("#adminSimulateScoreButton"),
   saveMatchButton: document.querySelector("#saveMatchButton"),
   returnLobbyButton: document.querySelector("#returnLobbyButton"),
+  onlineForfeitButton: document.querySelector("#onlineForfeitButton"),
   topProgressionActions: document.querySelector("#topProgressionActions"),
   gameAssistTools: document.querySelector("#gameAssistTools"),
   gameAssistButton: document.querySelector("#gameAssistButton"),
@@ -5537,6 +5538,77 @@ function openReturnLobbyDialog() {
     if (event.target === backdrop) closeReturnLobbyDialog();
   });
   document.body.appendChild(backdrop);
+}
+
+function closeOnlineForfeitDialog() {
+  document.querySelector(".online-forfeit-dialog")?.remove();
+}
+
+function openOnlineForfeitDialog() {
+  if (SPECTATOR_MODE.enabled || state.gameOver || (!SERVER_SYNC.enabled && !FRIENDLY_TOURNAMENT.inMatch)) return;
+  closeOnlineForfeitDialog();
+  const competitionForfeit = FRIENDLY_TOURNAMENT.enabled;
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop online-forfeit-dialog";
+  backdrop.innerHTML = `
+    <div class="modal return-lobby-modal" role="dialog" aria-modal="true" aria-labelledby="onlineForfeitTitle">
+      <p class="event-transition-kicker">Décision irréversible</p>
+      <h2 id="onlineForfeitTitle">Déclarer forfait ?</h2>
+      <p>${competitionForfeit
+        ? "Vous perdrez immédiatement le match et serez déclaré forfait pour toute la compétition. Vous ne pourrez plus reprendre cet événement."
+        : "Vous perdrez immédiatement ce match. La victoire sera automatiquement attribuée à votre adversaire."}</p>
+      <div class="dialog-actions">
+        <button class="danger-button" type="button" data-confirm-online-forfeit>CONFIRMER LE FORFAIT</button>
+        <button class="small-button" type="button" data-cancel-online-forfeit>ANNULER</button>
+      </div>
+    </div>
+  `;
+  backdrop.querySelector("[data-confirm-online-forfeit]")?.addEventListener("click", confirmOnlineForfeit);
+  backdrop.querySelector("[data-cancel-online-forfeit]")?.addEventListener("click", closeOnlineForfeitDialog);
+  backdrop.addEventListener("click", (event) => {
+    if (event.target === backdrop) closeOnlineForfeitDialog();
+  });
+  document.body.appendChild(backdrop);
+}
+
+async function confirmOnlineForfeit() {
+  const confirmButton = document.querySelector("[data-confirm-online-forfeit]");
+  if (confirmButton instanceof HTMLButtonElement) confirmButton.disabled = true;
+  try {
+    if (FRIENDLY_TOURNAMENT.enabled) {
+      const response = await fetch(`/api/friendly-tournaments/${encodeURIComponent(FRIENDLY_TOURNAMENT.id)}/forfeit`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ participantId: FRIENDLY_TOURNAMENT.participantId, token: FRIENDLY_TOURNAMENT.token }),
+      });
+      if (!response.ok) throw new Error("forfeit failed");
+      const data = await response.json();
+      closeOnlineForfeitDialog();
+      leaveOnlineRoom();
+      FRIENDLY_TOURNAMENT.inMatch = false;
+      FRIENDLY_TOURNAMENT.currentMatchId = null;
+      FRIENDLY_TOURNAMENT.awaitingClubHouseReturn = true;
+      applyFriendlyTournamentState(data.tournament, null);
+      showFriendlyLobbyScreen();
+      renderFriendlyLobbyScreen();
+      return;
+    }
+    if (!SERVER_SYNC.enabled || !SERVER_SYNC.roomId || !SERVER_SYNC.token) throw new Error("room unavailable");
+    const response = await fetch(`/api/rooms/${encodeURIComponent(SERVER_SYNC.roomId)}/forfeit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: SERVER_SYNC.token }),
+    });
+    if (!response.ok) throw new Error("forfeit failed");
+    const data = await response.json();
+    closeOnlineForfeitDialog();
+    if (data.state) importSyncState(data.state);
+    render();
+  } catch (error) {
+    if (confirmButton instanceof HTMLButtonElement) confirmButton.disabled = false;
+    state.log.unshift("Impossible de déclarer forfait pour le moment.");
+    render();
+  }
 }
 
 function renderAiClubHouse() {
@@ -16334,11 +16406,13 @@ function renderResultPanel() {
     winner: score[0] > score[1] ? 0 : 1,
   }));
   const isOnePointFinale = Boolean(state.tournament?.onePointGame || state.tournament?.friendlyFormat === "onepoint");
-  const victoryType = state.resultInfo?.winType === "boost"
-    ? "Victoire sur boost"
-    : state.resultInfo?.winType === "power"
-      ? `Victoire aux points · ${Number(state.players[winner]?.power || 0)}-${Number(state.players[opponentOf(winner)]?.power || 0)}`
-      : "Victoire sur effet";
+  const victoryType = state.resultInfo?.kind === "forfeit" || state.resultInfo?.reason === "FORFAIT"
+    ? "Victoire par forfait"
+    : state.resultInfo?.winType === "boost"
+      ? "Victoire sur boost"
+      : state.resultInfo?.winType === "power"
+        ? `Victoire aux points · ${Number(state.players[winner]?.power || 0)}-${Number(state.players[opponentOf(winner)]?.power || 0)}`
+        : "Victoire sur effet";
   const progressionMarkup = renderRallyEndActions();
   const finaleKey = JSON.stringify({
     winner,
@@ -16647,6 +16721,12 @@ function renderModeButtons() {
   }
   els.spectatorQuitButton?.classList.toggle("hidden", !SPECTATOR_MODE.enabled);
   els.returnLobbyButton?.classList.toggle("hidden", SPECTATOR_MODE.enabled);
+  const onlineForfeitAvailable = Boolean(
+    !SPECTATOR_MODE.enabled
+    && !state.gameOver
+    && (SERVER_SYNC.enabled || (FRIENDLY_TOURNAMENT.enabled && FRIENDLY_TOURNAMENT.inMatch)),
+  );
+  els.onlineForfeitButton?.classList.toggle("hidden", !onlineForfeitAvailable);
   if (els.revealAiButton) {
     const canReveal = isAdminPlayer && SOLO_AI.enabled && state.gameOver;
     els.revealAiButton.classList.toggle("hidden", !canReveal);
@@ -20016,6 +20096,7 @@ els.returnLobbyButton?.addEventListener("click", () => {
   }
   openReturnLobbyDialog();
 });
+els.onlineForfeitButton?.addEventListener("click", openOnlineForfeitDialog);
 els.saveMatchButton?.addEventListener("click", () => {
   const result = manuallySaveMatch();
   if (!els.saveMatchButton) return;
@@ -20333,6 +20414,7 @@ function mobileModeContext() {
   return {
     label: currentModeLabel(),
     score: currentMatchScoreText(),
+    canForfeit: Boolean(!SPECTATOR_MODE.enabled && !state.gameOver && (SERVER_SYNC.enabled || (FRIENDLY_TOURNAMENT.enabled && FRIENDLY_TOURNAMENT.inMatch))),
     competition: state.tournament?.active ? {
       title: state.tournament.competitionName || "Compétition",
       stage: tournamentStageLabel(),
@@ -20959,6 +21041,7 @@ window.tennisLightMobileAdapter = {
   runProgressionAction: runMobileProgressionAction,
   runAdminTool: runMobileAdminTool,
   saveMatch: manuallySaveMatch,
+  openForfeitDialog: openOnlineForfeitDialog,
 };
 
 window.forceSoloAITurn = forceSoloAITurn;
