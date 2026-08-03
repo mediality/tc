@@ -14533,3 +14533,18 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 .online-forfeit-dialog .modal {
   border-color: rgba(217, 75, 75, .5);
 }
+
+/* V4.52 identical solo/online desktop score line above the silent header. */
+@media (min-width: 861px) {
+  body:not(.mobile-game-view) .game-app > .topbar {
+    background: transparent !important;
+  }
+
+  body:not(.mobile-game-view) .desktop-match-score {
+    z-index: 530 !important;
+    display: grid !important;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  body:not(.mobile-game-view) .desktop-match-score.hidden {
