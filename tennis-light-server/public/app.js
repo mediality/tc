@@ -12,6 +12,7 @@ const ULTIMATE_MODE = {
   draftPurpose: "set-start",
   draftChoices: [],
   draftSelected: new Set(),
+  postExchange: null,
 };
 
 const ULTIMATE_PLAYERS = [
@@ -33,6 +34,21 @@ const ULTIMATE_PLAYERS = [
     character: "assets/ultimate/brentwood/character.png",
     power: "assets/ultimate/brentwood/power.png",
   },
+];
+
+const ULTIMATE_EFFECT_DEFINITIONS = [
+  { name: "Double", cost: 2, placement: 3, effectType: "doubleLastShot", effect: "À la fin de l’échange, doublez la puissance de votre dernière carte COUP." },
+  { name: "Joker", cost: 1, placement: 2, effectType: "jokerResponse", effect: "Poursuivez après un BOOST adverse même sans placement suffisant." },
+  { name: "Réserve adverse", cost: 2, placement: 3, effectType: "ultimateDiscardReserve", effect: "Défaussez toutes les cartes de la réserve adverse." },
+  { name: "Vous êtes mené", cost: 0, placement: 1, effectType: "ultimateScoreEndurance", effect: "Récupérez 2 endurance si vous êtes mené dans le set, sinon 1." },
+  { name: "Précision et placement", cost: 1, placement: 2, effectType: "ultimateExchangeAccuracy", effect: "+2 précision et +2 placement sur vos cartes jusqu’à la fin de l’échange." },
+  { name: "Endurance", cost: 0, placement: 1, effectType: "ultimateHandForEndurance", effect: "Défaussez 2 cartes et récupérez autant d’endurance que de cartes COUP visibles." },
+  { name: "Réserve en main", cost: 2, placement: 3, effectType: "ultimateRecoverReserve", effect: "Piochez 2 cartes et récupérez en main les cartes de votre réserve." },
+  { name: "Choix dans la pioche", cost: 3, placement: 4, effectType: "recoverUndealt", effect: "Prenez la carte de votre choix dans la pioche puis mélangez-la." },
+  { name: "Suppression adverse", cost: 3, placement: 4, effectType: "removeOpponentLast", effect: "Supprimez une carte adverse engagée pendant cet échange." },
+  { name: "Tous les coups", cost: 2, placement: 3, effectType: "ultimateAllShotsPower", effect: "Chaque COUP visible de votre côté rapporte +1 puissance." },
+  { name: "Piochez", cost: 1, placement: 2, effectType: "drawCard", effectValue: 2, effect: "Piochez 2 cartes." },
+  { name: "Retour de service", cost: 1, placement: 2, effectType: "freeBoostNext", effect: "BOOST autorisé après un service ou un retour de service boosté." },
 ];
 
 function versionCardAsset(value) {
@@ -1957,6 +1973,12 @@ const els = {
   ultimateDraftConfirm: document.querySelector("#ultimateDraftConfirm"),
   ultimateRulesDialog: document.querySelector("#ultimateRulesDialog"),
   ultimateRulesClose: document.querySelector("#ultimateRulesClose"),
+  ultimatePostExchangeDialog: document.querySelector("#ultimatePostExchangeDialog"),
+  ultimatePostExchangeTitle: document.querySelector("#ultimatePostExchangeTitle"),
+  ultimatePostExchangeInstruction: document.querySelector("#ultimatePostExchangeInstruction"),
+  ultimatePostExchangeCards: document.querySelector("#ultimatePostExchangeCards"),
+  ultimatePostExchangeSkip: document.querySelector("#ultimatePostExchangeSkip"),
+  ultimatePostExchangeConfirm: document.querySelector("#ultimatePostExchangeConfirm"),
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
   adminGameTools: document.querySelector("#adminGameTools"),
   adminGameToolsButton: document.querySelector("#adminGameToolsButton"),
@@ -8407,7 +8429,6 @@ function resetSetMatch() {
 function buildUltimateDeck(playerIndex) {
   const config = ULTIMATE_PLAYERS[playerIndex];
   const shots = CARD_LIBRARY.filter((card) => !isRemise(card));
-  const remises = CARD_LIBRARY.filter(isRemise);
   const officialShots = Array.from({ length: 36 }, (_, index) => {
     const base = shots[index % shots.length];
     const card = cloneCard(base, `ultimate-${config.key}-shot-${index + 1}`);
@@ -8433,14 +8454,19 @@ function buildUltimateDeck(playerIndex) {
     }
     return card;
   });
-  // Les 12 EFFET/REMISE utilisent provisoirement les cartes du moteur actuel :
-  // leurs visuels spécifiques ne figurent pas encore dans le dossier fourni.
-  const effectCards = Array.from({ length: 12 }, (_, index) => {
-    const card = cloneCard(remises[index % remises.length], `ultimate-${config.key}-effect-${index + 1}`);
-    card.ultimateOwner = playerIndex;
-    card.ultimatePlaceholderEffect = true;
-    return card;
-  });
+  const effectCards = ULTIMATE_EFFECT_DEFINITIONS.map((definition, index) => ({
+    id: `ultimate-effect-${index + 1}-${config.key}`,
+    uid: `ultimate-${config.key}-effect-${index + 1}-${crypto.randomUUID()}`,
+    family: "Remise",
+    power: 0,
+    precision: 0,
+    boostPower: 0,
+    boostPrecision: 0,
+    ...definition,
+    artwork: `assets/ultimate/effects/card-${String(index + 1).padStart(2, "0")}.png`,
+    ultimateOwner: playerIndex,
+    ultimateOfficial: true,
+  }));
   return shuffle([...officialShots, ...effectCards]);
 }
 
@@ -8452,7 +8478,11 @@ function ultimateDrawThree(playerIndex) {
 function renderUltimateDraft() {
   if (!ULTIMATE_MODE.active || !els.ultimateDraftDialog) return;
   const playerIndex = ULTIMATE_MODE.draftPlayer;
-  els.ultimateDraftTitle.textContent = `Draft ${ULTIMATE_MODE.draftNumber + 1} sur 3`;
+  els.ultimateDraftTitle.textContent = ULTIMATE_MODE.draftPurpose === "post-exchange"
+    ? "Draft du vainqueur"
+    : ULTIMATE_MODE.draftPurpose === "energy"
+      ? "Draft d’énergie"
+      : `Draft ${ULTIMATE_MODE.draftNumber + 1} sur 3`;
   els.ultimateDraftInstruction.textContent = `${displayPlayerName(state.players[playerIndex])} : choisissez 2 cartes. La troisième sera défaussée.`;
   els.ultimateDraftCards.innerHTML = ULTIMATE_MODE.draftChoices.map((card) => {
     const selected = ULTIMATE_MODE.draftSelected.has(card.uid);
@@ -8495,6 +8525,11 @@ function confirmUltimateDraft() {
     render();
     return;
   }
+  if (ULTIMATE_MODE.draftPurpose === "post-exchange") {
+    els.ultimateDraftDialog.classList.add("hidden");
+    completeUltimatePostExchangeDistribution();
+    return;
+  }
   if (ULTIMATE_MODE.draftNumber < 2) {
     beginUltimateDraft(playerIndex, ULTIMATE_MODE.draftNumber + 1);
     return;
@@ -8511,10 +8546,95 @@ function confirmUltimateDraft() {
   maybeRunSoloAI();
 }
 
+function ultimateReserveCandidates(playerIndex) {
+  const player = state.players[playerIndex];
+  if (!player || (player.reserve || []).length >= 2) return [];
+  return (player.played || []).filter((card) => !isRemise(card) && !card._fromReserve && !card.removed);
+}
+
+function renderUltimatePostExchangeChoice() {
+  const flow = ULTIMATE_MODE.postExchange;
+  if (!flow || flow.completed || !els.ultimatePostExchangeDialog) return;
+  const candidates = ultimateReserveCandidates(0);
+  els.ultimatePostExchangeTitle.textContent = "Conti · choisir une carte pour la réserve";
+  els.ultimatePostExchangeInstruction.textContent = candidates.length
+    ? "Vous pouvez conserver 1 carte COUP visible. La réserve reste limitée à 2 cartes."
+    : "Aucune carte COUP éligible ou votre réserve est déjà complète.";
+  els.ultimatePostExchangeCards.innerHTML = candidates.map((card) => {
+    const selected = flow.selectedReserveUid === card.uid;
+    return `<button class="ultimate-draft-card ${selected ? "selected" : ""}" type="button" data-ultimate-reserve-choice="${escapeHtml(card.uid)}" aria-pressed="${selected}">
+      <img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}" /><strong>${escapeHtml(card.name)}</strong>
+    </button>`;
+  }).join("");
+  els.ultimatePostExchangeConfirm.disabled = !flow.selectedReserveUid;
+  els.ultimatePostExchangeSkip.classList.toggle("hidden", !candidates.length);
+  els.ultimatePostExchangeDialog.classList.remove("hidden");
+  els.ultimatePostExchangeCards.querySelectorAll("[data-ultimate-reserve-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      flow.selectedReserveUid = button.dataset.ultimateReserveChoice;
+      renderUltimatePostExchangeChoice();
+    });
+  });
+  if (!candidates.length) window.setTimeout(() => resolveUltimateReserveChoice(null), 0);
+}
+
+function beginUltimatePostExchange(winner) {
+  if (!ULTIMATE_MODE.active) return;
+  ULTIMATE_MODE.postExchange = { winner, selectedReserveUid: null, completed: false };
+  renderUltimatePostExchangeChoice();
+}
+
+function reserveUltimateCard(playerIndex, cardUid) {
+  if (!cardUid) return false;
+  const player = state.players[playerIndex];
+  const card = ultimateReserveCandidates(playerIndex).find((candidate) => candidate.uid === cardUid);
+  if (!card) return false;
+  player.played = player.played.filter((candidate) => candidate.uid !== card.uid);
+  player.reserve.push(card);
+  state.log.unshift(`${displayPlayerName(player)} conserve ${card.name} dans sa réserve.`);
+  return true;
+}
+
+function resolveUltimateReserveChoice(cardUid) {
+  const flow = ULTIMATE_MODE.postExchange;
+  if (!flow || flow.completed) return;
+  reserveUltimateCard(0, cardUid);
+  const aiCandidates = ultimateReserveCandidates(1)
+    .sort((left, right) => Number(right.power || 0) - Number(left.power || 0));
+  reserveUltimateCard(1, aiCandidates[0]?.uid || null);
+  els.ultimatePostExchangeDialog?.classList.add("hidden");
+
+  const loser = opponentOf(flow.winner);
+  const loserDrawn = drawCards(state.players[loser], 2);
+  state.log.unshift(`${displayPlayerName(state.players[loser])}, perdant de l’échange, récupère les ${loserDrawn} premières cartes de sa pioche.`);
+
+  if (flow.winner === 0) {
+    beginUltimateDraft(0, 0, "post-exchange");
+    return;
+  }
+  const choices = ultimateDrawThree(1);
+  state.players[1].hand.push(...choices.slice(0, 2));
+  state.ultimateDiscards[1].push(...choices.slice(2));
+  state.log.unshift(`${displayPlayerName(state.players[1])}, vainqueur de l’échange, termine sa draft.`);
+  completeUltimatePostExchangeDistribution();
+}
+
+function completeUltimatePostExchangeDistribution() {
+  const flow = ULTIMATE_MODE.postExchange;
+  if (!flow) return;
+  flow.completed = true;
+  els.ultimateDraftDialog?.classList.add("hidden");
+  els.ultimatePostExchangeDialog?.classList.add("hidden");
+  state.log.unshift("Fin de l’échange terminée : réserves choisies et 2 nouvelles cartes attribuées à chaque joueur.");
+  render();
+}
+
 function spendUltimateEnergy(playerIndex, action) {
   if (!ULTIMATE_MODE.active || state.gameOver) return;
   const player = state.players[playerIndex];
   if (!player || player.energy <= 0 || !canUseSeat(playerIndex)) return;
+  const label = action === "draft" ? "faire une DRAFT" : "récupérer 2 ENDURANCE";
+  if (!window.confirm(`Dépenser 1 ÉNERGIE pour ${label} ?`)) return;
   player.energy -= 1;
   if (action === "endurance") {
     player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
@@ -8528,6 +8648,7 @@ function spendUltimateEnergy(playerIndex, action) {
 function startUltimateGame() {
   if (!canAccessAdminFeatures()) return;
   ULTIMATE_MODE.active = true;
+  ULTIMATE_MODE.postExchange = null;
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   showGameScreen();
@@ -12631,6 +12752,53 @@ function applyEffect(playerIndex, card) {
     case "choosePlayedEffect":
       openEffectChoice(playerIndex, card);
       break;
+    case "ultimateDiscardReserve": {
+      const discardedReserve = [...(opponent.reserve || [])];
+      opponent.reserve = [];
+      state.ultimateDiscards[opponentIndex].push(...discardedReserve);
+      state.log.unshift(`${displayPlayerName(opponent)} défausse ${discardedReserve.length} carte(s) de sa réserve.`);
+      break;
+    }
+    case "ultimateScoreEndurance": {
+      const isBehind = Number(state.setMatch?.score?.[playerIndex] || 0) < Number(state.setMatch?.score?.[opponentIndex] || 0);
+      const gained = isBehind ? 2 : 1;
+      player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + gained);
+      state.log.unshift(`${displayPlayerName(player)} récupère ${gained} endurance.`);
+      break;
+    }
+    case "ultimateExchangeAccuracy":
+      player.exchangePrecisionBonus += 2;
+      player.exchangePlacementBonus += 2;
+      state.log.unshift(`${displayPlayerName(player)} gagne +2 précision et +2 placement jusqu’à la fin de l’échange.`);
+      break;
+    case "ultimateHandForEndurance": {
+      const discarded = player.hand.splice(0, Math.min(2, player.hand.length));
+      state.ultimateDiscards[playerIndex].push(...discarded);
+      const gained = (player.played || []).filter((played) => !isRemise(played) && !played.removed).length;
+      player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + gained);
+      state.log.unshift(`${displayPlayerName(player)} défausse ${discarded.length} carte(s) et récupère ${gained} endurance.`);
+      break;
+    }
+    case "ultimateRecoverReserve":
+      drawCards(player, 2);
+      player.hand.push(...(player.reserve || []));
+      player.reserve = [];
+      state.log.unshift(`${displayPlayerName(player)} pioche 2 cartes et récupère sa réserve en main.`);
+      break;
+    case "recoverUndealt": {
+      const deck = state.ultimateDecks[playerIndex] || [];
+      const selected = deck.shift();
+      if (selected) player.hand.push(selected);
+      state.ultimateDecks[playerIndex] = shuffle(deck);
+      state.log.unshift(`${displayPlayerName(player)} prend une carte dans sa pioche puis la mélange.`);
+      break;
+    }
+    case "ultimateAllShotsPower": {
+      const gained = (player.played || []).filter((played) => !isRemise(played) && !played.removed).length;
+      player.power += gained;
+      state.log.unshift(`${displayPlayerName(player)} gagne ${gained} puissance pour ses cartes COUP visibles.`);
+      break;
+    }
     default:
       break;
   }
@@ -13657,6 +13825,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
   render();
+  if (ULTIMATE_MODE.active) window.setTimeout(() => beginUltimatePostExchange(winner), 0);
 }
 
 function completeOnePointTournamentMatch(winner, exchangeScore) {
@@ -18862,6 +19031,10 @@ async function exitTournamentToLobby() {
 
 function nextSoloExchange() {
   if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.setMatch.enabled || !state.gameOver) return;
+  if (ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed) {
+    renderUltimatePostExchangeChoice();
+    return;
+  }
   newGame({ preserveSet: true });
   state.log.unshift(`Nouvel échange contre l'IA ${aiStyleLabel()}.`);
   render();
@@ -19464,9 +19637,6 @@ function renderUltimateResources(playerIndex) {
       ${image ? `<img src="${escapeHtml(image)}" alt="" />` : ""}<span>${escapeHtml(card.name)}</span>
     </button>`;
   }).join("");
-  const candidates = state.gameOver && reserve.length < 2
-    ? (player.played || []).filter((card) => !isRemise(card) && !card._fromReserve)
-    : [];
   return `<section class="ultimate-resources" aria-label="Ressources Ultimate de ${escapeHtml(displayPlayerName(player))}">
     <div class="ultimate-energy"><span>💡 ÉNERGIE</span><strong>${player.energy}/${ULTIMATE_STARTING_ENERGY}</strong>
       <button type="button" data-ultimate-energy="draft" ${player.energy <= 0 || state.gameOver ? "disabled" : ""}>Draft</button>
@@ -19474,7 +19644,6 @@ function renderUltimateResources(playerIndex) {
     </div>
     <div class="ultimate-reserve"><span class="ultimate-reserve-divider">RÉSERVE</span>${reserveSlots}</div>
     <button class="ultimate-discard-button" type="button" data-open-ultimate-discard="${playerIndex}">Défausse · ${discard.length}</button>
-    ${candidates.length ? `<div class="ultimate-reserve-pick"><strong>Fin de l’échange : placer en réserve</strong>${candidates.map((card) => `<button type="button" data-add-reserve="${escapeHtml(card.uid)}">${escapeHtml(card.name)}</button>`).join("")}</div>` : ""}
   </section>`;
 }
 
@@ -19566,16 +19735,6 @@ function renderPlayerPanel(playerIndex, root) {
       card._fromReserve = true;
       player.hand.push(card);
       state.log.unshift(`${displayPlayerName(player)} utilise ${card.name} depuis sa réserve : la carte est marquée.`);
-      render();
-    });
-  });
-  root.querySelectorAll("[data-add-reserve]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const card = player.played.find((item) => item.uid === button.dataset.addReserve);
-      if (!card || isRemise(card) || card._fromReserve || player.reserve.length >= 2) return;
-      player.played = player.played.filter((item) => item.uid !== card.uid);
-      player.reserve.push(card);
-      state.log.unshift(`${displayPlayerName(player)} place ${card.name} dans sa réserve.`);
       render();
     });
   });
@@ -20264,6 +20423,10 @@ function initMenu() {
   els.ultimateModeButton?.addEventListener("click", startUltimateGame);
   els.ultimateDraftConfirm?.addEventListener("click", confirmUltimateDraft);
   els.ultimateRulesClose?.addEventListener("click", () => els.ultimateRulesDialog?.classList.add("hidden"));
+  els.ultimatePostExchangeConfirm?.addEventListener("click", () => {
+    resolveUltimateReserveChoice(ULTIMATE_MODE.postExchange?.selectedReserveUid || null);
+  });
+  els.ultimatePostExchangeSkip?.addEventListener("click", () => resolveUltimateReserveChoice(null));
   els.backToHomeButton?.addEventListener("click", showMenuScreen);
   els.openNewsArchiveButton?.addEventListener("click", showNewsArchiveScreen);
   els.backFromNewsArchiveButton?.addEventListener("click", showMenuScreen);

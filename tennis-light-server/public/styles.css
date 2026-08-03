@@ -14606,6 +14606,8 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
 .ultimate-draft-card { display: grid; gap: .65rem; padding: .75rem; border: 2px solid transparent; border-radius: 16px; background: #1d2938; color: #fff; }
 .ultimate-draft-card img { width: 100%; max-height: 48vh; object-fit: contain; border-radius: 10px; }
 .ultimate-draft-card.selected { border-color: #ffd76a; box-shadow: 0 0 0 4px rgba(255,215,106,.16); transform: translateY(-5px); }
+.ultimate-post-exchange-actions { display: flex; justify-content: flex-end; gap: .75rem; }
+.ultimate-post-exchange-cards:empty { display: none; }
 .ultimate-resources { display: flex; align-items: center; gap: .65rem; min-height: 66px; margin: .35rem .75rem; padding: .5rem .65rem; border-radius: 12px; background: rgba(7, 13, 22, .8); color: #fff; }
 .ultimate-profile-avatar { width: 38px; height: 38px; margin-right: .45rem; border: 2px solid #ffd76a; border-radius: 50%; object-fit: cover; object-position: top; vertical-align: middle; }
 .ultimate-energy { display: flex; align-items: center; gap: .4rem; padding-right: .75rem; border-right: 3px solid var(--player-color, #ffd76a); }

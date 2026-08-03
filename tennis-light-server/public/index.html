@@ -1158,10 +1158,22 @@
           <div class="ultimate-rules-grid">
             <article><strong>Draft</strong><p>Piochez 3 cartes, conservez-en 2 en main et défaussez la troisième. Chaque joueur effectue 3 drafts au début du set.</p></article>
             <article><strong>Énergie 💡</strong><p>3 énergies maximum. Dépensez-en une à tout moment pour faire une draft ou récupérer immédiatement 2 endurance.</p></article>
-            <article><strong>Fin de l’échange</strong><p>La main est conservée et toute l’endurance revient. L’énergie consommée ne revient pas automatiquement.</p></article>
+            <article><strong>Fin de l’échange</strong><p>Chaque joueur peut conserver 1 COUP en réserve. Le perdant pioche les 2 premières cartes ; le vainqueur fait une draft et en conserve 2. La main est conservée et toute l’endurance revient.</p></article>
             <article><strong>Réserve</strong><p>Jusqu’à 2 cartes COUP visibles. Une carte utilisée depuis la réserve est marquée et ne peut plus être récupérée.</p></article>
             <article><strong>Pouvoir étoile</strong><p>Deux cartes COUP visibles avec une étoile retournent la carte personnage. Son état est conservé entre les échanges.</p></article>
             <article><strong>Deck personnel</strong><p>Chaque joueur possède sa pioche, sa défausse et deux emplacements de réserve. Les decks ne sont jamais mélangés.</p></article>
+          </div>
+        </div>
+      </section>
+      <section id="ultimatePostExchangeDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimatePostExchangeTitle">
+        <div class="ultimate-dialog-card">
+          <p class="eyebrow">Fin de l’échange · V5.3</p>
+          <h2 id="ultimatePostExchangeTitle">Choisissez une carte pour la réserve</h2>
+          <p id="ultimatePostExchangeInstruction">Vous pouvez conserver une carte COUP visible.</p>
+          <div id="ultimatePostExchangeCards" class="ultimate-draft-cards ultimate-post-exchange-cards"></div>
+          <div class="ultimate-post-exchange-actions">
+            <button id="ultimatePostExchangeSkip" class="small-button" type="button">Ne rien conserver</button>
+            <button id="ultimatePostExchangeConfirm" class="primary-button" type="button" disabled>Confirmer la réserve</button>
           </div>
         </div>
       </section>

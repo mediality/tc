@@ -17,7 +17,6 @@ assert.match(html, /deux emplacements de réserve/i);
 assert.match(app, /ULTIMATE_STARTING_ENERGY = 3/);
 assert.match(app, /ULTIMATE_DECK_SIZE = 48/);
 assert.match(app, /length: 36/);
-assert.match(app, /length: 12/);
 assert.match(app, /LOBBY-Conti\.webp/);
 assert.match(app, /LOBBY-Brentwood\.webp/);
 assert.match(app, /ultimateCardBackForPlayer/);
@@ -25,6 +24,10 @@ assert.match(app, /assets\/ultimate\/conti\/back\.png/);
 assert.match(app, /assets\/ultimate\/brentwood\/back\.png/);
 assert.match(app, /characterStarActive \? ultimateCharacter\.power : ultimateCharacter\.character/);
 assert.match(app, /visibleStars < 2/);
+assert.match(app, /beginUltimatePostExchange\(winner\)/);
+assert.match(app, /perdant de l’échange, récupère les.*premières cartes/);
+assert.match(app, /Draft du vainqueur/);
+assert.match(app, /window\.confirm\(`Dépenser 1 ÉNERGIE/);
 assert.match(app, /ultimateDecks: \[\[\], \[\]\]/);
 assert.match(app, /player\.endurance = STARTING_ENDURANCE/);
 assert.match(app, /card\._fromReserve = true/);
@@ -40,5 +43,8 @@ for (const player of ["conti", "brentwood"]) {
     assert.ok(fs.existsSync(path.join(folder, required)), `${player}/${required} est requis`);
   }
 }
+const effectsFolder = path.join(root, "public/assets/ultimate/effects");
+assert.equal(fs.readdirSync(effectsFolder).filter((name) => /^card-\d{2}\.png$/.test(name)).length, 12);
+assert.doesNotMatch(app, /ultimatePlaceholderEffect/);
 
 console.log("V5 Ultimate admin, rules, resources and mobile isolation checks passed.");
