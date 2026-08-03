@@ -11,14 +11,18 @@ const mobileJs = fs.readFileSync(path.join(root, "public/mobile-game.js"), "utf8
 const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "utf8");
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="admin"/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.3<\/span>/);
+assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
 assert.match(html, /Énergie 💡/);
 assert.match(html, /deux emplacements de réserve/i);
 assert.match(app, /ULTIMATE_STARTING_ENERGY = 3/);
 assert.match(app, /ULTIMATE_DECK_SIZE = 48/);
+assert.match(app, /playerOrder: \[0, 1\]/);
+assert.match(app, /ULTIMATE_MODE\.playerOrder = characterIndex === 0 \? \[0, 1\] : \[1, 0\]/);
 assert.match(app, /length: 36/);
-assert.match(app, /LOBBY-Conti\.webp/);
-assert.match(app, /LOBBY-Brentwood\.webp/);
+assert.match(app, /ultimate\/conti\/lobby\.png/);
+assert.match(app, /ultimate\/brentwood\/lobby\.png/);
 assert.match(app, /ultimateCardBackForPlayer/);
 assert.match(app, /assets\/ultimate\/conti\/back\.png/);
 assert.match(app, /assets\/ultimate\/brentwood\/back\.png/);
@@ -42,6 +46,7 @@ for (const player of ["conti", "brentwood"]) {
   for (const required of ["back.png", "character.png", "power.png"]) {
     assert.ok(fs.existsSync(path.join(folder, required)), `${player}/${required} est requis`);
   }
+  assert.ok(fs.existsSync(path.join(folder, "lobby.png")), `${player}/lobby.png est requis`);
 }
 const effectsFolder = path.join(root, "public/assets/ultimate/effects");
 assert.equal(fs.readdirSync(effectsFolder).filter((name) => /^card-\d{2}\.png$/.test(name)).length, 12);

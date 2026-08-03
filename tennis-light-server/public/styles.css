@@ -14597,6 +14597,13 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   box-shadow: 0 30px 90px #000;
 }
 .ultimate-dialog-card h2 { margin: .2rem 0 .5rem; font-size: 2rem; }
+.ultimate-player-dialog-card { width: min(900px, 94vw); }
+.ultimate-player-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+.ultimate-player-choice { display: grid; gap: .6rem; overflow: hidden; padding: 0 0 1rem; border: 2px solid rgba(255,255,255,.14); border-radius: 18px; background: #1d2938; color: #fff; cursor: pointer; transition: border-color 160ms ease, transform 160ms ease; }
+.ultimate-player-choice:hover, .ultimate-player-choice:focus-visible { border-color: #ffd76a; transform: translateY(-4px); }
+.ultimate-player-choice img { width: 100%; height: min(44vh, 390px); object-fit: cover; object-position: top center; }
+.ultimate-player-choice strong { font-size: 1.2rem; }
+.ultimate-player-choice span { color: #ffd76a; font-weight: 850; text-transform: uppercase; }
 .ultimate-dialog-close { position: absolute; top: 1rem; right: 1rem; width: 2.5rem; height: 2.5rem; border-radius: 50%; font-size: 1.5rem; }
 .ultimate-rules-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.5rem; }
 .ultimate-rules-grid article { padding: 1rem; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.05); }

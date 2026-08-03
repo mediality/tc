@@ -9,7 +9,7 @@ const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url),
 assert.equal(packageJson.version, "4.52.0");
 assert.match(indexHtml, /styles\.css\?v=4\.52\.0/);
 assert.match(indexHtml, /app\.js\?v=4\.52\.0/);
-assert.match(indexHtml, /Tennis Courts Academy · <span>v4\.52<\/span>/);
+assert.match(indexHtml, /Tennis Courts Academy · <span>V5\.3<\/span>/);
 
 const desktopScoreFunction = app.slice(
   app.indexOf("function renderDesktopMatchScore()"),

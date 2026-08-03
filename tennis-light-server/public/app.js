@@ -7,6 +7,7 @@ const CARD_ASSET_VERSION = "170";
 
 const ULTIMATE_MODE = {
   active: false,
+  playerOrder: [0, 1],
   draftNumber: 0,
   draftPlayer: 0,
   draftPurpose: "set-start",
@@ -15,12 +16,16 @@ const ULTIMATE_MODE = {
   postExchange: null,
 };
 
+function ultimatePlayerConfig(playerIndex) {
+  return ULTIMATE_PLAYERS[ULTIMATE_MODE.playerOrder[playerIndex] ?? playerIndex];
+}
+
 const ULTIMATE_PLAYERS = [
   {
     id: "alessandraConti",
     name: "Alessandra Conti",
     key: "conti",
-    lobby: "assets/cards/LOBBY-Conti.webp",
+    lobby: "assets/ultimate/conti/lobby.png",
     back: "assets/ultimate/conti/back.png",
     character: "assets/ultimate/conti/character.png",
     power: "assets/ultimate/conti/power.png",
@@ -29,7 +34,7 @@ const ULTIMATE_PLAYERS = [
     id: "calvinBrentwood",
     name: "Calvin Brentwood",
     key: "brentwood",
-    lobby: "assets/cards/LOBBY-Brentwood.webp",
+    lobby: "assets/ultimate/brentwood/lobby.png",
     back: "assets/ultimate/brentwood/back.png",
     character: "assets/ultimate/brentwood/character.png",
     power: "assets/ultimate/brentwood/power.png",
@@ -1966,6 +1971,8 @@ const state = {
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
   ultimateModeButton: document.querySelector("#ultimateModeButton"),
+  ultimatePlayerDialog: document.querySelector("#ultimatePlayerDialog"),
+  ultimatePlayerChoices: document.querySelector("#ultimatePlayerChoices"),
   ultimateDraftDialog: document.querySelector("#ultimateDraftDialog"),
   ultimateDraftTitle: document.querySelector("#ultimateDraftTitle"),
   ultimateDraftInstruction: document.querySelector("#ultimateDraftInstruction"),
@@ -8427,7 +8434,7 @@ function resetSetMatch() {
 }
 
 function buildUltimateDeck(playerIndex) {
-  const config = ULTIMATE_PLAYERS[playerIndex];
+  const config = ultimatePlayerConfig(playerIndex);
   const shots = CARD_LIBRARY.filter((card) => !isRemise(card));
   const officialShots = Array.from({ length: 36 }, (_, index) => {
     const base = shots[index % shots.length];
@@ -8443,14 +8450,14 @@ function buildUltimateDeck(playerIndex) {
       card.family = "Service";
       card.effectType = "serviceCard";
     } else if (index === 1) {
-      card.name = playerIndex === 0 ? "Revers spécial" : "Volée spéciale";
-      card.family = playerIndex === 0 ? "Revers" : "Volée";
+      card.name = config.key === "conti" ? "Revers spécial" : "Volée spéciale";
+      card.family = config.key === "conti" ? "Revers" : "Volée";
     } else if (index === 2) {
-      card.name = playerIndex === 0 ? "Coup droit spécial" : "Smash spécial";
-      card.family = playerIndex === 0 ? "Coup droit" : "Smash";
+      card.name = config.key === "conti" ? "Coup droit spécial" : "Smash spécial";
+      card.family = config.key === "conti" ? "Coup droit" : "Smash";
     } else if (index === 3) {
       card.name = "Frappe spéciale";
-      card.family = playerIndex === 1 ? "Service" : "Coup droit";
+      card.family = config.key === "brentwood" ? "Service" : "Coup droit";
     }
     return card;
   });
@@ -8556,7 +8563,7 @@ function renderUltimatePostExchangeChoice() {
   const flow = ULTIMATE_MODE.postExchange;
   if (!flow || flow.completed || !els.ultimatePostExchangeDialog) return;
   const candidates = ultimateReserveCandidates(0);
-  els.ultimatePostExchangeTitle.textContent = "Conti · choisir une carte pour la réserve";
+  els.ultimatePostExchangeTitle.textContent = `${ultimatePlayerConfig(0).name} · choisir une carte pour la réserve`;
   els.ultimatePostExchangeInstruction.textContent = candidates.length
     ? "Vous pouvez conserver 1 carte COUP visible. La réserve reste limitée à 2 cartes."
     : "Aucune carte COUP éligible ou votre réserve est déjà complète.";
@@ -8649,9 +8656,16 @@ function startUltimateGame() {
   if (!canAccessAdminFeatures()) return;
   ULTIMATE_MODE.active = true;
   ULTIMATE_MODE.postExchange = null;
+  showGameScreen();
+  els.ultimatePlayerDialog?.classList.remove("hidden");
+}
+
+function confirmUltimatePlayer(characterIndex) {
+  if (!ULTIMATE_MODE.active || !ULTIMATE_PLAYERS[characterIndex]) return;
+  ULTIMATE_MODE.playerOrder = characterIndex === 0 ? [0, 1] : [1, 0];
+  els.ultimatePlayerDialog?.classList.add("hidden");
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
-  showGameScreen();
   newGame();
   els.ultimateRulesDialog?.classList.remove("hidden");
   beginUltimateDraft(0, 0);
@@ -8698,7 +8712,10 @@ function newGame(options = {}) {
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
   if (ULTIMATE_MODE.active) {
-    state.players = ULTIMATE_PLAYERS.map((config) => createPlayer(config.name, config.id, config.name));
+    state.players = [0, 1].map((playerIndex) => {
+      const config = ultimatePlayerConfig(playerIndex);
+      return createPlayer(config.name, config.id, config.name);
+    });
   }
   if (previousUltimatePlayers) {
     previousUltimatePlayers.forEach((previous, playerIndex) => {
@@ -18429,8 +18446,8 @@ function renderEffectNotice() {
 }
 
 function ultimateCardBackForPlayer(playerIndex) {
-  return ULTIMATE_MODE.active && ULTIMATE_PLAYERS[playerIndex]
-    ? ULTIMATE_PLAYERS[playerIndex].back
+  return ULTIMATE_MODE.active && ultimatePlayerConfig(playerIndex)
+    ? ultimatePlayerConfig(playerIndex).back
     : CARD_BACK_IMAGE;
 }
 
@@ -18479,7 +18496,7 @@ function renderCardBack(className = "", playerIndex = null) {
 
 function renderCharacterCard(player, playerIndex, panel = {}) {
   const character = characterOf(player);
-  const ultimateCharacter = ULTIMATE_MODE.active ? ULTIMATE_PLAYERS[playerIndex] : null;
+  const ultimateCharacter = ULTIMATE_MODE.active ? ultimatePlayerConfig(playerIndex) : null;
   const imageUrl = ultimateCharacter
     ? (player.characterStarActive ? ultimateCharacter.power : ultimateCharacter.character)
     : PROFILE_CHARACTER_IMAGES[player.characterId]
@@ -20421,6 +20438,9 @@ function initMenu() {
     card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
   });
   els.ultimateModeButton?.addEventListener("click", startUltimateGame);
+  els.ultimatePlayerChoices?.querySelectorAll("[data-ultimate-player]").forEach((button) => {
+    button.addEventListener("click", () => confirmUltimatePlayer(Number(button.dataset.ultimatePlayer)));
+  });
   els.ultimateDraftConfirm?.addEventListener("click", confirmUltimateDraft);
   els.ultimateRulesClose?.addEventListener("click", () => els.ultimateRulesDialog?.classList.add("hidden"));
   els.ultimatePostExchangeConfirm?.addEventListener("click", () => {
