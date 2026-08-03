@@ -14203,6 +14203,12 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
   render();
+  if (ULTIMATE_MODE.active && !state.setMatch.setOver && !state.setMatch.matchOver) {
+    window.setTimeout(() => {
+      if (!state.gameOver || ULTIMATE_MODE.postExchange) return;
+      beginUltimatePostExchange(winner);
+    }, 900);
+  }
 }
 
 function completeOnePointTournamentMatch(winner, exchangeScore) {
@@ -19158,8 +19164,8 @@ function renderDesktopMatchScore() {
 
 function renderCenterNextExchangeButton() {
   if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return "";
-  const label = ULTIMATE_MODE.active && !ULTIMATE_MODE.postExchange?.completed ? "Continuer vers la réserve" : "Échange suivant";
-  return `<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>${label}</button>`;
+  if (ULTIMATE_MODE.active) return "";
+  return `<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>`;
 }
 
 function renderCenterNextSoloExchangeButton() {

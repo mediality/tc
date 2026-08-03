@@ -7,9 +7,9 @@ const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8"
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
 assert.equal(packageJson.version, "4.52.0");
-assert.match(indexHtml, /styles\.css\?v=5\.10\.0/);
-assert.match(indexHtml, /app\.js\?v=5\.10\.0/);
-assert.match(indexHtml, /Tennis Courts Academy · <span>V5\.10<\/span>/);
+assert.match(indexHtml, /styles\.css\?v=5\.11\.0/);
+assert.match(indexHtml, /app\.js\?v=5\.11\.0/);
+assert.match(indexHtml, /Tennis Courts Academy · <span>V5\.11<\/span>/);
 
 const desktopScoreFunction = app.slice(
   app.indexOf("function renderDesktopMatchScore()"),
