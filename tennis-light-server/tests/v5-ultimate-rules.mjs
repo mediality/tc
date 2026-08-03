@@ -16,11 +16,29 @@ assert.match(html, /Énergie 💡/);
 assert.match(html, /deux emplacements de réserve/i);
 assert.match(app, /ULTIMATE_STARTING_ENERGY = 3/);
 assert.match(app, /ULTIMATE_DECK_SIZE = 48/);
+assert.match(app, /length: 36/);
+assert.match(app, /length: 12/);
+assert.match(app, /LOBBY-Conti\.webp/);
+assert.match(app, /LOBBY-Brentwood\.webp/);
+assert.match(app, /ultimateCardBackForPlayer/);
+assert.match(app, /assets\/ultimate\/conti\/back\.png/);
+assert.match(app, /assets\/ultimate\/brentwood\/back\.png/);
+assert.match(app, /characterStarActive \? ultimateCharacter\.power : ultimateCharacter\.character/);
+assert.match(app, /visibleStars < 2/);
 assert.match(app, /ultimateDecks: \[\[\], \[\]\]/);
 assert.match(app, /player\.endurance = STARTING_ENDURANCE/);
 assert.match(app, /card\._fromReserve = true/);
 assert.match(css, /@media \(max-width: 860px\)[\s\S]*\.ultimate-resources/);
 assert.doesNotMatch(mobileJs, /ULTIMATE_MODE|ultimate-resources|ultimateModeButton/);
 assert.doesNotMatch(mobileCss, /ultimate-resources|lobby-mode-ultimate/);
+
+for (const player of ["conti", "brentwood"]) {
+  const folder = path.join(root, "public/assets/ultimate", player);
+  const cards = fs.readdirSync(folder).filter((name) => /^card-\d{2}\.png$/.test(name));
+  assert.equal(cards.length, 36, `${player} doit disposer de 36 cartes COUP`);
+  for (const required of ["back.png", "character.png", "power.png"]) {
+    assert.ok(fs.existsSync(path.join(folder, required)), `${player}/${required} est requis`);
+  }
+}
 
 console.log("V5 Ultimate admin, rules, resources and mobile isolation checks passed.");

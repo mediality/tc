@@ -14,6 +14,27 @@ const ULTIMATE_MODE = {
   draftSelected: new Set(),
 };
 
+const ULTIMATE_PLAYERS = [
+  {
+    id: "alessandraConti",
+    name: "Alessandra Conti",
+    key: "conti",
+    lobby: "assets/cards/LOBBY-Conti.webp",
+    back: "assets/ultimate/conti/back.png",
+    character: "assets/ultimate/conti/character.png",
+    power: "assets/ultimate/conti/power.png",
+  },
+  {
+    id: "calvinBrentwood",
+    name: "Calvin Brentwood",
+    key: "brentwood",
+    lobby: "assets/cards/LOBBY-Brentwood.webp",
+    back: "assets/ultimate/brentwood/back.png",
+    character: "assets/ultimate/brentwood/character.png",
+    power: "assets/ultimate/brentwood/power.png",
+  },
+];
+
 function versionCardAsset(value) {
   if (typeof value === "string") {
     return value.startsWith("assets/cards/") ? `${value}?v=${CARD_ASSET_VERSION}` : value;
@@ -7772,6 +7793,8 @@ function createPlayer(name, characterId, nickname = name) {
     hand: [],
     reserve: [],
     characterStarActive: false,
+    ultimateNextCostOne: false,
+    ultimateRecoverEnergyOnNextShot: false,
     knownOpponentHand: null,
     played: [],
     nextPrecisionBonus: 0,
@@ -8381,10 +8404,44 @@ function resetSetMatch() {
   };
 }
 
-function buildUltimateTemporaryDeck(playerIndex) {
-  return shuffle(Array.from({ length: ULTIMATE_DECK_SIZE }, (_, index) => (
-    cloneCard(CARD_LIBRARY[index % CARD_LIBRARY.length], `ultimate-${playerIndex}-${index}`)
-  )));
+function buildUltimateDeck(playerIndex) {
+  const config = ULTIMATE_PLAYERS[playerIndex];
+  const shots = CARD_LIBRARY.filter((card) => !isRemise(card));
+  const remises = CARD_LIBRARY.filter(isRemise);
+  const officialShots = Array.from({ length: 36 }, (_, index) => {
+    const base = shots[index % shots.length];
+    const card = cloneCard(base, `ultimate-${config.key}-shot-${index + 1}`);
+    card.id = `ultimate-${config.key}-shot-${index + 1}`;
+    card.artwork = `assets/ultimate/${config.key}/card-${String(index + 1).padStart(2, "0")}.png`;
+    card.ultimateOwner = playerIndex;
+    card.ultimateOfficial = true;
+    // Les deux cartes argentées centrales portent les étoiles qui déclenchent le pouvoir.
+    card.star = index === 1 || index === 2;
+    if (index === 0) {
+      card.name = "Coup spécial de service";
+      card.family = "Service";
+      card.effectType = "serviceCard";
+    } else if (index === 1) {
+      card.name = playerIndex === 0 ? "Revers spécial" : "Volée spéciale";
+      card.family = playerIndex === 0 ? "Revers" : "Volée";
+    } else if (index === 2) {
+      card.name = playerIndex === 0 ? "Coup droit spécial" : "Smash spécial";
+      card.family = playerIndex === 0 ? "Coup droit" : "Smash";
+    } else if (index === 3) {
+      card.name = "Frappe spéciale";
+      card.family = playerIndex === 1 ? "Service" : "Coup droit";
+    }
+    return card;
+  });
+  // Les 12 EFFET/REMISE utilisent provisoirement les cartes du moteur actuel :
+  // leurs visuels spécifiques ne figurent pas encore dans le dossier fourni.
+  const effectCards = Array.from({ length: 12 }, (_, index) => {
+    const card = cloneCard(remises[index % remises.length], `ultimate-${config.key}-effect-${index + 1}`);
+    card.ultimateOwner = playerIndex;
+    card.ultimatePlaceholderEffect = true;
+    return card;
+  });
+  return shuffle([...officialShots, ...effectCards]);
 }
 
 function ultimateDrawThree(playerIndex) {
@@ -8399,7 +8456,7 @@ function renderUltimateDraft() {
   els.ultimateDraftInstruction.textContent = `${displayPlayerName(state.players[playerIndex])} : choisissez 2 cartes. La troisième sera défaussée.`;
   els.ultimateDraftCards.innerHTML = ULTIMATE_MODE.draftChoices.map((card) => {
     const selected = ULTIMATE_MODE.draftSelected.has(card.uid);
-    const image = CARD_IMAGES[card.id];
+    const image = card.artwork || CARD_IMAGES[card.id];
     return `<button class="ultimate-draft-card ${selected ? "selected" : ""}" type="button" data-ultimate-draft-card="${escapeHtml(card.uid)}" aria-pressed="${selected}">
       ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" />` : ""}<strong>${escapeHtml(card.name)}</strong>
     </button>`;
@@ -8519,6 +8576,9 @@ function newGame(options = {}) {
       createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, state.tournament?.humanNickname || nicknameValue()),
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
+  if (ULTIMATE_MODE.active) {
+    state.players = ULTIMATE_PLAYERS.map((config) => createPlayer(config.name, config.id, config.name));
+  }
   if (previousUltimatePlayers) {
     previousUltimatePlayers.forEach((previous, playerIndex) => {
       const player = state.players[playerIndex];
@@ -8567,7 +8627,7 @@ function newGame(options = {}) {
   applyMotivationBonus();
   applyHumanAscendantBonus();
   if (ULTIMATE_MODE.active && !previousUltimatePlayers) {
-    state.ultimateDecks = [buildUltimateTemporaryDeck(0), buildUltimateTemporaryDeck(1)];
+    state.ultimateDecks = [buildUltimateDeck(0), buildUltimateDeck(1)];
     state.ultimateDiscards = [[], []];
     state.players.forEach((player) => {
       player.hand = [];
@@ -8961,6 +9021,7 @@ function playerHasSurfaceBonus(player, bonusId) {
 
 function effectiveCost(player, card) {
   const remiseDiscount = isRemise(card) && playerHasSurfaceBonus(player, "grassCheapRemise") ? 1 : 0;
+  if (ULTIMATE_MODE.active && !isRemise(card) && player.ultimateNextCostOne) return 1;
   return isRemise(card)
     ? Math.max(0, card.cost - remiseDiscount)
     : Math.max(0, card.cost - player.nextDiscount + (player.nextExtraCost ?? 0));
@@ -9013,6 +9074,7 @@ function clearNextShotBonuses(player) {
   player.nextPowerCapSourceUid = null;
   player.nextShotBasePlacementZero = false;
   player.nextShotBasePlacementZeroSourceUid = null;
+  player.ultimateNextCostOne = false;
 }
 
 function clearNextAnyCardBonuses(player) {
@@ -12066,6 +12128,28 @@ function setEffectNotice(status, card, message) {
   };
 }
 
+function activateUltimateCharacterIfReady(playerIndex) {
+  if (!ULTIMATE_MODE.active) return false;
+  const player = state.players[playerIndex];
+  if (!player || player.characterStarActive) return false;
+  const visibleStars = (player.played || []).filter((card) => !isRemise(card) && card.star && !card.removed).length;
+  if (visibleStars < 2) return false;
+  player.characterStarActive = true;
+  player.characterSide = 1;
+  if (playerIndex === 0) {
+    player.ultimateNextCostOne = true;
+    player.ultimateRecoverEnergyOnNextShot = true;
+    state.log.unshift("Pouvoir étoile d’Alessandra Conti : son prochain coup coûte 1 endurance et lui rendra 1 énergie.");
+  } else {
+    player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
+    const powerFamilies = new Set(["Volée", "Smash", "Amortie"]);
+    const bonus = (player.played || []).filter((card) => powerFamilies.has(card.family) && !card.removed).length;
+    player.power += bonus;
+    state.log.unshift(`Pouvoir étoile de Calvin Brentwood : +2 endurance et +${bonus} puissance pour ses Volées, Smash et Amorties visibles.`);
+  }
+  return true;
+}
+
 function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, remiseMode = "effect") {
   if (state.gameOver) return;
   const player = state.players[playerIndex];
@@ -12156,6 +12240,16 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   state.turnPlayedCards[playerIndex].push(playedCard);
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
+  if (ULTIMATE_MODE.active && endsTurn && player.ultimateRecoverEnergyOnNextShot) {
+    player.energy = Math.min(ULTIMATE_STARTING_ENERGY, player.energy + 1);
+    player.ultimateRecoverEnergyOnNextShot = false;
+    state.log.unshift(`${displayPlayerName(player)} récupère 1 énergie grâce à son pouvoir étoile.`);
+  }
+  if (ULTIMATE_MODE.active && player.characterStarActive && playerIndex === 1 && ["Volée", "Smash", "Amortie"].includes(playedCard.family)) {
+    player.power += 1;
+    playedCard.effectPowerGained = Number(playedCard.effectPowerGained || 0) + 1;
+  }
+  activateUltimateCharacterIfReady(playerIndex);
   applySurfaceBonusAfterPlay(playerIndex, playedCard, cost);
   applyOpponentLowPowerCharacterTriggers(playerIndex, playedCard);
 
@@ -12227,7 +12321,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     return;
   }
 
-  if (playedCard.star && endsTurn) {
+  if (!ULTIMATE_MODE.active && playedCard.star && endsTurn) {
     const waitingForCoach = applyCharacterEffect(playerIndex, playedCard);
     if (waitingForCoach) {
       render();
@@ -12428,8 +12522,10 @@ function desktopHandAngleForIndex(index) {
 
 function drawCards(player, count) {
   let drawn = 0;
+  const ultimatePlayerIndex = ULTIMATE_MODE.active ? state.players.indexOf(player) : -1;
+  const sourceDeck = ultimatePlayerIndex >= 0 ? state.ultimateDecks[ultimatePlayerIndex] : state.deck;
   for (let index = 0; index < count; index += 1) {
-    const card = state.deck.shift();
+    const card = sourceDeck.shift();
     if (card) {
       const precedingCard = player.hand[player.hand.length - 1];
       card.desktopHandAngle = precedingCard?.desktopHandAngle
@@ -18163,15 +18259,25 @@ function renderEffectNotice() {
   els.effectNotice.innerHTML = `<span class="effect-notice-kicker">Effet ${escapeHtml(state.effectNotice.status)}</span><strong>${escapeHtml(state.effectNotice.cardName)}</strong><p>${escapeHtml(state.effectNotice.message)}</p>`;
 }
 
+function ultimateCardBackForPlayer(playerIndex) {
+  return ULTIMATE_MODE.active && ULTIMATE_PLAYERS[playerIndex]
+    ? ULTIMATE_PLAYERS[playerIndex].back
+    : CARD_BACK_IMAGE;
+}
+
+function cardArtwork(card) {
+  return card?.artwork || CARD_IMAGES[card?.id] || CARD_BACK_IMAGE;
+}
+
 function renderCardVisualOnly(card, className = "") {
   if (!card) return '<div class="played-card empty">Aucune carte</div>';
-  const imageUrl = CARD_IMAGES[card.id];
+  const imageUrl = card.artwork || CARD_IMAGES[card.id];
   if (!imageUrl) {
     return `<div class="played-card ${className}"><strong>${card.name}</strong>${card.subtitle ?? card.family}</div>`;
   }
   return `
     <button class="played-visual ${className} ${card.removed ? "removed" : ""}" type="button" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${card.name} - ${card.subtitle ?? card.family}`)}" aria-label="Agrandir ${escapeHtml(card.name)}">
-      ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
+      ${card.boosted ? `<span class="boost-sacrifice-layer"><img class="boost-sacrifice-back" src="${ultimateCardBackForPlayer(card.owner)}" alt="Carte sacrifiée face cachée" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
       ${card.boosted ? '<span class="played-chip">BOOST</span>' : ""}
@@ -18181,7 +18287,7 @@ function renderCardVisualOnly(card, className = "") {
 }
 
 function renderChoiceCardVisual(card) {
-  const imageUrl = CARD_IMAGES[card.id];
+  const imageUrl = card.artwork || CARD_IMAGES[card.id];
   if (!imageUrl) {
     return `<strong>${card.name}</strong><span>${card.family}</span>`;
   }
@@ -18194,17 +18300,20 @@ function renderChoiceCardVisual(card) {
   `;
 }
 
-function renderCardBack(className = "") {
+function renderCardBack(className = "", playerIndex = null) {
   return `
     <div class="card-visual card-back ${className}">
-      <img src="${CARD_BACK_IMAGE}" alt="Carte face cachée" />
+      <img src="${ultimateCardBackForPlayer(playerIndex)}" alt="Carte face cachée" />
     </div>
   `;
 }
 
 function renderCharacterCard(player, playerIndex, panel = {}) {
   const character = characterOf(player);
-  const imageUrl = PROFILE_CHARACTER_IMAGES[player.characterId]
+  const ultimateCharacter = ULTIMATE_MODE.active ? ULTIMATE_PLAYERS[playerIndex] : null;
+  const imageUrl = ultimateCharacter
+    ? (player.characterStarActive ? ultimateCharacter.power : ultimateCharacter.character)
+    : PROFILE_CHARACTER_IMAGES[player.characterId]
     ?? CHARACTER_IMAGES[player.characterId]?.[player.characterSide]
     ?? CHARACTER_IMAGES[player.characterId]?.[0];
   const leader = leadingPlayerIndex();
@@ -18224,6 +18333,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
         <img src="${imageUrl}" alt="${character.name}" />
       </div>
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
+        ${ultimateCharacter ? `<img class="ultimate-profile-avatar" src="${escapeHtml(ultimateCharacter.lobby)}" alt="Profil de ${escapeHtml(ultimateCharacter.name)}" />` : ""}
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
         <div>
           <span>${escapeHtml(frenchOrdinalRank(panel.rank))}</span>
@@ -18792,7 +18902,7 @@ function captureDesktopCardFlight(playerIndex, card) {
     cardUid: card.uid,
     playedUid: null,
     playerIndex,
-    imageUrl: CARD_IMAGES[card.id] || CARD_BACK_IMAGE,
+    imageUrl: cardArtwork(card),
     sourceRect: {
       top: rect.top,
       left: rect.left,
@@ -18889,7 +18999,7 @@ function desktopPlayedCardMarkup(card, playerIndex, remiseCards = [], precededBy
   const remiseValue = remiseCards.reduce((total, remise) => total + Number(remise.placement || 0), 0);
   return `
     <button class="desktop-played-card${card.removed ? " removed" : ""}${card.boosted ? " boosted" : ""}${remiseCards.length ? " has-remise-underlay" : ""}${precededByEffect && !remiseCards.length ? " preceded-by-effect" : ""}" type="button" data-desktop-played-card="${escapeHtml(cardKey)}" data-desktop-played-target="${escapeHtml(cardKey)}" data-desktop-played-owner="${playerIndex}" aria-label="Voir le détail de ${escapeHtml(card.name)}">
-      ${card.boosted ? `<span class="boost-sacrifice-layer desktop-boost-underlay"><img class="boost-sacrifice-back" src="${CARD_BACK_IMAGE}" alt="Carte utilisée pour le BOOST" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
+      ${card.boosted ? `<span class="boost-sacrifice-layer desktop-boost-underlay"><img class="boost-sacrifice-back" src="${ultimateCardBackForPlayer(playerIndex)}" alt="Carte utilisée pour le BOOST" /><span class="boost-sacrifice-label">BOOST</span></span>` : ""}
       ${remiseCards.length ? `<span class="desktop-remise-underlay"><img src="${REMISE_UNDERLAY_IMAGE}" alt="Carte de Remise" /><span>+${remiseValue}</span></span>` : ""}
       <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(card.name)}" />
       ${card.remiseMode === "placement" ? `<img class="remise-forbid-overlay" src="${FORBID_IMAGE}" alt="Effet interdit, carte jouée en Remise" />` : ""}
@@ -19349,7 +19459,7 @@ function renderUltimateResources(playerIndex) {
   const reserveSlots = [0, 1].map((slot) => {
     const card = reserve[slot];
     if (!card) return `<span class="ultimate-reserve-slot empty">Réserve ${slot + 1}</span>`;
-    const image = CARD_IMAGES[card.id];
+    const image = card.artwork || CARD_IMAGES[card.id];
     return `<button class="ultimate-reserve-slot filled" type="button" data-use-reserve="${escapeHtml(card.uid)}" ${state.gameOver ? "disabled" : ""} title="Utiliser ${escapeHtml(card.name)}">
       ${image ? `<img src="${escapeHtml(image)}" alt="" />` : ""}<span>${escapeHtml(card.name)}</span>
     </button>`;
@@ -19372,7 +19482,7 @@ function openUltimateDiscard(playerIndex) {
   const cards = state.ultimateDiscards[playerIndex] || [];
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
-  dialog.innerHTML = `<div class="ultimate-dialog-card"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Tennis Courts Ultimate</p><h2>Défausse de ${escapeHtml(displayPlayerName(state.players[playerIndex]))}</h2><div class="ultimate-discard-grid">${cards.length ? cards.map((card) => `<article>${CARD_IMAGES[card.id] ? `<img src="${escapeHtml(CARD_IMAGES[card.id])}" alt="" />` : ""}<strong>${escapeHtml(card.name)}</strong></article>`).join("") : "<p>La défausse est vide.</p>"}</div></div>`;
+  dialog.innerHTML = `<div class="ultimate-dialog-card"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Tennis Courts Ultimate</p><h2>Défausse de ${escapeHtml(displayPlayerName(state.players[playerIndex]))}</h2><div class="ultimate-discard-grid">${cards.length ? cards.map((card) => `<article>${cardArtwork(card) ? `<img src="${escapeHtml(cardArtwork(card))}" alt="" />` : ""}<strong>${escapeHtml(card.name)}</strong></article>`).join("") : "<p>La défausse est vide.</p>"}</div></div>`;
   const close = () => dialog.remove();
   dialog.querySelector("button").addEventListener("click", close);
   dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
@@ -19536,7 +19646,7 @@ function renderCard(playerIndex, card) {
   const placementTotal = totalTurnPlacement(playerIndex, card, false);
   const placementIssue = !isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex];
   const remisePlacementIssue = isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex];
-  const imageUrl = CARD_IMAGES[card.id];
+  const imageUrl = card.artwork || CARD_IMAGES[card.id];
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
   const dynamicStatCount = [cost !== card.cost, stats.precision !== card.precision, stats.placement !== card.placement || state.turnPlacement[playerIndex]].filter(Boolean).length;
   const showForbidEffect = playerIndex === state.activePlayer && isNextEffectCanceledFor(playerIndex) && Boolean(card.effectType);
@@ -19554,7 +19664,7 @@ function renderCard(playerIndex, card) {
   if (isHidden) {
     return `
       <article class="card has-visual hidden-hand-card${inheritedDrawAngleClass}"${desktopHandAngleStyle} data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
-        ${renderCardBack()}
+        ${renderCardBack("", playerIndex)}
       </article>
     `;
   }
