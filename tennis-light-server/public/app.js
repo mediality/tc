@@ -82,6 +82,7 @@ const FRIENDLY_TOURNAMENT = {
   streamTimer: null,
   lastStreamPayload: "",
   lastForfeitNoticeMatchId: null,
+  localMatchSeat: null,
   forfeitDialogOpen: false,
   awaitingClubHouseReturn: false,
   countdownMatchId: null,
@@ -6536,6 +6537,7 @@ function startFriendlyHumanTournamentMatch(match) {
   FRIENDLY_TOURNAMENT.waitingForNextRound = false;
   FRIENDLY_TOURNAMENT.readyRound = null;
   FRIENDLY_TOURNAMENT.inMatch = true;
+  FRIENDLY_TOURNAMENT.localMatchSeat = seat;
   SERVER_SYNC.enabled = true;
   SERVER_SYNC.friendlyMatch = true;
   SERVER_SYNC.roomId = match.id;
@@ -7487,6 +7489,7 @@ function resetFriendlyTournamentConnection() {
   FRIENDLY_TOURNAMENT.currentMatchId = null;
   FRIENDLY_TOURNAMENT.lastReportedMatchId = null;
   FRIENDLY_TOURNAMENT.lastForfeitNoticeMatchId = null;
+  FRIENDLY_TOURNAMENT.localMatchSeat = null;
   FRIENDLY_TOURNAMENT.waitingForNextRound = false;
   FRIENDLY_TOURNAMENT.readyRound = null;
   FRIENDLY_TOURNAMENT.forfeitDialogOpen = false;
@@ -20141,6 +20144,9 @@ document.addEventListener("click", (event) => {
 
 function mobileLocalPlayerIndex() {
   if (SERVER_SYNC.enabled && Number.isInteger(SERVER_SYNC.seat)) return SERVER_SYNC.seat;
+  if (FRIENDLY_TOURNAMENT.enabled && Number.isInteger(FRIENDLY_TOURNAMENT.localMatchSeat)) {
+    return FRIENDLY_TOURNAMENT.localMatchSeat;
+  }
   if (SOLO_AI.enabled) return opponentOf(SOLO_AI.playerIndex);
   return 0;
 }
