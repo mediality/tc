@@ -1,7 +1,18 @@
 const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
+const ULTIMATE_STARTING_ENERGY = 3;
+const ULTIMATE_DECK_SIZE = 48;
 const GAME_VERSION = "v3.86";
 const CARD_ASSET_VERSION = "170";
+
+const ULTIMATE_MODE = {
+  active: false,
+  draftNumber: 0,
+  draftPlayer: 0,
+  draftPurpose: "set-start",
+  draftChoices: [],
+  draftSelected: new Set(),
+};
 
 function versionCardAsset(value) {
   if (typeof value === "string") {
@@ -1860,6 +1871,8 @@ const state = {
   players: [],
   deck: [],
   discardedCards: [],
+  ultimateDecks: [[], []],
+  ultimateDiscards: [[], []],
   activePlayer: 0,
   server: 0,
   lastCard: null,
@@ -1915,6 +1928,14 @@ const state = {
 
 const els = {
   newGameButton: document.querySelector("#newGameButton"),
+  ultimateModeButton: document.querySelector("#ultimateModeButton"),
+  ultimateDraftDialog: document.querySelector("#ultimateDraftDialog"),
+  ultimateDraftTitle: document.querySelector("#ultimateDraftTitle"),
+  ultimateDraftInstruction: document.querySelector("#ultimateDraftInstruction"),
+  ultimateDraftCards: document.querySelector("#ultimateDraftCards"),
+  ultimateDraftConfirm: document.querySelector("#ultimateDraftConfirm"),
+  ultimateRulesDialog: document.querySelector("#ultimateRulesDialog"),
+  ultimateRulesClose: document.querySelector("#ultimateRulesClose"),
   modeInfoBadge: document.querySelector("#modeInfoBadge"),
   adminGameTools: document.querySelector("#adminGameTools"),
   adminGameToolsButton: document.querySelector("#adminGameToolsButton"),
@@ -7746,8 +7767,11 @@ function createPlayer(name, characterId, nickname = name) {
     worldRank: null,
     roseEnduranceAwarded: false,
     endurance: STARTING_ENDURANCE,
+    energy: ULTIMATE_STARTING_ENERGY,
     power: 0,
     hand: [],
+    reserve: [],
+    characterStarActive: false,
     knownOpponentHand: null,
     played: [],
     nextPrecisionBonus: 0,
@@ -8357,8 +8381,112 @@ function resetSetMatch() {
   };
 }
 
+function buildUltimateTemporaryDeck(playerIndex) {
+  return shuffle(Array.from({ length: ULTIMATE_DECK_SIZE }, (_, index) => (
+    cloneCard(CARD_LIBRARY[index % CARD_LIBRARY.length], `ultimate-${playerIndex}-${index}`)
+  )));
+}
+
+function ultimateDrawThree(playerIndex) {
+  const deck = state.ultimateDecks[playerIndex] || [];
+  return deck.splice(0, Math.min(3, deck.length));
+}
+
+function renderUltimateDraft() {
+  if (!ULTIMATE_MODE.active || !els.ultimateDraftDialog) return;
+  const playerIndex = ULTIMATE_MODE.draftPlayer;
+  els.ultimateDraftTitle.textContent = `Draft ${ULTIMATE_MODE.draftNumber + 1} sur 3`;
+  els.ultimateDraftInstruction.textContent = `${displayPlayerName(state.players[playerIndex])} : choisissez 2 cartes. La troisième sera défaussée.`;
+  els.ultimateDraftCards.innerHTML = ULTIMATE_MODE.draftChoices.map((card) => {
+    const selected = ULTIMATE_MODE.draftSelected.has(card.uid);
+    const image = CARD_IMAGES[card.id];
+    return `<button class="ultimate-draft-card ${selected ? "selected" : ""}" type="button" data-ultimate-draft-card="${escapeHtml(card.uid)}" aria-pressed="${selected}">
+      ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" />` : ""}<strong>${escapeHtml(card.name)}</strong>
+    </button>`;
+  }).join("");
+  els.ultimateDraftConfirm.disabled = ULTIMATE_MODE.draftSelected.size !== 2;
+  els.ultimateDraftDialog.classList.remove("hidden");
+  els.ultimateDraftCards.querySelectorAll("[data-ultimate-draft-card]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const uid = button.dataset.ultimateDraftCard;
+      if (ULTIMATE_MODE.draftSelected.has(uid)) ULTIMATE_MODE.draftSelected.delete(uid);
+      else if (ULTIMATE_MODE.draftSelected.size < 2) ULTIMATE_MODE.draftSelected.add(uid);
+      renderUltimateDraft();
+    });
+  });
+}
+
+function beginUltimateDraft(playerIndex = 0, draftNumber = 0, purpose = "set-start") {
+  ULTIMATE_MODE.draftPlayer = playerIndex;
+  ULTIMATE_MODE.draftNumber = draftNumber;
+  ULTIMATE_MODE.draftPurpose = purpose;
+  ULTIMATE_MODE.draftChoices = ultimateDrawThree(playerIndex);
+  ULTIMATE_MODE.draftSelected = new Set();
+  renderUltimateDraft();
+}
+
+function confirmUltimateDraft() {
+  if (!ULTIMATE_MODE.active || ULTIMATE_MODE.draftSelected.size !== 2) return;
+  const playerIndex = ULTIMATE_MODE.draftPlayer;
+  const kept = ULTIMATE_MODE.draftChoices.filter((card) => ULTIMATE_MODE.draftSelected.has(card.uid));
+  const discarded = ULTIMATE_MODE.draftChoices.filter((card) => !ULTIMATE_MODE.draftSelected.has(card.uid));
+  state.players[playerIndex].hand.push(...kept);
+  state.ultimateDiscards[playerIndex].push(...discarded);
+  if (ULTIMATE_MODE.draftPurpose === "energy") {
+    els.ultimateDraftDialog.classList.add("hidden");
+    state.log.unshift(`${displayPlayerName(state.players[playerIndex])} termine sa draft d'énergie.`);
+    render();
+    return;
+  }
+  if (ULTIMATE_MODE.draftNumber < 2) {
+    beginUltimateDraft(playerIndex, ULTIMATE_MODE.draftNumber + 1);
+    return;
+  }
+  // L'adversaire réalise également trois drafts, sans mélanger les decks.
+  for (let draft = 0; draft < 3; draft += 1) {
+    const choices = ultimateDrawThree(1);
+    state.players[1].hand.push(...choices.slice(0, 2));
+    state.ultimateDiscards[1].push(...choices.slice(2));
+  }
+  els.ultimateDraftDialog.classList.add("hidden");
+  state.log.unshift("Les deux joueurs terminent leurs 3 drafts et commencent avec 6 cartes.");
+  render();
+  maybeRunSoloAI();
+}
+
+function spendUltimateEnergy(playerIndex, action) {
+  if (!ULTIMATE_MODE.active || state.gameOver) return;
+  const player = state.players[playerIndex];
+  if (!player || player.energy <= 0 || !canUseSeat(playerIndex)) return;
+  player.energy -= 1;
+  if (action === "endurance") {
+    player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
+    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie et récupère 2 endurance.`);
+    render();
+    return;
+  }
+  if (action === "draft") beginUltimateDraft(playerIndex, 0, "energy");
+}
+
+function startUltimateGame() {
+  if (!canAccessAdminFeatures()) return;
+  ULTIMATE_MODE.active = true;
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  showGameScreen();
+  newGame();
+  els.ultimateRulesDialog?.classList.remove("hidden");
+  beginUltimateDraft(0, 0);
+}
+
 function newGame(options = {}) {
   const { preserveSet = false, serverOverride = null } = options;
+  const previousUltimatePlayers = ULTIMATE_MODE.active && preserveSet && state.players.length === 2
+    ? state.players.map((player) => ({
+      hand: [...player.hand], reserve: [...(player.reserve || [])], energy: player.energy,
+      characterStarActive: Boolean(player.characterStarActive), played: [...(player.played || [])],
+    }))
+    : null;
   if (!preserveSet) desktopHistoryExpanded = false;
   if (SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut relancer un échange en ligne pour le moment.");
@@ -8391,6 +8519,16 @@ function newGame(options = {}) {
       createPlayer(characterNameFromId(humanCharacterId), humanCharacterId, state.tournament?.humanNickname || nicknameValue()),
       createPlayer(characterNameFromId(aiCharacterId), aiCharacterId, characterNameFromId(aiCharacterId)),
     ];
+  if (previousUltimatePlayers) {
+    previousUltimatePlayers.forEach((previous, playerIndex) => {
+      const player = state.players[playerIndex];
+      state.ultimateDiscards[playerIndex].push(...previous.played.filter((card) => !previous.reserve.some((reserved) => reserved.uid === card.uid)));
+      player.hand = previous.hand;
+      player.reserve = previous.reserve;
+      player.energy = previous.energy;
+      player.characterStarActive = previous.characterStarActive;
+    });
+  }
   if (SERVER_SYNC.enabled) {
     state.players.forEach((player, playerIndex) => {
       player.worldRank = Number(profiles[playerIndex]?.worldRank || 0) || null;
@@ -8428,10 +8566,22 @@ function newGame(options = {}) {
   });
   applyMotivationBonus();
   applyHumanAscendantBonus();
-  state.players[0].hand = deck.splice(0, HAND_SIZE);
-  state.players[1].hand = deck.splice(0, HAND_SIZE);
-  state.deck = deck;
-  state.discardedCards = [];
+  if (ULTIMATE_MODE.active && !previousUltimatePlayers) {
+    state.ultimateDecks = [buildUltimateTemporaryDeck(0), buildUltimateTemporaryDeck(1)];
+    state.ultimateDiscards = [[], []];
+    state.players.forEach((player) => {
+      player.hand = [];
+      player.reserve = [];
+      player.energy = ULTIMATE_STARTING_ENERGY;
+    });
+    state.deck = [];
+    state.discardedCards = [];
+  } else if (!ULTIMATE_MODE.active) {
+    state.players[0].hand = deck.splice(0, HAND_SIZE);
+    state.players[1].hand = deck.splice(0, HAND_SIZE);
+    state.deck = deck;
+    state.discardedCards = [];
+  }
   state.server = serverOverride ?? (Math.random() < 0.5 ? 0 : 1);
   state.activePlayer = state.server;
   state.lastCard = null;
@@ -9071,6 +9221,7 @@ function startSoloGame() {
     render();
     return;
   }
+  ULTIMATE_MODE.active = false;
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
   SOLO_AI.thinking = false;
@@ -13366,6 +13517,9 @@ function updateSequenceBonusesAfterExchange(winner) {
 function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power", reason, extraPowerDetails = [] }) {
   const endBonusDetails = ignoreScore ? [] : applyEndBonuses();
   state.gameOver = true;
+  if (ULTIMATE_MODE.active) {
+    state.players.forEach((player) => { player.endurance = STARTING_ENDURANCE; });
+  }
   const winner = forcedWinner ?? getWinner();
   const p1 = state.players[0];
   const p2 = state.players[1];
@@ -19187,6 +19341,44 @@ function openDesktopBonusDialog(playerIndex) {
   document.body.appendChild(backdrop);
 }
 
+function renderUltimateResources(playerIndex) {
+  if (!ULTIMATE_MODE.active) return "";
+  const player = state.players[playerIndex];
+  const reserve = player.reserve || [];
+  const discard = state.ultimateDiscards[playerIndex] || [];
+  const reserveSlots = [0, 1].map((slot) => {
+    const card = reserve[slot];
+    if (!card) return `<span class="ultimate-reserve-slot empty">Réserve ${slot + 1}</span>`;
+    const image = CARD_IMAGES[card.id];
+    return `<button class="ultimate-reserve-slot filled" type="button" data-use-reserve="${escapeHtml(card.uid)}" ${state.gameOver ? "disabled" : ""} title="Utiliser ${escapeHtml(card.name)}">
+      ${image ? `<img src="${escapeHtml(image)}" alt="" />` : ""}<span>${escapeHtml(card.name)}</span>
+    </button>`;
+  }).join("");
+  const candidates = state.gameOver && reserve.length < 2
+    ? (player.played || []).filter((card) => !isRemise(card) && !card._fromReserve)
+    : [];
+  return `<section class="ultimate-resources" aria-label="Ressources Ultimate de ${escapeHtml(displayPlayerName(player))}">
+    <div class="ultimate-energy"><span>💡 ÉNERGIE</span><strong>${player.energy}/${ULTIMATE_STARTING_ENERGY}</strong>
+      <button type="button" data-ultimate-energy="draft" ${player.energy <= 0 || state.gameOver ? "disabled" : ""}>Draft</button>
+      <button type="button" data-ultimate-energy="endurance" ${player.energy <= 0 || state.gameOver || player.endurance >= STARTING_ENDURANCE ? "disabled" : ""}>+2 END</button>
+    </div>
+    <div class="ultimate-reserve"><span class="ultimate-reserve-divider">RÉSERVE</span>${reserveSlots}</div>
+    <button class="ultimate-discard-button" type="button" data-open-ultimate-discard="${playerIndex}">Défausse · ${discard.length}</button>
+    ${candidates.length ? `<div class="ultimate-reserve-pick"><strong>Fin de l’échange : placer en réserve</strong>${candidates.map((card) => `<button type="button" data-add-reserve="${escapeHtml(card.uid)}">${escapeHtml(card.name)}</button>`).join("")}</div>` : ""}
+  </section>`;
+}
+
+function openUltimateDiscard(playerIndex) {
+  const cards = state.ultimateDiscards[playerIndex] || [];
+  const dialog = document.createElement("section");
+  dialog.className = "ultimate-dialog";
+  dialog.innerHTML = `<div class="ultimate-dialog-card"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Tennis Courts Ultimate</p><h2>Défausse de ${escapeHtml(displayPlayerName(state.players[playerIndex]))}</h2><div class="ultimate-discard-grid">${cards.length ? cards.map((card) => `<article>${CARD_IMAGES[card.id] ? `<img src="${escapeHtml(CARD_IMAGES[card.id])}" alt="" />` : ""}<strong>${escapeHtml(card.name)}</strong></article>`).join("") : "<p>La défausse est vide.</p>"}</div></div>`;
+  const close = () => dialog.remove();
+  dialog.querySelector("button").addEventListener("click", close);
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
+  document.body.appendChild(dialog);
+}
+
 function renderPlayerPanel(playerIndex, root) {
   const player = state.players[playerIndex];
   const localPlayerIndex = mobileLocalPlayerIndex();
@@ -19233,6 +19425,7 @@ function renderPlayerPanel(playerIndex, root) {
       passResultClass: passProjection?.winner === "PLAYER" ? "pass-button--winning" : "pass-button--losing",
       passProjectionLabel: passProjection?.label || "Passer",
     })}
+    ${renderUltimateResources(playerIndex)}
     <div class="hand${tutorialFocusClass("hand", playerIndex)}">
       ${player.hand.map((card) => renderCard(playerIndex, card)).join("")}
     </div>
@@ -19247,6 +19440,33 @@ function renderPlayerPanel(playerIndex, root) {
       const playerIndex = Number(button.dataset.pass);
       pass(playerIndex);
       completeTutorialAction({ kind: "pass", playerIndex });
+    });
+  });
+  root.querySelectorAll("[data-ultimate-energy]").forEach((button) => {
+    button.addEventListener("click", () => spendUltimateEnergy(playerIndex, button.dataset.ultimateEnergy));
+  });
+  root.querySelectorAll("[data-open-ultimate-discard]").forEach((button) => {
+    button.addEventListener("click", () => openUltimateDiscard(Number(button.dataset.openUltimateDiscard)));
+  });
+  root.querySelectorAll("[data-use-reserve]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = player.reserve.find((item) => item.uid === button.dataset.useReserve);
+      if (!card || state.gameOver) return;
+      player.reserve = player.reserve.filter((item) => item.uid !== card.uid);
+      card._fromReserve = true;
+      player.hand.push(card);
+      state.log.unshift(`${displayPlayerName(player)} utilise ${card.name} depuis sa réserve : la carte est marquée.`);
+      render();
+    });
+  });
+  root.querySelectorAll("[data-add-reserve]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = player.played.find((item) => item.uid === button.dataset.addReserve);
+      if (!card || isRemise(card) || card._fromReserve || player.reserve.length >= 2) return;
+      player.played = player.played.filter((item) => item.uid !== card.uid);
+      player.reserve.push(card);
+      state.log.unshift(`${displayPlayerName(player)} place ${card.name} dans sa réserve.`);
+      render();
     });
   });
   root.querySelectorAll("[data-end-turn]").forEach((button) => {
@@ -19931,6 +20151,9 @@ function initMenu() {
   els.lobbyModeCards?.forEach((card) => {
     card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
   });
+  els.ultimateModeButton?.addEventListener("click", startUltimateGame);
+  els.ultimateDraftConfirm?.addEventListener("click", confirmUltimateDraft);
+  els.ultimateRulesClose?.addEventListener("click", () => els.ultimateRulesDialog?.classList.add("hidden"));
   els.backToHomeButton?.addEventListener("click", showMenuScreen);
   els.openNewsArchiveButton?.addEventListener("click", showNewsArchiveScreen);
   els.backFromNewsArchiveButton?.addEventListener("click", showMenuScreen);

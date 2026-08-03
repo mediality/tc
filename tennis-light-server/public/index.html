@@ -92,6 +92,12 @@
             <span class="lobby-mode-card-copy"><strong>Circuit Pro</strong><small>Construire votre carrière</small></span>
             <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
           </button>
+          <button id="ultimateModeButton" class="lobby-mode-card lobby-mode-ultimate hidden" type="button" data-required-role="admin">
+            <span class="ultimate-mode-art" aria-hidden="true">ULTIMATE</span>
+            <span class="lobby-mode-icon ultimate-mode-icon" aria-hidden="true">★</span>
+            <span class="lobby-mode-card-copy"><strong>Tennis Courts Ultimate</strong><small>V5 · Decks personnels, draft et énergie</small></span>
+            <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
+          </button>
         </nav>
 
         <section class="home-news-section" aria-labelledby="homeNewsTitle">
@@ -1136,6 +1142,29 @@
         </div>
       </section>
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
+      <section id="ultimateDraftDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimateDraftTitle">
+        <div class="ultimate-dialog-card">
+          <p class="eyebrow">Tennis Courts Ultimate</p>
+          <h2 id="ultimateDraftTitle">Draft 1 sur 3</h2>
+          <p id="ultimateDraftInstruction">Choisissez 2 cartes. La troisième sera défaussée.</p>
+          <div id="ultimateDraftCards" class="ultimate-draft-cards"></div>
+          <button id="ultimateDraftConfirm" class="primary-button" type="button" disabled>Conserver ces 2 cartes</button>
+        </div>
+      </section>
+      <section id="ultimateRulesDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimateRulesTitle">
+        <div class="ultimate-dialog-card ultimate-rules-card">
+          <button id="ultimateRulesClose" class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button>
+          <p class="eyebrow">Règles V5</p><h2 id="ultimateRulesTitle">Tennis Courts Ultimate</h2>
+          <div class="ultimate-rules-grid">
+            <article><strong>Draft</strong><p>Piochez 3 cartes, conservez-en 2 en main et défaussez la troisième. Chaque joueur effectue 3 drafts au début du set.</p></article>
+            <article><strong>Énergie 💡</strong><p>3 énergies maximum. Dépensez-en une à tout moment pour faire une draft ou récupérer immédiatement 2 endurance.</p></article>
+            <article><strong>Fin de l’échange</strong><p>La main est conservée et toute l’endurance revient. L’énergie consommée ne revient pas automatiquement.</p></article>
+            <article><strong>Réserve</strong><p>Jusqu’à 2 cartes COUP visibles. Une carte utilisée depuis la réserve est marquée et ne peut plus être récupérée.</p></article>
+            <article><strong>Pouvoir étoile</strong><p>Deux cartes COUP visibles avec une étoile retournent la carte personnage. Son état est conservé entre les échanges.</p></article>
+            <article><strong>Deck personnel</strong><p>Chaque joueur possède sa pioche, sa défausse et deux emplacements de réserve. Les decks ne sont jamais mélangés.</p></article>
+          </div>
+        </div>
+      </section>
       <section id="tutorialOverlay" class="tutorial-overlay hidden" aria-live="polite"></section>
 
       <section id="desktopMatchScore" class="desktop-match-score" aria-label="Résultats du match"></section>

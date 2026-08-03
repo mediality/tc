@@ -14551,3 +14551,79 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     display: none !important;
   }
 }
+
+/* V5 Ultimate — desktop only. All selectors are scoped to the dedicated mode. */
+.lobby-mode-ultimate {
+  position: relative;
+  overflow: hidden;
+  border-color: #d8b85a;
+  background: linear-gradient(135deg, #101826, #35280e);
+}
+.ultimate-mode-art {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 224, 130, .12);
+  font-size: clamp(2rem, 5vw, 5rem);
+  font-weight: 1000;
+  letter-spacing: .12em;
+  transform: rotate(-7deg);
+}
+.ultimate-mode-icon { color: #ffd76a; font-size: 2rem; }
+.lobby-mode-ultimate .lobby-mode-card-copy { position: relative; z-index: 2; }
+
+.ultimate-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: rgba(3, 8, 18, .84);
+  backdrop-filter: blur(12px);
+}
+.ultimate-dialog.hidden { display: none; }
+.ultimate-dialog-card {
+  position: relative;
+  width: min(980px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 2rem;
+  border: 1px solid rgba(255, 215, 106, .55);
+  border-radius: 24px;
+  color: #f7f7f5;
+  background: linear-gradient(145deg, #141e2d, #090d14);
+  box-shadow: 0 30px 90px #000;
+}
+.ultimate-dialog-card h2 { margin: .2rem 0 .5rem; font-size: 2rem; }
+.ultimate-dialog-close { position: absolute; top: 1rem; right: 1rem; width: 2.5rem; height: 2.5rem; border-radius: 50%; font-size: 1.5rem; }
+.ultimate-rules-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.5rem; }
+.ultimate-rules-grid article { padding: 1rem; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.05); }
+.ultimate-rules-grid strong { color: #ffd76a; }
+.ultimate-rules-grid p { margin: .45rem 0 0; line-height: 1.5; color: #dbe4ec; }
+.ultimate-draft-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+.ultimate-draft-card { display: grid; gap: .65rem; padding: .75rem; border: 2px solid transparent; border-radius: 16px; background: #1d2938; color: #fff; }
+.ultimate-draft-card img { width: 100%; max-height: 48vh; object-fit: contain; border-radius: 10px; }
+.ultimate-draft-card.selected { border-color: #ffd76a; box-shadow: 0 0 0 4px rgba(255,215,106,.16); transform: translateY(-5px); }
+.ultimate-resources { display: flex; align-items: center; gap: .65rem; min-height: 66px; margin: .35rem .75rem; padding: .5rem .65rem; border-radius: 12px; background: rgba(7, 13, 22, .8); color: #fff; }
+.ultimate-energy { display: flex; align-items: center; gap: .4rem; padding-right: .75rem; border-right: 3px solid var(--player-color, #ffd76a); }
+.ultimate-energy > span, .ultimate-reserve-divider { font-size: .68rem; font-weight: 900; letter-spacing: .08em; }
+.ultimate-energy strong { color: #ffd76a; }
+.ultimate-energy button, .ultimate-discard-button, .ultimate-reserve-pick button { padding: .35rem .55rem; border-radius: 7px; font-size: .68rem; }
+.ultimate-reserve { display: flex; align-items: center; gap: .4rem; }
+.ultimate-reserve-divider { padding-right: .35rem; color: #bed0dd; }
+.ultimate-reserve-slot { width: 62px; height: 48px; display: grid; place-items: center; overflow: hidden; border: 1px dashed #728494; border-radius: 8px; font-size: .55rem; color: #b8c6cf; background: #121c27; }
+.ultimate-reserve-slot.filled { position: relative; border-style: solid; color: #fff; }
+.ultimate-reserve-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .55; }
+.ultimate-reserve-slot span { position: relative; z-index: 1; text-shadow: 0 1px 4px #000; }
+.ultimate-reserve-pick { display: flex; align-items: center; gap: .35rem; margin-left: auto; }
+.ultimate-reserve-pick strong { max-width: 110px; font-size: .62rem; color: #ffd76a; }
+.ultimate-discard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: .75rem; margin-top: 1rem; }
+.ultimate-discard-grid article { display: grid; gap: .35rem; padding: .5rem; border-radius: 10px; background: rgba(255,255,255,.06); }
+.ultimate-discard-grid img { width: 100%; max-height: 180px; object-fit: contain; }
+.ultimate-discard-grid strong { font-size: .72rem; }
+
+@media (max-width: 860px) {
+  .lobby-mode-ultimate, .ultimate-dialog, .ultimate-resources { display: none !important; }
+}
