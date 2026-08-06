@@ -10337,9 +10337,28 @@ function runSoloAITurn() {
     } catch (fallbackError) {
       const fallbackMessage = String(fallbackError?.message || fallbackError || "erreur inconnue");
       console.error("IA Ultimate : plan de secours impossible", fallbackError);
-      state.log.unshift(`Sécurité Ultimate : le plan de secours IA a échoué (${fallbackMessage}). L’échange est clôturé sans blocage.`);
+      state.log.unshift(`Sécurité Ultimate : le plan de secours IA a échoué (${fallbackMessage}). Recherche directe d’un coup légal.`);
       recordUltimateDiagnostic("ai_error", { message: fallbackMessage, stage: "fallback" });
-      forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
+      try {
+        if (!soloPrimitiveLegalFallback(SOLO_AI.playerIndex)) {
+          const stillActive = !state.gameOver && state.activePlayer === SOLO_AI.playerIndex;
+          if (stillActive) {
+            recordUltimateDiagnostic("ai_no_legal_action", {
+              stage: "primitive_fallback",
+              playerIndex: SOLO_AI.playerIndex,
+              hand: state.players[SOLO_AI.playerIndex]?.hand?.map(cardLogInfo) || [],
+              endurance: state.players[SOLO_AI.playerIndex]?.endurance ?? null,
+              constraints: constraintsLogInfo(),
+            });
+            pass(SOLO_AI.playerIndex);
+          }
+        }
+      } catch (primitiveError) {
+        const primitiveMessage = String(primitiveError?.message || primitiveError || "erreur inconnue");
+        console.error("IA Ultimate : recherche directe impossible", primitiveError);
+        recordUltimateDiagnostic("ai_error", { message: primitiveMessage, stage: "primitive_fallback" });
+        forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
+      }
     }
   } finally {
     SOLO_AI.executing = false;
@@ -10579,6 +10598,69 @@ function soloEmergencyFallback(playerIndex) {
     return;
   }
   pass(playerIndex);
+}
+
+// Ce dernier filet de sécurité n'utilise aucun score ni aucune projection.
+// Une erreur d'analyse ne doit pas devenir une défaite si un coup légal existe.
+function soloPrimitiveLegalFallback(playerIndex) {
+  if (state.gameOver || state.activePlayer !== playerIndex) return false;
+  if (resolveSoloPendingChoice(true)) return true;
+  const player = state.players[playerIndex];
+  if (!player) return false;
+
+  if (canEndTurn(playerIndex)) {
+    recordSoloAiDecision("primitive_end_turn_after_error");
+    endTurn(playerIndex);
+    return true;
+  }
+
+  const legalCoups = player.hand.filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
+  if (legalCoups.length) {
+    const card = legalCoups.sort((left, right) => (
+      getCardStats(player, right, false).placement - getCardStats(player, left, false).placement
+      || getCardStats(player, right, false).power - getCardStats(player, left, false).power
+      || effectiveCost(player, left, false) - effectiveCost(player, right, false)
+    ))[0];
+    recordSoloAiDecision("primitive_legal_coup_after_error", { card: cardLogInfo(card) });
+    playCard(playerIndex, card.uid);
+    return true;
+  }
+
+  const boostCard = player.hand.find((card) => canPlayBoost(playerIndex, card));
+  if (boostCard) {
+    const sacrifice = player.hand.find((card) => card.uid !== boostCard.uid)
+      || (player.reserve || []).find((card) => card.uid !== boostCard.uid)
+      || (player.ultimateBoostFromDiscard ? (state.ultimateDiscards[playerIndex] || [])[0] : null);
+    if (sacrifice) {
+      recordSoloAiDecision("primitive_legal_boost_after_error", {
+        card: cardLogInfo(boostCard),
+        sacrifice: cardLogInfo(sacrifice),
+      });
+      playCard(playerIndex, boostCard.uid, true, sacrifice.uid);
+      return true;
+    }
+  }
+
+  const placementRemise = player.hand.find((card) => (
+    isRemise(card)
+    && canPlayNormal(playerIndex, card)
+    && getCardStats(player, card, false).placement > 0
+  ));
+  if (placementRemise) {
+    recordSoloAiDecision("primitive_placement_after_error", { card: cardLogInfo(placementRemise) });
+    playCard(playerIndex, placementRemise.uid, false, null, "placement");
+    return true;
+  }
+
+  if (!state.mandatoryPlacement) {
+    const effectCard = player.hand.find((card) => isRemise(card) && canPlayEffectMode(playerIndex, card));
+    if (effectCard) {
+      recordSoloAiDecision("primitive_effect_after_error", { card: cardLogInfo(effectCard) });
+      playCard(playerIndex, effectCard.uid, false, null, "effect");
+      return true;
+    }
+  }
+  return false;
 }
 
 function chooseSoloPlacementDefenseAction(playerIndex) {
@@ -12607,7 +12689,9 @@ function soloImmediateEffectValue(playerIndex, card) {
 function isSoloRemovalWorthCost(playerIndex, card, target) {
   if (!card || !target) return false;
   const player = state.players[playerIndex];
-  const cost = effectiveCost(player, card, boosted);
+  // Cette REMISE est jouée en mode Effet, jamais en BOOST. L'ancien
+  // identifiant non défini interrompait toute l'analyse de l'IA.
+  const cost = effectiveCost(player, card, false);
   const targetValue = removalTargetScore(target);
   const isMandatoryDefense = state.mandatoryPlacement
     && state.mandatoryPlacementSourceUid === target.playedUid;
