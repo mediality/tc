@@ -13,8 +13,8 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.21<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.21\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.22<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.22\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
@@ -28,6 +28,8 @@ assert.match(app, /state\.setMatch\.enabled = true/);
 assert.match(app, /newGame\(\{ preserveSet: true, resetUltimate: true \}\)/);
 assert.match(app, /!resetUltimate && state\.players\.length === 2/);
 assert.match(app, /renderUltimateReserveInHand/);
+assert.match(app, /card-hover-panel ultimate-reserve-hover-panel/);
+assert.match(app, /data-boost-reserve=.*disabled/);
 assert.doesNotMatch(app, /ultimate-profile-avatar/);
 assert.match(ultimateData, /window\.ULTIMATE_CARD_DATA/);
 assert.equal((ultimateData.match(/"player": "Conti"/g) || []).length, 48);
@@ -53,6 +55,7 @@ assert.match(app, /beginUltimateDraft\(0, 0, "set-start"\)/);
 assert.match(app, /openUltimateHandDiscardChoice/);
 assert.match(app, /openUltimateReserveTrimChoice/);
 assert.match(css, /ultimate-reserve-mark/);
+assert.match(css, /ultimate-reserve-actions[\s\S]*pointer-events: auto/);
 assert.match(app, /player\.reserve \|\| \[\]\)\.some\(\(candidate\) => candidate\.uid !== card\.uid\)/);
 assert.match(app, /const choices = \[\.\.\.player\.hand\.filter[\s\S]*\.\.\.reserveChoices, \.\.\.discardChoices\]/);
 assert.match(app, /if \(ULTIMATE_MODE\.active\) ULTIMATE_MODE\.postExchange = null/);

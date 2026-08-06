@@ -20602,10 +20602,10 @@ function renderUltimateReserveInHand(playerIndex) {
     const cost = effectiveCost(player, card);
     const normalAllowed = usable && canPlayNormal(playerIndex, card);
     const boostAllowed = usable && canPlayBoost(playerIndex, card);
-    return `<article class="card has-visual ultimate-reserve-hand-card${usable ? "" : " ultimate-reserve-readonly"}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}">
+    return `<article class="card has-visual ultimate-reserve-hand-card${usable ? "" : " ultimate-reserve-readonly"}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}"${usable ? ' tabindex="0"' : ""}>
       <span class="ultimate-reserve-hand-badge">RÉSERVE</span>
       <button class="card-visual card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(image)}" data-image-label="${escapeHtml(card.name)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" /></button>
-      ${usable ? `<div class="ultimate-reserve-actions"><button class="play-button" type="button" data-use-reserve="${escapeHtml(card.uid)}" aria-label="Jouer ${escapeHtml(card.name)} pour ${cost} endurance" ${normalAllowed ? "" : "disabled"}><span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span></button>${boostAllowed ? `<button class="boost-button" type="button" data-boost-reserve="${escapeHtml(card.uid)}">BOOST</button>` : ""}</div>` : ""}
+      ${usable ? `<div class="card-hover-panel ultimate-reserve-hover-panel"><div class="card-actions ultimate-reserve-actions"><button class="play-button" type="button" data-use-reserve="${escapeHtml(card.uid)}" aria-label="Jouer ${escapeHtml(card.name)} pour ${cost} endurance" ${normalAllowed ? "" : "disabled"}><span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span></button><button class="boost-button" type="button" data-boost-reserve="${escapeHtml(card.uid)}" ${boostAllowed ? "" : "disabled"}>BOOST</button></div></div>` : ""}
     </article>`;
   }).join("")}`;
 }
