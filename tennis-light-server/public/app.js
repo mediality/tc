@@ -8733,10 +8733,11 @@ function completeUltimatePostExchangeDistribution() {
   els.ultimateDraftDialog?.classList.add("hidden");
   els.ultimatePostExchangeDialog?.classList.add("hidden");
   state.log.unshift("Fin de l’échange terminée : réserves choisies et 2 nouvelles cartes attribuées à chaque joueur.");
-  render();
   if (!state.setMatch.setOver && !state.setMatch.matchOver) {
-    window.setTimeout(startNextUltimateExchange, 0);
+    startNextUltimateExchange();
+    return;
   }
+  render();
 }
 
 function startNextUltimateExchange() {
@@ -8842,7 +8843,7 @@ function newGame(options = {}) {
     : null;
   if (ULTIMATE_MODE.active && ULTIMATE_MODE.postExchange?.completed) ULTIMATE_MODE.postExchange = null;
   if (!preserveSet) desktopHistoryExpanded = false;
-  if (SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
+  if (!ULTIMATE_MODE.active && SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut relancer un échange en ligne pour le moment.");
     render();
     return;
