@@ -25,10 +25,13 @@ const sources = [
   "continueUltimatePostExchangeDistribution",
   "completeUltimatePostExchangeDistribution",
   "ensureUltimateNextExchangeStarted",
+  "captureUltimateExchangeTransition",
+  "restoreUltimateExchangeTransition",
+  "validateUltimateExchangeTransition",
   "startNextUltimateExchange",
 ].map(functionSource).join("\n");
 
-function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = false }) {
+function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = false, failFirstTransition = false }) {
   const cards = (prefix, count) => Array.from({ length: count }, (_, index) => ({ uid: `${prefix}-${index}`, name: `${prefix}-${index}`, power: index + 1 }));
   const state = {
     gameOver: true,
@@ -44,6 +47,14 @@ function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = f
   };
   const ULTIMATE_MODE = {
     active: true,
+    playerOrder: [0, 1],
+    aiDifficulty: "normal",
+    draftNumber: 0,
+    draftPlayer: 0,
+    draftPurpose: "post-exchange",
+    draftChoices: [],
+    draftSelected: new Set(),
+    markChoice: null,
     postExchange: {
       winner,
       selectedReserveUid: null,
@@ -62,12 +73,16 @@ function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = f
   const context = {
     state,
     ULTIMATE_MODE,
-    SOLO_AI: { playerIndex: 1 },
+    SOLO_AI: { enabled: true, playerIndex: 1, difficulty: "normal", style: "normal" },
     els: {
       ultimatePostExchangeDialog: { classList: { add() {} } },
       ultimateDraftDialog: { classList: { add() {} } },
     },
     window: { setTimeout(callback) { callback(); } },
+    cloneData: (value) => JSON.parse(JSON.stringify(value)),
+    detachUltimateFromOnlineSession() {},
+    canUseSeat: () => true,
+    ensureUltimateHumanTurnControls() { return true; },
     opponentOf: (index) => index === 0 ? 1 : 0,
     displayPlayerName: (_player) => "Joueur",
     ultimateReserveCandidates(playerIndex) { return state.players[playerIndex].played; },
@@ -101,8 +116,10 @@ function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = f
     auditUltimateRuntime() {},
     newGame() {
       calls.newGame += 1;
+      if (failFirstTransition && calls.newGame === 1) throw new Error("échec simulé de transition");
       state.gameOver = false;
       state.setMatch.exchangeNumber += 1;
+      state.server = 1;
       state.activePlayer = 1;
       ULTIMATE_MODE.postExchange = null;
     },
@@ -114,7 +131,7 @@ function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = f
     assert.equal(calls.draft, 1, "le vainqueur humain doit recevoir sa draft");
     context.completeUltimatePostExchangeDistribution();
   }
-  assert.equal(calls.newGame, 1, "le nouvel échange doit démarrer exactement une fois");
+  assert.equal(calls.newGame, failFirstTransition ? 2 : 1, "le nouvel échange doit démarrer, avec une seule nouvelle tentative si nécessaire");
   assert.equal(state.gameOver, false, "l'état de fin doit être levé");
   assert.equal(state.setMatch.exchangeNumber, 5, "le compteur d'échange doit avancer");
   assert.deepEqual(state.players.map((player) => player.played.length), [0, 0], "le plateau doit être vidé");
@@ -130,5 +147,6 @@ runScenario({ winner: 1, reserveChoice: false });
 const trimCalls = runScenario({ winner: 1, reserveChoice: true, initialReserve: 2 });
 assert.equal(trimCalls.trim, 1, "une réserve de trois cartes doit passer par le choix de suppression");
 runScenario({ winner: 0, reserveChoice: true, legacyFlow: true });
+runScenario({ winner: 1, reserveChoice: true, failFirstTransition: true });
 
 console.log("V5.15 Ultimate post-exchange scenarios passed.");

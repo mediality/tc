@@ -59,6 +59,7 @@ function functionSource(name) {
     HUMAN_MATCH_TELEMETRY: { active: null, forceNew: false },
     ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY: "unused",
     cloneData: (value) => JSON.parse(JSON.stringify(value)),
+    detachUltimateFromOnlineSession() { context.SERVER_SYNC.enabled = false; },
     resetTutorialMode() {},
     auditUltimateRuntime() {},
     writeStoredJson() {},

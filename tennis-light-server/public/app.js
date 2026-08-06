@@ -2199,6 +2199,8 @@ const els = {
 
 function serverSyncParams() {
   const params = new URLSearchParams(window.location.search);
+  // Une partie locale restaurable est prioritaire sur d'anciens paramètres de salon.
+  if (params.has(LOCAL_MOBILE_MATCH_QUERY)) return null;
   if (!params.has("room") || !params.has("token") || !params.has("seat")) return null;
   return {
     roomId: params.get("room"),
@@ -4521,7 +4523,7 @@ function restoreStateSnapshot(snapshot) {
     ULTIMATE_MODE.draftSelected = new Set(Array.isArray(restoredUltimate?.draftSelected) ? restoredUltimate.draftSelected : []);
     ULTIMATE_MODE.turnSafetyTimer = null;
     ULTIMATE_MODE.turnRecoveryTimer = null;
-    SERVER_SYNC.enabled = false;
+    detachUltimateFromOnlineSession();
     SOLO_AI.enabled = true;
     SOLO_AI.playerIndex = 1;
   } else {
@@ -5327,6 +5329,8 @@ function resetTutorialExchange(players, hands, server = 0, activePlayer = server
   state.mandatoryPlacementReason = null;
   state.mandatoryPlacementSourceUid = null;
   state.openingServePlayed = false;
+  state.returnServiceRestrictionFor = null;
+  state.returnServiceRestrictionSpent = [false, false];
   state.returnServiceRestrictionFor = null;
   state.returnServiceRestrictionSpent = [false, false];
   state.turnPlacement = [0, 0];
@@ -8913,33 +8917,165 @@ function ensureUltimateNextExchangeStarted(completedExchangeNumber) {
   return startNextUltimateExchange(completedExchangeNumber);
 }
 
+function captureUltimateExchangeTransition() {
+  return {
+    state: cloneData(state),
+    soloAi: {
+      enabled: SOLO_AI.enabled,
+      playerIndex: SOLO_AI.playerIndex,
+      difficulty: SOLO_AI.difficulty,
+      style: SOLO_AI.style,
+    },
+    ultimateMode: {
+      active: ULTIMATE_MODE.active,
+      playerOrder: [...ULTIMATE_MODE.playerOrder],
+      aiDifficulty: ULTIMATE_MODE.aiDifficulty,
+      draftNumber: ULTIMATE_MODE.draftNumber,
+      draftPlayer: ULTIMATE_MODE.draftPlayer,
+      draftPurpose: ULTIMATE_MODE.draftPurpose,
+      draftChoices: cloneData(ULTIMATE_MODE.draftChoices || []),
+      draftSelected: [...ULTIMATE_MODE.draftSelected],
+      postExchange: cloneData(ULTIMATE_MODE.postExchange),
+      markChoice: cloneData(ULTIMATE_MODE.markChoice),
+    },
+  };
+}
+
+function restoreUltimateExchangeTransition(snapshot) {
+  Object.keys(state).forEach((key) => delete state[key]);
+  Object.assign(state, cloneData(snapshot.state));
+  Object.assign(SOLO_AI, snapshot.soloAi, {
+    thinking: false,
+    executing: false,
+    recoveryTurnKey: null,
+    recoveryCount: 0,
+  });
+  Object.assign(ULTIMATE_MODE, cloneData(snapshot.ultimateMode), {
+    draftSelected: new Set(snapshot.ultimateMode.draftSelected || []),
+    turnSafetyTimer: null,
+    turnRecoveryTimer: null,
+  });
+}
+
+function validateUltimateExchangeTransition(completedExchangeNumber, preservedReserveUids) {
+  const issues = [];
+  if (state.gameOver) issues.push("l'échange est encore terminé");
+  if (Number(state.setMatch?.exchangeNumber || 0) <= completedExchangeNumber) issues.push("le numéro d'échange n'a pas avancé");
+  if (state.activePlayer !== state.server) issues.push("le serveur n'est pas le joueur actif");
+  if (state.lastCard) issues.push("l'ancienne dernière carte est encore active");
+  state.players.forEach((player, playerIndex) => {
+    if ((player.played || []).length) issues.push(`le plateau du joueur ${playerIndex} n'est pas vide`);
+    const currentReserve = new Set((player.reserve || []).map((card) => card.uid));
+    preservedReserveUids[playerIndex].forEach((uid) => {
+      if (!currentReserve.has(uid)) issues.push(`la carte de réserve ${uid} du joueur ${playerIndex} a disparu`);
+    });
+  });
+  if (state.activePlayer === 0 && !canUseSeat(0)) issues.push("le siège humain actif n'est pas jouable");
+  if (state.activePlayer === 1 && (!SOLO_AI.enabled || SOLO_AI.playerIndex !== 1)) issues.push("l'IA active n'est pas affectée au bon siège");
+  return issues;
+}
+
 function startNextUltimateExchange(completedExchangeNumber = Number(state.setMatch.exchangeNumber || 0)) {
   if (!ULTIMATE_MODE.active || state.setMatch.setOver || state.setMatch.matchOver) return false;
   if (!state.gameOver && Number(state.setMatch.exchangeNumber || 0) > completedExchangeNumber) return true;
-  const preservedReserves = state.players.map((player) => [...(player.reserve || [])]);
+  const rollback = captureUltimateExchangeTransition();
+  const preservedReserves = rollback.state.players.map((player) => cloneData(player.reserve || []));
+  const preservedReserveUids = preservedReserves.map((cards) => cards.map((card) => card.uid));
+  const failures = [];
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    if (attempt > 1) restoreUltimateExchangeTransition(rollback);
+    try {
+      detachUltimateFromOnlineSession();
+      SOLO_AI.enabled = true;
+      SOLO_AI.playerIndex = 1;
+      state.players.forEach((player, playerIndex) => {
+        const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
+        const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
+        if (!Array.isArray(state.ultimateDiscards[playerIndex])) state.ultimateDiscards[playerIndex] = [];
+        state.ultimateDiscards[playerIndex].push(...toDiscard);
+        player.played = [];
+      });
+      newGame({ preserveSet: true, serverOverride: nextSetServer() });
+      state.players.forEach((player, playerIndex) => {
+        const reserveByUid = new Map([...(player.reserve || []), ...preservedReserves[playerIndex]].map((card) => [card.uid, card]));
+        player.reserve = [...reserveByUid.values()].slice(-2);
+        const reservedUids = new Set(player.reserve.map((card) => card.uid));
+        player.hand = (player.hand || []).filter((card) => !reservedUids.has(card.uid));
+        player.played = [];
+      });
+      const issues = validateUltimateExchangeTransition(completedExchangeNumber, preservedReserveUids);
+      if (issues.length) throw new Error(issues.join(" · "));
+
+      recordUltimateDiagnostic("ultimate_exchange_started", { attempt, server: state.server, activePlayer: state.activePlayer });
+      recordUltimateDiagnostic("ultimate_exchange_transaction_success", { attempt, server: state.server, activePlayer: state.activePlayer });
+      auditUltimateRuntime("exchange-start");
+      render();
+      window.setTimeout(() => {
+        ensureUltimateHumanTurnControls();
+        if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
+      }, 180);
+      return true;
+    } catch (error) {
+      failures.push(`tentative ${attempt} : ${String(error?.message || error)}`);
+    }
+  }
+
+  restoreUltimateExchangeTransition(rollback);
+  recordUltimateDiagnostic("ultimate_exchange_transaction_failure", { message: failures.join(" | "), failures });
+  // Repli déterministe : aucun dialogue ni minuterie ne doit pouvoir maintenir
+  // la partie sur l'échange terminé, même si une étape secondaire a échoué.
+  detachUltimateFromOnlineSession();
+  SOLO_AI.enabled = true;
+  SOLO_AI.playerIndex = 1;
+  const fallbackServer = nextSetServer();
   state.players.forEach((player, playerIndex) => {
     const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
     const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
     if (!Array.isArray(state.ultimateDiscards[playerIndex])) state.ultimateDiscards[playerIndex] = [];
     state.ultimateDiscards[playerIndex].push(...toDiscard);
-    player.played = [];
-  });
-  const server = nextSetServer();
-  newGame({ preserveSet: true, serverOverride: server });
-  state.players.forEach((player, playerIndex) => {
-    const reserveByUid = new Map([...(player.reserve || []), ...preservedReserves[playerIndex]].map((card) => [card.uid, card]));
-    player.reserve = [...reserveByUid.values()].slice(-2);
-    const reservedUids = new Set(player.reserve.map((card) => card.uid));
+    player.reserve = preservedReserves[playerIndex];
     player.hand = (player.hand || []).filter((card) => !reservedUids.has(card.uid));
     player.played = [];
+    player.endurance = STARTING_ENDURANCE + Number(player.ultimateNextExchangeEndurance || 0);
+    player.ultimateNextExchangeEndurance = 0;
   });
-  recordUltimateDiagnostic("ultimate_exchange_started", { server: state.server, activePlayer: state.activePlayer });
-  auditUltimateRuntime("exchange-start");
+  state.server = fallbackServer;
+  state.activePlayer = fallbackServer;
+  state.lastCard = null;
+  state.latestPlayedCard = null;
+  state.boostAvailableFor = null;
+  state.mandatoryPlacement = false;
+  state.mandatoryPlacementReason = null;
+  state.mandatoryPlacementSourceUid = null;
+  state.openingServePlayed = false;
+  state.turnPlacement = [0, 0];
+  state.turnEffectPlacement = [0, 0];
+  state.turnHasEffect = [false, false];
+  state.turnIgnoresPlacement = [false, false];
+  state.turnCannotOpenBoost = [false, false];
+  state.turnPlayedCards = [[], []];
+  state.pendingBoost = null;
+  state.pendingEffectChoice = null;
+  state.pendingCoachChoice = null;
+  state.pendingRemoveChoice = null;
+  state.pendingEndTurnAfterChoice = null;
+  state.effectNotice = null;
+  state.resultInfo = null;
+  state.turnDirty = false;
+  state.gameOver = false;
+  state.setMatch.exchangeNumber = Math.max(completedExchangeNumber + 1, Number(state.setMatch.exchangeNumber || 0));
+  state.setMatch.previousServer = fallbackServer;
+  ULTIMATE_MODE.postExchange = null;
+  state.log = [`${playerName(fallbackServer)} sert. L'échange commence après récupération automatique.`];
+  captureTurnSnapshot();
+  recordUltimateDiagnostic("ultimate_exchange_transaction_fallback", { failures, server: fallbackServer, activePlayer: fallbackServer });
   render();
   window.setTimeout(() => {
-    if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
+    ensureUltimateHumanTurnControls();
+    if (state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
   }, 180);
-  return !state.gameOver && Number(state.setMatch.exchangeNumber || 0) > completedExchangeNumber;
+  return true;
 }
 
 function spendUltimateEnergy(playerIndex, action, confirmed = false) {
@@ -8977,6 +9113,7 @@ function openUltimateEnergyChoice(playerIndex) {
 
 function startUltimateGame() {
   if (!canAccessUltimateFeatures()) return;
+  detachUltimateFromOnlineSession();
   const replayingCompletedUltimateMatch = ULTIMATE_MODE.active && state.gameOver && state.setMatch?.matchOver;
   if (replayingCompletedUltimateMatch) {
     state.players.forEach((player) => {
@@ -8999,6 +9136,18 @@ function startUltimateGame() {
   els.ultimatePostExchangeDialog?.classList.add("hidden");
   showGameScreen();
   els.ultimatePlayerDialog?.classList.remove("hidden");
+}
+
+function detachUltimateFromOnlineSession() {
+  SERVER_SYNC.enabled = false;
+  SERVER_SYNC.ready = false;
+  SERVER_SYNC.initializing = false;
+  window.clearTimeout(SERVER_SYNC.timer);
+  window.clearInterval(SERVER_SYNC.pollTimer);
+  const params = new URLSearchParams(window.location.search);
+  ["room", "token", "seat", "host", "targetSets", "friendlyTournament", "participant", "spectator"].forEach((key) => params.delete(key));
+  const query = params.toString();
+  window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
 }
 
 function confirmUltimatePlayer(characterIndex) {
@@ -9031,7 +9180,7 @@ function newGame(options = {}) {
   if (ULTIMATE_MODE.active && ULTIMATE_MODE.postExchange?.completed) ULTIMATE_MODE.postExchange = null;
   if (!preserveSet) desktopHistoryExpanded = false;
   if (ULTIMATE_MODE.active) {
-    SERVER_SYNC.enabled = false;
+    detachUltimateFromOnlineSession();
     SOLO_AI.enabled = true;
     SOLO_AI.playerIndex = 1;
   }
@@ -17618,8 +17767,36 @@ function runRenderStep(label, callback) {
     return callback();
   } catch (error) {
     console.error(`Affichage interrompu · ${label}`, error);
+    recordUltimateDiagnostic("render_error", { stage: label, message: String(error?.message || error || "erreur inconnue") });
     return null;
   }
+}
+
+function ensureUltimateHumanTurnControls() {
+  if (!ULTIMATE_MODE.active || state.gameOver || !canUseSeat(0)) return true;
+  const player = state.players[0];
+  const displayedReserveUids = new Set([...els.player1Panel?.querySelectorAll(".ultimate-reserve-hand-card") || []].map((element) => element.dataset.handCardUid));
+  const missingReserveUids = (player.reserve || []).map((card) => card.uid).filter((uid) => !displayedReserveUids.has(uid));
+  const cards = [...(player.hand || []), ...(player.reserve || [])];
+  const hasLegalCard = cards.some((card) => canPlayNormal(0, card) || (isRemise(card) && canPlayEffectMode(0, card)));
+  const enabledSelector = '.hand .play-button:not([disabled]), .hand .boost-button:not([disabled]), [data-pass]:not([disabled])';
+  const missingControls = state.activePlayer === 0 && hasLegalCard && !els.player1Panel?.querySelector(enabledSelector);
+  if (!missingControls && !missingReserveUids.length) return true;
+  recordUltimateDiagnostic("ultimate_controls_rebuild", {
+    message: missingReserveUids.length
+      ? `La réserve enregistrée n'était pas entièrement affichée (${missingReserveUids.join(", ")}).`
+      : "Le joueur était actif avec une action légale mais aucun contrôle jouable n’était affiché.",
+    missingReserveUids,
+  });
+  renderPlayerPanel(0, els.player1Panel);
+  const repairedReserveUids = new Set([...els.player1Panel?.querySelectorAll(".ultimate-reserve-hand-card") || []].map((element) => element.dataset.handCardUid));
+  const reserveRepaired = (player.reserve || []).every((card) => repairedReserveUids.has(card.uid));
+  const controlsRepaired = !missingControls || Boolean(els.player1Panel?.querySelector(enabledSelector));
+  const repaired = reserveRepaired && controlsRepaired;
+  if (!repaired) {
+    recordUltimateDiagnostic("ultimate_invariant_failure", { message: "La reconstruction du panneau humain n’a pas restauré toute la réserve ou ses contrôles." });
+  }
+  return repaired;
 }
 
 function render() {
@@ -17660,6 +17837,7 @@ function render() {
   }
   runRenderStep("notification interface", () => window.dispatchEvent(new CustomEvent("tennis-light:match-render")));
   runRenderStep("sauvegarde locale", scheduleLocalMobileMatchSave);
+  window.queueMicrotask(() => runRenderStep("contrôles du tour humain", ensureUltimateHumanTurnControls));
 }
 
 function adjustCardMagnificationOrigins(root = document) {
