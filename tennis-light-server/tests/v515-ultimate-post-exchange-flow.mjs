@@ -96,6 +96,9 @@ function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = f
     },
     nextSetServer: () => 1,
     maybeRunSoloAI() {},
+    render() {},
+    recordUltimateDiagnostic() {},
+    auditUltimateRuntime() {},
     newGame() {
       calls.newGame += 1;
       state.gameOver = false;
@@ -116,6 +119,7 @@ function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = f
   assert.equal(state.setMatch.exchangeNumber, 5, "le compteur d'échange doit avancer");
   assert.deepEqual(state.players.map((player) => player.played.length), [0, 0], "le plateau doit être vidé");
   assert.equal(state.players[winner === 0 ? 1 : 0].hand.length, 2, "le perdant doit piocher deux cartes");
+  if (reserveChoice) assert.ok(state.players[0].reserve.length >= 1, "la réserve humaine doit survivre au démarrage de l'échange suivant");
   return calls;
 }
 

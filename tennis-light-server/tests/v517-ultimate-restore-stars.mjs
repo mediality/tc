@@ -54,11 +54,13 @@ function functionSource(name) {
   const context = {
     state,
     SOLO_AI: {},
+    SERVER_SYNC: { enabled: true },
     ULTIMATE_MODE: { active: false, draftSelected: new Set(), turnSafetyTimer: 99, turnRecoveryTimer: 100 },
     HUMAN_MATCH_TELEMETRY: { active: null, forceNew: false },
     ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY: "unused",
     cloneData: (value) => JSON.parse(JSON.stringify(value)),
     resetTutorialMode() {},
+    auditUltimateRuntime() {},
     writeStoredJson() {},
   };
   const snapshot = {
@@ -73,6 +75,8 @@ function functionSource(name) {
   assert.equal(context.ULTIMATE_MODE.aiDifficulty, "expert");
   assert.deepEqual([...context.ULTIMATE_MODE.draftSelected], ["card-a"]);
   assert.equal(context.SOLO_AI.enabled, true);
+  assert.equal(context.SOLO_AI.playerIndex, 1);
+  assert.equal(context.SERVER_SYNC.enabled, false);
   assert.equal(context.SOLO_AI.thinking, false);
   assert.equal(context.SOLO_AI.executing, false);
 }

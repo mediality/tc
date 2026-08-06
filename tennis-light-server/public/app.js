@@ -2169,6 +2169,7 @@ const els = {
   newsArchiveList: document.querySelector("#newsArchiveList"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
+  ultimateExportLogsButton: document.querySelector("#ultimateExportLogsButton"),
   exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
   setModeButton: document.querySelector("#setModeButton"),
@@ -4520,11 +4521,15 @@ function restoreStateSnapshot(snapshot) {
     ULTIMATE_MODE.draftSelected = new Set(Array.isArray(restoredUltimate?.draftSelected) ? restoredUltimate.draftSelected : []);
     ULTIMATE_MODE.turnSafetyTimer = null;
     ULTIMATE_MODE.turnRecoveryTimer = null;
+    SERVER_SYNC.enabled = false;
+    SOLO_AI.enabled = true;
+    SOLO_AI.playerIndex = 1;
   } else {
     ULTIMATE_MODE.active = false;
     ULTIMATE_MODE.postExchange = null;
     ULTIMATE_MODE.markChoice = null;
   }
+  auditUltimateRuntime("restore");
   if (snapshot.humanMatchTelemetry?.status === "active") {
     HUMAN_MATCH_TELEMETRY.active = cloneData(snapshot.humanMatchTelemetry);
     HUMAN_MATCH_TELEMETRY.forceNew = false;
@@ -8008,7 +8013,7 @@ function recordAction(kind, payload = {}) {
     createdAt: new Date().toISOString(),
     kind,
     ...payload,
-    mode: SERVER_SYNC.enabled ? "online" : state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : "local",
+    mode: ULTIMATE_MODE.active ? "ultimate-ai" : SERVER_SYNC.enabled ? "online" : state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : "local",
     playMode,
     exchangeNumber: state.setMatch.exchangeNumber,
     setScore: state.setMatch.enabled ? [...state.setMatch.score] : null,
@@ -8378,8 +8383,100 @@ function permanentBonusLogLine(player) {
   return `Bonus de ${displayPlayerName(player)} : ${details}.`;
 }
 
+function analyzeUltimateDiagnostic(actions) {
+  const ultimateActions = actions.filter((entry) => entry.ultimate || entry.mode === "ultimate-ai");
+  const issues = [];
+  for (const entry of ultimateActions) {
+    if (entry.kind === "ai_error") issues.push({ severity: "critical", actionId: entry.actionId, message: entry.message });
+    if (entry.kind === "ultimate_invariant_failure") issues.push({ severity: "critical", actionId: entry.actionId, message: entry.message, snapshot: entry.snapshot });
+  }
+  const latest = ultimateActions.at(-1) || null;
+  if (ULTIMATE_MODE.active && !state.gameOver && state.activePlayer === 0 && !canUseSeat(0)) {
+    issues.push({ severity: "critical", message: "Le joueur humain est actif mais son siège n’est pas jouable.", snapshot: ultimateDiagnosticSnapshot() });
+  }
+  return {
+    status: issues.some((issue) => issue.severity === "critical") ? "anomaly" : "ok",
+    issueCount: issues.length,
+    issues,
+    latestAction: latest,
+    currentSnapshot: ULTIMATE_MODE.active ? ultimateDiagnosticSnapshot() : null,
+  };
+}
+
+function ultimateDiagnosticSnapshot() {
+  return {
+    exchangeNumber: Number(state.setMatch?.exchangeNumber || 0),
+    score: [...(state.setMatch?.score || [])],
+    gameOver: Boolean(state.gameOver),
+    server: state.server,
+    activePlayer: state.activePlayer,
+    soloAi: {
+      enabled: SOLO_AI.enabled,
+      playerIndex: SOLO_AI.playerIndex,
+      thinking: SOLO_AI.thinking,
+      executing: SOLO_AI.executing,
+    },
+    players: state.players.map((player, playerIndex) => ({
+      playerIndex,
+      name: displayPlayerName(player),
+      endurance: player.endurance,
+      energy: player.energy,
+      power: player.power,
+      hand: (player.hand || []).map(cardLogInfo),
+      reserve: (player.reserve || []).map(cardLogInfo),
+      played: (player.played || []).map(cardLogInfo),
+    })),
+    constraints: constraintsLogInfo(),
+    postExchange: cloneData(ULTIMATE_MODE.postExchange),
+  };
+}
+
+function recordUltimateDiagnostic(kind, payload = {}) {
+  if (!ULTIMATE_MODE.active) return;
+  try {
+    recordAction(kind, { ...payload, ultimate: true, snapshot: ultimateDiagnosticSnapshot() });
+  } catch (error) {
+    console.error("Journal diagnostic Ultimate indisponible", error);
+  }
+}
+
+function auditUltimateRuntime(stage) {
+  if (!ULTIMATE_MODE.active) return [];
+  const issues = [];
+  const exchangeNumber = Number(state.setMatch?.exchangeNumber || 0);
+  if (SOLO_AI.playerIndex !== 1 || !SOLO_AI.enabled || SERVER_SYNC.enabled) {
+    issues.push("Attribution des sièges Ultimate invalide");
+    SERVER_SYNC.enabled = false;
+    SOLO_AI.enabled = true;
+    SOLO_AI.playerIndex = 1;
+  }
+  state.players.forEach((player, playerIndex) => {
+    if (!Array.isArray(player.reserve)) player.reserve = [];
+    if (player.reserve.length > 2) {
+      issues.push(`Réserve du joueur ${playerIndex} supérieure à 2 cartes`);
+      const overflow = player.reserve.splice(0, player.reserve.length - 2);
+      if (!Array.isArray(state.ultimateDiscards[playerIndex])) state.ultimateDiscards[playerIndex] = [];
+      state.ultimateDiscards[playerIndex].push(...overflow);
+    }
+    const stalePlayed = (player.played || []).filter((card) => (
+      card.ultimateOfficial && Number(card.ultimateExchangeNumber || exchangeNumber) !== exchangeNumber
+    ));
+    if (stalePlayed.length) {
+      issues.push(`${stalePlayed.length} carte(s) ancienne(s) encore sur le plateau du joueur ${playerIndex}`);
+      const staleUids = new Set(stalePlayed.map((card) => card.playedUid || card.uid));
+      player.played = player.played.filter((card) => !staleUids.has(card.playedUid || card.uid));
+      state.ultimateDiscards[playerIndex].push(...stalePlayed);
+    }
+  });
+  if (!state.gameOver && state.activePlayer === 0 && !canUseSeat(0)) {
+    issues.push("Le joueur humain actif ne pouvait pas utiliser son siège");
+  }
+  if (issues.length) recordUltimateDiagnostic("ultimate_invariant_failure", { stage, message: issues.join(" · "), issues });
+  return issues;
+}
+
 function exportLogsFile() {
-  if (!canAccessAdminFeatures()) return;
+  if (!canAccessAdminFeatures() && !(ULTIMATE_MODE.active && canAccessUltimateFeatures())) return;
   const detailedActions = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
   const exchangeResults = getStoredMatchLogs();
   const payload = {
@@ -8395,6 +8492,7 @@ function exportLogsFile() {
     coachJuActions: detailedActions.filter((entry) => entry.playerIndex === 0 || entry.coachJuFocus),
     detailedActions,
     exchangeResults,
+    ultimateAnalysis: analyzeUltimateDiagnostic(detailedActions),
   };
   downloadJsonFile(payload, "tennis-courts-academy-logs");
 }
@@ -8707,11 +8805,12 @@ function beginUltimatePostExchange(winner) {
 function reserveUltimateCard(playerIndex, cardUid) {
   if (!cardUid) return false;
   const player = state.players[playerIndex];
-  const card = ultimateReserveCandidates(playerIndex).find((candidate) => candidate.uid === cardUid);
+  const card = (player.played || []).find((candidate) => candidate.uid === cardUid && !isRemise(candidate) && !candidate.removed);
   if (!card) return false;
   player.played = player.played.filter((candidate) => candidate.uid !== card.uid);
   player.reserve.push(card);
   state.log.unshift(`${displayPlayerName(player)} conserve ${card.name} dans sa réserve.`);
+  recordUltimateDiagnostic("ultimate_reserve_added", { playerIndex, card: cardLogInfo(card) });
   return true;
 }
 
@@ -8817,6 +8916,7 @@ function ensureUltimateNextExchangeStarted(completedExchangeNumber) {
 function startNextUltimateExchange(completedExchangeNumber = Number(state.setMatch.exchangeNumber || 0)) {
   if (!ULTIMATE_MODE.active || state.setMatch.setOver || state.setMatch.matchOver) return false;
   if (!state.gameOver && Number(state.setMatch.exchangeNumber || 0) > completedExchangeNumber) return true;
+  const preservedReserves = state.players.map((player) => [...(player.reserve || [])]);
   state.players.forEach((player, playerIndex) => {
     const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
     const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
@@ -8826,6 +8926,16 @@ function startNextUltimateExchange(completedExchangeNumber = Number(state.setMat
   });
   const server = nextSetServer();
   newGame({ preserveSet: true, serverOverride: server });
+  state.players.forEach((player, playerIndex) => {
+    const reserveByUid = new Map([...(player.reserve || []), ...preservedReserves[playerIndex]].map((card) => [card.uid, card]));
+    player.reserve = [...reserveByUid.values()].slice(-2);
+    const reservedUids = new Set(player.reserve.map((card) => card.uid));
+    player.hand = (player.hand || []).filter((card) => !reservedUids.has(card.uid));
+    player.played = [];
+  });
+  recordUltimateDiagnostic("ultimate_exchange_started", { server: state.server, activePlayer: state.activePlayer });
+  auditUltimateRuntime("exchange-start");
+  render();
   window.setTimeout(() => {
     if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
   }, 180);
@@ -8920,6 +9030,11 @@ function newGame(options = {}) {
     : null;
   if (ULTIMATE_MODE.active && ULTIMATE_MODE.postExchange?.completed) ULTIMATE_MODE.postExchange = null;
   if (!preserveSet) desktopHistoryExpanded = false;
+  if (ULTIMATE_MODE.active) {
+    SERVER_SYNC.enabled = false;
+    SOLO_AI.enabled = true;
+    SOLO_AI.playerIndex = 1;
+  }
   if (!ULTIMATE_MODE.active && SERVER_SYNC.enabled && SERVER_SYNC.ready && !SERVER_SYNC.isHost) {
     state.log.unshift("Seul l'hôte peut relancer un échange en ligne pour le moment.");
     render();
@@ -9819,6 +9934,13 @@ function runSoloAITurn() {
   SOLO_AI.executing = true;
   const beforeSignature = soloTurnSignature();
   try {
+    recordUltimateDiagnostic("ai_thinking_started", {
+      playerIndex: SOLO_AI.playerIndex,
+      signature: beforeSignature,
+      style: SOLO_AI.style,
+      attitude: SOLO_AI.attitude,
+      plan: soloPlanLogInfo(SOLO_AI.plan),
+    });
     if (resolveSoloPendingChoice()) {
       ensureSoloProgress(beforeSignature);
       return;
@@ -10037,12 +10159,14 @@ function runSoloAITurn() {
     const decisionError = String(error?.message || error || "erreur inconnue");
     console.error("IA Ultimate : décision impossible", error);
     state.log.unshift(`IA Coach Max : décision impossible (${decisionError}), plan de secours activé.`);
+    recordUltimateDiagnostic("ai_error", { message: decisionError, stage: "decision" });
     try {
       soloEmergencyFallback(SOLO_AI.playerIndex);
     } catch (fallbackError) {
       const fallbackMessage = String(fallbackError?.message || fallbackError || "erreur inconnue");
       console.error("IA Ultimate : plan de secours impossible", fallbackError);
       state.log.unshift(`Sécurité Ultimate : le plan de secours IA a échoué (${fallbackMessage}). L’échange est clôturé sans blocage.`);
+      recordUltimateDiagnostic("ai_error", { message: fallbackMessage, stage: "fallback" });
       forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
     }
   } finally {
@@ -17499,6 +17623,7 @@ function runRenderStep(label, callback) {
 }
 
 function render() {
+  runRenderStep("audit Ultimate", () => auditUltimateRuntime("render"));
   runRenderStep("reprise IA", ensureSoloAIForSet);
   runRenderStep("boutons de mode", renderModeButtons);
   runRenderStep("contexte", renderGameContextStrip);
@@ -17743,6 +17868,7 @@ function renderModeButtons() {
     els.revealAiButton.textContent = state.revealAiCards ? "Main révélée" : "Révéler la main";
   }
   els.exportLogsButton?.classList.toggle("hidden", !isAdminPlayer);
+  els.ultimateExportLogsButton?.classList.toggle("hidden", !(ULTIMATE_MODE.active && canAccessUltimateFeatures() && !SPECTATOR_MODE.enabled));
   els.exportHumanMatchesButton?.classList.toggle("hidden", !isAdminPlayer);
 }
 
@@ -21392,6 +21518,7 @@ els.adminGameToolsButton?.addEventListener("click", () => {
 els.adminSimulateScoreButton?.addEventListener("click", () => runAdminGameTool(simulateAdminMatchScore));
 els.revealAiButton?.addEventListener("click", () => runAdminGameTool(toggleRevealAiCards));
 els.exportLogsButton?.addEventListener("click", () => runAdminGameTool(exportLogsFile));
+els.ultimateExportLogsButton?.addEventListener("click", exportLogsFile);
 els.exportHumanMatchesButton?.addEventListener("click", () => runAdminGameTool(exportHumanMatchLogsFile));
 els.rallyFullLogButton?.addEventListener("click", openFullActionLogDialog);
 document.addEventListener("click", (event) => {
