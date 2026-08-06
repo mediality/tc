@@ -13,8 +13,8 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.14<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.14\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.15<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.15\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
@@ -79,6 +79,8 @@ assert.match(app, /function ensureUltimateNextExchangeStarted/);
 assert.match(app, /window\.setTimeout\(\(\) => ensureUltimateNextExchangeStarted\(completedExchangeNumber\), 350\)/);
 assert.match(app, /flow\.distributionStarted = true/);
 assert.match(app, /flow\.phase = "winner-draft"/);
+assert.match(app, /if \(!flow\.phase\) flow\.phase = "reserve"/);
+assert.match(app, /choix de réserve non bloquant/);
 assert.doesNotMatch(app, /function startNextUltimateExchange\([^)]*\) \{\s*if \(!ULTIMATE_MODE\.active \|\| !state\.gameOver/);
 assert.match(app, /if \(!ULTIMATE_MODE\.active && SERVER_SYNC\.enabled/);
 assert.match(app, /function openUltimateMarkChoice/);

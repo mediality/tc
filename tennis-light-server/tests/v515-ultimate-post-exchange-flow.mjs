@@ -28,7 +28,7 @@ const sources = [
   "startNextUltimateExchange",
 ].map(functionSource).join("\n");
 
-function runScenario({ winner, reserveChoice, initialReserve = 0 }) {
+function runScenario({ winner, reserveChoice, initialReserve = 0, legacyFlow = false }) {
   const cards = (prefix, count) => Array.from({ length: count }, (_, index) => ({ uid: `${prefix}-${index}`, name: `${prefix}-${index}`, power: index + 1 }));
   const state = {
     gameOver: true,
@@ -53,6 +53,11 @@ function runScenario({ winner, reserveChoice, initialReserve = 0 }) {
       completedExchangeNumber: 4,
     },
   };
+  if (legacyFlow) {
+    delete ULTIMATE_MODE.postExchange.phase;
+    delete ULTIMATE_MODE.postExchange.distributionStarted;
+    delete ULTIMATE_MODE.postExchange.completedExchangeNumber;
+  }
   const calls = { draft: 0, newGame: 0, trim: 0 };
   const context = {
     state,
@@ -120,5 +125,6 @@ runScenario({ winner: 1, reserveChoice: true });
 runScenario({ winner: 1, reserveChoice: false });
 const trimCalls = runScenario({ winner: 1, reserveChoice: true, initialReserve: 2 });
 assert.equal(trimCalls.trim, 1, "une réserve de trois cartes doit passer par le choix de suppression");
+runScenario({ winner: 0, reserveChoice: true, legacyFlow: true });
 
-console.log("V5.14 Ultimate post-exchange scenarios passed.");
+console.log("V5.15 Ultimate post-exchange scenarios passed.");

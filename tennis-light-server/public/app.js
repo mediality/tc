@@ -8632,6 +8632,11 @@ function ultimateReserveCandidates(playerIndex) {
 function renderUltimatePostExchangeChoice() {
   const flow = ULTIMATE_MODE.postExchange;
   if (!flow || flow.completed || !els.ultimatePostExchangeDialog) return;
+  if (!flow.phase) flow.phase = "reserve";
+  if (typeof flow.distributionStarted !== "boolean") flow.distributionStarted = false;
+  if (!Number.isFinite(Number(flow.completedExchangeNumber))) {
+    flow.completedExchangeNumber = Number(state.setMatch.exchangeNumber || 0);
+  }
   const candidates = ultimateReserveCandidates(0);
   els.ultimatePostExchangeTitle.textContent = `${ultimatePlayerConfig(0).name} · choisir une carte pour la réserve`;
   els.ultimatePostExchangeInstruction.textContent = candidates.length
@@ -8681,15 +8686,30 @@ function reserveUltimateCard(playerIndex, cardUid) {
 
 function resolveUltimateReserveChoice(cardUid) {
   const flow = ULTIMATE_MODE.postExchange;
-  if (!flow || flow.completed || flow.phase !== "reserve") return;
-  flow.phase = "reserve-resolved";
-  reserveUltimateCard(0, cardUid);
-  const aiCandidates = ultimateReserveCandidates(1)
-    .sort((left, right) => Number(right.power || 0) - Number(left.power || 0));
-  reserveUltimateCard(1, aiCandidates[0]?.uid || null);
-  while (state.players[1].reserve.length > 2) {
-    const removed = state.players[1].reserve.sort((left, right) => Number(right.power || 0) - Number(left.power || 0)).pop();
-    state.ultimateDiscards[1].push(removed);
+  if (!flow || flow.completed) return;
+  // Les parties commencées avant la V5.14 ne possèdent pas encore de phase.
+  // Elles doivent reprendre au choix de réserve au lieu d'ignorer le clic.
+  if (!flow.phase) flow.phase = "reserve";
+  if (flow.phase !== "reserve") {
+    if (!flow.distributionStarted) flow.phase = "reserve";
+    else return;
+  }
+  flow.phase = "reserve-resolving";
+  try {
+    const humanReserved = reserveUltimateCard(0, cardUid);
+    if (cardUid && !humanReserved) {
+      state.log.unshift("La carte choisie n’était plus disponible : la fin d’échange continue sans l’ajouter à la réserve.");
+    }
+    const aiCandidates = ultimateReserveCandidates(1)
+      .sort((left, right) => Number(right.power || 0) - Number(left.power || 0));
+    reserveUltimateCard(1, aiCandidates[0]?.uid || null);
+    while (state.players[1].reserve.length > 2) {
+      const removed = state.players[1].reserve.sort((left, right) => Number(right.power || 0) - Number(left.power || 0)).pop();
+      if (removed) state.ultimateDiscards[1].push(removed);
+    }
+  } catch (error) {
+    console.error("Fin d’échange Ultimate : choix de réserve non bloquant", error);
+    state.log.unshift("Le choix de réserve a rencontré un problème, mais la distribution et l’échange suivant continuent.");
   }
   els.ultimatePostExchangeDialog?.classList.add("hidden");
 
@@ -8769,6 +8789,7 @@ function startNextUltimateExchange(completedExchangeNumber = Number(state.setMat
   state.players.forEach((player, playerIndex) => {
     const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
     const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
+    if (!Array.isArray(state.ultimateDiscards[playerIndex])) state.ultimateDiscards[playerIndex] = [];
     state.ultimateDiscards[playerIndex].push(...toDiscard);
     player.played = [];
   });
