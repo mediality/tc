@@ -8429,6 +8429,7 @@ function ultimateDiagnosticSnapshot() {
       hand: (player.hand || []).map(cardLogInfo),
       reserve: (player.reserve || []).map(cardLogInfo),
       played: (player.played || []).map(cardLogInfo),
+      discard: (state.ultimateDiscards?.[playerIndex] || []).map(cardLogInfo),
     })),
     constraints: constraintsLogInfo(),
     postExchange: cloneData(ULTIMATE_MODE.postExchange),
@@ -8752,6 +8753,9 @@ function confirmUltimateDraft() {
   }
   els.ultimateDraftDialog.classList.add("hidden");
   state.log.unshift("Les deux joueurs terminent leurs 3 drafts et commencent avec 6 cartes.");
+  // newGame mémorise un tour avant les drafts. Il faut remplacer ce point de
+  // restauration, sinon « Annuler le tour » restaure les deux mains à zéro.
+  captureTurnSnapshot();
   render();
   maybeRunSoloAI();
 }
@@ -8975,6 +8979,15 @@ function validateUltimateExchangeTransition(completedExchangeNumber, preservedRe
   return issues;
 }
 
+function ultimatePlayedCardsForDiscard(player) {
+  const reserveUids = new Set((player.reserve || []).map((card) => card.uid));
+  const cards = (player.played || []).flatMap((card) => [
+    ...(reserveUids.has(card.uid) ? [] : [card]),
+    ...(card.sacrificedCard ? [card.sacrificedCard] : []),
+  ]);
+  return [...new Map(cards.filter(Boolean).map((card) => [card.uid, card])).values()];
+}
+
 function startNextUltimateExchange(completedExchangeNumber = Number(state.setMatch.exchangeNumber || 0)) {
   if (!ULTIMATE_MODE.active || state.setMatch.setOver || state.setMatch.matchOver) return false;
   if (!state.gameOver && Number(state.setMatch.exchangeNumber || 0) > completedExchangeNumber) return true;
@@ -8990,8 +9003,7 @@ function startNextUltimateExchange(completedExchangeNumber = Number(state.setMat
       SOLO_AI.enabled = true;
       SOLO_AI.playerIndex = 1;
       state.players.forEach((player, playerIndex) => {
-        const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
-        const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
+        const toDiscard = ultimatePlayedCardsForDiscard(player);
         if (!Array.isArray(state.ultimateDiscards[playerIndex])) state.ultimateDiscards[playerIndex] = [];
         state.ultimateDiscards[playerIndex].push(...toDiscard);
         player.played = [];
@@ -9031,7 +9043,7 @@ function startNextUltimateExchange(completedExchangeNumber = Number(state.setMat
   const fallbackServer = nextSetServer();
   state.players.forEach((player, playerIndex) => {
     const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
-    const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
+    const toDiscard = ultimatePlayedCardsForDiscard(player);
     if (!Array.isArray(state.ultimateDiscards[playerIndex])) state.ultimateDiscards[playerIndex] = [];
     state.ultimateDiscards[playerIndex].push(...toDiscard);
     player.reserve = preservedReserves[playerIndex];
@@ -9226,7 +9238,7 @@ function newGame(options = {}) {
   if (previousUltimatePlayers) {
     previousUltimatePlayers.forEach((previous, playerIndex) => {
       const player = state.players[playerIndex];
-      state.ultimateDiscards[playerIndex].push(...previous.played.filter((card) => !previous.reserve.some((reserved) => reserved.uid === card.uid)));
+      state.ultimateDiscards[playerIndex].push(...ultimatePlayedCardsForDiscard(previous));
       player.hand = previous.hand;
       player.reserve = previous.reserve;
       player.energy = previous.energy;
@@ -9924,10 +9936,11 @@ function canPlayBoost(playerIndex, card) {
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
   // Un contre-Boost répondant à un Boost adverse n'est autorisé que par la
-  // condition de couleur. Le Boost ignore alors la contrainte de placement.
+  // condition de couleur ou par l'effet Retour de service. Le Boost ignore
+  // alors la contrainte de placement adverse.
   const answersBoost = state.mandatoryPlacement && state.mandatoryPlacementReason === "boost";
   const boostWindow = answersBoost
-    ? colorBoost
+    ? player.freeBoostNext || colorBoost
     : state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || lowEnduranceBoost || colorBoost;
   if (!boostWindow || !hasSacrifice) return false;
   if (player.endurance < effectiveCost(player, card, true) || !satisfiesFamilyLimit(player, card)) return false;
@@ -20550,7 +20563,6 @@ function renderUltimateReserveInHand(playerIndex) {
   return `<span class="ultimate-reserve-hand-divider">RÉSERVE · ${reserve.length}/2</span>${reserve.map((card) => {
     const image = cardArtwork(card);
     const usable = playerIndex === 0 && canUseSeat(playerIndex) && !state.gameOver && !player.ultimateReserveLockedNext && !player.ultimateReserveLockedExchange;
-    const player = state.players[playerIndex];
     const cost = effectiveCost(player, card);
     const normalAllowed = usable && canPlayNormal(playerIndex, card);
     const boostAllowed = usable && canPlayBoost(playerIndex, card);

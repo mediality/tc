@@ -28,6 +28,7 @@ const sources = [
   "captureUltimateExchangeTransition",
   "restoreUltimateExchangeTransition",
   "validateUltimateExchangeTransition",
+  "ultimatePlayedCardsForDiscard",
   "startNextUltimateExchange",
 ].map(functionSource).join("\n");
 
