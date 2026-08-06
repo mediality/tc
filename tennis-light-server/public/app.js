@@ -16,6 +16,8 @@ const ULTIMATE_MODE = {
   postExchange: null,
   aiDifficulty: "normal",
   markChoice: null,
+  turnSafetyTimer: null,
+  turnRecoveryTimer: null,
 };
 
 function ultimatePlayerConfig(playerIndex) {
@@ -8900,6 +8902,8 @@ function newGame(options = {}) {
   }
   SOLO_AI.thinking = false;
   SOLO_AI.executing = false;
+  window.clearTimeout(ULTIMATE_MODE.turnSafetyTimer);
+  window.clearTimeout(ULTIMATE_MODE.turnRecoveryTimer);
   window.clearTimeout(SOLO_AI.timer);
   window.clearTimeout(SOLO_AI.nudgeTimer);
   window.clearTimeout(SOLO_AI.nudgeAutoTimer);
@@ -9050,6 +9054,7 @@ function newGame(options = {}) {
     aiAttitudeReason: SOLO_AI.enabled ? SOLO_AI.attitudeReason : null,
   });
   captureTurnSnapshot();
+  secureUltimateTurnContinuation(null);
   els.resultPanel.classList.add("hidden");
   if (SERVER_SYNC.enabled && SERVER_SYNC.isHost) {
     SERVER_SYNC.initializing = true;
@@ -9750,6 +9755,32 @@ function maybeRunSoloAI() {
   SOLO_AI.timer = window.setTimeout(runSoloAITurn, 2000 + starRevealDelay);
   scheduleSoloAINudge();
   scheduleSoloAIWatchdog();
+}
+
+function secureUltimateTurnContinuation(previousPlayerIndex = null) {
+  if (!ULTIMATE_MODE.active || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+  const exchangeNumber = Number(state.setMatch.exchangeNumber || 0);
+  const watchedSignature = soloTurnSignature();
+  window.clearTimeout(ULTIMATE_MODE.turnSafetyTimer);
+  window.clearTimeout(ULTIMATE_MODE.turnRecoveryTimer);
+  ULTIMATE_MODE.turnSafetyTimer = window.setTimeout(() => {
+    if (!ULTIMATE_MODE.active || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+    if (Number(state.setMatch.exchangeNumber || 0) !== exchangeNumber) return;
+    if (ULTIMATE_MODE.markChoice?.playerIndex === 0) return;
+    if (previousPlayerIndex !== SOLO_AI.playerIndex) {
+      SOLO_AI.thinking = false;
+      SOLO_AI.executing = false;
+    }
+    maybeRunSoloAI();
+    scheduleSoloAIWatchdog();
+  }, 60);
+  ULTIMATE_MODE.turnRecoveryTimer = window.setTimeout(() => {
+    if (!ULTIMATE_MODE.active || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+    if (Number(state.setMatch.exchangeNumber || 0) !== exchangeNumber) return;
+    if (soloTurnSignature() !== watchedSignature) return;
+    state.log.unshift("Sécurité Ultimate : relance automatique du tour adverse.");
+    forceSoloAITurn();
+  }, 4500);
 }
 
 function runSoloAITurn() {
@@ -12563,6 +12594,18 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   if (boosted && !canPlayBoost(playerIndex, card)) return;
   if (!boosted && !canPlayNormal(playerIndex, card)) return;
   if (!boosted && isRemise(card) && remiseMode === "effect" && !canPlayEffectMode(playerIndex, card)) return;
+  let sacrificedCard = null;
+  if (boosted) {
+    sacrificedCard = player.hand.find((item) => item.uid === sacrificeUid)
+      || (ULTIMATE_MODE.active ? (player.reserve || []).find((item) => item.uid === sacrificeUid) : null)
+      || (ULTIMATE_MODE.active && player.ultimateBoostFromDiscard ? (state.ultimateDiscards[playerIndex] || []).find((item) => item.uid === sacrificeUid) : null);
+    if (!sacrificedCard || sacrificedCard.uid === card.uid) {
+      state.log.unshift("BOOST annulé : la carte à sacrifier n’est plus disponible. Aucune endurance ni carte n’a été dépensée.");
+      state.pendingBoost = null;
+      render();
+      return;
+    }
+  }
   captureDesktopCardFlight(playerIndex, card);
   state.turnDirty = true;
   markLocalServerDirty(playerIndex);
@@ -12607,12 +12650,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 
   removeFromHand(player, card.uid);
 
-  let sacrificedCard = null;
   if (boosted) {
-    sacrificedCard = player.hand.find((item) => item.uid === sacrificeUid)
-      || (ULTIMATE_MODE.active ? (player.reserve || []).find((item) => item.uid === sacrificeUid) : null)
-      || (ULTIMATE_MODE.active && player.ultimateBoostFromDiscard ? (state.ultimateDiscards[playerIndex] || []).find((item) => item.uid === sacrificeUid) : null);
-    if (!sacrificedCard) return;
     if (player.hand.some((item) => item.uid === sacrificeUid)) removeFromHand(player, sacrificeUid);
     else if (player.reserve.some((item) => item.uid === sacrificeUid)) {
       player.reserve = player.reserve.filter((item) => item.uid !== sacrificeUid);
@@ -12822,6 +12860,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
     state.returnServiceRestrictionFor = null;
   }
   state.activePlayer = opponentIndex;
+  secureUltimateTurnContinuation(playerIndex);
   captureTurnSnapshot();
   render();
 }
@@ -12945,6 +12984,7 @@ function commitEndTurn(playerIndex) {
   }
   state.activePlayer = opponentIndex;
   state.log.unshift(`${displayPlayerName(player)} termine son tour après une carte Effet.`);
+  secureUltimateTurnContinuation(playerIndex);
   captureTurnSnapshot();
   render();
 }
