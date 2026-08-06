@@ -12994,6 +12994,13 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     box-shadow: none;
   }
 
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .hand .risky-play-button:not(:disabled) {
+    border-color: #ffb2aa;
+    color: #fff;
+    background: #b93535;
+    box-shadow: 0 0 0 2px rgba(185, 53, 53, .28);
+  }
+
   body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .hand {
     position: relative;
     z-index: 245;

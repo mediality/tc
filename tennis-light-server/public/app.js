@@ -10135,6 +10135,16 @@ function runSoloAITurn() {
     }
     const legalInventory = soloLegalActionInventory(playerIndex);
     const scenarioPlan = prepareSoloScenarioPlan(playerIndex);
+    if (shouldSoloClosePreparedPlacement(playerIndex)) {
+      recordSoloAiDecision("end_turn_with_sufficient_placement", {
+        preparedPlacement: turnEndPlacement(playerIndex),
+        requiredPlacement: Number(state.lastCard?.precision || 0),
+        legalInventory: soloLegalInventoryLog(legalInventory),
+      });
+      endTurn(playerIndex);
+      ensureSoloProgress(beforeSignature);
+      return;
+    }
     if (canEndTurn(playerIndex) && state.turnHasEffect[playerIndex] && !canSoloFinishWithCoup(playerIndex)) {
       recordSoloAiDecision("end_turn_after_effect");
       endTurn(playerIndex);
@@ -10480,6 +10490,7 @@ function soloPassDecisionSnapshot(playerIndex) {
         ? opponentIndex
         : state.server,
     hasSafeContinuation: hasSafeSoloContinuation(playerIndex),
+    legalInventory: soloLegalInventoryLog(soloLegalActionInventory(playerIndex)),
   };
 }
 
@@ -10690,29 +10701,33 @@ function scheduleSoloAINudge() {
 function scheduleSoloAIWatchdog() {
   if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
   const watchedSignature = soloTurnSignature();
+  const watchedExchangeNumber = Number(state.setMatch?.exchangeNumber || 0);
+  const watchedSourceUid = state.lastCard?.playedUid || null;
   window.clearTimeout(SOLO_AI.watchdogTimer);
   SOLO_AI.watchdogTimer = window.setTimeout(() => {
     if (SERVER_SYNC.enabled || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+    if (Number(state.setMatch?.exchangeNumber || 0) !== watchedExchangeNumber) return;
+    if ((state.lastCard?.playedUid || null) !== watchedSourceUid) return;
+    if (soloTurnSignature() !== watchedSignature) return;
     if (soloTurnIsBlocked(SOLO_AI.playerIndex)) {
       forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
       return;
     }
-    if (soloTurnSignature() !== watchedSignature) return;
-    state.log.unshift("Sécurité IA : aucun coup validé après 10 secondes, l’IA passe automatiquement.");
+    state.log.unshift("Sécurité IA : aucune action validée après 10 secondes, nouvelle analyse des coups légaux.");
     state.pendingBoost = null;
     SOLO_AI.executing = true;
     resolveSoloPendingChoice(true);
     if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) {
-      pass(SOLO_AI.playerIndex);
+      soloEmergencyFallback(SOLO_AI.playerIndex);
     }
     SOLO_AI.executing = false;
   }, 10000);
 }
 
 function soloTurnIsBlocked(playerIndex) {
-  return state.activePlayer === playerIndex
-    && hasPlayedThisTurn(playerIndex)
-    && !canEndTurn(playerIndex);
+  if (state.activePlayer !== playerIndex) return false;
+  const inventory = soloLegalActionInventory(playerIndex);
+  return hasPlayedThisTurn(playerIndex) && !inventory.canProgress;
 }
 
 function forceSoloBlockedExchangeLoss(playerIndex) {
@@ -12127,6 +12142,26 @@ function soloLegalActionInventory(playerIndex) {
     canEnd,
     canProgress: Boolean(coups.length || boosts.length || effects.length || placementRemises.length || canEnd),
   };
+}
+
+function soloLegalInventoryLog(inventory) {
+  return {
+    coups: inventory.coups.map(cardLogInfo),
+    boosts: inventory.boosts.map((option) => ({ card: cardLogInfo(option.card), sacrifice: cardLogInfo(option.sacrifice) })),
+    effects: inventory.effects.map(cardLogInfo),
+    placementRemises: inventory.placementRemises.map(cardLogInfo),
+    canEnd: inventory.canEnd,
+    canProgress: inventory.canProgress,
+  };
+}
+
+function shouldSoloClosePreparedPlacement(playerIndex) {
+  if (!state.lastCard || !hasPlayedThisTurn(playerIndex) || !canEndTurn(playerIndex)) return false;
+  if (turnEndPlacement(playerIndex) < Number(state.lastCard.precision || 0)) return false;
+  if (state.mandatoryPlacement) return true;
+  // Une fois la précision adverse couverte, l'IA ne consume plus une chaîne
+  // de REMISES si aucun COUP légal ne peut utilement terminer le tour.
+  return !canSoloFinishWithCoup(playerIndex);
 }
 
 function wouldPassLoseSetOrMatch(playerIndex) {
@@ -14639,12 +14674,6 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   storeMatchLog(winner, reason);
   handleTournamentMatchComplete();
   render();
-  if (ULTIMATE_MODE.active && !state.setMatch.setOver && !state.setMatch.matchOver) {
-    window.setTimeout(() => {
-      if (!state.gameOver || ULTIMATE_MODE.postExchange) return;
-      beginUltimatePostExchange(winner);
-    }, 900);
-  }
 }
 
 function completeOnePointTournamentMatch(winner, exchangeScore) {
@@ -19641,7 +19670,9 @@ function renderDesktopMatchScore() {
 
 function renderCenterNextExchangeButton() {
   if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return "";
-  if (ULTIMATE_MODE.active) return "";
+  if (ULTIMATE_MODE.active) {
+    return '<button class="primary-button next-exchange-button ultimate-post-exchange-start" type="button" data-start-ultimate-post-exchange>CONTINUER · RÉSERVE ET DISTRIBUTION</button>';
+  }
   return `<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>`;
 }
 
@@ -19700,6 +19731,11 @@ function renderProgressionButtons() {
 }
 
 function bindProgressionButtons(root) {
+  root?.querySelector("[data-start-ultimate-post-exchange]")?.addEventListener("click", () => {
+    if (!ULTIMATE_MODE.active || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return;
+    if (!ULTIMATE_MODE.postExchange) beginUltimatePostExchange(state.resultInfo?.winner ?? 0);
+    else renderUltimatePostExchangeChoice();
+  });
   root?.querySelector("[data-next-set-exchange]")?.addEventListener("click", nextSetExchange);
   root?.querySelector("[data-next-solo-exchange]")?.addEventListener("click", nextSoloExchange);
   root?.querySelector("[data-next-full-set]")?.addEventListener("click", nextFullSet);
