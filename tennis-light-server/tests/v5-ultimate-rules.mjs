@@ -13,8 +13,8 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.13<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.13\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.14<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.14\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
@@ -73,9 +73,13 @@ assert.match(app, /if \(ULTIMATE_MODE\.active\) return "";[\s\S]*data-next-set-e
 assert.match(app, /window\.setTimeout\(\(\) => \{[\s\S]*beginUltimatePostExchange\(winner\)/);
 const playCardBody = app.slice(app.indexOf("function playCard("), app.indexOf("function completePlayedCardResolution("));
 assert.ok(playCardBody.indexOf("player.endurance -= cost") < playCardBody.indexOf("applyEffect(playerIndex, playedCard)"), "Le coût doit être payé avant la résolution de l'effet");
-assert.match(app, /function startNextUltimateExchange\(\)/);
+assert.match(app, /function startNextUltimateExchange\(/);
 assert.match(app, /player\.played = \[\]/);
-assert.match(app, /if \(!state\.setMatch\.setOver && !state\.setMatch\.matchOver\) \{\s*startNextUltimateExchange\(\);\s*return;/);
+assert.match(app, /function ensureUltimateNextExchangeStarted/);
+assert.match(app, /window\.setTimeout\(\(\) => ensureUltimateNextExchangeStarted\(completedExchangeNumber\), 350\)/);
+assert.match(app, /flow\.distributionStarted = true/);
+assert.match(app, /flow\.phase = "winner-draft"/);
+assert.doesNotMatch(app, /function startNextUltimateExchange\([^)]*\) \{\s*if \(!ULTIMATE_MODE\.active \|\| !state\.gameOver/);
 assert.match(app, /if \(!ULTIMATE_MODE\.active && SERVER_SYNC\.enabled/);
 assert.match(app, /function openUltimateMarkChoice/);
 assert.match(app, /data-mark-card/);

@@ -8657,7 +8657,14 @@ function renderUltimatePostExchangeChoice() {
 
 function beginUltimatePostExchange(winner) {
   if (!ULTIMATE_MODE.active) return;
-  ULTIMATE_MODE.postExchange = { winner, selectedReserveUid: null, completed: false };
+  ULTIMATE_MODE.postExchange = {
+    winner,
+    selectedReserveUid: null,
+    phase: "reserve",
+    distributionStarted: false,
+    completed: false,
+    completedExchangeNumber: Number(state.setMatch.exchangeNumber || 0),
+  };
   renderUltimatePostExchangeChoice();
 }
 
@@ -8674,7 +8681,8 @@ function reserveUltimateCard(playerIndex, cardUid) {
 
 function resolveUltimateReserveChoice(cardUid) {
   const flow = ULTIMATE_MODE.postExchange;
-  if (!flow || flow.completed) return;
+  if (!flow || flow.completed || flow.phase !== "reserve") return;
+  flow.phase = "reserve-resolved";
   reserveUltimateCard(0, cardUid);
   const aiCandidates = ultimateReserveCandidates(1)
     .sort((left, right) => Number(right.power || 0) - Number(left.power || 0));
@@ -8694,13 +8702,16 @@ function resolveUltimateReserveChoice(cardUid) {
 
 function continueUltimatePostExchangeDistribution() {
   const flow = ULTIMATE_MODE.postExchange;
-  if (!flow || flow.completed) return;
+  if (!flow || flow.completed || flow.distributionStarted) return;
+  flow.distributionStarted = true;
+  flow.phase = "distribution";
 
   const loser = opponentOf(flow.winner);
   const loserDrawn = drawCards(state.players[loser], 2);
   state.log.unshift(`${displayPlayerName(state.players[loser])}, perdant de l’échange, récupère les ${loserDrawn} premières cartes de sa pioche.`);
 
   if (flow.winner === 0) {
+    flow.phase = "winner-draft";
     beginUltimateDraft(0, 0, "post-exchange");
     return;
   }
@@ -8730,18 +8741,31 @@ function completeUltimatePostExchangeDistribution() {
   const flow = ULTIMATE_MODE.postExchange;
   if (!flow) return;
   flow.completed = true;
+  flow.phase = "completed";
   els.ultimateDraftDialog?.classList.add("hidden");
   els.ultimatePostExchangeDialog?.classList.add("hidden");
   state.log.unshift("Fin de l’échange terminée : réserves choisies et 2 nouvelles cartes attribuées à chaque joueur.");
   if (!state.setMatch.setOver && !state.setMatch.matchOver) {
-    startNextUltimateExchange();
+    const completedExchangeNumber = Number(flow.completedExchangeNumber || state.setMatch.exchangeNumber || 0);
+    // Ce filet de sécurité est armé avant la transition : une erreur d'affichage
+    // ne peut plus laisser la partie bloquée sur l'échange terminé.
+    window.setTimeout(() => ensureUltimateNextExchangeStarted(completedExchangeNumber), 350);
+    ensureUltimateNextExchangeStarted(completedExchangeNumber);
     return;
   }
   render();
 }
 
-function startNextUltimateExchange() {
-  if (!ULTIMATE_MODE.active || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return;
+function ensureUltimateNextExchangeStarted(completedExchangeNumber) {
+  if (!ULTIMATE_MODE.active || state.setMatch.setOver || state.setMatch.matchOver) return false;
+  const currentExchangeNumber = Number(state.setMatch.exchangeNumber || 0);
+  if (!state.gameOver && currentExchangeNumber > completedExchangeNumber) return true;
+  return startNextUltimateExchange(completedExchangeNumber);
+}
+
+function startNextUltimateExchange(completedExchangeNumber = Number(state.setMatch.exchangeNumber || 0)) {
+  if (!ULTIMATE_MODE.active || state.setMatch.setOver || state.setMatch.matchOver) return false;
+  if (!state.gameOver && Number(state.setMatch.exchangeNumber || 0) > completedExchangeNumber) return true;
   state.players.forEach((player, playerIndex) => {
     const reservedUids = new Set((player.reserve || []).map((card) => card.uid));
     const toDiscard = (player.played || []).filter((card) => !reservedUids.has(card.uid));
@@ -8753,6 +8777,7 @@ function startNextUltimateExchange() {
   window.setTimeout(() => {
     if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
   }, 180);
+  return !state.gameOver && Number(state.setMatch.exchangeNumber || 0) > completedExchangeNumber;
 }
 
 function spendUltimateEnergy(playerIndex, action, confirmed = false) {
