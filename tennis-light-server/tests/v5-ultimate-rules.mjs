@@ -13,8 +13,8 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.16<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.16\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.17<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.17\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
@@ -77,6 +77,11 @@ assert.ok(playCardBody.indexOf("let sacrificedCard = null") < playCardBody.index
 assert.match(playCardBody, /BOOST annulé[\s\S]*state\.pendingBoost = null[\s\S]*render\(\);[\s\S]*return;/);
 assert.match(app, /function secureUltimateTurnContinuation/);
 assert.match(app, /state\.activePlayer = opponentIndex;\s*secureUltimateTurnContinuation\(playerIndex\);/);
+assert.match(app, /ultimateMode: ULTIMATE_MODE\.active/);
+assert.match(app, /const restoredUltimate = snapshot\.ultimateMode/);
+assert.match(app, /forceSoloBlockedExchangeLoss\(SOLO_AI\.playerIndex\)/);
+assert.match(app, /Number\(card\.ultimateExchangeNumber\) === exchangeNumber/);
+assert.match(playCardBody, /ultimateExchangeNumber: ULTIMATE_MODE\.active/);
 assert.match(app, /function startNextUltimateExchange\(/);
 assert.match(app, /player\.played = \[\]/);
 assert.match(app, /function ensureUltimateNextExchangeStarted/);

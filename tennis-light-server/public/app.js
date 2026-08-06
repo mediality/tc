@@ -1791,6 +1791,18 @@ function saveLocalMobileMatchSession() {
     snapshot: {
       state: cloneData(state),
       soloAi: cloneData(SOLO_AI),
+      ultimateMode: ULTIMATE_MODE.active ? {
+        active: true,
+        playerOrder: [...ULTIMATE_MODE.playerOrder],
+        aiDifficulty: ULTIMATE_MODE.aiDifficulty,
+        draftNumber: ULTIMATE_MODE.draftNumber,
+        draftPlayer: ULTIMATE_MODE.draftPlayer,
+        draftPurpose: ULTIMATE_MODE.draftPurpose,
+        draftChoices: cloneData(ULTIMATE_MODE.draftChoices || []),
+        draftSelected: [...(ULTIMATE_MODE.draftSelected || [])],
+        postExchange: cloneData(ULTIMATE_MODE.postExchange),
+        markChoice: cloneData(ULTIMATE_MODE.markChoice),
+      } : null,
       humanMatchTelemetry: cloneData(HUMAN_MATCH_TELEMETRY.active),
     },
   };
@@ -4496,6 +4508,23 @@ function restoreStateSnapshot(snapshot) {
   SOLO_AI.nudgeTimer = null;
   SOLO_AI.nudgeAutoTimer = null;
   SOLO_AI.watchdogTimer = null;
+  const restoredUltimate = snapshot.ultimateMode || null;
+  const inferredUltimate = !restoredUltimate && state.players?.some((player) => (
+    ["alessandraConti", "calvinBrentwood"].includes(player?.characterId)
+      || player?.hand?.some((card) => card?.ultimateOfficial)
+      || player?.played?.some((card) => card?.ultimateOfficial)
+  ));
+  if (restoredUltimate || inferredUltimate) {
+    Object.assign(ULTIMATE_MODE, cloneData(restoredUltimate || {}));
+    ULTIMATE_MODE.active = restoredUltimate ? Boolean(restoredUltimate.active) : true;
+    ULTIMATE_MODE.draftSelected = new Set(Array.isArray(restoredUltimate?.draftSelected) ? restoredUltimate.draftSelected : []);
+    ULTIMATE_MODE.turnSafetyTimer = null;
+    ULTIMATE_MODE.turnRecoveryTimer = null;
+  } else {
+    ULTIMATE_MODE.active = false;
+    ULTIMATE_MODE.postExchange = null;
+    ULTIMATE_MODE.markChoice = null;
+  }
   if (snapshot.humanMatchTelemetry?.status === "active") {
     HUMAN_MATCH_TELEMETRY.active = cloneData(snapshot.humanMatchTelemetry);
     HUMAN_MATCH_TELEMETRY.forceNew = false;
@@ -10005,8 +10034,17 @@ function runSoloAITurn() {
     recordSoloAiDecision("forced_pass", soloPassDecisionSnapshot(playerIndex));
     pass(playerIndex);
   } catch (error) {
-    state.log.unshift(`IA Coach Max : décision impossible, plan de secours activé.`);
-    soloEmergencyFallback(SOLO_AI.playerIndex);
+    const decisionError = String(error?.message || error || "erreur inconnue");
+    console.error("IA Ultimate : décision impossible", error);
+    state.log.unshift(`IA Coach Max : décision impossible (${decisionError}), plan de secours activé.`);
+    try {
+      soloEmergencyFallback(SOLO_AI.playerIndex);
+    } catch (fallbackError) {
+      const fallbackMessage = String(fallbackError?.message || fallbackError || "erreur inconnue");
+      console.error("IA Ultimate : plan de secours impossible", fallbackError);
+      state.log.unshift(`Sécurité Ultimate : le plan de secours IA a échoué (${fallbackMessage}). L’échange est clôturé sans blocage.`);
+      forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
+    }
   } finally {
     SOLO_AI.executing = false;
     maybeRunSoloAI();
@@ -12547,7 +12585,13 @@ function activateUltimateCharacterIfReady(playerIndex) {
   if (!ULTIMATE_MODE.active) return false;
   const player = state.players[playerIndex];
   if (!player || player.characterStarActive) return false;
-  const visibleStars = (player.played || []).filter((card) => !isRemise(card) && card.star && !card.removed).length;
+  const exchangeNumber = Number(state.setMatch.exchangeNumber || 0);
+  const visibleStars = (player.played || []).filter((card) => (
+    !isRemise(card)
+    && card.star === true
+    && !card.removed
+    && Number(card.ultimateExchangeNumber) === exchangeNumber
+  )).length;
   if (visibleStars < 2) return false;
   player.characterStarActive = true;
   player.characterSide = 1;
@@ -12675,6 +12719,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     basePowerGained: boosted ? card.boostPower : card.power,
     effectPowerGained: 0,
     answeredBoostConstraint,
+    ultimateExchangeNumber: ULTIMATE_MODE.active ? Number(state.setMatch.exchangeNumber || 0) : null,
     precision: stats.precision,
     placement: stats.placement,
     turnPlacement: combinedPlacement,
@@ -17444,43 +17489,52 @@ function closeBoostModal() {
   render();
 }
 
+function runRenderStep(label, callback) {
+  try {
+    return callback();
+  } catch (error) {
+    console.error(`Affichage interrompu · ${label}`, error);
+    return null;
+  }
+}
+
 function render() {
-  ensureSoloAIForSet();
-  renderModeButtons();
-  renderGameContextStrip();
-  renderSpectatorBanner();
-  renderResultPanel();
-  renderTournamentPanel();
-  renderTutorialOverlay();
-  renderRallyState();
-  renderEffectNotice();
-  renderDesktopMatchScore();
-  const desktopPlayers = desktopPlayerPresentation();
+  runRenderStep("reprise IA", ensureSoloAIForSet);
+  runRenderStep("boutons de mode", renderModeButtons);
+  runRenderStep("contexte", renderGameContextStrip);
+  runRenderStep("visionneuse", renderSpectatorBanner);
+  runRenderStep("résultat", renderResultPanel);
+  runRenderStep("tournoi", renderTournamentPanel);
+  runRenderStep("tutoriel", renderTutorialOverlay);
+  runRenderStep("état de l’échange", renderRallyState);
+  runRenderStep("effet", renderEffectNotice);
+  runRenderStep("score", renderDesktopMatchScore);
+  const desktopPlayers = runRenderStep("orientation des joueurs", desktopPlayerPresentation) || { local: 0, opponent: 1 };
   if (els.gameApp) {
     els.gameApp.dataset.desktopLocalPlayer = String(desktopPlayers.local);
     els.gameApp.dataset.desktopOpponentPlayer = String(desktopPlayers.opponent);
   }
-  renderPlayerPanel(desktopPlayers.local, els.player1Panel);
-  renderPlayerPanel(desktopPlayers.opponent, els.player2Panel);
-  renderOpponentHandRevealControls();
-  renderCenterPlayedCard();
-  renderLog();
-  renderServerSyncPanel();
-  renderBoostModal();
-  renderEffectChoiceModal();
-  renderCoachChoiceModal();
-  renderRemoveChoiceModal();
-  renderWaitingRoomModal();
-  attachImageZoomHandlers(els.gameApp || document);
-  window.requestAnimationFrame(() => adjustCardMagnificationOrigins(els.gameApp || document));
-  applySpectatorControls();
+  runRenderStep("profil joueur", () => renderPlayerPanel(desktopPlayers.local, els.player1Panel));
+  runRenderStep("profil adversaire", () => renderPlayerPanel(desktopPlayers.opponent, els.player2Panel));
+  runRenderStep("main adverse", renderOpponentHandRevealControls);
+  runRenderStep("plateau", renderCenterPlayedCard);
+  runRenderStep("historique", renderLog);
+  runRenderStep("synchronisation", renderServerSyncPanel);
+  runRenderStep("BOOST", renderBoostModal);
+  runRenderStep("choix d’effet", renderEffectChoiceModal);
+  runRenderStep("choix personnage", renderCoachChoiceModal);
+  runRenderStep("choix de suppression", renderRemoveChoiceModal);
+  runRenderStep("salle d’attente", renderWaitingRoomModal);
+  runRenderStep("zoom cartes", () => attachImageZoomHandlers(els.gameApp || document));
+  window.requestAnimationFrame(() => runRenderStep("position des cartes", () => adjustCardMagnificationOrigins(els.gameApp || document)));
+  runRenderStep("contrôles visionneuse", applySpectatorControls);
   if (!SPECTATOR_MODE.enabled) {
-    scheduleServerSync();
-    scheduleSoloAINudge();
-    maybeRunSoloAI();
+    runRenderStep("synchronisation différée", scheduleServerSync);
+    runRenderStep("surveillance IA", scheduleSoloAINudge);
+    runRenderStep("tour IA", maybeRunSoloAI);
   }
-  window.dispatchEvent(new CustomEvent("tennis-light:match-render"));
-  scheduleLocalMobileMatchSave();
+  runRenderStep("notification interface", () => window.dispatchEvent(new CustomEvent("tennis-light:match-render")));
+  runRenderStep("sauvegarde locale", scheduleLocalMobileMatchSave);
 }
 
 function adjustCardMagnificationOrigins(root = document) {
