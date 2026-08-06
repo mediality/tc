@@ -13,8 +13,8 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.23<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.23\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.24<\/span>/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.24\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
@@ -96,7 +96,7 @@ assert.match(app, /ultimate_exchange_started/);
 assert.match(app, /function startNextUltimateExchange\(/);
 assert.match(app, /function ultimatePlayedCardsForDiscard/);
 assert.match(app, /player\.freeBoostNext \|\| colorBoost/);
-assert.match(app, /captureTurnSnapshot\(\);\s*render\(\);\s*maybeRunSoloAI\(\);/);
+assert.match(app, /captureTurnSnapshot\(\);\s*render\(\);\s*beginUltimateServiceReveal\(\);/);
 assert.match(app, /player\.played = \[\]/);
 assert.match(app, /function ensureUltimateNextExchangeStarted/);
 assert.match(app, /window\.setTimeout\(\(\) => ensureUltimateNextExchangeStarted\(completedExchangeNumber\), 350\)/);

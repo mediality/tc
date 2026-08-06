@@ -16,6 +16,8 @@ const ULTIMATE_MODE = {
   postExchange: null,
   aiDifficulty: "normal",
   markChoice: null,
+  serviceReveal: null,
+  serviceRevealTimer: null,
   turnSafetyTimer: null,
   turnRecoveryTimer: null,
 };
@@ -8757,7 +8759,7 @@ function confirmUltimateDraft() {
   // restauration, sinon « Annuler le tour » restaure les deux mains à zéro.
   captureTurnSnapshot();
   render();
-  maybeRunSoloAI();
+  beginUltimateServiceReveal();
 }
 
 function ultimateReserveCandidates(playerIndex) {
@@ -9359,14 +9361,18 @@ function newGame(options = {}) {
     aiAttitudeReason: SOLO_AI.enabled ? SOLO_AI.attitudeReason : null,
   });
   captureTurnSnapshot();
-  secureUltimateTurnContinuation(null);
+  if (ULTIMATE_MODE.active) {
+    if (!resetUltimate) beginUltimateServiceReveal();
+  } else {
+    secureUltimateTurnContinuation(null);
+  }
   els.resultPanel.classList.add("hidden");
   if (SERVER_SYNC.enabled && SERVER_SYNC.isHost) {
     SERVER_SYNC.initializing = true;
     SERVER_SYNC.ready = true;
   }
   render();
-  if (SOLO_AI.enabled) {
+  if (SOLO_AI.enabled && !ULTIMATE_MODE.active) {
     window.clearTimeout(SOLO_AI.timer);
     window.clearTimeout(SOLO_AI.nudgeTimer);
     window.clearTimeout(SOLO_AI.nudgeAutoTimer);
@@ -9658,6 +9664,7 @@ function activePlayer() {
 
 function canUseSeat(playerIndex) {
   if (SPECTATOR_MODE.enabled) return false;
+  if (ULTIMATE_MODE.active && ULTIMATE_MODE.serviceReveal) return false;
   if (SERVER_SYNC.enabled) return SERVER_SYNC.ready && onlineRoomReady() && playerIndex === SERVER_SYNC.seat;
   if (SOLO_AI.enabled) return playerIndex !== SOLO_AI.playerIndex || (playerIndex === SOLO_AI.playerIndex && SOLO_AI.executing);
   return true;
@@ -20083,6 +20090,47 @@ let desktopLastPlayedCardKey = null;
 let desktopPendingCardFlight = null;
 let desktopPlayedBoardScroll = 0;
 
+function ultimateServiceRevealMarkup() {
+  const reveal = ULTIMATE_MODE.serviceReveal;
+  if (!reveal) return "";
+  return `
+    <div class="ultimate-service-reveal-layer">
+      <article class="desktop-played-star-power ultimate-service-reveal" role="status" aria-live="assertive">
+        <img src="${escapeHtml(reveal.artwork)}" alt="${escapeHtml(reveal.name)}" />
+        <div><strong>${escapeHtml(reveal.name.toUpperCase())}</strong><p>AU SERVICE</p></div>
+      </article>
+    </div>
+  `;
+}
+
+function beginUltimateServiceReveal() {
+  if (!ULTIMATE_MODE.active || state.gameOver || !state.players?.[state.server]) return;
+  window.clearTimeout(ULTIMATE_MODE.serviceRevealTimer);
+  const config = ultimatePlayerConfig(state.server);
+  const exchangeNumber = Number(state.setMatch.exchangeNumber || 0);
+  ULTIMATE_MODE.serviceReveal = {
+    exchangeNumber,
+    server: state.server,
+    name: config?.name || displayPlayerName(state.players[state.server]),
+    artwork: config?.character || "",
+  };
+  recordUltimateDiagnostic("ultimate_service_announced", {
+    exchangeNumber,
+    server: state.server,
+    playerName: ULTIMATE_MODE.serviceReveal.name,
+  });
+  renderCenterPlayedCard();
+  ULTIMATE_MODE.serviceRevealTimer = window.setTimeout(() => {
+    if (ULTIMATE_MODE.serviceReveal?.exchangeNumber !== exchangeNumber) return;
+    ULTIMATE_MODE.serviceReveal = null;
+    ULTIMATE_MODE.serviceRevealTimer = null;
+    render();
+    ensureUltimateHumanTurnControls();
+    secureUltimateTurnContinuation(null);
+    if (!state.gameOver && state.activePlayer === SOLO_AI.playerIndex) maybeRunSoloAI();
+  }, 2000);
+}
+
 function desktopPlayedCardKey(card) {
   return card?.playedUid || card?.uid || null;
 }
@@ -20437,6 +20485,7 @@ function renderCenterPlayedCard() {
   const starMarkup = desktopStarReveal?.cardKey === desktopPlayedCardKey(state.latestPlayedCard)
     ? `<div class="desktop-star-reveal-layer">${desktopStarPowerMarkup(desktopStarReveal.card)}</div>`
     : "";
+  const serviceMarkup = ultimateServiceRevealMarkup();
   els.centerPlayedCard.innerHTML = `
     <div class="desktop-played-board">
       <button class="desktop-played-scroll desktop-played-scroll--previous hidden" type="button" data-desktop-played-scroll="-1" aria-label="Voir les cartes précédentes">‹</button>
@@ -20444,6 +20493,7 @@ function renderCenterPlayedCard() {
       ${desktopPlayedRowMarkup(localPlayerIndex, "player")}
       <button class="desktop-played-scroll desktop-played-scroll--next hidden" type="button" data-desktop-played-scroll="1" aria-label="Voir les cartes suivantes">›</button>
       ${starMarkup}
+      ${serviceMarkup}
     </div>
   `;
   bindDesktopPlayedRows();

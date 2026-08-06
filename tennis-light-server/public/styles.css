@@ -11311,6 +11311,33 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     pointer-events: none;
   }
 
+  body:not(.mobile-game-view) .ultimate-service-reveal-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 72;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  body:not(.mobile-game-view) .ultimate-service-reveal {
+    grid-template-columns: 70px minmax(0, 1fr);
+    border-color: rgba(140, 224, 191, .78);
+    background: linear-gradient(135deg, rgba(8, 111, 102, .97), rgba(4, 38, 67, .98));
+  }
+
+  body:not(.mobile-game-view) .ultimate-service-reveal strong {
+    font-size: .92rem;
+    line-height: 1.1;
+  }
+
+  body:not(.mobile-game-view) .ultimate-service-reveal p {
+    color: #8ce0bf;
+    font-size: .72rem;
+    font-weight: 950;
+    letter-spacing: .08em;
+  }
+
   body:not(.mobile-game-view) .center-progression-actions:not(:empty) {
     position: absolute;
     right: 50%;
