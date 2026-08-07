@@ -9931,6 +9931,18 @@ h1 {
 .profile-character-choice img,
 .academy-deck-card > img,
 .image-zoom-figure img,
+.card img,
+.ultimate-dialog img,
+.desktop-played-card-dialog img,
+.card-local-preview img,
+.choice-card img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image-zoom-figure img,
 .choice-card-visual img,
 .tutorial-card-showcase img,
 .confrontation-intro-player img {

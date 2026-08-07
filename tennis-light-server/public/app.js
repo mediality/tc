@@ -3476,6 +3476,10 @@ function attachCardLocalPreviewHandlers(root = document) {
     button.dataset.localZoomBound = "1";
     const imageUrl = button.dataset.imageHover || button.dataset.imageZoom;
     const label = button.dataset.imageLabel || "Carte";
+    button.setAttribute("draggable", "false");
+    button.querySelectorAll?.("img").forEach((image) => image.setAttribute("draggable", "false"));
+    button.addEventListener("contextmenu", (event) => event.preventDefault());
+    button.addEventListener("dragstart", (event) => event.preventDefault());
     button.addEventListener("pointerenter", (event) => updateMouseCardPreview(button, imageUrl, label, event));
     button.addEventListener("pointermove", (event) => updateMouseCardPreview(button, imageUrl, label, event));
     button.addEventListener("pointerleave", (event) => {
@@ -3556,7 +3560,8 @@ function attachImageZoomHandlers(root = document) {
   root.querySelectorAll("[data-image-zoom]").forEach((button) => {
     if (button.dataset.zoomBound === "1") return;
     button.dataset.zoomBound = "1";
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      if (button.matches(".dialog-card-preview")) event.stopPropagation();
       if (suppressMaximumZoomAfterTouch()) return;
       openImageZoom(button.dataset.imageZoom, button.dataset.imageLabel);
     });
@@ -8788,7 +8793,7 @@ function renderUltimatePostExchangeChoice() {
     </button>`;
   }).join("");
   els.ultimatePostExchangeConfirm.disabled = !flow.selectedReserveUid;
-  els.ultimatePostExchangeSkip.classList.toggle("hidden", !candidates.length);
+  els.ultimatePostExchangeSkip.classList.toggle("hidden", state.players[0].reserve.length < 2 || !candidates.length);
   els.ultimatePostExchangeDialog.classList.remove("hidden");
   els.ultimatePostExchangeCards.querySelectorAll("[data-ultimate-reserve-choice]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -8976,7 +8981,7 @@ function validateUltimateExchangeTransition(completedExchangeNumber, preservedRe
       if (!currentReserve.has(uid)) issues.push(`la carte de réserve ${uid} du joueur ${playerIndex} a disparu`);
     });
   });
-  if (state.activePlayer === 0 && !canUseSeat(0)) issues.push("le siège humain actif n'est pas jouable");
+  if (state.activePlayer === 0 && !canUseSeat(0) && !ULTIMATE_MODE.serviceReveal) issues.push("le siège humain actif n'est pas jouable");
   if (state.activePlayer === 1 && (!SOLO_AI.enabled || SOLO_AI.playerIndex !== 1)) issues.push("l'IA active n'est pas affectée au bon siège");
   return issues;
 }
@@ -8988,6 +8993,59 @@ function ultimatePlayedCardsForDiscard(player) {
     ...(card.sacrificedCard ? [card.sacrificedCard] : []),
   ]);
   return [...new Map(cards.filter(Boolean).map((card) => [card.uid, card])).values()];
+}
+
+function clearUltimateExchangeEffects(player) {
+  Object.assign(player, {
+    power: 0,
+    ultimateNextCostOne: false,
+    ultimateRecoverEnergyOnNextShot: false,
+    ultimateReserveLockedNext: false,
+    ultimateReserveLockedExchange: false,
+    ultimateEffectLimit: false,
+    ultimateNoRepeatedFamily: false,
+    ultimateOpponentPrecisionAfterThird: false,
+    ultimatePowerCapThree: false,
+    ultimateBoostExtraCost: false,
+    ultimateGrowingPrecision: false,
+    ultimateDiscardMarkProtection: false,
+    ultimateDrawPerDefendedBoost: false,
+    ultimateBoostFromDiscard: false,
+    ultimateInstantPlacementLossTo: null,
+    ultimateConditionalPowerCap: null,
+    nextPrecisionBonus: 0,
+    nextPrecisionSources: [],
+    nextPlacementBonus: 0,
+    nextPlacementSources: [],
+    nextAnyPlacementBonus: 0,
+    nextAnyPlacementSources: [],
+    nextDiscount: 0,
+    nextDiscountSources: [],
+    nextExtraCost: 0,
+    nextExtraCostSources: [],
+    nextPowerMultiplier: 1,
+    nextPowerMultiplierSourceUid: null,
+    nextPowerCap: null,
+    nextPowerCapSourceUid: null,
+    nextShotBasePlacementZero: false,
+    nextShotBasePlacementZeroSourceUid: null,
+    exchangePrecisionBonus: 0,
+    exchangePrecisionSources: [],
+    exchangePlacementBonus: 0,
+    exchangePlacementSources: [],
+    exchangeFamilyPowerBonuses: [],
+    exchangeAfterFamilyPlacementBonuses: [],
+    placementPerOpponentLowPowerCardBonuses: [],
+    protectedFromRemoval: false,
+    protectedFromRemovalSourceUid: null,
+    cancelNextOpponentEffect: false,
+    cancelNextOpponentEffectSourceUid: null,
+    limitedFamilies: null,
+    limitedFamiliesSourceUid: null,
+    freeBoostNext: false,
+    freeBoostNextSourceUid: null,
+    endBonuses: [],
+  });
 }
 
 function startNextUltimateExchange(completedExchangeNumber = Number(state.setMatch.exchangeNumber || 0)) {
@@ -9051,6 +9109,7 @@ function startNextUltimateExchange(completedExchangeNumber = Number(state.setMat
     player.reserve = preservedReserves[playerIndex];
     player.hand = (player.hand || []).filter((card) => !reservedUids.has(card.uid));
     player.played = [];
+    clearUltimateExchangeEffects(player);
     player.endurance = STARTING_ENDURANCE + Number(player.ultimateNextExchangeEndurance || 0);
     player.ultimateNextExchangeEndurance = 0;
   });
@@ -9670,6 +9729,12 @@ function canUseSeat(playerIndex) {
   return true;
 }
 
+function ultimateBlockingDialogOpen() {
+  return ULTIMATE_MODE.active && Boolean(document.querySelector(
+    ".ultimate-dialog:not(.hidden), .boost-choice-backdrop, .effect-choice-backdrop, .coach-choice-backdrop, .remove-choice-backdrop, .image-zoom-backdrop, .desktop-played-card-backdrop",
+  ));
+}
+
 function surfaceBonusesForPlayer(player) {
   const assigned = player?.surfaceBonuses?.length
     ? player.surfaceBonuses
@@ -9870,9 +9935,13 @@ function totalTurnPlacement(playerIndex, card, boosted = false) {
   return state.turnPlacement[playerIndex] + getCardStats(state.players[playerIndex], card, boosted).placement;
 }
 
+function requiredPlacementForLastCard() {
+  return Number(state.lastCard?.ultimateRequiredPlacement ?? state.lastCard?.precision ?? 0);
+}
+
 function hasPlacementForPrevious(playerIndex, card, boosted = false) {
   if (!state.lastCard) return true;
-  return totalTurnPlacement(playerIndex, card, boosted) >= state.lastCard.precision;
+  return totalTurnPlacement(playerIndex, card, boosted) >= requiredPlacementForLastCard();
 }
 
 function turnEndPlacement(playerIndex) {
@@ -9920,7 +9989,7 @@ function canEndTurn(playerIndex) {
   if (state.mandatoryPlacement) {
     return hasPlayedThisTurn(playerIndex)
       && state.lastCard
-      && (turnEndPlacement(playerIndex) >= state.lastCard.precision || finalRemiseCanResolvePlacementConstraint(playerIndex));
+      && (turnEndPlacement(playerIndex) >= requiredPlacementForLastCard() || finalRemiseCanResolvePlacementConstraint(playerIndex));
   }
   return state.turnHasEffect[playerIndex] || state.turnPlacement[playerIndex] > 0;
 }
@@ -10058,7 +10127,7 @@ function renderOpponentHandRevealControls() {
 }
 
 function maybeRunSoloAI() {
-  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive || ULTIMATE_MODE.markChoice) return;
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive || ULTIMATE_MODE.markChoice || ultimateBlockingDialogOpen()) return;
   if (state.activePlayer !== SOLO_AI.playerIndex) return;
   if (SOLO_AI.thinking || SOLO_AI.executing) return;
   SOLO_AI.thinking = true;
@@ -10145,7 +10214,7 @@ function runSoloAITurn() {
     if (shouldSoloClosePreparedPlacement(playerIndex)) {
       recordSoloAiDecision("end_turn_with_sufficient_placement", {
         preparedPlacement: turnEndPlacement(playerIndex),
-        requiredPlacement: Number(state.lastCard?.precision || 0),
+        requiredPlacement: requiredPlacementForLastCard(),
         legalInventory: soloLegalInventoryLog(legalInventory),
       });
       endTurn(playerIndex);
@@ -12183,7 +12252,7 @@ function shouldSoloPassToLimitBoostDamage(playerIndex) {
 
 function hasSafeSoloContinuation(playerIndex) {
   const player = state.players[playerIndex];
-  const requiredPlacement = state.lastCard?.precision ?? 0;
+  const requiredPlacement = requiredPlacementForLastCard();
   const directCoup = player.hand.some((card) => {
     if (isRemise(card) || !canPlayNormal(playerIndex, card)) return false;
     if (!state.lastCard || state.turnIgnoresPlacement[playerIndex]) return true;
@@ -12246,7 +12315,7 @@ function soloLegalInventoryLog(inventory) {
 
 function shouldSoloClosePreparedPlacement(playerIndex) {
   if (!state.lastCard || !hasPlayedThisTurn(playerIndex) || !canEndTurn(playerIndex)) return false;
-  if (turnEndPlacement(playerIndex) < Number(state.lastCard.precision || 0)) return false;
+  if (turnEndPlacement(playerIndex) < requiredPlacementForLastCard()) return false;
   if (state.mandatoryPlacement) return true;
   // Une fois la précision adverse couverte, l'IA ne consume plus une chaîne
   // de REMISES si aucun COUP légal ne peut utilement terminer le tour.
@@ -12389,7 +12458,7 @@ function legendaryCounterBoostThreat(playerIndex, exposedCard, sacrifice = null)
     state.lastCard
     && !state.turnIgnoresPlacement[playerIndex]
     && !state.turnCannotOpenBoost[playerIndex]
-    && totalTurnPlacement(playerIndex, exposedCard, boosted) < state.lastCard.precision
+    && totalTurnPlacement(playerIndex, exposedCard, boosted) < requiredPlacementForLastCard()
   );
   const allPotentialCounters = CARD_LIBRARY
     .filter((card) => !isRemise(card) && card.family !== "Service")
@@ -12549,10 +12618,10 @@ function chooseSoloRemiseForPlacement(playerIndex) {
   if (!state.lastCard || state.turnIgnoresPlacement[playerIndex]) return null;
   const player = state.players[playerIndex];
   const needsStrictPlacement = state.mandatoryPlacement || state.lastCard.boosted;
-  if (!needsStrictPlacement && state.turnPlacement[playerIndex] >= state.lastCard.precision) return null;
+  if (!needsStrictPlacement && state.turnPlacement[playerIndex] >= requiredPlacementForLastCard()) return null;
   const playableCoups = player.hand.filter((card) => !isRemise(card) && canPlayNormal(playerIndex, card));
   const bestCoupPlacement = playableCoups.reduce((best, card) => Math.max(best, totalTurnPlacement(playerIndex, card)), state.turnPlacement[playerIndex]);
-  if (bestCoupPlacement >= state.lastCard.precision) return null;
+  if (bestCoupPlacement >= requiredPlacementForLastCard()) return null;
   const defensePlan = chooseSoloRemiseDefensePlan(playerIndex);
   return defensePlan?.remises[0] ?? null;
 }
@@ -12560,7 +12629,7 @@ function chooseSoloRemiseForPlacement(playerIndex) {
 function chooseSoloRemiseDefensePlan(playerIndex) {
   if (!state.lastCard || state.turnIgnoresPlacement[playerIndex]) return null;
   const player = state.players[playerIndex];
-  const targetPlacement = state.lastCard.precision;
+  const targetPlacement = requiredPlacementForLastCard();
   const remises = player.hand.filter((card) => isRemise(card) && canPlayNormal(playerIndex, card));
   const options = [];
 
@@ -12816,7 +12885,7 @@ function soloPlayableCoupScore(playerIndex, card) {
   let score = soloCardScore(playerIndex, card);
   if (state.lastCard) {
     const totalPlacement = totalTurnPlacement(playerIndex, card);
-    if (totalPlacement >= state.lastCard.precision) score += 12 + totalPlacement;
+    if (totalPlacement >= requiredPlacementForLastCard()) score += 12 + totalPlacement;
   }
   if (state.mandatoryPlacement && hasPlacementForPrevious(playerIndex, card)) score += 20;
   return score;
@@ -12847,7 +12916,7 @@ function soloCardScore(playerIndex, card, boosted = false) {
   let score = stats.power * 4 + stats.precision * 1.2 + stats.placement * 1.5 - cost * 2;
   if (state.lastCard && !state.turnIgnoresPlacement[playerIndex]) {
     const totalPlacement = totalTurnPlacement(playerIndex, card, boosted);
-    if (totalPlacement < state.lastCard.precision) score -= state.lastCard.precision - totalPlacement + 4;
+    if (totalPlacement < requiredPlacementForLastCard()) score -= requiredPlacementForLastCard() - totalPlacement + 4;
   }
   if (card.star) score += 1.5;
   if (card.effectType === "gainEndurance") score += 1;
@@ -12881,7 +12950,7 @@ function opensLikelyBoostWindowForOpponent(playerIndex, card) {
   const opponent = state.players[opponentOf(playerIndex)];
   if (opponent.hand.length < 2 || opponent.endurance <= 0) return false;
   const totalPlacement = totalTurnPlacement(playerIndex, card, false);
-  return totalPlacement < state.lastCard.precision && !expertCanDefendBoostWithCards(playerIndex, player.hand.filter((item) => item.uid !== card.uid), player.endurance - effectiveCost(player, card), state.lastCard.precision);
+  return totalPlacement < requiredPlacementForLastCard() && !expertCanDefendBoostWithCards(playerIndex, player.hand.filter((item) => item.uid !== card.uid), player.endurance - effectiveCost(player, card), requiredPlacementForLastCard());
 }
 
 function soloBoostScore(playerIndex, card) {
@@ -13092,7 +13161,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     if (combinedPlacement < player.ultimateConditionalPowerCap.precision) stats.power = Math.min(stats.power, player.ultimateConditionalPowerCap.cap);
     player.ultimateConditionalPowerCap = null;
   }
-  const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
+  const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex]);
 
   player.endurance -= cost;
   clearNextAnyCardBonuses(player);
@@ -13268,6 +13337,7 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   const endsTurn = !isRemise(card);
   const hasActiveEffect = playedCard.effectApplied !== false;
   const hasSmashThreat = hasActiveEffect && (card.effectType === "smashThreat" || playedCard.copiedSmashThreat || playedCard.copiedEffectType === "smashThreat");
+  const hasInstantPlacementThreat = hasActiveEffect && card.effectType === "ultimateInstantPlacementWin";
 
   if (isRemise(card) && remiseMode === "effect") {
     state.turnHasEffect[playerIndex] = true;
@@ -13287,14 +13357,15 @@ function completePlayedCardResolution(playerIndex, opponentIndex, card, playedCa
   }
 
   playedCard.turnCompleted = true;
+  if (hasInstantPlacementThreat) playedCard.ultimateRequiredPlacement = Number(playedCard.placement || card.placement || 0);
   state.lastCard = playedCard;
   if (isOpeningServe && hasActiveEffect) {
     state.returnServiceRestrictionSpent = state.returnServiceRestrictionSpent ?? [false, false];
     state.returnServiceRestrictionFor = opponentIndex;
     state.returnServiceRestrictionSpent[opponentIndex] = false;
   }
-  state.mandatoryPlacement = boosted || hasSmashThreat;
-  state.mandatoryPlacementReason = boosted ? "boost" : hasSmashThreat ? "smash" : null;
+  state.mandatoryPlacement = boosted || hasSmashThreat || hasInstantPlacementThreat;
+  state.mandatoryPlacementReason = boosted ? "boost" : hasSmashThreat ? "smash" : hasInstantPlacementThreat ? "lob" : null;
   state.mandatoryPlacementSourceUid = state.mandatoryPlacement ? playedCard.playedUid : null;
   state.boostAvailableFor = !boosted && placementWasInsufficient ? opponentIndex : null;
   state.turnPlacement[playerIndex] = 0;
@@ -13397,7 +13468,7 @@ function commitEndTurn(playerIndex) {
   const preparedPlacement = turnEndPlacement(playerIndex);
   const finalRemise = finalRemisePlayedThisTurn(playerIndex);
   const answeredBoostConstraint = Boolean(state.lastCard?.boosted || state.mandatoryPlacementReason === "boost");
-  const opensBoost = Boolean(state.lastCard && preparedPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex]);
+  const opensBoost = Boolean(state.lastCard && preparedPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex]);
   recordAction("end_turn", {
     playerIndex,
     opponentIndex,
@@ -13812,7 +13883,7 @@ function resolveRemoveChoice(targetPlayedUid) {
     sourceCard,
     sourceCard,
     sourceCard.isServiceTurn,
-    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
+    Boolean(state.lastCard && sourceCard.turnPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
     sourceCard.boosted,
     "effect",
     Boolean(sourceCard.answeredBoostConstraint),
@@ -13839,7 +13910,7 @@ function closeImpossibleRemoveChoice(playerIndex) {
     sourceCard,
     sourceCard,
     sourceCard.isServiceTurn,
-    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
+    Boolean(state.lastCard && sourceCard.turnPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
     sourceCard.boosted,
     "effect",
     Boolean(sourceCard.answeredBoostConstraint),
@@ -14059,7 +14130,7 @@ function resolveEffectChoice(chosenPlayedUid) {
     sourceCard,
     sourceCard,
     sourceCard.isServiceTurn,
-    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
+    Boolean(state.lastCard && sourceCard.turnPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
     sourceCard.boosted,
     "effect",
     Boolean(sourceCard.answeredBoostConstraint),
@@ -14086,7 +14157,7 @@ function closeImpossibleEffectChoice(playerIndex) {
     sourceCard,
     sourceCard,
     sourceCard.isServiceTurn,
-    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
+    Boolean(state.lastCard && sourceCard.turnPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
     sourceCard.boosted,
     "effect",
     Boolean(sourceCard.answeredBoostConstraint),
@@ -14546,7 +14617,7 @@ function resolveCoachChoice(cardUid) {
     sourceCard,
     sourceCard,
     sourceCard.isServiceTurn,
-    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
+    Boolean(state.lastCard && sourceCard.turnPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
     sourceCard.boosted,
     "effect",
     Boolean(sourceCard.answeredBoostConstraint),
@@ -14570,7 +14641,7 @@ function closeImpossibleCoachChoice(playerIndex) {
     sourceCard,
     sourceCard,
     sourceCard.isServiceTurn,
-    Boolean(state.lastCard && sourceCard.turnPlacement < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
+    Boolean(state.lastCard && sourceCard.turnPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex]),
     sourceCard.boosted,
     "effect",
     Boolean(sourceCard.answeredBoostConstraint),
@@ -19492,7 +19563,7 @@ function renderChoiceCardVisual(card) {
   }
   return `
     <div class="choice-card-visual">
-      <img src="${imageUrl}" alt="${card.name} - ${card.subtitle ?? card.family}" />
+      <img class="dialog-card-preview" src="${imageUrl}" data-image-zoom="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(card.name)}" alt="${card.name} - ${card.subtitle ?? card.family}" />
     </div>
     <strong>${card.name}</strong>
     <span>${card.subtitle ?? card.family}</span>
@@ -19529,7 +19600,9 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
   const ultimateProfileResources = ULTIMATE_MODE.active ? `
     <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="Utiliser une énergie · ${player.energy} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || playerIndex === SOLO_AI.playerIndex ? "disabled" : ""}><strong>${player.energy}</strong></button>
   ` : "";
-  const ultimateDiscard = ULTIMATE_MODE.active ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>` : "";
+  const ultimateDiscard = ULTIMATE_MODE.active && playerIndex === mobileLocalPlayerIndex()
+    ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>`
+    : "";
   return `
     <div class="character-zone">
       <button class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" type="button" data-ultimate-character-state="${playerIndex}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
@@ -19762,7 +19835,7 @@ function renderDesktopMatchScore() {
 function renderCenterNextExchangeButton() {
   if (!state.setMatch.enabled || !state.gameOver || state.setMatch.setOver || state.setMatch.matchOver) return "";
   if (ULTIMATE_MODE.active) {
-    return '<button class="primary-button next-exchange-button ultimate-post-exchange-start" type="button" data-start-ultimate-post-exchange>CONTINUER · RÉSERVE ET DISTRIBUTION</button>';
+    return '<button class="primary-button next-exchange-button ultimate-post-exchange-start" type="button" data-start-ultimate-post-exchange>CONTINUER</button>';
   }
   return `<button class="primary-button next-exchange-button" type="button" data-next-set-exchange>Échange suivant</button>`;
 }
@@ -20336,7 +20409,6 @@ function desktopCardDetailMarkup(card) {
     : card.effect || card.label || "Aucun effet";
   return `
     <article class="desktop-card-detail-panel">
-      <span>Détail de la carte</span>
       <h2>${escapeHtml(card.name || "Carte jouée")}</h2>
       <dl>
         <div><dt>Coût</dt><dd>${cost}</dd></div>
@@ -20557,7 +20629,7 @@ function activeEffectBadges(playerIndex) {
   if (state.turnIgnoresPlacement[playerIndex]) badges.push({ text: "Ce tour : la contrainte de placement est ignorée", type: "effect" });
   if (player.limitedFamilies) badges.push({ text: `Ce tour : seules les cartes ${player.limitedFamilies.join(" / ")} peuvent être jouées`, type: "constraint", sourceUid: player.limitedFamiliesSourceUid });
   if (state.activePlayer === playerIndex && state.mandatoryPlacement && state.lastCard) {
-    badges.push({ text: `Ce tour : placement minimum requis ${state.lastCard.precision}`, type: "constraint" });
+    badges.push({ text: `Ce tour : placement minimum requis ${requiredPlacementForLastCard()}`, type: "constraint" });
   }
   if (state.boostAvailableFor === playerIndex) badges.push({ text: "Ce tour : BOOST disponible", type: "effect" });
   if (hasReturnServiceRestriction(playerIndex)) {
@@ -20736,15 +20808,31 @@ function renderUltimateReserveInHand(playerIndex) {
     const cost = effectiveCost(player, card);
     const normalAllowed = usable && canPlayNormal(playerIndex, card);
     const boostAllowed = usable && canPlayBoost(playerIndex, card);
-    return `<article class="card has-visual ultimate-reserve-hand-card${usable ? "" : " ultimate-reserve-readonly"}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}"${usable ? ' tabindex="0"' : ""}>
+    const playable = normalAllowed || boostAllowed;
+    return `<article class="card has-visual ultimate-reserve-hand-card${usable ? "" : " ultimate-reserve-readonly"}${usable && !playable ? " unplayable desktop-hand-card--locked" : ""}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}"${usable ? ' tabindex="0"' : ""}>
       <span class="ultimate-reserve-hand-badge">RÉSERVE</span>
+      ${usable && !playable ? '<span class="desktop-card-lock" aria-label="Carte inutilisable">🔒</span>' : ""}
       <button class="card-visual card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(image)}" data-image-label="${escapeHtml(card.name)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" /></button>
       ${usable ? `<div class="card-hover-panel ultimate-reserve-hover-panel"><div class="card-actions ultimate-reserve-actions"><button class="play-button" type="button" data-use-reserve="${escapeHtml(card.uid)}" aria-label="Jouer ${escapeHtml(card.name)} pour ${cost} endurance" ${normalAllowed ? "" : "disabled"}><span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span></button><button class="boost-button" type="button" data-boost-reserve="${escapeHtml(card.uid)}" ${boostAllowed ? "" : "disabled"}>BOOST</button></div></div>` : ""}
     </article>`;
   }).join("")}`;
 }
 
+function enableUltimateDialogCardPreviews(dialog, cards) {
+  const images = [...(dialog?.querySelectorAll(".ultimate-draft-card img, .ultimate-discard-grid img") || [])];
+  images.forEach((image, index) => {
+    const card = cards[index];
+    const artwork = cardArtwork(card);
+    if (!card || !artwork) return;
+    image.classList.add("dialog-card-preview");
+    image.dataset.imageZoom = artwork;
+    image.dataset.imageLabel = card.name || "Carte";
+  });
+  attachImageZoomHandlers(dialog);
+}
+
 function openUltimateDiscard(playerIndex) {
+  if (playerIndex !== mobileLocalPlayerIndex()) return;
   const cards = state.ultimateDiscards[playerIndex] || [];
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
@@ -20764,7 +20852,11 @@ function openUltimateCardRecoveryChoice(playerIndex, source) {
   }
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
-  dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Choix dans ${source === "deck" ? "la pioche" : "la défausse"}</p><h2>Choisissez une carte à récupérer</h2><div class="ultimate-discard-grid">${cards.map((card) => `<button class="ultimate-draft-card" type="button" data-recover-ultimate="${escapeHtml(card.uid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div></div>`;
+  dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Choix dans ${source === "deck" ? "la pioche" : "la défausse"}</p><h2>Choisissez une carte à récupérer</h2>${source === "deck" ? '<button class="small-button" type="button" data-cancel-recovery>Annuler et revenir au début du tour</button>' : ""}<div class="ultimate-discard-grid">${cards.map((card) => `<button class="ultimate-draft-card" type="button" data-recover-ultimate="${escapeHtml(card.uid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div></div>`;
+  dialog.querySelector("[data-cancel-recovery]")?.addEventListener("click", () => {
+    dialog.remove();
+    restoreTurnSnapshot();
+  });
   dialog.querySelectorAll("[data-recover-ultimate]").forEach((button) => button.addEventListener("click", () => {
     const selected = cards.find((card) => card.uid === button.dataset.recoverUltimate);
     if (!selected) return;
@@ -20774,8 +20866,10 @@ function openUltimateCardRecoveryChoice(playerIndex, source) {
     state.log.unshift(`${displayPlayerName(player)} récupère ${selected.name}.`);
     dialog.remove();
     render();
+    window.setTimeout(maybeRunSoloAI, 0);
   }));
   document.body.appendChild(dialog);
+  enableUltimateDialogCardPreviews(dialog, cards);
 }
 
 function openUltimateMarkChoice(playerIndex, requiredCount, allowReserveDiscard, sourceCard) {
@@ -20792,7 +20886,12 @@ function openUltimateMarkChoice(playerIndex, requiredCount, allowReserveDiscard,
   dialog.className = "ultimate-dialog";
   const paint = () => {
     const needed = Math.min(requiredCount, candidates.length);
-    dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Pouvoir · marqueur défausse</p><h2>Choisissez ${needed} COUP${needed > 1 ? "S" : ""} adverse${needed > 1 ? "s" : ""}</h2><p>Les cartes choisies seront marquées en bleu sur le plateau et ne pourront pas rejoindre la réserve.</p><div class="ultimate-draft-cards">${candidates.map((card) => `<button class="ultimate-draft-card ${selected.has(card.playedUid) ? "selected" : ""}" type="button" data-mark-card="${escapeHtml(card.playedUid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div>${allowReserveDiscard && opponent.reserve.length ? `<button class="small-button ultimate-mark-reserve-choice" type="button" data-mark-discard-reserve>À la place, défausser une carte de la réserve adverse</button>` : ""}<button class="primary-button" type="button" data-confirm-marks ${selected.size === needed ? "" : "disabled"}>Confirmer les marqueurs</button></div>`;
+    dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Pouvoir · marqueur défausse</p><h2>Choisissez ${needed} COUP${needed > 1 ? "S" : ""} adverse${needed > 1 ? "s" : ""}</h2><button class="small-button" type="button" data-cancel-mark-choice>Annuler et revenir au début du tour</button><p>Les cartes choisies seront marquées en bleu sur le plateau et ne pourront pas rejoindre la réserve.</p><div class="ultimate-draft-cards">${candidates.map((card) => `<button class="ultimate-draft-card ${selected.has(card.playedUid) ? "selected" : ""}" type="button" data-mark-card="${escapeHtml(card.playedUid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div>${allowReserveDiscard && opponent.reserve.length ? `<button class="small-button ultimate-mark-reserve-choice" type="button" data-mark-discard-reserve>À la place, défausser une carte de la réserve adverse</button>` : ""}<button class="primary-button" type="button" data-confirm-marks ${selected.size === needed ? "" : "disabled"}>Confirmer les marqueurs</button></div>`;
+    dialog.querySelector("[data-cancel-mark-choice]")?.addEventListener("click", () => {
+      ULTIMATE_MODE.markChoice = null;
+      dialog.remove();
+      restoreTurnSnapshot();
+    });
     dialog.querySelectorAll("[data-mark-card]").forEach((button) => button.addEventListener("click", () => {
       const uid = button.dataset.markCard;
       if (selected.has(uid)) selected.delete(uid);
@@ -20815,6 +20914,7 @@ function openUltimateMarkChoice(playerIndex, requiredCount, allowReserveDiscard,
       render();
       maybeRunSoloAI();
     });
+    enableUltimateDialogCardPreviews(dialog, candidates);
   };
   paint();
   document.body.appendChild(dialog);
@@ -20830,7 +20930,11 @@ function openUltimateHandDiscardChoice(playerIndex, requiredCount, enduranceGain
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
   const paint = () => {
-    dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Effet · Endurance</p><h2>Choisissez ${requiredCount} carte${requiredCount > 1 ? "s" : ""} à défausser</h2><p>Les cartes choisies rejoindront votre défausse, puis vous récupérerez ${enduranceGain} endurance.</p><div class="ultimate-draft-cards">${player.hand.map((card) => `<button class="ultimate-draft-card ${selected.has(card.uid) ? "selected" : ""}" type="button" data-discard-hand="${escapeHtml(card.uid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div><button class="primary-button" type="button" data-confirm-hand-discard ${selected.size === requiredCount ? "" : "disabled"}>Confirmer la défausse</button></div>`;
+    dialog.innerHTML = `<div class="ultimate-dialog-card"><p class="eyebrow">Effet · Endurance</p><h2>Choisissez ${requiredCount} carte${requiredCount > 1 ? "s" : ""} à défausser</h2><button class="small-button" type="button" data-cancel-hand-discard>Annuler et revenir au début du tour</button><p>Les cartes choisies rejoindront votre défausse, puis vous récupérerez ${enduranceGain} endurance.</p><div class="ultimate-draft-cards">${player.hand.map((card) => `<button class="ultimate-draft-card ${selected.has(card.uid) ? "selected" : ""}" type="button" data-discard-hand="${escapeHtml(card.uid)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}"><strong>${escapeHtml(card.name)}</strong></button>`).join("")}</div><button class="primary-button" type="button" data-confirm-hand-discard ${selected.size === requiredCount ? "" : "disabled"}>Confirmer la défausse</button></div>`;
+    dialog.querySelector("[data-cancel-hand-discard]")?.addEventListener("click", () => {
+      dialog.remove();
+      restoreTurnSnapshot();
+    });
     dialog.querySelectorAll("[data-discard-hand]").forEach((button) => button.addEventListener("click", () => {
       const uid = button.dataset.discardHand;
       if (selected.has(uid)) selected.delete(uid);
@@ -20847,6 +20951,7 @@ function openUltimateHandDiscardChoice(playerIndex, requiredCount, enduranceGain
       dialog.remove();
       render();
     });
+    enableUltimateDialogCardPreviews(dialog, player.hand);
   };
   paint();
   document.body.appendChild(dialog);
@@ -21019,8 +21124,8 @@ function renderCard(playerIndex, card) {
   const cost = effectiveCost(player, card);
   const stats = getCardStats(player, card, false);
   const placementTotal = totalTurnPlacement(playerIndex, card, false);
-  const placementIssue = !isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex];
-  const remisePlacementIssue = isRemise(card) && state.lastCard && placementTotal < state.lastCard.precision && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex];
+  const placementIssue = !isRemise(card) && state.lastCard && placementTotal < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex];
+  const remisePlacementIssue = isRemise(card) && state.lastCard && placementTotal < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex] && !state.turnCannotOpenBoost[playerIndex];
   const imageUrl = card.artwork || CARD_IMAGES[card.id];
   const hasDynamicStats = stats.precision !== card.precision || stats.placement !== card.placement || cost !== card.cost || state.turnPlacement[playerIndex] > 0;
   const dynamicStatCount = [cost !== card.cost, stats.precision !== card.precision, stats.placement !== card.placement || state.turnPlacement[playerIndex]].filter(Boolean).length;
@@ -22009,7 +22114,7 @@ function mobileCardUnavailableReason(playerIndex, card) {
   const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
   const boostRemainsPlayable = !isRemise(card) && canPlayBoost(playerIndex, card);
   if (!isRemise(card) && state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost && !boostRemainsPlayable) {
-    return `Placement insuffisant : ${totalTurnPlacement(playerIndex, card)} obtenu, ${state.lastCard?.precision || 0} requis.`;
+    return `Placement insuffisant : ${totalTurnPlacement(playerIndex, card)} obtenu, ${requiredPlacementForLastCard()} requis.`;
   }
   if (state.tutorial.active) {
     const action = tutorialExpectedAction();
@@ -22065,7 +22170,7 @@ function mobileCardPlayOptions(playerIndex, card) {
         !boosted
         && mode !== "effect"
         && state.lastCard
-        && totalTurnPlacement(playerIndex, card, boosted) < Number(state.lastCard.precision || 0)
+        && totalTurnPlacement(playerIndex, card, boosted) < requiredPlacementForLastCard()
         && !state.turnIgnoresPlacement[playerIndex]
         && !state.turnCannotOpenBoost[playerIndex]
       ),
@@ -22689,7 +22794,7 @@ function getMobileMatchViewState() {
       canEndTurn: !SPECTATOR_MODE.enabled && canEndTurn(playerIndex),
       endTurnBoostRisk: Boolean(
         state.lastCard
-        && Number(state.turnPlacement[playerIndex] || 0) < Number(state.lastCard.precision || 0)
+        && Number(state.turnPlacement[playerIndex] || 0) < requiredPlacementForLastCard()
         && !state.turnIgnoresPlacement[playerIndex]
         && !state.turnCannotOpenBoost[playerIndex]
       ),

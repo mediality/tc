@@ -41,6 +41,7 @@ function functionSource(name) {
     hasPlayedThisTurn: () => true,
     canEndTurn: () => true,
     turnEndPlacement: () => 3,
+    requiredPlacementForLastCard: () => 3,
     canSoloFinishWithCoup: () => false,
   };
   vm.createContext(context);
