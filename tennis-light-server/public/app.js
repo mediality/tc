@@ -364,6 +364,7 @@ const EMPTY_TOURNAMENT = {
 
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogsV2";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogsV2";
+const ULTIMATE_MATCH_LOG_STORAGE_KEY = "tennisLightUltimateMatchLogV526";
 const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV2";
 const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV2";
 const HUMAN_MATCH_LOG_SCHEMA_VERSION = 2;
@@ -8022,6 +8023,7 @@ function recordAction(kind, payload = {}) {
   const entry = {
     actionId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
+    localDateTime: new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "medium" }).format(new Date()),
     kind,
     ...payload,
     mode: ULTIMATE_MODE.active ? "ultimate-ai" : SERVER_SYNC.enabled ? "online" : state.setMatch.enabled ? "set-ai" : SOLO_AI.enabled ? "solo-ai" : "local",
@@ -8033,12 +8035,41 @@ function recordAction(kind, payload = {}) {
     coachJuFocus: payload.playerIndex === 0 || payload.opponentIndex === 0,
   };
   state.actionLog.push(entry);
+  if (ULTIMATE_MODE.active) appendUltimateMatchLog(entry);
   if (["admin", "pro_plus"].includes(currentUserRole())) {
     const stored = readStoredJson(ACTION_LOG_STORAGE_KEY, []);
     stored.push(entry);
     writeStoredJson(ACTION_LOG_STORAGE_KEY, stored.slice(-5000));
   }
   recordHumanMatchAction(entry);
+}
+
+function readUltimateMatchLog() {
+  const stored = readStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, null);
+  return stored && Array.isArray(stored.entries) ? stored : null;
+}
+
+function startUltimateMatchLog(characterIndex) {
+  const startedAt = new Date();
+  writeStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, {
+    schemaVersion: 1,
+    matchId: crypto.randomUUID(),
+    startedAt: startedAt.toISOString(),
+    startedAtLocal: new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeStyle: "long" }).format(startedAt),
+    playerCharacter: ULTIMATE_PLAYERS[characterIndex]?.name || null,
+    opponentCharacter: ULTIMATE_PLAYERS[characterIndex === 0 ? 1 : 0]?.name || null,
+    aiDifficulty: ULTIMATE_MODE.aiDifficulty,
+    entries: [],
+  });
+}
+
+function appendUltimateMatchLog(entry) {
+  const match = readUltimateMatchLog();
+  if (!match) return;
+  match.entries.push(entry);
+  match.updatedAt = entry.createdAt;
+  match.updatedAtLocal = entry.localDateTime;
+  writeStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, match);
 }
 
 function logKey(entry) {
@@ -8489,12 +8520,17 @@ function auditUltimateRuntime(stage) {
 
 function exportLogsFile() {
   if (!canAccessAdminFeatures() && !(ULTIMATE_MODE.active && canAccessUltimateFeatures())) return;
-  const detailedActions = mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
+  const ultimateMatch = readUltimateMatchLog();
+  const detailedActions = ULTIMATE_MODE.active && ultimateMatch
+    ? mergeLogEntries(ultimateMatch.entries, state.actionLog ?? [])
+    : mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
   const exchangeResults = getStoredMatchLogs();
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.26" : null,
+    ultimateMatch,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -9012,7 +9048,7 @@ function clearUltimateExchangeEffects(player) {
     ultimateDrawPerDefendedBoost: false,
     ultimateBoostFromDiscard: false,
     ultimateInstantPlacementLossTo: null,
-    ultimateConditionalPowerCap: null,
+    ultimateConditionalPowerCaps: [],
     nextPrecisionBonus: 0,
     nextPrecisionSources: [],
     nextPlacementBonus: 0,
@@ -9226,6 +9262,7 @@ function detachUltimateFromOnlineSession() {
 function confirmUltimatePlayer(characterIndex) {
   if (!ULTIMATE_MODE.active || !ULTIMATE_PLAYERS[characterIndex]) return;
   ULTIMATE_MODE.playerOrder = characterIndex === 0 ? [0, 1] : [1, 0];
+  startUltimateMatchLog(characterIndex);
   els.ultimatePlayerDialog?.classList.add("hidden");
   SOLO_AI.enabled = true;
   SOLO_AI.playerIndex = 1;
@@ -13157,9 +13194,13 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   };
   state.turnEffectPlacement[playerIndex] = isRemise(card) && remiseMode === "effect" ? rawStats.placement : 0;
   const combinedPlacement = state.turnPlacement[playerIndex] + stats.placement;
-  if (endsTurn && player.ultimateConditionalPowerCap) {
-    if (combinedPlacement < player.ultimateConditionalPowerCap.precision) stats.power = Math.min(stats.power, player.ultimateConditionalPowerCap.cap);
-    player.ultimateConditionalPowerCap = null;
+  if (endsTurn && player.ultimateConditionalPowerCaps?.length) {
+    const applicableCaps = player.ultimateConditionalPowerCaps.filter((constraint) => combinedPlacement < constraint.precision);
+    if (applicableCaps.length) {
+      const cap = Math.min(...applicableCaps.map((constraint) => constraint.cap));
+      stats.power = Math.min(stats.power, cap);
+      state.log.unshift(`${displayPlayerName(player)} ne respecte pas la précision imposée : ce COUP est limité à ${cap} puissance.`);
+    }
   }
   const placementWasInsufficient = Boolean(endsTurn && state.lastCard && combinedPlacement < requiredPlacementForLastCard() && !state.turnIgnoresPlacement[playerIndex]);
 
@@ -13196,7 +13237,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     isServiceTurn: isOpeningServe,
     costPaid: cost,
     powerGained: stats.power,
-    cardPowerGained: rawStats.power,
+    cardPowerGained: stats.power,
     basePowerGained: boosted ? card.boostPower : card.power,
     effectPowerGained: 0,
     answeredBoostConstraint,
@@ -13259,7 +13300,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
     endsTurn,
     costPaid: cost,
     powerGained: stats.power,
-    cardPowerGained: rawStats.power,
+    cardPowerGained: stats.power,
     precision: stats.precision,
     placement: stats.placement,
     turnPlacement: combinedPlacement,
@@ -13622,8 +13663,9 @@ function applyEffect(playerIndex, card) {
       setEffectNotice("appliqué", card, `${displayPlayerName(opponent)} ne peut plus rejouer une famille de COUP déjà utilisée.`);
       break;
     case "ultimateOpponentPowerOneIfMiss":
-      opponent.ultimateConditionalPowerCap = { cap: 1, precision: Number(card.precision || 0), sourceUid: card.playedUid };
-      state.log.unshift(`Si le placement de ${displayPlayerName(opponent)} est insuffisant, son prochain COUP sera limité à 1 puissance.`);
+      if (!Array.isArray(opponent.ultimateConditionalPowerCaps)) opponent.ultimateConditionalPowerCaps = [];
+      opponent.ultimateConditionalPowerCaps.push({ cap: 1, precision: Number(card.precision || 0), sourceUid: card.playedUid });
+      state.log.unshift(`À chaque fois que le placement de ${displayPlayerName(opponent)} est insuffisant pendant cet échange, son COUP est limité à 1 puissance.`);
       break;
     case "ultimateOpponentPowerCapThree":
       opponent.ultimatePowerCapThree = true;
