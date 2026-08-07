@@ -13,7 +13,7 @@ assert.match(app, /hasInstantPlacementThreat[\s\S]*ultimateRequiredPlacement/);
 assert.match(app, /mandatoryPlacementReason = boosted \? "boost"[\s\S]*"lob"/);
 assert.match(app, /combinedPlacement < requiredPlacementForLastCard\(\)/);
 assert.match(app, /function ultimateBlockingDialogOpen/);
-assert.match(app, /ultimateBlockingDialogOpen\(\)\) return/);
+assert.match(app, /ultimateBlockingDialogOpen\(\)[\s\S]*resumeUltimateAiAfterDialogs\(\)/);
 assert.match(app, /function clearUltimateExchangeEffects[\s\S]*power: 0/);
 assert.match(app, /function clearUltimateExchangeEffects[\s\S]*nextDiscount: 0/);
 assert.match(app, /function clearUltimateExchangeEffects[\s\S]*ultimateNextCostOne: false/);
@@ -32,6 +32,6 @@ assert.match(app, /dialog-card-preview/);
 assert.match(app, /contextmenu[\s\S]*preventDefault/);
 assert.match(css, /-webkit-touch-callout: none/);
 assert.match(html, /Cartes de la main en plein écran au clic/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.26<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V5\.27<\/span>/);
 
 console.log("V5.25 Ultimate rules, reset, dialogs and iOS protection checks passed.");

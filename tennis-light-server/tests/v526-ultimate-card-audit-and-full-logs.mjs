@@ -34,7 +34,7 @@ for (const [player, values] of Object.entries(expected)) {
   assert.deepEqual(actual, values);
 }
 
-assert.match(html, /V5\.26/g);
+assert.match(html, /V5\.27/g);
 assert.match(app, /ULTIMATE_MATCH_LOG_STORAGE_KEY/);
 assert.match(app, /function startUltimateMatchLog/);
 assert.match(app, /match\.entries\.push\(entry\)/);

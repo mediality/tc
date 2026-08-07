@@ -20,6 +20,7 @@ const ULTIMATE_MODE = {
   serviceRevealTimer: null,
   turnSafetyTimer: null,
   turnRecoveryTimer: null,
+  dialogResumeTimer: null,
 };
 
 function ultimatePlayerConfig(playerIndex) {
@@ -46,6 +47,21 @@ const ULTIMATE_PLAYERS = [
     power: "assets/ultimate/brentwood/power.png",
   },
 ];
+
+const ULTIMATE_CARD_RULES = {
+  conti: {
+    stars: [5, 6, 9, 12, 13, 17, 25, 28],
+    colors: { 5: "yellow", 6: "yellow", 7: "orange", 8: "white", 9: "purple", 10: "green", 11: "yellow", 12: "orange", 13: "white", 14: "purple", 15: "green", 16: "yellow" },
+    miss: [3, 4, 5, 6, 7, 11, 12, 16, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
+    boostColors: { 2: ["yellow", "purple"], 5: ["white"], 6: ["white"], 7: ["yellow", "white"], 8: ["yellow", "purple"], 9: ["green"], 10: ["yellow", "purple"], 11: ["white"], 12: ["yellow", "white"], 13: ["yellow", "purple"], 14: ["green"], 15: ["yellow", "purple"], 16: ["white"] },
+  },
+  brentwood: {
+    stars: [5, 8, 16, 17, 18, 20, 33, 36],
+    colors: { 5: "yellow", 6: "yellow", 7: "orange", 8: "yellow", 9: "purple", 10: "green", 11: "yellow", 12: "orange", 13: "white", 14: "purple", 15: "green", 16: "yellow", 25: "yellow", 29: "orange" },
+    miss: [2, 3, 4, 5, 6, 7, 8, 11, 12, 16, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 35],
+    boostColors: { 2: ["white"], 5: ["white"], 6: ["white"], 7: ["yellow", "white"], 8: ["white"], 9: ["green"], 10: ["yellow", "purple"], 11: ["white"], 12: ["yellow", "white"], 13: ["yellow", "purple"], 14: ["green"], 15: ["yellow", "purple"], 16: ["white"], 25: ["white"], 26: ["green"], 29: ["yellow", "white"] },
+  },
+};
 
 const ULTIMATE_EFFECT_DEFINITIONS = [
   { name: "Double", cost: 2, placement: 3, effectType: "doubleLastShot", effect: "À la fin de l’échange, doublez la puissance de votre dernière carte COUP." },
@@ -365,6 +381,7 @@ const EMPTY_TOURNAMENT = {
 const MATCH_LOG_STORAGE_KEY = "tennisLightMatchLogsV2";
 const ACTION_LOG_STORAGE_KEY = "tennisLightActionLogsV2";
 const ULTIMATE_MATCH_LOG_STORAGE_KEY = "tennisLightUltimateMatchLogV526";
+const ULTIMATE_MATCH_HISTORY_STORAGE_KEY = "tennisLightUltimateMatchHistoryV527";
 const HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightHumanMatchLogsV2";
 const ACTIVE_HUMAN_MATCH_LOG_STORAGE_KEY = "tennisLightActiveHumanMatchLogV2";
 const HUMAN_MATCH_LOG_SCHEMA_VERSION = 2;
@@ -1785,6 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
+    ultimateVersion: "V5.27",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -7974,6 +7992,10 @@ function cardLogInfo(card) {
     placement: card.placement,
     boostPower: card.boostPower,
     boostPrecision: card.boostPrecision,
+    star: Boolean(card.star),
+    ultimateColor: card.ultimateColor || null,
+    ultimateBoostOnPlacementMiss: Boolean(card.ultimateBoostOnPlacementMiss),
+    ultimateBoostColors: [...(card.ultimateBoostColors || [])],
     effectType: card.effectType,
     copiedSmashThreat: Boolean(card.copiedSmashThreat),
     copiedEffectType: card.copiedEffectType ?? null,
@@ -8050,6 +8072,12 @@ function readUltimateMatchLog() {
 }
 
 function startUltimateMatchLog(characterIndex) {
+  const previousMatch = readUltimateMatchLog();
+  if (previousMatch?.entries?.length) {
+    const history = readStoredJson(ULTIMATE_MATCH_HISTORY_STORAGE_KEY, []);
+    if (!history.some((match) => match.matchId === previousMatch.matchId)) history.push(previousMatch);
+    writeStoredJson(ULTIMATE_MATCH_HISTORY_STORAGE_KEY, history);
+  }
   const startedAt = new Date();
   writeStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, {
     schemaVersion: 1,
@@ -8521,16 +8549,21 @@ function auditUltimateRuntime(stage) {
 function exportLogsFile() {
   if (!canAccessAdminFeatures() && !(ULTIMATE_MODE.active && canAccessUltimateFeatures())) return;
   const ultimateMatch = readUltimateMatchLog();
+  const ultimateMatchHistory = readStoredJson(ULTIMATE_MATCH_HISTORY_STORAGE_KEY, []);
+  const ultimateMatches = ULTIMATE_MODE.active
+    ? [...ultimateMatchHistory, ...(ultimateMatch ? [ultimateMatch] : [])]
+    : [];
   const detailedActions = ULTIMATE_MODE.active && ultimateMatch
-    ? mergeLogEntries(ultimateMatch.entries, state.actionLog ?? [])
+    ? mergeLogEntries(ultimateMatches.flatMap((match) => match.entries || []), state.actionLog ?? [])
     : mergeLogEntries(readStoredJson(ACTION_LOG_STORAGE_KEY, []), state.actionLog ?? []);
   const exchangeResults = getStoredMatchLogs();
   const payload = {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.26" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.27" : null,
     ultimateMatch,
+    ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
     summary: {
       detailedActionCount: detailedActions.length,
@@ -8641,6 +8674,8 @@ function buildUltimateDeck(playerIndex) {
   const officialShots = Array.from({ length: 36 }, (_, index) => {
     const base = shots[index % shots.length];
     const audited = auditedShots[index];
+    const printedRules = ULTIMATE_CARD_RULES[config.key];
+    const printedNumber = index + 1;
     const card = cloneCard(base, `ultimate-${config.key}-shot-${index + 1}`);
     card.id = `ultimate-${config.key}-shot-${index + 1}`;
     card.artwork = `assets/ultimate/${config.key}/card-${String(index + 1).padStart(2, "0")}.png`;
@@ -8705,7 +8740,10 @@ function buildUltimateDeck(playerIndex) {
       else if (/COUP le plus faible prend la puissance du COUP le plus fort/i.test(audited.effect)) card.effectType = "ultimateWeakestCopiesStrongest";
       else if (/Si l’adversaire ne répond pas avec assez de placement/i.test(audited.effect)) card.effectType = "ultimateInstantPlacementWin";
     }
-    card.star = /SILVER/i.test(audited?.filename || "");
+    card.star = printedRules.stars.includes(printedNumber);
+    card.ultimateColor = printedRules.colors[printedNumber] || null;
+    card.ultimateBoostOnPlacementMiss = printedRules.miss.includes(printedNumber);
+    card.ultimateBoostColors = [...(printedRules.boostColors[printedNumber] || [])];
     return card;
   });
   const effectCards = ULTIMATE_EFFECT_DEFINITIONS.map((definition, index) => ({
@@ -9209,7 +9247,10 @@ function openUltimateEnergyChoice(playerIndex) {
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
   dialog.innerHTML = `<div class="ultimate-dialog-card ultimate-energy-dialog"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Énergie disponible · ${player.energy}</p><h2>Utiliser une énergie ?</h2><div class="ultimate-energy-dialog-actions"><button type="button" data-energy-choice="draft"><strong>DRAFT</strong><span>Piochez 3 cartes et conservez-en 2</span></button><button type="button" data-energy-choice="endurance" ${player.endurance >= STARTING_ENDURANCE ? "disabled" : ""}><strong>+2 ENDURANCE</strong><span>Récupérez immédiatement 2 endurance</span></button></div></div>`;
-  const close = () => dialog.remove();
+  const close = () => {
+    dialog.remove();
+    resumeUltimateAiAfterDialogs();
+  };
   dialog.querySelector(".ultimate-dialog-close").addEventListener("click", close);
   dialog.querySelectorAll("[data-energy-choice]").forEach((button) => button.addEventListener("click", () => {
     const action = button.dataset.energyChoice;
@@ -9307,6 +9348,7 @@ function newGame(options = {}) {
   SOLO_AI.executing = false;
   window.clearTimeout(ULTIMATE_MODE.turnSafetyTimer);
   window.clearTimeout(ULTIMATE_MODE.turnRecoveryTimer);
+  window.clearTimeout(ULTIMATE_MODE.dialogResumeTimer);
   window.clearTimeout(SOLO_AI.timer);
   window.clearTimeout(SOLO_AI.nudgeTimer);
   window.clearTimeout(SOLO_AI.nudgeAutoTimer);
@@ -9772,6 +9814,21 @@ function ultimateBlockingDialogOpen() {
   ));
 }
 
+function resumeUltimateAiAfterDialogs() {
+  if (!ULTIMATE_MODE.active) return;
+  window.clearTimeout(ULTIMATE_MODE.dialogResumeTimer);
+  ULTIMATE_MODE.dialogResumeTimer = window.setTimeout(() => {
+    if (!ULTIMATE_MODE.active || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
+    if (ultimateBlockingDialogOpen() || ULTIMATE_MODE.markChoice) {
+      resumeUltimateAiAfterDialogs();
+      return;
+    }
+    SOLO_AI.thinking = false;
+    SOLO_AI.executing = false;
+    maybeRunSoloAI();
+  }, 150);
+}
+
 function surfaceBonusesForPlayer(player) {
   const assigned = player?.surfaceBonuses?.length
     ? player.surfaceBonuses
@@ -9935,6 +9992,14 @@ const COLOR_BOOST_RULES = {
 };
 
 function satisfiesColorBoostCondition(card) {
+  if (ULTIMATE_MODE.active) {
+    return Boolean(
+      state.lastCard
+      && state.lastCard.owner !== state.activePlayer
+      && state.lastCard.ultimateColor
+      && card.ultimateBoostColors?.includes(state.lastCard.ultimateColor)
+    );
+  }
   return Boolean(state.lastCard && state.lastCard.owner !== state.activePlayer && COLOR_BOOST_RULES[card.family]?.includes(state.lastCard.family));
 }
 
@@ -10046,15 +10111,19 @@ function canPlayBoost(playerIndex, card) {
   const openingServiceBoost = card.effectType === "serviceCard" && playerIndex === state.server && isOpeningServeAvailable();
   const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
   const lowEnduranceBoost = card.effectType === "ultimateLowEnduranceBoost" && player.endurance < state.players[opponentOf(playerIndex)].endurance;
-  if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
+  const placementMissBoost = state.boostAvailableFor === playerIndex
+    && (!ULTIMATE_MODE.active || card.ultimateBoostOnPlacementMiss === true);
+  const printedAlternateServiceCondition = ULTIMATE_MODE.active && (placementMissBoost || colorBoost);
+  if ((card.family === "Service" || (ULTIMATE_MODE.active && card.effectType === "serviceCard"))
+    && !openingServiceBoost && !printedAlternateServiceCondition) return false;
   // Un contre-Boost répondant à un Boost adverse n'est autorisé que par la
   // condition de couleur ou par l'effet Retour de service. Le Boost ignore
   // alors la contrainte de placement adverse.
   const answersBoost = state.mandatoryPlacement && state.mandatoryPlacementReason === "boost";
   const boostWindow = answersBoost
     ? player.freeBoostNext || colorBoost
-    : state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || lowEnduranceBoost || colorBoost;
+    : placementMissBoost || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || lowEnduranceBoost || colorBoost;
   if (!boostWindow || !hasSacrifice) return false;
   if (player.endurance < effectiveCost(player, card, true) || !satisfiesFamilyLimit(player, card)) return false;
   if (!satisfiesReturnServiceRestriction(card)) return false;
@@ -10164,7 +10233,11 @@ function renderOpponentHandRevealControls() {
 }
 
 function maybeRunSoloAI() {
-  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive || ULTIMATE_MODE.markChoice || ultimateBlockingDialogOpen()) return;
+  if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive) return;
+  if (ULTIMATE_MODE.markChoice || ultimateBlockingDialogOpen()) {
+    resumeUltimateAiAfterDialogs();
+    return;
+  }
   if (state.activePlayer !== SOLO_AI.playerIndex) return;
   if (SOLO_AI.thinking || SOLO_AI.executing) return;
   SOLO_AI.thinking = true;
@@ -10186,6 +10259,10 @@ function secureUltimateTurnContinuation(previousPlayerIndex = null) {
     if (!ULTIMATE_MODE.active || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
     if (Number(state.setMatch.exchangeNumber || 0) !== exchangeNumber) return;
     if (ULTIMATE_MODE.markChoice?.playerIndex === 0) return;
+    if (ultimateBlockingDialogOpen()) {
+      resumeUltimateAiAfterDialogs();
+      return;
+    }
     if (previousPlayerIndex !== SOLO_AI.playerIndex) {
       SOLO_AI.thinking = false;
       SOLO_AI.executing = false;
@@ -10197,6 +10274,10 @@ function secureUltimateTurnContinuation(previousPlayerIndex = null) {
     if (!ULTIMATE_MODE.active || state.gameOver || state.activePlayer !== SOLO_AI.playerIndex) return;
     if (Number(state.setMatch.exchangeNumber || 0) !== exchangeNumber) return;
     if (soloTurnSignature() !== watchedSignature) return;
+    if (ultimateBlockingDialogOpen() || ULTIMATE_MODE.markChoice) {
+      resumeUltimateAiAfterDialogs();
+      return;
+    }
     state.log.unshift("Sécurité Ultimate : relance automatique du tour adverse.");
     forceSoloAITurn();
   }, 4500);
@@ -10206,6 +10287,11 @@ function runSoloAITurn() {
   SOLO_AI.thinking = false;
   SOLO_AI.nudgeVisible = false;
   if (!SOLO_AI.enabled || SERVER_SYNC.enabled || state.gameOver || confrontationIntroActive || state.activePlayer !== SOLO_AI.playerIndex) return;
+  if (ultimateBlockingDialogOpen() || ULTIMATE_MODE.markChoice) {
+    SOLO_AI.executing = false;
+    resumeUltimateAiAfterDialogs();
+    return;
+  }
   SOLO_AI.executing = true;
   const beforeSignature = soloTurnSignature();
   try {
@@ -10904,6 +10990,10 @@ function scheduleSoloAIWatchdog() {
     if (Number(state.setMatch?.exchangeNumber || 0) !== watchedExchangeNumber) return;
     if ((state.lastCard?.playedUid || null) !== watchedSourceUid) return;
     if (soloTurnSignature() !== watchedSignature) return;
+    if (ultimateBlockingDialogOpen() || ULTIMATE_MODE.markChoice) {
+      resumeUltimateAiAfterDialogs();
+      return;
+    }
     if (soloTurnIsBlocked(SOLO_AI.playerIndex)) {
       forceSoloBlockedExchangeLoss(SOLO_AI.playerIndex);
       return;
@@ -10976,6 +11066,10 @@ function showSoloAINudge() {
 function forceSoloAITurn() {
   if (SERVER_SYNC.enabled || state.gameOver) return;
   if (state.activePlayer !== SOLO_AI.playerIndex) return;
+  if (ultimateBlockingDialogOpen() || ULTIMATE_MODE.markChoice) {
+    resumeUltimateAiAfterDialogs();
+    return;
+  }
   SOLO_AI.enabled = true;
   window.clearTimeout(SOLO_AI.timer);
   window.clearTimeout(SOLO_AI.nudgeTimer);
@@ -13124,6 +13218,12 @@ function activateUltimateCharacterIfReady(playerIndex) {
     player.power += bonus;
     state.log.unshift(`Pouvoir étoile de Calvin Brentwood : +2 endurance et +${bonus} puissance pour ses Volées, Smash et Amorties visibles.`);
   }
+  recordAction("ultimate_character_star_activated", {
+    playerIndex,
+    playerName: displayPlayerName(player),
+    visibleStarCount: visibleStars,
+    visibleStarCards: player.played.filter((card) => card.star && !card.removed).map(cardLogInfo),
+  });
   window.setTimeout(() => openUltimateCharacterState(playerIndex, true), 0);
   return true;
 }
@@ -13137,7 +13237,10 @@ function openUltimateCharacterState(playerIndex, powerJustActivated = false) {
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
   dialog.innerHTML = `<div class="ultimate-dialog-card ultimate-character-state-dialog"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">${powerJustActivated ? "Pouvoir étoile déclenché" : "État du personnage"}</p><h2>${escapeHtml(config.name)}</h2><img src="${escapeHtml(powered ? config.power : config.character)}" alt="Carte personnage ${powered ? "retournée" : "normale"}"><strong class="ultimate-character-state-label">${powered ? "CARTE RETOURNÉE · POUVOIR ACTIF" : "CARTE NORMALE · 7 DANS LE ROND BLEU"}</strong><p>${powered ? (playerIndex === 0 ? "Le prochain COUP coûte 1 endurance et rendra 1 énergie." : "Le bonus de puissance des Volées, Smash et Amorties est actif.") : "Le pouvoir se déclenche lorsque 2 cartes COUP étoilées sont visibles pendant le même échange."}</p></div>`;
-  const close = () => dialog.remove();
+  const close = () => {
+    dialog.remove();
+    resumeUltimateAiAfterDialogs();
+  };
   dialog.querySelector(".ultimate-dialog-close").addEventListener("click", close);
   dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
   document.body.appendChild(dialog);
@@ -13194,6 +13297,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   };
   state.turnEffectPlacement[playerIndex] = isRemise(card) && remiseMode === "effect" ? rawStats.placement : 0;
   const combinedPlacement = state.turnPlacement[playerIndex] + stats.placement;
+  const consumesFreeBoost = endsTurn && player.freeBoostNext;
   if (endsTurn && player.ultimateConditionalPowerCaps?.length) {
     const applicableCaps = player.ultimateConditionalPowerCaps.filter((constraint) => combinedPlacement < constraint.precision);
     if (applicableCaps.length) {
@@ -13209,7 +13313,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   if (endsTurn) {
     clearNextShotBonuses(player);
   }
-  if (boosted) {
+  if (consumesFreeBoost) {
     player.freeBoostNext = false;
     player.freeBoostNextSourceUid = null;
   }
