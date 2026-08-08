@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.31",
+    ultimateVersion: "V5.32",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -8621,7 +8621,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.31" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.32" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",

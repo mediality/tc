@@ -6318,7 +6318,7 @@ h1 {
 }
 
 .image-zoom-backdrop {
-  z-index: 1010;
+  z-index: 3000;
   cursor: zoom-out;
 }
 
@@ -14738,7 +14738,7 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder strong { color: #fff; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder .stat-symbol { background-color: #fff; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder.low-endurance { border-color: #ffa500; color: #fff; background: #ffa500; }
-  body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-energy { border-color: #274ab3; color: #fff; background: #274ab3; }
+  body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-energy { border-color: #ff2c2c; color: #fff; background: #ff2c2c; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-energy img { width: 18px; height: 18px; object-fit: contain; filter: brightness(0) invert(1); pointer-events: none; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone > .desktop-player-bonus-count { width: 100%; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-discard { right: auto; left: 50%; width: 66%; min-width: 132px; transform: translateX(-50%); text-align: center; }
