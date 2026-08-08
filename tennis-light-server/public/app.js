@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.32",
+    ultimateVersion: "V5.33",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -7896,6 +7896,7 @@ function createPlayer(name, characterId, nickname = name) {
     roseEnduranceAwarded: false,
     endurance: STARTING_ENDURANCE,
     energy: ULTIMATE_STARTING_ENERGY,
+    ultimateEnergySpentExchangeNumber: null,
     power: 0,
     hand: [],
     reserve: [],
@@ -8621,7 +8622,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.32" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.33" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -9297,7 +9298,7 @@ function spendUltimateEnergy(playerIndex, action, confirmed = false) {
   if (!confirmed && !window.confirm(`Dépenser 1 ÉNERGIE pour ${label} ?`)) return;
   player.energy -= 1;
   if (action === "endurance") {
-    player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
+    player.endurance += 2;
     state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie et récupère 2 endurance.`);
     render();
     return;
@@ -9310,7 +9311,7 @@ function openUltimateEnergyChoice(playerIndex) {
   if (!ULTIMATE_MODE.active || !player || player.energy <= 0 || !canUseSeat(playerIndex) || state.gameOver) return;
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
-  dialog.innerHTML = `<div class="ultimate-dialog-card ultimate-energy-dialog"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Énergie disponible · ${player.energy}</p><h2>Utiliser une énergie ?</h2><div class="ultimate-energy-dialog-actions"><button type="button" data-energy-choice="draft"><strong>DRAFT</strong><span>Piochez 3 cartes et conservez-en 2</span></button><button type="button" data-energy-choice="endurance" ${player.endurance >= STARTING_ENDURANCE ? "disabled" : ""}><strong>+2 ENDURANCE</strong><span>Récupérez immédiatement 2 endurance</span></button></div></div>`;
+  dialog.innerHTML = `<div class="ultimate-dialog-card ultimate-energy-dialog"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Énergie disponible · ${player.energy}</p><h2>Utiliser une énergie ?</h2><div class="ultimate-energy-dialog-actions"><button type="button" data-energy-choice="draft"><strong>DRAFT</strong><span>Piochez 3 cartes et conservez-en 2</span></button><button type="button" data-energy-choice="endurance"><strong>+2 ENDURANCE</strong><span>Ajoutez immédiatement 2 endurance, même au-dessus de la valeur de départ</span></button></div></div>`;
   const close = () => {
     dialog.remove();
     resumeUltimateAiAfterDialogs();
@@ -10648,20 +10649,91 @@ function maybeSpendUltimateEnergyForAI(playerIndex) {
   if (!ULTIMATE_MODE.active) return false;
   const player = state.players[playerIndex];
   if (!player || player.energy <= 0) return false;
-  if (player.endurance <= 3) {
+  const exchangeNumber = Number(state.setMatch.exchangeNumber || 0);
+  if (player.ultimateEnergySpentExchangeNumber === exchangeNumber) return false;
+  const intelligence = normalizeAiIntelligence(SOLO_AI.style);
+  const intelligenceRank = { amateur: 0, normal: 1, expert: 2, champion: 3, legend: 4 }[intelligence] ?? 1;
+  const opponent = state.players[opponentOf(playerIndex)];
+  const games = Number(state.setMatch.score?.[playerIndex] || 0);
+  const opponentGames = Number(state.setMatch.score?.[opponentOf(playerIndex)] || 0);
+  const lateSet = Math.max(games, opponentGames) >= 4;
+  const decisiveDanger = isSetDangerForPlayer(playerIndex) || isMatchDangerForPlayer(playerIndex) || wouldPassLoseSetOrMatch(playerIndex);
+  const placementThreat = Boolean(state.mandatoryPlacement || (state.lastCard?.boosted && state.lastCard.owner !== playerIndex));
+  const opponentThreat = placementThreat
+    || opponent.power >= player.power + 3
+    || (opponent.reserve || []).length >= 2
+    || opponent.hand.length >= 5;
+  const availableCards = [...player.hand, ...(player.reserve || [])];
+  const playableCoups = availableCards.filter((card) => !isRemise(card) && (canPlayNormal(playerIndex, card) || canPlayBoost(playerIndex, card)));
+  const affordableCoups = availableCards.filter((card) => !isRemise(card) && effectiveCost(player, card) <= player.endurance);
+  const deckCount = (state.ultimateDecks[playerIndex] || []).length;
+  const minimumReserve = decisiveDanger || lateSet
+    ? 0
+    : intelligenceRank >= 3 ? 2
+      : intelligenceRank >= 1 ? 1
+        : 0;
+  const canSpendReservedEnergy = player.energy > minimumReserve;
+  const enduranceCreatesPlay = affordableCoups.some((card) => effectiveCost(player, card) > player.endurance - 2)
+    || playableCoups.length === 0;
+  const shouldRecoverEndurance = canSpendReservedEnergy && (
+    player.endurance <= 1
+    || (player.endurance <= 2 && (opponentThreat || playableCoups.length <= 1))
+    || (decisiveDanger && player.endurance <= 4 && enduranceCreatesPlay)
+  );
+  const shouldDraft = canSpendReservedEnergy
+    && deckCount >= 3
+    && (playableCoups.length === 0 || (player.hand.length <= 2 && (lateSet || opponentThreat || intelligenceRank <= 1)));
+  const decisionContext = {
+    intelligence,
+    exchangeNumber,
+    energyBefore: player.energy,
+    endurance: player.endurance,
+    handCount: player.hand.length,
+    reserveCount: (player.reserve || []).length,
+    deckCount,
+    playableCoupCount: playableCoups.length,
+    minimumEnergyReserve: minimumReserve,
+    lateSet,
+    decisiveDanger,
+    placementThreat,
+    opponentThreat,
+  };
+  if (shouldRecoverEndurance) {
     player.energy -= 1;
-    player.endurance = Math.min(STARTING_ENDURANCE, player.endurance + 2);
-    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie et récupère 2 endurance.`);
+    player.endurance += 2;
+    player.ultimateEnergySpentExchangeNumber = exchangeNumber;
+    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie pour +2 endurance après analyse du danger, et conserve ${player.energy} énergie${player.energy > 1 ? "s" : ""}.`);
+    recordSoloAiDecision("ultimate_energy_endurance", { ...decisionContext, energyAfter: player.energy, enduranceAfter: player.endurance });
     return true;
   }
-  if (player.hand.length <= 2) {
+  if (shouldDraft) {
     const choices = ultimateDrawThree(playerIndex);
     const ranked = [...choices].sort((left, right) => soloCardScore(playerIndex, right) - soloCardScore(playerIndex, left));
     player.hand.push(...ranked.slice(0, 2));
     state.ultimateDiscards[playerIndex].push(...ranked.slice(2));
     player.energy -= 1;
-    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie et effectue une draft.`);
+    player.ultimateEnergySpentExchangeNumber = exchangeNumber;
+    state.log.unshift(`${displayPlayerName(player)} dépense 1 énergie pour une draft stratégique et conserve ${player.energy} énergie${player.energy > 1 ? "s" : ""}.`);
+    recordSoloAiDecision("ultimate_energy_draft", {
+      ...decisionContext,
+      energyAfter: player.energy,
+      choices: choices.map(cardLogInfo),
+      kept: ranked.slice(0, 2).map(cardLogInfo),
+      discarded: ranked.slice(2).map(cardLogInfo),
+    });
     return true;
+  }
+  const decisionKey = `${exchangeNumber}:${state.activePlayer}:${player.energy}:${player.endurance}:${player.hand.length}`;
+  if (player.ultimateEnergyDecisionLogKey !== decisionKey) {
+    player.ultimateEnergyDecisionLogKey = decisionKey;
+    recordSoloAiDecision("ultimate_energy_preserved", {
+      ...decisionContext,
+      reason: !canSpendReservedEnergy
+        ? "strategic_reserve"
+        : playableCoups.length > 0
+          ? "legal_continuation_available"
+          : "insufficient_immediate_value",
+    });
   }
   return false;
 }
