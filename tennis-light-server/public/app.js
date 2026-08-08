@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.29",
+    ultimateVersion: "V5.30",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -8619,7 +8619,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.29" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.30" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -10141,8 +10141,8 @@ function canPlayEffectMode(playerIndex, card) {
   if (!canUseSeat(playerIndex)) return false;
   const player = state.players[playerIndex];
   if (player.ultimateEffectLimit && player.played.some((played) => isRemise(played) && played.remiseMode === "effect" && !played.removed)) return false;
-  // Le mode Effet d'une Remise reste disponible face à un service ou un
-  // retour boosté : la contrainte de placement s'applique à la clôture du tour.
+  // Le mode Effet d'une Remise reste disponible face à un BOOST. Joker doit
+  // pouvoir répondre même si l'indicateur temporaire de placement a été perdu.
   return canAfford(player, card) && satisfiesFamilyLimit(player, card);
 }
 
@@ -13959,7 +13959,8 @@ function applyEffect(playerIndex, card) {
       }
       break;
     case "jokerResponse":
-      if (state.mandatoryPlacement && state.mandatoryPlacementReason === "boost") {
+      if ((state.mandatoryPlacement && state.mandatoryPlacementReason === "boost")
+        || (state.lastCard?.boosted && state.lastCard.owner !== playerIndex)) {
         state.turnIgnoresPlacement[playerIndex] = true;
         state.turnCannotOpenBoost[playerIndex] = true;
         state.mandatoryPlacement = false;
