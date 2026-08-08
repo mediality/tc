@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=5.34.0" />
+    <link rel="stylesheet" href="./styles.css?v=5.35.0" />
     <link rel="stylesheet" href="./mobile-game.css?v=4.52.0" />
   </head>
   <body>
@@ -95,7 +95,7 @@
           <button id="ultimateModeButton" class="lobby-mode-card lobby-mode-ultimate hidden" type="button" data-required-role="pro_plus">
             <img class="lobby-mode-art" src="./assets/ultimate/ultimate-home.jpg" alt="" />
             <span class="lobby-mode-icon ultimate-mode-icon" aria-hidden="true">★</span>
-            <span class="lobby-mode-card-copy"><strong>Tennis Courts Ultimate</strong><small>V5.34 · Decks personnels, draft et énergie</small></span>
+            <span class="lobby-mode-card-copy"><strong>Tennis Courts Ultimate</strong><small>V5.35 · Decks personnels, draft et énergie</small></span>
             <img class="lobby-mode-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
           </button>
         </nav>
@@ -132,7 +132,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>V5.34</span></strong>
+          <strong>Tennis Courts Academy · <span>V5.35</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1127,7 +1127,14 @@
               <p>Boîte à outils</p>
               <button id="adminSimulateScoreButton" class="small-button admin-simulate-score-button" type="button" title="Terminer ce match avec un score simulé">Simuler le score</button>
               <button id="exportLogsButton" class="small-button" type="button">Exporter les logs</button>
+              <button id="adminUltimateExportLogsButton" class="small-button" type="button">Exporter les logs TCU</button>
               <button id="exportHumanMatchesButton" class="small-button" type="button">Exporter les parties humaines</button>
+              <label class="admin-game-view-switch" title="Choisir l’interface de jeu">
+                <span>MOBILE</span>
+                <input id="adminGameViewToggle" type="checkbox" role="switch" aria-label="Basculer entre les interfaces mobile et desktop" />
+                <i aria-hidden="true"></i>
+                <span>DESKTOP</span>
+              </label>
               <button id="revealAiButton" class="small-button reveal-button hidden" type="button">Révéler la main</button>
             </div>
           </div>
@@ -1145,7 +1152,7 @@
       <section id="resultPanel" class="result-panel hidden" aria-live="polite"></section>
       <section id="ultimatePlayerDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimatePlayerTitle">
         <div class="ultimate-dialog-card ultimate-player-dialog-card">
-          <p class="eyebrow">Tennis Courts Ultimate · V5.34</p>
+          <p class="eyebrow">Tennis Courts Ultimate · V5.35</p>
           <h2 id="ultimatePlayerTitle">Choisissez votre joueur</h2>
           <p>Vous utiliserez ses 48 cartes. Votre adversaire incarnera automatiquement l’autre joueur.</p>
           <fieldset class="ultimate-ai-levels">
@@ -1195,7 +1202,7 @@
       </section>
       <section id="ultimatePostExchangeDialog" class="ultimate-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="ultimatePostExchangeTitle">
         <div class="ultimate-dialog-card">
-          <p class="eyebrow">Fin de l’échange · V5.34</p>
+          <p class="eyebrow">Fin de l’échange · V5.35</p>
           <h2 id="ultimatePostExchangeTitle">Choisissez une carte pour la réserve</h2>
           <p id="ultimatePostExchangeInstruction">Vous pouvez conserver une carte COUP visible.</p>
           <div id="ultimatePostExchangeCards" class="ultimate-draft-cards ultimate-post-exchange-cards"></div>
@@ -1225,10 +1232,6 @@
       <div id="mobileGameRoot"></div>
     </main>
 
-    <button id="adminDesktopViewSwitch" class="admin-desktop-view-switch hidden" type="button" data-required-role="admin" aria-pressed="false">
-      Version desktop
-    </button>
-
     <div id="tournamentLoadingDialog" class="tournament-loading-backdrop hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="tournamentLoadingTitle" aria-describedby="tournamentLoadingMessage">
       <div class="tournament-loading-panel">
         <span class="tournament-loading-kicker">TENNIS COURTS</span>
@@ -1239,8 +1242,8 @@
     </div>
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
-    <script src="./ultimate-card-data.js?v=5.34.0"></script>
-    <script src="./app.js?v=5.34.0"></script>
-    <script src="./mobile-game.js?v=4.52.0"></script>
+    <script src="./ultimate-card-data.js?v=5.35.0"></script>
+    <script src="./app.js?v=5.35.0"></script>
+    <script src="./mobile-game.js?v=5.35.0"></script>
   </body>
 </html>

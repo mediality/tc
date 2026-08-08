@@ -382,7 +382,9 @@
             <h3 id="mobileMatchAdminTitle">Outils ADMIN</h3>
             <button type="button" data-mobile-admin-tool="simulate-score" ${adminTools.simulateScore.available ? "" : "disabled"}>${escapeText(adminTools.simulateScore.label)}</button>
             <button type="button" data-mobile-admin-tool="export-logs">${escapeText(adminTools.exportLogs.label)}</button>
+            <button type="button" data-mobile-admin-tool="export-tcu-logs">${escapeText(adminTools.exportUltimateLogs.label)}</button>
             <button type="button" data-mobile-admin-tool="export-human-matches">${escapeText(adminTools.exportHumanMatches.label)}</button>
+            <label class="mobile-admin-game-view-switch"><span>MOBILE</span><input type="checkbox" data-mobile-admin-game-view role="switch" ${adminTools.gameView === "desktop" ? "checked" : ""}><i aria-hidden="true"></i><span>DESKTOP</span></label>
             ${adminTools.revealAiHand.visible ? `<button type="button" data-mobile-admin-tool="reveal-ai-hand" aria-pressed="${adminTools.revealAiHand.active}" ${adminTools.revealAiHand.available ? "" : "disabled"}>${escapeText(adminTools.revealAiHand.label)}</button>` : ""}
           </section>
         ` : ""}
@@ -1165,6 +1167,11 @@
         if (result?.ok) closeMobilePanel();
       });
     });
+    root?.querySelector("[data-mobile-admin-game-view]")?.addEventListener("change", (event) => {
+      const input = event.currentTarget;
+      if (!(input instanceof HTMLInputElement)) return;
+      window.tennisLightMobileAdapter?.setAdminGameView(input.checked ? "desktop" : "mobile");
+    });
     root?.querySelector("[data-mobile-open-competition]")?.addEventListener("click", (event) => {
       showMobilePanel("competition", event.currentTarget);
     });
@@ -1231,24 +1238,28 @@
   }
 
   function selectViewForMatch() {
-    matchUsesMobileView = isSmartphonePortrait();
+    matchUsesMobileView = document.body.classList.contains("admin-forced-mobile-view")
+      || (!document.body.classList.contains("admin-forced-desktop-view") && isSmartphonePortrait());
     applySelectedView();
   }
 
-  function setForcedDesktopView(forceDesktop) {
+  function setAdminViewPreference(preference = "auto") {
+    const forceDesktop = preference === "desktop";
+    const forceMobile = preference === "mobile";
     const matchWasVisible = Boolean(
       (desktopApp && !desktopApp.classList.contains("hidden"))
       || (mobileApp && !mobileApp.classList.contains("hidden"))
       || document.body.classList.contains("mobile-game-view"),
     );
     document.body.classList.toggle("admin-forced-desktop-view", Boolean(forceDesktop));
+    document.body.classList.toggle("admin-forced-mobile-view", Boolean(forceMobile));
     viewportMeta?.setAttribute(
       "content",
       forceDesktop
         ? "width=1440, initial-scale=0.25, minimum-scale=0.2, maximum-scale=1, viewport-fit=cover"
         : mobileViewportContent,
     );
-    matchUsesMobileView = !forceDesktop && isSmartphonePortrait();
+    matchUsesMobileView = forceMobile || (!forceDesktop && isSmartphonePortrait());
     if (matchWasVisible) {
       applySelectedView();
       return;
@@ -1256,6 +1267,10 @@
     desktopApp?.classList.add("hidden");
     mobileApp?.classList.add("hidden");
     document.body.classList.remove("mobile-game-view");
+  }
+
+  function setForcedDesktopView(forceDesktop) {
+    setAdminViewPreference(forceDesktop ? "desktop" : "auto");
   }
 
   function clearSelectedView() {
@@ -1273,6 +1288,7 @@
   window.TennisLightMobileGame = {
     isSmartphonePortrait,
     selectViewForMatch,
+    setAdminViewPreference,
     setForcedDesktopView,
     clearSelectedView,
     render: renderMobileGame,

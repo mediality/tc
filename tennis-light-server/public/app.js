@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.34",
+    ultimateVersion: "V5.35",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -2102,7 +2102,7 @@ const els = {
   aiClubSettingButtons: document.querySelectorAll("[data-ai-club-setting]"),
   gameApp: document.querySelector(".game-app"),
   mobileGameApp: document.querySelector("#mobileGameApp"),
-  adminDesktopViewSwitch: document.querySelector("#adminDesktopViewSwitch"),
+  adminGameViewToggle: document.querySelector("#adminGameViewToggle"),
   authStatus: document.querySelector("#authStatus"),
   authForm: document.querySelector("#authForm"),
   authEmailInput: document.querySelector("#authEmailInput"),
@@ -2191,6 +2191,7 @@ const els = {
   newsArchiveList: document.querySelector("#newsArchiveList"),
   revealAiButton: document.querySelector("#revealAiButton"),
   exportLogsButton: document.querySelector("#exportLogsButton"),
+  adminUltimateExportLogsButton: document.querySelector("#adminUltimateExportLogsButton"),
   ultimateExportLogsButton: document.querySelector("#ultimateExportLogsButton"),
   exportHumanMatchesButton: document.querySelector("#exportHumanMatchesButton"),
   soloModeButton: document.querySelector("#soloModeButton"),
@@ -2554,23 +2555,26 @@ function canAccessUltimateFeatures() {
 }
 
 const ADMIN_DESKTOP_VIEW_KEY = "tennisLightAdminDesktopView";
+const ADMIN_GAME_VIEW_KEY = "tennisLightAdminGameView";
+
+function adminGameViewPreference() {
+  if (!canAccessAdminFeatures()) return "auto";
+  const preference = localStorage.getItem(ADMIN_GAME_VIEW_KEY);
+  if (["mobile", "desktop"].includes(preference)) return preference;
+  if (localStorage.getItem(ADMIN_DESKTOP_VIEW_KEY) === "true") return "desktop";
+  return window.matchMedia?.("(max-width: 860px)").matches ? "mobile" : "desktop";
+}
 
 function adminDesktopViewForced() {
-  return canAccessAdminFeatures() && localStorage.getItem(ADMIN_DESKTOP_VIEW_KEY) === "true";
+  return adminGameViewPreference() === "desktop";
 }
 
 function syncAdminDesktopViewPreference({ applyView = false } = {}) {
-  const forced = adminDesktopViewForced();
-  document.body.classList.toggle("admin-forced-desktop-view", forced);
-  if (els.adminDesktopViewSwitch) {
-    els.adminDesktopViewSwitch.textContent = forced ? "Version mobile" : "Version desktop";
-    els.adminDesktopViewSwitch.setAttribute("aria-pressed", String(forced));
-    els.adminDesktopViewSwitch.setAttribute(
-      "aria-label",
-      forced ? "Revenir à la version mobile" : "Passer à la version desktop",
-    );
-  }
-  if (applyView) window.TennisLightMobileGame?.setForcedDesktopView(forced);
+  const preference = adminGameViewPreference();
+  document.body.classList.toggle("admin-forced-desktop-view", preference === "desktop");
+  document.body.classList.toggle("admin-forced-mobile-view", preference === "mobile");
+  if (els.adminGameViewToggle) els.adminGameViewToggle.checked = preference === "desktop";
+  if (applyView) window.TennisLightMobileGame?.setAdminViewPreference(preference);
 }
 
 function canAccessAllCharacters() {
@@ -8622,7 +8626,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.34" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.35" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -18631,7 +18635,6 @@ function renderModeButtons() {
   document.body.classList.toggle("game-adaptive-board", GAMEPLAY_ASSIST.adaptiveBoard);
   document.body.classList.toggle("game-actions-always-visible", GAMEPLAY_ASSIST.alwaysVisibleActions);
   const isAdminPlayer = canAccessAdminFeatures() && !SPECTATOR_MODE.enabled;
-  els.adminDesktopViewSwitch?.classList.toggle("hidden", !canAccessAdminFeatures());
   els.adminGameTools?.classList.toggle("hidden", !isAdminPlayer);
   if (els.adminGameToolsButton) els.adminGameToolsButton.disabled = !isAdminPlayer;
   if (!isAdminPlayer) setAdminGameToolsOpen(false);
@@ -18656,6 +18659,7 @@ function renderModeButtons() {
     els.revealAiButton.textContent = state.revealAiCards ? "Main révélée" : "Révéler la main";
   }
   els.exportLogsButton?.classList.toggle("hidden", !isAdminPlayer);
+  els.adminUltimateExportLogsButton?.classList.toggle("hidden", !isAdminPlayer);
   els.ultimateExportLogsButton?.classList.toggle("hidden", !(ULTIMATE_MODE.active && canAccessUltimateFeatures() && !SPECTATOR_MODE.enabled));
   els.exportHumanMatchesButton?.classList.toggle("hidden", !isAdminPlayer);
 }
@@ -22327,9 +22331,11 @@ els.desktopGameMenuToggle?.addEventListener("click", () => {
   els.desktopGameMenuToggle?.setAttribute("aria-expanded", String(open));
   els.desktopGameMenuToggle?.setAttribute("aria-label", open ? "Masquer le menu du match" : "Afficher le menu du match");
 });
-els.adminDesktopViewSwitch?.addEventListener("click", () => {
+els.adminGameViewToggle?.addEventListener("change", () => {
   if (!canAccessAdminFeatures()) return;
-  localStorage.setItem(ADMIN_DESKTOP_VIEW_KEY, String(!adminDesktopViewForced()));
+  const preference = els.adminGameViewToggle.checked ? "desktop" : "mobile";
+  localStorage.setItem(ADMIN_GAME_VIEW_KEY, preference);
+  localStorage.removeItem(ADMIN_DESKTOP_VIEW_KEY);
   syncAdminDesktopViewPreference({ applyView: true });
 });
 els.gameAssistButton?.addEventListener("click", () => setGameAssistPanelOpen(!GAMEPLAY_ASSIST.panelOpen));
@@ -22393,6 +22399,7 @@ els.adminGameToolsButton?.addEventListener("click", () => {
 els.adminSimulateScoreButton?.addEventListener("click", () => runAdminGameTool(simulateAdminMatchScore));
 els.revealAiButton?.addEventListener("click", () => runAdminGameTool(toggleRevealAiCards));
 els.exportLogsButton?.addEventListener("click", () => runAdminGameTool(exportLogsFile));
+els.adminUltimateExportLogsButton?.addEventListener("click", () => runAdminGameTool(exportLogsFile));
 els.ultimateExportLogsButton?.addEventListener("click", exportLogsFile);
 els.exportHumanMatchesButton?.addEventListener("click", () => runAdminGameTool(exportHumanMatchLogsFile));
 els.rallyFullLogButton?.addEventListener("click", openFullActionLogDialog);
@@ -23115,6 +23122,11 @@ function mobileAdminToolsState() {
       available: true,
       label: "Exporter les logs",
     },
+    exportUltimateLogs: {
+      available: true,
+      label: "Exporter les logs TCU",
+    },
+    gameView: adminGameViewPreference(),
     exportHumanMatches: {
       available: true,
       label: "Exporter les parties humaines",
@@ -23133,7 +23145,7 @@ function runMobileAdminTool(actionId) {
   if (actionId === "simulate-score") {
     if (!canAdminSimulateMatchScore()) return { ok: false };
     simulateAdminMatchScore();
-  } else if (actionId === "export-logs") {
+  } else if (actionId === "export-logs" || actionId === "export-tcu-logs") {
     exportLogsFile();
   } else if (actionId === "export-human-matches") {
     exportHumanMatchLogsFile();
@@ -23143,6 +23155,14 @@ function runMobileAdminTool(actionId) {
   } else {
     return { ok: false };
   }
+  return { ok: true };
+}
+
+function setMobileAdminGameView(preference) {
+  if (!canAccessAdminFeatures() || !["mobile", "desktop"].includes(preference)) return { ok: false };
+  localStorage.setItem(ADMIN_GAME_VIEW_KEY, preference);
+  localStorage.removeItem(ADMIN_DESKTOP_VIEW_KEY);
+  syncAdminDesktopViewPreference({ applyView: true });
   return { ok: true };
 }
 
@@ -23256,6 +23276,7 @@ window.tennisLightMobileAdapter = {
   continueTutorial: continueMobileTutorial,
   runProgressionAction: runMobileProgressionAction,
   runAdminTool: runMobileAdminTool,
+  setAdminGameView: setMobileAdminGameView,
   saveMatch: manuallySaveMatch,
   openForfeitDialog: openOnlineForfeitDialog,
 };

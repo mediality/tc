@@ -10460,41 +10460,54 @@ h1 {
   }
 }
 
-/* Admin mobile/desktop switch v4.2 --------------------------------------- */
-.admin-desktop-view-switch {
-  position: fixed;
-  top: max(10px, env(safe-area-inset-top));
-  right: max(10px, env(safe-area-inset-right));
-  z-index: 760;
-  display: none;
+/* Admin mobile/desktop switch v5.35 -------------------------------------- */
+.admin-game-view-switch,
+.mobile-admin-game-view-switch {
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  border: 1px solid rgba(255, 255, 255, .28);
-  border-radius: 999px;
-  padding: 8px 13px;
-  color: #062e2b;
-  background: #e9ff70;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, .32);
+  gap: 8px;
+  padding: 7px 4px;
+  color: #fff;
   font-size: .7rem;
   font-weight: 950;
   letter-spacing: .035em;
-  text-transform: uppercase;
 }
 
-@media (max-width: 860px) {
-  .admin-desktop-view-switch:not(.hidden) {
-    display: inline-flex;
-  }
+.admin-game-view-switch input,
+.mobile-admin-game-view-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.admin-forced-desktop-view .admin-desktop-view-switch:not(.hidden) {
-  display: inline-flex;
+.admin-game-view-switch i,
+.mobile-admin-game-view-switch i {
+  position: relative;
+  width: 42px;
+  height: 23px;
+  border-radius: 999px;
+  background: #59b5f7;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.65);
+  cursor: pointer;
 }
 
-.admin-desktop-view-switch[aria-pressed="true"] {
-  color: #fff;
-  background: #087162;
+.admin-game-view-switch i::after,
+.mobile-admin-game-view-switch i::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .18s ease;
+}
+
+.admin-game-view-switch input:checked + i::after,
+.mobile-admin-game-view-switch input:checked + i::after {
+  transform: translateX(19px);
 }
 
 /* Desktop player sidebars v4.3 ------------------------------------------- */
@@ -10851,10 +10864,6 @@ h1 {
 }
 
 /* Desktop board v4.4 ----------------------------------------------------- */
-body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) .admin-desktop-view-switch {
-  display: none !important;
-}
-
 @media (min-width: 861px) {
   body:not(.mobile-game-view) .desktop-match-score {
     position: absolute;
