@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.27",
+    ultimateVersion: "V5.28",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -7899,6 +7899,7 @@ function createPlayer(name, characterId, nickname = name) {
     hand: [],
     reserve: [],
     characterStarActive: false,
+    ultimateConsumedStarUids: [],
     ultimateNextCostOne: false,
     ultimateRecoverEnergyOnNextShot: false,
     ultimateReserveLockedNext: false,
@@ -8066,9 +8067,60 @@ function recordAction(kind, payload = {}) {
   recordHumanMatchAction(entry);
 }
 
+let ULTIMATE_MATCH_LOG_MEMORY = null;
+
 function readUltimateMatchLog() {
+  if (ULTIMATE_MATCH_LOG_MEMORY?.entries) return ULTIMATE_MATCH_LOG_MEMORY;
   const stored = readStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, null);
-  return stored && Array.isArray(stored.entries) ? stored : null;
+  ULTIMATE_MATCH_LOG_MEMORY = stored && Array.isArray(stored.entries) ? stored : null;
+  return ULTIMATE_MATCH_LOG_MEMORY;
+}
+
+const ULTIMATE_LOG_DATABASE = "tennisCourtsUltimateFullLogsV528";
+const ULTIMATE_LOG_STORE = "matches";
+
+function openUltimateLogDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) return reject(new Error("IndexedDB indisponible"));
+    const request = window.indexedDB.open(ULTIMATE_LOG_DATABASE, 1);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(ULTIMATE_LOG_STORE)) database.createObjectStore(ULTIMATE_LOG_STORE, { keyPath: "matchId" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function storeUltimateMatchArchive(match) {
+  if (!match?.matchId) return;
+  try {
+    const database = await openUltimateLogDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(ULTIMATE_LOG_STORE, "readwrite");
+      transaction.objectStore(ULTIMATE_LOG_STORE).put(cloneData(match));
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+    database.close();
+  } catch (error) {
+    // Le stockage local historique reste le plan de secours.
+  }
+}
+
+async function readAllUltimateMatchArchives() {
+  try {
+    const database = await openUltimateLogDatabase();
+    const matches = await new Promise((resolve, reject) => {
+      const request = database.transaction(ULTIMATE_LOG_STORE, "readonly").objectStore(ULTIMATE_LOG_STORE).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    return matches;
+  } catch (error) {
+    return [];
+  }
 }
 
 function startUltimateMatchLog(characterIndex) {
@@ -8077,9 +8129,10 @@ function startUltimateMatchLog(characterIndex) {
     const history = readStoredJson(ULTIMATE_MATCH_HISTORY_STORAGE_KEY, []);
     if (!history.some((match) => match.matchId === previousMatch.matchId)) history.push(previousMatch);
     writeStoredJson(ULTIMATE_MATCH_HISTORY_STORAGE_KEY, history);
+    storeUltimateMatchArchive(previousMatch);
   }
   const startedAt = new Date();
-  writeStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, {
+  const match = {
     schemaVersion: 1,
     matchId: crypto.randomUUID(),
     startedAt: startedAt.toISOString(),
@@ -8088,7 +8141,10 @@ function startUltimateMatchLog(characterIndex) {
     opponentCharacter: ULTIMATE_PLAYERS[characterIndex === 0 ? 1 : 0]?.name || null,
     aiDifficulty: ULTIMATE_MODE.aiDifficulty,
     entries: [],
-  });
+  };
+  ULTIMATE_MATCH_LOG_MEMORY = match;
+  writeStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, match);
+  storeUltimateMatchArchive(match);
 }
 
 function appendUltimateMatchLog(entry) {
@@ -8098,6 +8154,7 @@ function appendUltimateMatchLog(entry) {
   match.updatedAt = entry.createdAt;
   match.updatedAtLocal = entry.localDateTime;
   writeStoredJson(ULTIMATE_MATCH_LOG_STORAGE_KEY, match);
+  storeUltimateMatchArchive(match);
 }
 
 function logKey(entry) {
@@ -8546,12 +8603,13 @@ function auditUltimateRuntime(stage) {
   return issues;
 }
 
-function exportLogsFile() {
+async function exportLogsFile() {
   if (!canAccessAdminFeatures() && !(ULTIMATE_MODE.active && canAccessUltimateFeatures())) return;
   const ultimateMatch = readUltimateMatchLog();
   const ultimateMatchHistory = readStoredJson(ULTIMATE_MATCH_HISTORY_STORAGE_KEY, []);
+  const indexedUltimateMatches = ULTIMATE_MODE.active ? await readAllUltimateMatchArchives() : [];
   const ultimateMatches = ULTIMATE_MODE.active
-    ? [...ultimateMatchHistory, ...(ultimateMatch ? [ultimateMatch] : [])]
+    ? [...new Map([...indexedUltimateMatches, ...ultimateMatchHistory, ...(ultimateMatch ? [ultimateMatch] : [])].map((match) => [match.matchId, match])).values()]
     : [];
   const detailedActions = ULTIMATE_MODE.active && ultimateMatch
     ? mergeLogEntries(ultimateMatches.flatMap((match) => match.entries || []), state.actionLog ?? [])
@@ -8561,7 +8619,7 @@ function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.27" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.28" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -9074,6 +9132,7 @@ function clearUltimateExchangeEffects(player) {
     power: 0,
     ultimateNextCostOne: false,
     ultimateRecoverEnergyOnNextShot: false,
+    ultimateConsumedStarUids: [],
     ultimateReserveLockedNext: false,
     ultimateReserveLockedExchange: false,
     ultimateEffectLimit: false,
@@ -10070,8 +10129,10 @@ function canPlayNormal(playerIndex, card) {
   if (player.endurance < effectiveCost(player, card) || !satisfiesFamilyLimit(player, card)) return false;
   if (isRemise(card)) return true;
   if (!satisfiesReturnServiceRestriction(card)) return false;
-  const jokerAnswersBoost = card.effectType === "jokerResponse" && state.mandatoryPlacementReason === "boost";
-  if (state.mandatoryPlacement && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) return false;
+  const boostedReplyRequired = Boolean(state.lastCard?.boosted && state.lastCard.owner !== playerIndex);
+  const placementRequired = state.mandatoryPlacement || boostedReplyRequired;
+  const jokerAnswersBoost = card.effectType === "jokerResponse" && (state.mandatoryPlacementReason === "boost" || boostedReplyRequired);
+  if (placementRequired && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) return false;
   return true;
 }
 
@@ -10088,7 +10149,7 @@ function canPlayEffectMode(playerIndex, card) {
 function canEndTurn(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return false;
   if (!tutorialAllowsEndTurn(playerIndex)) return false;
-  if (state.mandatoryPlacement) {
+  if (state.mandatoryPlacement || (state.lastCard?.boosted && state.lastCard.owner !== playerIndex)) {
     return hasPlayedThisTurn(playerIndex)
       && state.lastCard
       && (turnEndPlacement(playerIndex) >= requiredPlacementForLastCard() || finalRemiseCanResolvePlacementConstraint(playerIndex));
@@ -13198,13 +13259,17 @@ function activateUltimateCharacterIfReady(playerIndex) {
   const player = state.players[playerIndex];
   if (!player || player.characterStarActive) return false;
   const exchangeNumber = Number(state.setMatch.exchangeNumber || 0);
-  const visibleStars = (player.played || []).filter((card) => (
+  const consumedStars = new Set(player.ultimateConsumedStarUids || []);
+  const availableStars = (player.played || []).filter((card) => (
     !isRemise(card)
     && card.star === true
     && !card.removed
     && Number(card.ultimateExchangeNumber) === exchangeNumber
-  )).length;
-  if (visibleStars < 2) return false;
+    && !consumedStars.has(card.playedUid || card.uid)
+  ));
+  if (availableStars.length < 2) return false;
+  const activatingStars = availableStars.slice(0, 2);
+  player.ultimateConsumedStarUids = [...consumedStars, ...activatingStars.map((card) => card.playedUid || card.uid)];
   player.characterStarActive = true;
   player.characterSide = 1;
   if (playerIndex === 0) {
@@ -13221,7 +13286,8 @@ function activateUltimateCharacterIfReady(playerIndex) {
   recordAction("ultimate_character_star_activated", {
     playerIndex,
     playerName: displayPlayerName(player),
-    visibleStarCount: visibleStars,
+    visibleStarCount: availableStars.length,
+    activatingStarCards: activatingStars.map(cardLogInfo),
     visibleStarCards: player.played.filter((card) => card.star && !card.removed).map(cardLogInfo),
   });
   window.setTimeout(() => openUltimateCharacterState(playerIndex, true), 0);
@@ -13283,6 +13349,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   };
   const answeredBoostConstraint = !boosted && Boolean(state.lastCard?.boosted || (state.mandatoryPlacement && state.mandatoryPlacementReason === "boost"));
   const endsTurn = !isRemise(card);
+  const consumesContiStarPower = Boolean(ULTIMATE_MODE.active && playerIndex === 0 && endsTurn && player.ultimateNextCostOne);
   const isOpeningServe = endsTurn && playerIndex === state.server && isOpeningServeAvailable();
   if (isOpeningServe) {
     state.openingServePlayed = true;
@@ -13379,10 +13446,21 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   state.turnPlayedCards[playerIndex].push(playedCard);
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
-  if (ULTIMATE_MODE.active && endsTurn && player.ultimateRecoverEnergyOnNextShot) {
+  if (ULTIMATE_MODE.active && consumesContiStarPower) {
+    const energyBefore = player.energy;
     player.energy = Math.min(ULTIMATE_STARTING_ENERGY, player.energy + 1);
     player.ultimateRecoverEnergyOnNextShot = false;
-    state.log.unshift(`${displayPlayerName(player)} récupère 1 énergie grâce à son pouvoir étoile.`);
+    player.characterStarActive = false;
+    player.characterSide = 0;
+    state.log.unshift(`${displayPlayerName(player)} a payé son COUP 1 endurance puis récupère ${player.energy - energyBefore} énergie grâce à son pouvoir étoile. La carte personnage revient en mode normal.`);
+    recordAction("ultimate_conti_star_power_resolved", {
+      playerIndex,
+      playerName: displayPlayerName(player),
+      card: cardLogInfo(playedCard),
+      costPaid: cost,
+      energyBefore,
+      energyAfter: player.energy,
+    });
   }
   if (ULTIMATE_MODE.active && player.characterStarActive && playerIndex === 1 && ["Volée", "Smash", "Amortie"].includes(playedCard.family)) {
     player.power += 1;
@@ -19744,7 +19822,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : "",
   ].filter(Boolean).join("");
   const ultimateProfileResources = ULTIMATE_MODE.active ? `
-    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="Utiliser une énergie · ${player.energy} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || playerIndex === SOLO_AI.playerIndex ? "disabled" : ""}><strong>${player.energy}</strong></button>
+    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="Utiliser une énergie · ${player.energy} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || playerIndex === SOLO_AI.playerIndex ? "disabled" : ""}><span aria-hidden="true">⚡</span><strong>${player.energy}</strong></button>
   ` : "";
   const ultimateDiscard = ULTIMATE_MODE.active && playerIndex === mobileLocalPlayerIndex()
     ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>`
@@ -19754,7 +19832,6 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
       <button class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" type="button" data-ultimate-character-state="${playerIndex}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
       </button>
-      ${ultimateProfileResources}
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
         <div>
@@ -19776,9 +19853,10 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
             <strong>${player.endurance}</strong>
           </div>
         </div>
+        ${ultimateProfileResources}
       </div>
       <button class="desktop-player-bonus-count" type="button" data-open-desktop-bonuses="${playerIndex}" aria-label="Voir les ${panel.bonusCount} bonus et malus de ${escapeHtml(displayPlayerName(player))}">
-        ${panel.bonusCount}
+        <span>BONUS</span> <strong>${panel.bonusCount}</strong>
       </button>
       ${ultimateDiscard}
       ${statusBadges ? `<div class="desktop-player-status">${statusBadges}</div>` : ""}
