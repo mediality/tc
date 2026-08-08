@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.28",
+    ultimateVersion: "V5.29",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -8619,7 +8619,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.28" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.29" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -19822,13 +19822,13 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : "",
   ].filter(Boolean).join("");
   const ultimateProfileResources = ULTIMATE_MODE.active ? `
-    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="Utiliser une énergie · ${player.energy} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || playerIndex === SOLO_AI.playerIndex ? "disabled" : ""}><span aria-hidden="true">⚡</span><strong>${player.energy}</strong></button>
+    <button class="ultimate-profile-energy" type="button" data-open-ultimate-energy="${playerIndex}" aria-label="Utiliser une énergie · ${player.energy} disponible${player.energy > 1 ? "s" : ""}" ${player.energy <= 0 || state.gameOver || playerIndex === SOLO_AI.playerIndex ? "disabled" : ""}><img src="./assets/icons/ultimate-energy.svg" alt="" aria-hidden="true"><strong>${player.energy}</strong></button>
   ` : "";
   const ultimateDiscard = ULTIMATE_MODE.active && playerIndex === mobileLocalPlayerIndex()
     ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>`
     : "";
   return `
-    <div class="character-zone">
+    <div class="character-zone${ULTIMATE_MODE.active ? " ultimate-character-zone" : ""}">
       <button class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" type="button" data-ultimate-character-state="${playerIndex}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
       </button>
@@ -21037,7 +21037,7 @@ function renderUltimateReserveInHand(playerIndex) {
       <span class="ultimate-reserve-hand-badge">RÉSERVE</span>
       ${usable && !playable ? '<span class="desktop-card-lock" aria-label="Carte inutilisable">🔒</span>' : ""}
       <button class="card-visual card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(image)}" data-image-label="${escapeHtml(card.name)}"><img src="${escapeHtml(image)}" alt="${escapeHtml(card.name)}" /></button>
-      ${usable ? `<div class="card-hover-panel ultimate-reserve-hover-panel"><div class="card-actions ultimate-reserve-actions"><button class="play-button" type="button" data-use-reserve="${escapeHtml(card.uid)}" aria-label="Jouer ${escapeHtml(card.name)} pour ${cost} endurance" ${normalAllowed ? "" : "disabled"}><span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span></button><button class="boost-button" type="button" data-boost-reserve="${escapeHtml(card.uid)}" ${boostAllowed ? "" : "disabled"}>BOOST</button></div></div>` : ""}
+      ${usable ? `<div class="card-hover-panel ultimate-reserve-hover-panel"><div class="card-actions ultimate-reserve-actions"><button class="play-button ultimate-card-play-button" type="button" data-use-reserve="${escapeHtml(card.uid)}" aria-label="Jouer ${escapeHtml(card.name)} pour ${cost} endurance" ${normalAllowed ? "" : "disabled"}><span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span></button><button class="boost-button" type="button" data-boost-reserve="${escapeHtml(card.uid)}" ${boostAllowed ? "" : "disabled"}>BOOST</button></div></div>` : ""}
     </article>`;
   }).join("")}`;
 }
@@ -21439,7 +21439,7 @@ function renderCard(playerIndex, card) {
           <button class="play-button effect-button${riskyPlayClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="effect" ${effectModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "effect", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span><strong>EFFET</strong></button>
           <button class="boost-button remise-button${riskyRemiseClass}" type="button" data-player="${playerIndex}" data-play="${card.uid}" data-mode="placement" ${placementModeAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "placement", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span><strong>REMISE</strong></button>
         ` : `
-          <button class="play-button${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span><strong>JOUER</strong></button>
+          <button class="play-button${ULTIMATE_MODE.active ? " ultimate-card-play-button" : ""}${riskyPlayClass}${tutorialFocusClass("play", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-play="${card.uid}" ${normalAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "normal", false)}<span class="card-action-cost"><b>${cost}</b><i aria-hidden="true"></i></span>${ULTIMATE_MODE.active ? "" : "<strong>JOUER</strong>"}</button>
           <button class="boost-button${tutorialFocusClass("boost", playerIndex, card.id)}" type="button" data-player="${playerIndex}" data-boost="${card.uid}" ${boostAllowed ? "" : "disabled"}>${tutorialButtonCue("play", playerIndex, card, "boost", true)}<strong>BOOST</strong></button>
         `}
       </div>
