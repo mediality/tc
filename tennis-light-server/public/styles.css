@@ -14734,14 +14734,14 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .desktop-player-identity > strong { display: block; width: 100%; max-width: none; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-stats { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 7px; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder,
-  body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder.warning-endurance { border-color: #59b5f7; color: #fff; background: #59b5f7; }
+  body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder.warning-endurance { border-color: #274ab3; color: #fff; background: #274ab3; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder strong { color: #fff; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder .stat-symbol { background-color: #fff; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .character-endurance-reminder.low-endurance { border-color: #ffa500; color: #fff; background: #ffa500; }
-  body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-energy { border-color: #ff2c2c; color: #fff; background: #ff2c2c; }
+  body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-energy { border-color: #274ab3; color: #fff; background: #274ab3; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-energy img { width: 18px; height: 18px; object-fit: contain; filter: brightness(0) invert(1); pointer-events: none; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone > .desktop-player-bonus-count { width: 100%; }
   body:not(.mobile-game-view) .game-app .ultimate-character-zone .ultimate-profile-discard { right: auto; left: 50%; width: 66%; min-width: 132px; transform: translateX(-50%); text-align: center; }
-  body:not(.mobile-game-view) .game-app .ultimate-card-play-button:not(:disabled) { color: #fff; background: #59b5f7; }
+  body:not(.mobile-game-view) .game-app .ultimate-card-play-button:not(:disabled) { color: #fff; background: #274ab3; }
   body:not(.mobile-game-view) .game-app .ultimate-card-play-button .card-action-cost { justify-content: center; width: 100%; }
 }

@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.30",
+    ultimateVersion: "V5.31",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -1980,6 +1980,7 @@ const state = {
   resultInfo: null,
   turnSnapshot: null,
   turnDirty: false,
+  turnUndoLocked: false,
   revealAiCards: false,
   opponentHandReveal: null,
   actionLog: [],
@@ -7994,6 +7995,7 @@ function cardLogInfo(card) {
     boostPower: card.boostPower,
     boostPrecision: card.boostPrecision,
     star: Boolean(card.star),
+    ultimateDeckOrder: card.ultimateDeckOrder ?? null,
     ultimateColor: card.ultimateColor || null,
     ultimateBoostOnPlacementMiss: Boolean(card.ultimateBoostOnPlacementMiss),
     ultimateBoostColors: [...(card.ultimateBoostColors || [])],
@@ -8619,7 +8621,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.30" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.31" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -8817,7 +8819,10 @@ function buildUltimateDeck(playerIndex) {
     ultimateOwner: playerIndex,
     ultimateOfficial: true,
   }));
-  return shuffle([...officialShots, ...effectCards]);
+  return shuffle([...officialShots, ...effectCards]).map((card, index) => ({
+    ...card,
+    ultimateDeckOrder: index + 1,
+  }));
 }
 
 function ultimateDrawThree(playerIndex) {
@@ -9616,6 +9621,7 @@ const SNAPSHOT_KEYS = [
   "opponentHandReveal",
   "tournament",
   "setMatch",
+  "turnUndoLocked",
 ];
 
 const SYNC_STATE_KEYS = [
@@ -9661,12 +9667,13 @@ function importSyncState(remoteState) {
 }
 
 function captureTurnSnapshot() {
+  state.turnUndoLocked = false;
   state.turnSnapshot = Object.fromEntries(SNAPSHOT_KEYS.map((key) => [key, cloneData(state[key])]));
   state.turnDirty = false;
 }
 
 function restoreTurnSnapshot() {
-  if (!state.turnSnapshot || !state.turnDirty || state.gameOver) return;
+  if (!state.turnSnapshot || !state.turnDirty || state.turnUndoLocked || state.gameOver) return;
   const activeName = playerName(state.activePlayer);
   markLocalServerDirty(state.activePlayer);
   for (const key of SNAPSHOT_KEYS) {
@@ -9689,7 +9696,7 @@ function restoreTurnSnapshot() {
 }
 
 function canUndoTurn(playerIndex) {
-  return !state.gameOver && playerIndex === state.activePlayer && state.turnDirty;
+  return !state.gameOver && playerIndex === state.activePlayer && state.turnDirty && !state.turnUndoLocked;
 }
 
 function playerName(index) {
@@ -10132,7 +10139,7 @@ function canPlayNormal(playerIndex, card) {
   const boostedReplyRequired = Boolean(state.lastCard?.boosted && state.lastCard.owner !== playerIndex);
   const placementRequired = state.mandatoryPlacement || boostedReplyRequired;
   const jokerAnswersBoost = card.effectType === "jokerResponse" && (state.mandatoryPlacementReason === "boost" || boostedReplyRequired);
-  if (placementRequired && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) return false;
+  if (placementRequired && !state.turnIgnoresPlacement[playerIndex] && !hasPlacementForPrevious(playerIndex, card) && !jokerAnswersBoost) return false;
   return true;
 }
 
@@ -10149,7 +10156,8 @@ function canPlayEffectMode(playerIndex, card) {
 function canEndTurn(playerIndex) {
   if (state.gameOver || playerIndex !== state.activePlayer || !canUseSeat(playerIndex)) return false;
   if (!tutorialAllowsEndTurn(playerIndex)) return false;
-  if (state.mandatoryPlacement || (state.lastCard?.boosted && state.lastCard.owner !== playerIndex)) {
+  if (!state.turnIgnoresPlacement[playerIndex]
+    && (state.mandatoryPlacement || (state.lastCard?.boosted && state.lastCard.owner !== playerIndex))) {
     return hasPlayedThisTurn(playerIndex)
       && state.lastCard
       && (turnEndPlacement(playerIndex) >= requiredPlacementForLastCard() || finalRemiseCanResolvePlacementConstraint(playerIndex));
@@ -10159,6 +10167,16 @@ function canEndTurn(playerIndex) {
 
 function hasPlayedThisTurn(playerIndex) {
   return state.turnHasEffect[playerIndex] || state.turnPlacement[playerIndex] > 0 || state.turnPlayedCards[playerIndex].length > 0;
+}
+
+function canPassAfterIrreversibleDrawImpasse(playerIndex) {
+  if (!state.turnUndoLocked || !hasPlayedThisTurn(playerIndex)) return false;
+  const placementConstraint = state.mandatoryPlacement
+    || Boolean(state.lastCard?.boosted && state.lastCard.owner !== playerIndex);
+  if (!placementConstraint || state.turnIgnoresPlacement[playerIndex]) return false;
+  const player = state.players[playerIndex];
+  const availableCards = [...(player.hand || []), ...(ULTIMATE_MODE.active ? player.reserve || [] : [])];
+  return !availableCards.some((card) => !isRemise(card) && (canPlayNormal(playerIndex, card) || canPlayBoost(playerIndex, card)));
 }
 
 function canPlayBoost(playerIndex, card) {
@@ -13762,6 +13780,10 @@ function drawCards(player, count) {
       drawn += 1;
     }
   }
+  if (drawn > 0 && state.turnDirty) {
+    state.turnUndoLocked = true;
+    state.log.unshift("Une carte a été révélée par la pioche : ce tour ne peut plus être annulé.");
+  }
   return drawn;
 }
 
@@ -14881,7 +14903,8 @@ function pass(playerIndex, tutorialBypass = false) {
     render();
     return;
   }
-  if (hasPlayedThisTurn(playerIndex)) {
+  const irreversibleDrawImpasse = canPassAfterIrreversibleDrawImpasse(playerIndex);
+  if (hasPlayedThisTurn(playerIndex) && !irreversibleDrawImpasse) {
     if (canEndTurn(playerIndex)) {
       endTurn(playerIndex);
     } else {
@@ -21061,11 +21084,12 @@ function openUltimateDiscard(playerIndex) {
   const cards = state.ultimateDiscards[playerIndex] || [];
   const dialog = document.createElement("section");
   dialog.className = "ultimate-dialog";
-  dialog.innerHTML = `<div class="ultimate-dialog-card"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Tennis Courts Ultimate</p><h2>Défausse de ${escapeHtml(displayPlayerName(state.players[playerIndex]))}</h2><div class="ultimate-discard-grid">${cards.length ? cards.map((card) => `<article>${cardArtwork(card) ? `<img src="${escapeHtml(cardArtwork(card))}" alt="" />` : ""}<strong>${escapeHtml(card.name)}</strong></article>`).join("") : "<p>La défausse est vide.</p>"}</div></div>`;
+  dialog.innerHTML = `<div class="ultimate-dialog-card"><button class="ultimate-dialog-close" type="button" aria-label="Fermer">×</button><p class="eyebrow">Tennis Courts Ultimate</p><h2>Défausse de ${escapeHtml(displayPlayerName(state.players[playerIndex]))}</h2><div class="ultimate-discard-grid">${cards.length ? cards.map((card) => `<article>${cardArtwork(card) ? `<button class="card-image-zoom-trigger" type="button" data-image-zoom="${escapeHtml(cardArtwork(card))}" data-image-label="${escapeHtml(card.name)}" aria-label="Agrandir ${escapeHtml(card.name)}"><img src="${escapeHtml(cardArtwork(card))}" alt="${escapeHtml(card.name)}" /></button>` : ""}<strong>${escapeHtml(card.name)}</strong></article>`).join("") : "<p>La défausse est vide.</p>"}</div></div>`;
   const close = () => dialog.remove();
   dialog.querySelector("button").addEventListener("click", close);
   dialog.addEventListener("click", (event) => { if (event.target === dialog) close(); });
   document.body.appendChild(dialog);
+  attachImageZoomHandlers(dialog);
 }
 
 function openUltimateCardRecoveryChoice(playerIndex, source) {
@@ -21213,7 +21237,7 @@ function renderPlayerPanel(playerIndex, root) {
     && !state.gameOver
     && canUseSeat(playerIndex)
     && tutorialAllowsPass()
-    && !hasPlayedThisTurn(playerIndex);
+    && (!hasPlayedThisTurn(playerIndex) || canPassAfterIrreversibleDrawImpasse(playerIndex));
   const passProjection = showPassButton ? mobilePassProjection(playerIndex) : null;
   root.classList.toggle("active", playerIndex === state.activePlayer && !state.gameOver);
   root.innerHTML = `
@@ -23015,7 +23039,7 @@ function getMobileMatchViewState() {
         && state.activePlayer === playerIndex
         && canUseSeat(playerIndex)
         && tutorialAllowsPass()
-        && !hasPlayedThisTurn(playerIndex),
+        && (!hasPlayedThisTurn(playerIndex) || canPassAfterIrreversibleDrawImpasse(playerIndex)),
       canEndTurn: !SPECTATOR_MODE.enabled && canEndTurn(playerIndex),
       endTurnBoostRisk: Boolean(
         state.lastCard
