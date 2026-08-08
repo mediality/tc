@@ -1802,7 +1802,7 @@ function saveLocalMobileMatchSession() {
   const completed = localMatchIsCompleted();
   const record = {
     schemaVersion: 1,
-    ultimateVersion: "V5.33",
+    ultimateVersion: "V5.34",
     gameVersion: GAME_VERSION,
     matchId,
     status: completed ? "completed" : "active",
@@ -8622,7 +8622,7 @@ async function exportLogsFile() {
     exportedAt: new Date().toISOString(),
     game: "Tennis Courts Academy",
     version: GAME_VERSION,
-    ultimateVersion: ULTIMATE_MODE.active ? "V5.33" : null,
+    ultimateVersion: ULTIMATE_MODE.active ? "V5.34" : null,
     ultimateMatch,
     ultimateMatches,
     description: "Journal detaille des actions pour analyser le style de jeu, surtout Coach Ju.",
@@ -8805,6 +8805,14 @@ function buildUltimateDeck(playerIndex) {
     card.ultimateColor = printedRules.colors[printedNumber] || null;
     card.ultimateBoostOnPlacementMiss = printedRules.miss.includes(printedNumber);
     card.ultimateBoostColors = [...(printedRules.boostColors[printedNumber] || [])];
+    card.ultimatePrintedStats = {
+      cost: card.cost,
+      power: card.power,
+      precision: card.precision,
+      placement: card.placement,
+      boostPower: card.boostPower,
+      boostPrecision: card.boostPrecision,
+    };
     return card;
   });
   const effectCards = ULTIMATE_EFFECT_DEFINITIONS.map((definition, index) => ({
@@ -8819,11 +8827,87 @@ function buildUltimateDeck(playerIndex) {
     artwork: `assets/ultimate/effects/card-${String(index + 1).padStart(2, "0")}.png`,
     ultimateOwner: playerIndex,
     ultimateOfficial: true,
+    ultimatePrintedStats: {
+      cost: definition.cost,
+      power: 0,
+      precision: 0,
+      placement: definition.placement,
+      boostPower: 0,
+      boostPrecision: 0,
+    },
   }));
   return shuffle([...officialShots, ...effectCards]).map((card, index) => ({
     ...card,
     ultimateDeckOrder: index + 1,
   }));
+}
+
+function restoreUltimateCardPrintedState(card) {
+  if (!card || !ULTIMATE_MODE.active) return card;
+  const restored = { ...card };
+  const shotNumber = Number(String(card.id || "").match(/ultimate-(?:conti|brentwood)-shot-(\d+)/)?.[1]);
+  const playerLabel = String(card.id || "").includes("ultimate-conti-") ? "Conti" : "Brentwood";
+  const audited = Number.isInteger(shotNumber)
+    ? (window.ULTIMATE_CARD_DATA || []).filter((candidate) => candidate.player === playerLabel && candidate.type === "COUP")[shotNumber - 1]
+    : null;
+  const effectNumber = Number(String(card.id || "").match(/ultimate-effect-(\d+)-/)?.[1]);
+  const effectDefinition = Number.isInteger(effectNumber) ? ULTIMATE_EFFECT_DEFINITIONS[effectNumber - 1] : null;
+  const printed = card.ultimatePrintedStats || (audited ? {
+    cost: audited.cost,
+    power: audited.power,
+    precision: audited.precision,
+    placement: audited.placement,
+    boostPower: audited.boostPower,
+    boostPrecision: audited.boostPrecision,
+  } : effectDefinition ? {
+    cost: effectDefinition.cost,
+    power: 0,
+    precision: 0,
+    placement: effectDefinition.placement,
+    boostPower: 0,
+    boostPrecision: 0,
+  } : {});
+  for (const key of ["cost", "power", "precision", "placement", "boostPower", "boostPrecision"]) {
+    if (Number.isFinite(Number(printed[key]))) restored[key] = Number(printed[key]);
+  }
+  for (const key of [
+    "playedUid", "owner", "remiseMode", "sacrificedCard", "isServiceTurn", "costPaid",
+    "powerGained", "cardPowerGained", "basePowerGained", "effectPowerGained",
+    "answeredBoostConstraint", "ultimateExchangeNumber", "turnPlacement", "turnEndPlacement",
+    "effectApplied", "effectDeferredUntilEndTurn", "turnCompleted", "removed", "boosted",
+    "_fromReserve", "_pendingReserveBoost",
+  ]) delete restored[key];
+  return restored;
+}
+
+function prepareSoloUltimateReserveFallback(playerIndex) {
+  if (!ULTIMATE_MODE.active || state.activePlayer !== playerIndex) return false;
+  const player = state.players[playerIndex];
+  if (!player || player.ultimateReserveLockedNext || player.ultimateReserveLockedExchange) return false;
+  const handCanProgress = (player.hand || []).some((card) => (
+    canPlayNormal(playerIndex, card)
+    || canPlayBoost(playerIndex, card)
+    || (isRemise(card) && canPlayEffectMode(playerIndex, card))
+  ));
+  if (handCanProgress) return false;
+  const legalReserve = (player.reserve || [])
+    .map((stored) => ({ stored, card: restoreUltimateCardPrintedState(stored) }))
+    .filter(({ card }) => canPlayNormal(playerIndex, card) || canPlayBoost(playerIndex, card))
+    .sort((left, right) => (
+      getCardStats(player, right.card, false).placement - getCardStats(player, left.card, false).placement
+      || soloPlayableCoupScore(playerIndex, right.card) - soloPlayableCoupScore(playerIndex, left.card)
+    ));
+  const selected = legalReserve[0];
+  if (!selected) return false;
+  player.reserve = player.reserve.filter((card) => card.uid !== selected.stored.uid);
+  selected.card._fromReserve = true;
+  player.hand.push(selected.card);
+  recordUltimateDiagnostic("ai_reserve_fallback_prepared", {
+    playerIndex,
+    card: cardLogInfo(selected.card),
+    reason: "aucune carte de la main ne permettait de poursuivre légalement",
+  });
+  return true;
 }
 
 function ultimateDrawThree(playerIndex) {
@@ -8961,9 +9045,10 @@ function reserveUltimateCard(playerIndex, cardUid) {
   const card = (player.played || []).find((candidate) => candidate.uid === cardUid && !isRemise(candidate) && !candidate.removed);
   if (!card) return false;
   player.played = player.played.filter((candidate) => candidate.uid !== card.uid);
-  player.reserve.push(card);
+  const reserveCard = restoreUltimateCardPrintedState(card);
+  player.reserve.push(reserveCard);
   state.log.unshift(`${displayPlayerName(player)} conserve ${card.name} dans sa réserve.`);
-  recordUltimateDiagnostic("ultimate_reserve_added", { playerIndex, card: cardLogInfo(card) });
+  recordUltimateDiagnostic("ultimate_reserve_added", { playerIndex, card: cardLogInfo(reserveCard) });
   return true;
 }
 
@@ -10389,6 +10474,7 @@ function runSoloAITurn() {
 
     const playerIndex = SOLO_AI.playerIndex;
     maybeSpendUltimateEnergyForAI(playerIndex);
+    prepareSoloUltimateReserveFallback(playerIndex);
     const finalOnePointPass = soloFinalOnePointWinningPass(playerIndex);
     if (finalOnePointPass) {
       recordSoloAiDecision("pass_final_one_point_certain_win", finalOnePointPass);
@@ -14102,7 +14188,7 @@ function applyEffect(playerIndex, card) {
     }
     case "ultimateRecoverReserve":
       drawCards(player, 2);
-      player.hand.push(...(player.reserve || []));
+      player.hand.push(...(player.reserve || []).map(restoreUltimateCardPrintedState));
       player.reserve = [];
       state.log.unshift(`${displayPlayerName(player)} pioche 2 cartes et récupère sa réserve en main.`);
       break;
@@ -21123,11 +21209,12 @@ function renderUltimateReserveInHand(playerIndex) {
   const reserve = player.reserve || [];
   if (!reserve.length) return '<span class="ultimate-reserve-hand-divider empty">RÉSERVE · 0/2</span>';
   return `<span class="ultimate-reserve-hand-divider">RÉSERVE · ${reserve.length}/2</span>${reserve.map((card) => {
+    const rulesCard = restoreUltimateCardPrintedState(card);
     const image = cardArtwork(card);
     const usable = playerIndex === 0 && canUseSeat(playerIndex) && !state.gameOver && !player.ultimateReserveLockedNext && !player.ultimateReserveLockedExchange;
-    const cost = effectiveCost(player, card);
-    const normalAllowed = usable && canPlayNormal(playerIndex, card);
-    const boostAllowed = usable && canPlayBoost(playerIndex, card);
+    const cost = effectiveCost(player, rulesCard);
+    const normalAllowed = usable && canPlayNormal(playerIndex, rulesCard);
+    const boostAllowed = usable && canPlayBoost(playerIndex, rulesCard);
     const playable = normalAllowed || boostAllowed;
     return `<article class="card has-visual ultimate-reserve-hand-card${usable ? "" : " ultimate-reserve-readonly"}${usable && !playable ? " unplayable desktop-hand-card--locked" : ""}" data-hand-card-uid="${escapeHtml(card.uid)}" data-hand-player="${playerIndex}"${usable ? ' tabindex="0"' : ""}>
       <span class="ultimate-reserve-hand-badge">RÉSERVE</span>
@@ -21353,7 +21440,8 @@ function renderPlayerPanel(playerIndex, root) {
   });
   root.querySelectorAll("[data-use-reserve]").forEach((button) => {
     button.addEventListener("click", () => {
-      const card = player.reserve.find((item) => item.uid === button.dataset.useReserve);
+      const storedCard = player.reserve.find((item) => item.uid === button.dataset.useReserve);
+      const card = restoreUltimateCardPrintedState(storedCard);
       if (!card || state.gameOver) return;
       player.reserve = player.reserve.filter((item) => item.uid !== card.uid);
       card._fromReserve = true;
@@ -21371,7 +21459,8 @@ function renderPlayerPanel(playerIndex, root) {
   });
   root.querySelectorAll("[data-boost-reserve]").forEach((button) => {
     button.addEventListener("click", () => {
-      const card = player.reserve.find((item) => item.uid === button.dataset.boostReserve);
+      const storedCard = player.reserve.find((item) => item.uid === button.dataset.boostReserve);
+      const card = restoreUltimateCardPrintedState(storedCard);
       if (!card || state.gameOver) return;
       player.reserve = player.reserve.filter((item) => item.uid !== card.uid);
       card._fromReserve = true;
