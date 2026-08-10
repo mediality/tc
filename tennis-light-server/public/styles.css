@@ -14552,11 +14552,20 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
-/* V4.54 action trays anchored directly to the player portrait. */
+/* V4.55 visible action trays anchored directly to the player portrait. */
 @media (min-width: 861px) {
+  body:not(.mobile-game-view) .player-panel .character-card {
+    overflow: visible;
+  }
+
+  body:not(.mobile-game-view) .player-panel .character-card > img {
+    overflow: hidden;
+    border-radius: 50%;
+  }
+
   body:not(.mobile-game-view) .player-panel .character-card > .turn-buttons {
     position: absolute;
-    z-index: 6;
+    z-index: 40;
     top: auto;
     right: auto;
     bottom: calc(100% + 20px);
@@ -14573,6 +14582,9 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     box-shadow: 0 8px 20px rgba(0, 0, 0, .3);
     backdrop-filter: blur(8px);
     transform: translateX(-50%);
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   body:not(.mobile-game-view) .player-panel .character-card > .turn-buttons:empty {
