@@ -252,6 +252,9 @@ const AI_CLUB_HOUSE = {
     return "match";
   })(),
   targetSets: Number(localStorage.getItem("tennisLightAiClubSets")) === 3 ? 3 : 2,
+  tournamentSize: [8, 16, 32].includes(Number(localStorage.getItem("tennisLightAiClubTournamentSize")))
+    ? Number(localStorage.getItem("tennisLightAiClubTournamentSize"))
+    : 16,
   difficulty: localStorage.getItem("tennisLightAiClubDifficulty") || "normal",
   bonus: (() => {
     const storedBonus = localStorage.getItem("tennisLightAiClubBonus");
@@ -2682,7 +2685,7 @@ function updateAccessControls() {
     if (section.matches("button, select")) section.disabled = !hasProAccess;
     if (section.classList.contains("lobby-mode-card")) {
       section.setAttribute("aria-disabled", String(!hasProAccess));
-      section.title = hasProAccess ? "" : (AUTH_STATE.user ? "Réservé aux comptes PRO" : "Connectez-vous avec un compte PRO");
+      section.removeAttribute("title");
     }
     section.querySelectorAll("button, select").forEach((control) => {
       control.disabled = !hasProAccess;
@@ -5860,6 +5863,7 @@ function renderAiClubHouse() {
     const expected = {
       format: AI_CLUB_HOUSE.format,
       sets: String(AI_CLUB_HOUSE.targetSets),
+      tournamentSize: String(AI_CLUB_HOUSE.tournamentSize),
       difficulty: AI_CLUB_HOUSE.difficulty,
       bonus: AI_CLUB_HOUSE.bonus,
       players: AI_CLUB_HOUSE.players,
@@ -5873,6 +5877,7 @@ function renderAiClubHouse() {
   rewardButton?.closest(".friendly-setting-switch")?.classList.toggle("reward-visible", isOnePoint);
   document.querySelectorAll("[data-competition-setting]").forEach((row) => row.classList.toggle("hidden", isMatch));
   document.querySelector("#aiSetsSettingRow")?.classList.toggle("hidden", isOnePoint);
+  document.querySelector("#aiTournamentSizeSettingRow")?.classList.toggle("hidden", AI_CLUB_HOUSE.format !== "classic");
   document.querySelector("#aiPlayersSettingRow")?.classList.toggle("hidden", isMatch || isChampionship);
   document.querySelector("#aiDistributionSettingRow")?.classList.toggle("hidden", isMatch || AI_CLUB_HOUSE.format === "championship");
   els.aiBonusSettingRow?.classList.remove("setting-disabled");
@@ -5895,7 +5900,7 @@ function renderAiClubHouse() {
         ? `16 joueurs · 1 échange par match · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`
       : isChampionship
         ? `24 joueurs · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · tirage aléatoire avec 8 têtes de série`
-      : `${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
+      : `${AI_CLUB_HOUSE.tournamentSize} joueurs · ${AI_CLUB_HOUSE.targetSets} sets gagnants · ${tournamentDifficultyLabel(AI_CLUB_HOUSE.difficulty)} · ${bonusText} · ${playersText} · ${distributionText}`;
     if (els.aiClubHouseSummaryTitle) els.aiClubHouseSummaryTitle.textContent = format;
   }
   if (els.startAiClubHouseButton) {
@@ -5990,6 +5995,9 @@ function updateAiClubHouseSetting(setting, value) {
   } else if (setting === "sets") {
     AI_CLUB_HOUSE.targetSets = Number(value) === 3 ? 3 : 2;
     localStorage.setItem("tennisLightAiClubSets", String(AI_CLUB_HOUSE.targetSets));
+  } else if (setting === "tournamentSize") {
+    AI_CLUB_HOUSE.tournamentSize = [8, 16, 32].includes(Number(value)) ? Number(value) : 16;
+    localStorage.setItem("tennisLightAiClubTournamentSize", String(AI_CLUB_HOUSE.tournamentSize));
   } else if (setting === "difficulty") {
     AI_CLUB_HOUSE.difficulty = normalizeAiDifficulty(value);
     localStorage.setItem("tennisLightAiClubDifficulty", AI_CLUB_HOUSE.difficulty);
@@ -6064,6 +6072,7 @@ async function startAiClubHouseCompetition() {
       bonus: AI_CLUB_HOUSE.bonus,
       players: AI_CLUB_HOUSE.players,
       distribution: AI_CLUB_HOUSE.distribution,
+      tournamentSize: AI_CLUB_HOUSE.tournamentSize,
     };
     try {
       if (isMatch) {
@@ -15320,6 +15329,7 @@ function finishGame({ forcedWinner = null, ignoreScore = false, winType = "power
   if (state.setMatch.enabled) {
     applySetMatchScore(winner, setScore);
     completeOnePointTournamentMatch(winner, setScore);
+    advanceProgressiveTournamentScores();
   }
   state.resultInfo.activatedBonuses = updateSequenceBonusesAfterExchange(winner);
   state.log.unshift(exchangeResultLogLine(winner, winType, setScore));
@@ -16506,14 +16516,44 @@ function completeLeagueWithoutHuman() {
   state.tournament.championCharacterId = final?.winner || null;
 }
 
+function tournamentBaseEntry(entry) {
+  return String(entry || "").split("::duplicate:")[0];
+}
+
+function uniqueTournamentAiEntries(count, selection = "random", humanCharacterId = selectedCharacterId()) {
+  const selected = selectAiClubHousePlayers(Math.min(count, TOURNAMENT_CHARACTER_POOL.length), selection, humanCharacterId);
+  const coaches = COACH_OPTIONS.filter((entry) => entry !== humanCharacterId);
+  let duplicateIndex = 1;
+  while (selected.length < count) {
+    const coach = coaches[(duplicateIndex - 1) % coaches.length] || COACH_OPTIONS[0];
+    selected.push(`${coach}::duplicate:${duplicateIndex}`);
+    duplicateIndex += 1;
+  }
+  return selected;
+}
+
+function seededTournamentSlotMap(size, seedCount) {
+  if (size === 8 && seedCount === 4) return { 1: 1, 4: 4, 3: 5, 2: 8 };
+  const factor = size / 32;
+  const slots32 = { 1: 1, 8: 8, 5: 9, 4: 16, 3: 17, 6: 24, 7: 25, 2: 32 };
+  return Object.fromEntries(Object.entries(slots32).map(([seed, slot]) => [seed, Math.max(1, Math.round(slot * factor))]));
+}
+
 function buildAiClubHouseClassicSetup(options = {}) {
-  const selectedAi = selectAiClubHousePlayers(15, options.playerSelection, options.humanCharacterId);
+  const size = [8, 16, 32].includes(Number(options.tournamentSize)) ? Number(options.tournamentSize) : 16;
+  const selectedAi = uniqueTournamentAiEntries(size - 1, options.playerSelection, options.humanCharacterId);
   const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
-  const positions = Array(17).fill(null);
-  const rankedRoster = rankedTournamentEntries(roster);
-  const seedEntries = rankedRoster.slice(0, 4);
+  const positions = Array(size + 1).fill(null);
+  const rankedRoster = sortTournamentEntriesByWorldRank(roster);
+  const seedCount = size === 8 ? 4 : 8;
+  const seedEntries = rankedRoster.slice(0, seedCount);
   if (options.distribution === "ranking") {
-    rankedRoster.forEach((entry, index) => { positions[index + 1] = entry; });
+    const slots = seededTournamentSlotMap(size, seedCount);
+    seedEntries.forEach((entry, index) => { positions[slots[index + 1]] = entry; });
+    const unseeded = shuffle(roster.filter((entry) => !seedEntries.includes(entry)));
+    for (let position = 1; position <= size; position += 1) {
+      if (!positions[position]) positions[position] = unseeded.shift();
+    }
   } else {
     shuffle(roster).forEach((entry, index) => { positions[index + 1] = entry; });
   }
@@ -16521,9 +16561,12 @@ function buildAiClubHouseClassicSetup(options = {}) {
     positions,
     seededHistorics: [],
     seedEntries,
-    seedNumbers: Object.fromEntries(seedEntries.map((entry, index) => [entry, index + 1])),
+    seedNumbers: options.distribution === "ranking"
+      ? Object.fromEntries(seedEntries.map((entry, index) => [entry, index + 1]))
+      : {},
     positionByEntry: tournamentPositionMap(positions),
     roster,
+    size,
   };
 }
 
@@ -16557,6 +16600,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
       humanCharacterId,
       playerSelection: options.players || "random",
       distribution: options.distribution || "random",
+      tournamentSize: options.tournamentSize || 16,
     })
     : buildTournamentRound16Positions(humanCharacterId, weeklyCompetition?.surface || "hard");
   const {
@@ -16581,6 +16625,8 @@ function startTournamentMode(targetSets = 2, options = {}) {
     active: true,
     visible: false,
     bracket16: true,
+    bracketSize: positions.length - 1,
+    progressiveLiveScores: true,
     onePointGame,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
@@ -16600,7 +16646,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     matchBonusPoints: 0,
     matchBonusDetails: [],
     pointsRecorded: false,
-    stage: "quarter",
+    stage: positions.length - 1 === 32 ? "round32" : positions.length - 1 === 16 ? "round16" : "quarter",
     targetSets,
     humanCharacterId,
     humanNickname: nicknameValue(),
@@ -16632,7 +16678,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
   state.tournament.stage = firstHumanMatch?.round || "round16";
   const tournamentLabel = weeklyCompetition?.name || (onePointGame ? "1 Point Game" : `Tournoi amical ${targetSets} sets`);
   const surfaceText = weeklyCompetition?.surfaceLabel ? ` · ${weeklyCompetition.surfaceLabel}` : "";
-  state.log.unshift(`${tournamentLabel}${surfaceText} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}${onePointGame ? " · un seul point décisif" : ""}.`);
+  state.log.unshift(`${tournamentLabel}${surfaceText} : ${firstHumanMatch?.label || "Premier tour"} contre ${characterNameFromId(SOLO_AI.characterId)}${onePointGame ? " · un seul point décisif" : ""}.`);
   render();
 }
 
@@ -16718,6 +16764,7 @@ function tournamentAiRankingEntries() {
 }
 
 function tournamentRankIa(entry) {
+  entry = tournamentBaseEntry(entry);
   const ranked = tournamentAiRankingEntries();
   const stored = ranked.find((item) => item.entry === entry)?.rankIa;
   if (stored) return stored;
@@ -16729,6 +16776,7 @@ function tournamentRankIa(entry) {
 }
 
 function tournamentWorldRankForEntry(entry) {
+  entry = tournamentBaseEntry(entry);
   return tournamentRankingEntries().find((row) => row.entry === entry)?.worldRank ?? null;
 }
 
@@ -17188,28 +17236,37 @@ function buildWeeklyTournamentMatches(positions, humanEntry, targetSets) {
     hiddenSetScores: null,
     revealedSetScores: [],
   });
+  const size = positions.length - 1;
+  const rounds = size === 32
+    ? [{ key: "round32", prefix: "r32", label: "16e de finale", count: 16 }, { key: "round16", prefix: "r16", label: "8e de finale", count: 8 }]
+    : size === 16
+      ? [{ key: "round16", prefix: "r16", label: "8e de finale", count: 8 }]
+      : [];
+  rounds.push(
+    { key: "quarter", prefix: "qf", label: "Quart de finale", count: 4 },
+    { key: "semi", prefix: "semi", label: "Demi-finale", count: 2 },
+    { key: "final", prefix: "final", label: "Finale", count: 1 },
+  );
+  const matches = [];
   const circuitPositionPairs = [[1, 16], [9, 8], [5, 12], [13, 4], [3, 14], [11, 6], [7, 10], [15, 2]];
-  const displayOrderPairs = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12], [13, 14], [15, 16]];
-  const round16Pairs = state.tournament?.weekly || state.tournament?.distribution === "ranking"
-    ? circuitPositionPairs
-    : displayOrderPairs;
-  return [
-    ...round16Pairs.map(([positionA, positionB], index) => match(
-      `r16_${index + 1}`,
-      `8e de finale ${index + 1}`,
-      "round16",
-      positions[positionA],
-      positions[positionB],
-    )),
-    match("qf1", "Quart de finale 1", "quarter", null, null),
-    match("qf2", "Quart de finale 2", "quarter", null, null),
-    match("qf3", "Quart de finale 3", "quarter", null, null),
-    match("qf4", "Quart de finale 4", "quarter", null, null),
-    match("semi1", "Demi-finale 1", "semi", null, null),
-    match("semi2", "Demi-finale 2", "semi", null, null),
-    match("final", "Finale", "final", null, null),
-  ].map((item) => {
-    if (item.simulated) {
+  rounds.forEach((round, roundIndex) => {
+    for (let index = 0; index < round.count; index += 1) {
+      const firstRound = roundIndex === 0;
+      const firstRoundPair = state.tournament?.weekly && size === 16
+        ? circuitPositionPairs[index]
+        : [(index * 2) + 1, (index * 2) + 2];
+      const id = round.key === "final" ? "final" : `${round.prefix}${round.prefix.startsWith("r") ? "_" : ""}${index + 1}`;
+      matches.push(match(
+        id,
+        round.count === 1 ? round.label : `${round.label} ${index + 1}`,
+        round.key,
+        firstRound ? positions[firstRoundPair[0]] : null,
+        firstRound ? positions[firstRoundPair[1]] : null,
+      ));
+    }
+  });
+  return matches.map((item) => {
+    if (item.simulated && !state.tournament?.progressiveLiveScores) {
       const result = simulateAiTournamentMatch(item.playerA, item.playerB, targetSets);
       item.hiddenWinner = result.winner;
       item.hiddenSetScores = result.setScores;
@@ -17300,6 +17357,7 @@ function onePointResultPerformance(winnerScore, loserScore) {
 }
 
 function aiTournamentStrength(characterId) {
+  characterId = tournamentBaseEntry(characterId);
   const isHistoric = HISTORIC_TOURNAMENT_PLAYERS.includes(characterId);
   const isSeeded = (state.tournament?.seededCharacters || []).includes(characterId);
   const permanentBonuses = state.tournament?.permanentBonuses?.[characterId] ?? [];
@@ -17348,6 +17406,62 @@ function formatSetScores(setScores = []) {
   return setScores.map((score) => `${score[0]}/${score[1]}`).join(" - ");
 }
 
+function progressiveTournamentScoreText(progress) {
+  const completed = progress.completedScores || [];
+  const current = progress.matchOver || !(progress.score || []).some(Number) ? [] : [progress.score];
+  return formatSetScores([...completed, ...current]);
+}
+
+function advanceProgressiveTournamentMatch(match) {
+  if (!match?.simulated || match.winner || !match.playerA || !match.playerB) return false;
+  const progress = match.liveProgress || {
+    score: [0, 0], completedScores: [], setsWon: [0, 0], momentum: [0, 0], server: Math.random() < .5 ? 0 : 1,
+  };
+  const strengthA = aiTournamentStrength(match.playerA) + progress.momentum[0] + (progress.server === 0 ? 2 : 0);
+  const strengthB = aiTournamentStrength(match.playerB) + progress.momentum[1] + (progress.server === 1 ? 2 : 0);
+  const chanceA = Math.max(.1, Math.min(.9, 1 / (1 + Math.exp(-(strengthA - strengthB) / 9))));
+  const winner = Math.random() < chanceA ? 0 : 1;
+  const loser = opponentOf(winner);
+  const dominance = Math.abs(strengthA - strengthB) + Math.random() * 18;
+  const winnerGames = dominance > 21 ? 3 : 2;
+  const loserGames = winnerGames === 3 ? 0 : dominance < 10 ? 1 : 0;
+  const next = [...progress.score];
+  next[winner] = computeWinnerSetGames(next[winner], next[loser], winnerGames);
+  next[loser] = Math.min(7, next[loser] + loserGames);
+  if (next[winner] === 7 && next[loser] < 5) next[winner] = 6;
+  if (next[loser] > 6 && next[winner] < 7) next[loser] = 6;
+  progress.momentum[winner] = Math.min(4, progress.momentum[winner] + 1);
+  progress.momentum[loser] = Math.max(-3, progress.momentum[loser] - 1);
+  progress.server = loser;
+  progress.score = next;
+  if (isSetOver(next)) {
+    progress.completedScores.push([...next]);
+    progress.setsWon[leadingSetPlayer(next)] += 1;
+    progress.score = [0, 0];
+    progress.momentum = [0, 0];
+  }
+  const targetSets = Number(state.tournament.targetSets || 2);
+  const matchWinnerIndex = progress.setsWon.findIndex((sets) => sets >= targetSets);
+  progress.matchOver = matchWinnerIndex >= 0;
+  match.liveProgress = progress;
+  match.revealedSetScores = progress.completedScores.map((score) => [...score]);
+  if (progress.matchOver) {
+    match.winner = matchWinnerIndex === 0 ? match.playerA : match.playerB;
+    match.score = formatSetScores(progress.completedScores);
+    match.liveScore = null;
+  } else {
+    match.liveScore = `${progressiveTournamentScoreText(progress)} · EN DIRECT`;
+    match.score = null;
+  }
+  return true;
+}
+
+function advanceProgressiveTournamentScores(round = state.tournament?.stage) {
+  if (!state.tournament?.progressiveLiveScores || !round) return;
+  for (const match of simulatedTournamentMatches(round)) advanceProgressiveTournamentMatch(match);
+  refreshWeeklyTournamentDerivedSlots();
+}
+
 function ensureTournamentMatchHasWinningSetCount(match) {
   if (!match?.simulated || (!match.winner && !match.score)) return;
   const winner = match.winner || match.hiddenWinner;
@@ -17381,10 +17495,16 @@ function isHumanTournamentEntry(entry) {
 
 function tournamentEntryCharacterId(entry) {
   if (state.tournament?.friendly) return friendlyEntryCharacterId(entry);
-  return isHumanTournamentEntry(entry) ? state.tournament.humanCharacterId : entry;
+  return isHumanTournamentEntry(entry) ? state.tournament.humanCharacterId : tournamentBaseEntry(entry);
 }
 
 function tournamentWinnerEntryFromMatchWinner(winnerIndex) {
+  const match = tournamentMatchById(state.tournament?.currentMatch);
+  if (match && (match.playerA === humanTournamentEntry() || match.playerB === humanTournamentEntry())) {
+    return winnerIndex === 0
+      ? humanTournamentEntry()
+      : (match.playerA === humanTournamentEntry() ? match.playerB : match.playerA);
+  }
   return winnerIndex === 0 ? humanTournamentEntry() : state.players[winnerIndex]?.characterId;
 }
 
@@ -17419,7 +17539,7 @@ function setMatchPlayers(match, playerA, playerB) {
     match.revealedSetScores = [];
     match.score = null;
     match.winner = null;
-    ensureSimulatedTournamentMatchReady(match);
+    if (!state.tournament?.progressiveLiveScores) ensureSimulatedTournamentMatchReady(match);
   }
 }
 
@@ -17625,6 +17745,23 @@ function handleWeeklyTournamentMatchComplete() {
 }
 
 function completeWeeklyTournamentAfterHumanLoss() {
+  if (state.tournament.progressiveLiveScores) {
+    for (let guard = 0; guard < 8; guard += 1) {
+      refreshWeeklyTournamentDerivedSlots();
+      const pending = state.tournament.matches.filter((match) => match.simulated && match.playerA && match.playerB && !match.winner);
+      if (!pending.length) break;
+      pending.forEach((match) => {
+        for (let step = 0; step < 80 && !match.winner; step += 1) advanceProgressiveTournamentMatch(match);
+      });
+    }
+    refreshWeeklyTournamentDerivedSlots();
+    const progressiveFinal = tournamentMatchById("final");
+    state.tournament.stage = "complete";
+    state.tournament.currentMatch = null;
+    state.tournament.nextHumanMatchId = null;
+    state.tournament.championCharacterId = progressiveFinal?.winner || null;
+    return;
+  }
   for (const match of state.tournament.matches) {
     if (match.winner || !match.playerA || !match.playerB) continue;
     if (match.playable) continue;
@@ -17883,6 +18020,7 @@ function updateTournamentSetProgress() {
 }
 
 function revealNextTournamentAiSet() {
+  if (state.tournament?.progressiveLiveScores) return;
   if (state.tournament.championship) {
     const current = tournamentMatchById(state.tournament.currentMatch);
     if (!current) return;
@@ -17918,6 +18056,13 @@ function revealNextTournamentAiSet() {
 }
 
 function revealAllTournamentAiSets(round = null) {
+  if (state.tournament?.progressiveLiveScores) {
+    for (const match of simulatedTournamentMatches(round)) {
+      for (let guard = 0; guard < 80 && !match.winner; guard += 1) advanceProgressiveTournamentMatch(match);
+    }
+    refreshWeeklyTournamentDerivedSlots();
+    return;
+  }
   for (const match of simulatedTournamentMatches(round)) {
     if (!ensureSimulatedTournamentMatchReady(match)) continue;
     if (!match.hiddenSetScores?.length) continue;
@@ -17965,6 +18110,20 @@ function completeTournamentWithoutHuman(semiHumanWinner) {
 
 function refreshWeeklyTournamentDerivedSlots() {
   if (!state.tournament.active || (!state.tournament.weekly && !state.tournament.bracket16)) return;
+  if (Number(state.tournament.bracketSize || 16) !== 16) {
+    const rounds = ["round32", "round16", "quarter", "semi", "final"]
+      .map((round) => state.tournament.matches.filter((match) => match.round === round))
+      .filter((matches) => matches.length);
+    for (let roundIndex = 1; roundIndex < rounds.length; roundIndex += 1) {
+      const previous = rounds[roundIndex - 1];
+      rounds[roundIndex].forEach((match, index) => {
+        const left = previous[index * 2];
+        const right = previous[(index * 2) + 1];
+        if (left?.winner || right?.winner) setMatchPlayers(match, left?.winner || null, right?.winner || null);
+      });
+    }
+    return;
+  }
   const r16_1 = tournamentMatchById("r16_1");
   const r16_2 = tournamentMatchById("r16_2");
   const r16_3 = tournamentMatchById("r16_3");
@@ -19011,6 +19170,7 @@ function renderTournamentPanel() {
   const locationText = state.tournament.weekly
     ? [state.tournament.competitionCity, state.tournament.competitionCountry, state.tournament.competitionFlag].filter(Boolean).join(" · ")
     : "";
+  const round32Matches = state.tournament.matches.filter((match) => match.round === "round32");
   const round16Matches = state.tournament.matches.filter((match) => match.round === "round16");
   const qualificationMatches = state.tournament.matches.filter((match) => match.round === "qualif");
   const quarterMatches = state.tournament.matches.filter((match) => match.round === "quarter");
@@ -19048,6 +19208,12 @@ function renderTournamentPanel() {
     </div>
     ${friendlyStatus}
     <div class="tournament-bracket ${TOURNAMENT_PANEL_UI.visible ? "" : "hidden"}">
+      ${round32Matches.length ? `
+        <div class="tournament-column round32-column">
+          <span class="tournament-round-label tournament-column-title">16es</span>
+          ${round32Matches.map((match) => renderTournamentMatch(match)).join("")}
+        </div>
+      ` : ""}
       ${round16Matches.length ? `
         <div class="tournament-column round16-column">
           <span class="tournament-round-label tournament-column-title">8es</span>
@@ -19791,7 +19957,7 @@ function tournamentPlayerLabel(entry) {
   }
   return isHumanTournamentEntry(entry)
     ? state.tournament?.humanNickname || state.players?.[0]?.nickname || nicknameValue()
-    : characterNameFromId(entry);
+    : characterNameFromId(tournamentBaseEntry(entry));
 }
 
 function toggleTournamentPanel() {

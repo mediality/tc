@@ -9,12 +9,12 @@ const index = fs.readFileSync(path.join(root, "public/index.html"), "utf8");
 const app = fs.readFileSync(path.join(root, "public/app.js"), "utf8");
 const styles = fs.readFileSync(path.join(root, "public/styles.css"), "utf8");
 
-assert.equal(packageJson.version, "6.2.0");
-assert.match(index, /Tennis Courts Academy · <span>V6\.2<\/span>/);
-assert.match(index, /styles\.css\?v=6\.2\.0/);
-assert.match(index, /mobile-game\.css\?v=6\.2\.0/);
-assert.match(index, /app\.js\?v=6\.2\.0/);
-assert.match(index, /mobile-game\.js\?v=6\.2\.0/);
+assert.equal(packageJson.version, "6.3.0");
+assert.match(index, /Tennis Courts Academy · <span>V6\.3<\/span>/);
+assert.match(index, /styles\.css\?v=6\.3\.0/);
+assert.match(index, /mobile-game\.css\?v=6\.3\.0/);
+assert.match(index, /app\.js\?v=6\.3\.0/);
+assert.match(index, /mobile-game\.js\?v=6\.3\.0/);
 
 // The sanctuarized mode keeps its own version and assets unchanged.
 assert.match(index, /Tennis Courts Ultimate<\/strong><small>V5\.35/);
@@ -51,10 +51,10 @@ assert.match(index, /id="discardLocalMatchButton"[^>]*>Abandonner la sauvegarde<
 assert.match(app, /resumeLocalMatchButton\?\.addEventListener\("click", resumeRememberedLocalMatch\)/);
 assert.match(app, /discardLocalMatchButton\?\.addEventListener\("click", discardRememberedLocalMatch\)/);
 
-// Online and Circuit Pro are disabled and visibly locked without PRO access.
+// Online and Circuit Pro are disabled without blending into the lobby background.
 assert.match(app, /if \(section\.matches\("button, select"\)\) section\.disabled = !hasProAccess/);
 assert.match(app, /section\.setAttribute\("aria-disabled", String\(!hasProAccess\)\)/);
-assert.match(styles, /\.lobby-mode-card\.locked \{[\s\S]*?opacity: \.48;[\s\S]*?grayscale\(1\)/);
-assert.match(styles, /content: "ACCÈS PRO"/);
+assert.match(styles, /\.lobby-mode-card\.locked \{[\s\S]*?opacity: 1;[\s\S]*?grayscale\(1\)/);
+assert.match(styles, /\.lobby-mode-card\.locked::after \{\s*content: none/);
 
-console.log("V6.2 lobby resume and Academy integration checks passed.");
+console.log("V6.3 lobby resume and Academy integration checks passed.");

@@ -7100,26 +7100,60 @@ h1 {
 }
 
 .lobby-mode-card.locked {
-  opacity: .48;
-  filter: grayscale(1) saturate(.2);
+  z-index: 1;
+  opacity: 1;
+  filter: grayscale(1) saturate(.2) brightness(.72);
+  isolation: isolate;
   box-shadow: none;
   cursor: not-allowed;
 }
 
 .lobby-mode-card.locked::after {
-  content: "ACCÈS PRO";
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 5;
-  border: 1px solid rgba(255, 255, 255, .7);
-  border-radius: 999px;
-  padding: 4px 7px;
-  color: #fff;
-  background: rgba(7, 24, 35, .82);
-  font-size: .58rem;
-  font-weight: 950;
-  letter-spacing: .07em;
+  content: none;
+}
+
+/* V6.3 compact, readable 8/16/32-player Solo brackets. */
+.tournament-panel .tournament-bracket {
+  gap: 9px;
+}
+
+.tournament-panel .tournament-column {
+  gap: 7px;
+  min-width: 174px;
+}
+
+.tournament-panel .tournament-match {
+  gap: 4px;
+  padding: 7px;
+}
+
+.tournament-panel .tournament-match-head {
+  gap: 5px;
+}
+
+.tournament-panel .tournament-round-label,
+.tournament-panel .tournament-match-status {
+  font-size: .52rem;
+}
+
+.tournament-panel .tournament-player-row {
+  min-height: 29px;
+  padding: 4px 6px;
+  font-size: .68rem;
+}
+
+.tournament-panel .tournament-player-identity {
+  line-height: 1.15;
+}
+
+.tournament-panel .tournament-set-scores {
+  gap: 3px;
+}
+
+.tournament-panel .tournament-set-scores span {
+  min-width: 34px;
+  padding: 3px 5px;
+  font-size: .7rem;
 }
 
 .lobby-shop-banner {

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=6.2.0" />
-    <link rel="stylesheet" href="./mobile-game.css?v=6.2.0" />
+    <link rel="stylesheet" href="./styles.css?v=6.3.0" />
+    <link rel="stylesheet" href="./mobile-game.css?v=6.3.0" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -144,7 +144,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>V6.2</span></strong>
+          <strong>Tennis Courts Academy · <span>V6.3</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -1017,6 +1017,18 @@
               </div>
             </div>
 
+            <div class="friendly-setting-row hidden" id="aiTournamentSizeSettingRow" data-competition-setting>
+              <div>
+                <strong>Taille du tournoi</strong>
+                <span>Débutez en quarts, en huitièmes ou en seizièmes de finale.</span>
+              </div>
+              <div class="friendly-setting-switch three-options" aria-label="Nombre de participants au tournoi">
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="tournamentSize" data-ai-club-value="8">8 JOUEURS</button>
+                <button class="friendly-setting-button active" type="button" data-ai-club-setting="tournamentSize" data-ai-club-value="16">16 JOUEURS</button>
+                <button class="friendly-setting-button" type="button" data-ai-club-setting="tournamentSize" data-ai-club-value="32">32 JOUEURS</button>
+              </div>
+            </div>
+
             <div class="friendly-setting-row">
               <div>
                 <strong>Niveau IA</strong>
@@ -1255,7 +1267,7 @@
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
     <script src="./ultimate-card-data.js?v=5.35.0"></script>
-    <script src="./app.js?v=6.2.0"></script>
-    <script src="./mobile-game.js?v=6.2.0"></script>
+    <script src="./app.js?v=6.3.0"></script>
+    <script src="./mobile-game.js?v=6.3.0"></script>
   </body>
 </html>
