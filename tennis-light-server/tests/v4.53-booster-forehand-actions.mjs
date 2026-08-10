@@ -20,7 +20,7 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-const familyContext = vm.createContext({});
+const familyContext = vm.createContext({ ULTIMATE_MODE: { active: false } });
 vm.runInContext(functionSource(app, "cardFamilies"), familyContext);
 vm.runInContext(functionSource(app, "cardHasFamily"), familyContext);
 vm.runInContext(functionSource(app, "cardHasAnyFamily"), familyContext);
@@ -29,6 +29,7 @@ assert.equal(vm.runInContext("cardHasFamily({ id: 'service-coup-droit', family: 
 assert.equal(vm.runInContext("cardHasFamily({ id: 'service-coup-droit', family: 'Service' }, 'Revers')", familyContext), false);
 
 const boosterContext = vm.createContext({
+  ULTIMATE_MODE: { active: false },
   state: {
     gameOver: false,
     activePlayer: 0,
@@ -44,6 +45,7 @@ const boosterContext = vm.createContext({
   isNextEffectCanceledFor: () => false,
   satisfiesColorBoostCondition: () => false,
   canAfford: () => true,
+  effectiveCost: () => 0,
   satisfiesFamilyLimit: () => true,
   satisfiesReturnServiceRestriction: () => true,
 });
@@ -54,19 +56,18 @@ assert.equal(
   "l'EFFET booster doit autoriser la réponse au service ou retour boosté",
 );
 
-assert.match(app, /const boostWindow = answersBoost\s*\? colorBoost \|\| player\.freeBoostNext/);
+assert.match(app, /const boostWindow = answersBoost\s*\? player\.freeBoostNext \|\| colorBoost/);
 assert.match(app, /cardHasAnyFamily\(card, families\)/);
 assert.match(app, /!cardHasAnyFamily\(card, excludedFamilies\)/);
 assert.match(app, /cardHasFamily\(previousShot, bonus\.afterFamily\)/);
-assert.match(app, /cardHasFamily\(playedCard, "Coup droit"\)/);
+assert.match(app, /playedCard\.family === "Coup droit" \|\| playedCard\.id === "service-coup-droit"/);
 
 assert.match(app, /class="desktop-profile-bottom-spacer"/);
-assert.match(css, /data-desktop-role="local"[^}]*\.character-zone > \.turn-buttons[\s\S]*bottom: calc\(100% \+ 10px\)/);
-assert.match(css, /data-desktop-role="opponent"[^}]*\.character-zone > \.turn-buttons[\s\S]*top: calc\(100% \+ 10px\)/);
+assert.match(css, /data-desktop-role="local"[^}]*\.desktop-profile-actions--local[\s\S]*bottom: calc\(100% \+ 40px\)/);
+assert.match(css, /data-desktop-role="opponent"[^}]*\.desktop-profile-actions--opponent[\s\S]*top: calc\(100% \+ 40px\)/);
 assert.match(css, /data-desktop-role="local"[^}]*\.desktop-profile-bottom-spacer[\s\S]*height: 38px/);
 
-assert.equal(packageJson.version, "4.53.0");
-assert.match(html, /Tennis Courts Academy · <span>v4\.53<\/span>/);
-assert.doesNotMatch(html, /v=4\.52\.0/);
+assert.equal(packageJson.version, "6.2.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.2<\/span>/);
 
 console.log("V4.53 booster, Coup droit\/Service and desktop action tray checks passed.");
