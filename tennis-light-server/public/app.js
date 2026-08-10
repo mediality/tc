@@ -18076,19 +18076,25 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
   const showPassButton = Boolean(panel.showPassButton);
+  const actionRole = panel.desktopRole === "opponent" ? "opponent" : "local";
+  const turnButtons = `
+    <div class="turn-buttons desktop-profile-actions desktop-profile-actions--${actionRole}">
+      ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
+      ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
+      ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
+    </div>
+  `;
   const statusBadges = [
     state.server === playerIndex ? '<span class="badge server">Serveur</span>' : "",
     state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : "",
   ].filter(Boolean).join("");
   return `
     <div class="character-zone">
-      <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
-        <img src="${imageUrl}" alt="${character.name}" />
-        <div class="turn-buttons">
-          ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
-          ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
-          ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
+      <div class="character-portrait-stage">
+        <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+          <img src="${imageUrl}" alt="${character.name}" />
         </div>
+        ${actionRole === "local" ? turnButtons : ""}
       </div>
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
@@ -18116,6 +18122,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
         ${panel.bonusCount}
       </button>
       ${statusBadges ? `<div class="desktop-player-status">${statusBadges}</div>` : ""}
+      ${actionRole === "opponent" ? turnButtons : ""}
       <div class="desktop-profile-bottom-spacer" aria-hidden="true"></div>
     </div>
   `;
@@ -19241,6 +19248,7 @@ function renderPlayerPanel(playerIndex, root) {
   root.innerHTML = `
     <header class="player-header" aria-hidden="true"></header>
     ${renderCharacterCard(player, playerIndex, {
+      desktopRole: playerIndex === localPlayerIndex ? "local" : "opponent",
       rank,
       isAiPlayer,
       intelligenceLabel,
