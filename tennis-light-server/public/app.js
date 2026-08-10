@@ -8896,20 +8896,20 @@ function getCardStats(player, card, boosted) {
   let surfacePowerBonus = 0;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "grassPowerVolleySmash") && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "hardPrecisePower") && precision > 3) surfacePowerBonus += 1;
-  if (!isRemise(card) && playerHasSurfaceBonus(player, "clayGroundPower") && ["Coup droit", "Revers"].includes(card.family)) surfacePowerBonus += 1;
+  if (!isRemise(card) && playerHasSurfaceBonus(player, "clayGroundPower") && cardHasAnyFamily(card, ["Coup droit", "Revers"])) surfacePowerBonus += 1;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "clayBoostPower") && boosted) surfacePowerBonus += 2;
   let characterPowerBonus = 0;
   if (!isRemise(card)) {
     for (const bonus of player.exchangeFamilyPowerBonuses ?? []) {
       const families = bonus.families ?? [];
       const excludedFamilies = bonus.excludedFamilies ?? [];
-      if ((families.length && families.includes(card.family)) || (!families.length && !excludedFamilies.includes(card.family))) {
+      if ((families.length && cardHasAnyFamily(card, families)) || (!families.length && !cardHasAnyFamily(card, excludedFamilies))) {
         characterPowerBonus += bonus.value ?? 0;
       }
     }
     const previousShot = [...player.played].reverse().find((playedCard) => !playedCard.removed && isShot(playedCard));
     for (const bonus of player.exchangeAfterFamilyPlacementBonuses ?? []) {
-      if (previousShot?.family === bonus.afterFamily) placement += bonus.value ?? 0;
+      if (cardHasFamily(previousShot, bonus.afterFamily)) placement += bonus.value ?? 0;
     }
   }
   let power = (basePower + permanentPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
@@ -8926,7 +8926,7 @@ function canAfford(player, card) {
 }
 
 function satisfiesFamilyLimit(player, card) {
-  return !player.limitedFamilies || player.limitedFamilies.includes(card.family);
+  return !player.limitedFamilies || cardHasAnyFamily(card, player.limitedFamilies);
 }
 
 function hasReturnServiceRestriction(playerIndex) {
@@ -8979,6 +8979,21 @@ function isNextEffectCanceledFor(playerIndex) {
 
 function isRemise(card) {
   return card.family === "Remise";
+}
+
+function cardFamilies(card) {
+  if (!card) return [];
+  const families = [card.family].filter(Boolean);
+  if (card.id === "service-coup-droit") families.push("Coup droit", "Service");
+  return [...new Set(families)];
+}
+
+function cardHasFamily(card, family) {
+  return cardFamilies(card).includes(family);
+}
+
+function cardHasAnyFamily(card, families = []) {
+  return families.some((family) => cardHasFamily(card, family));
 }
 
 function totalTurnPlacement(playerIndex, card, boosted = false) {
@@ -9053,11 +9068,12 @@ function canPlayBoost(playerIndex, card) {
   const boostAfterNonBoostedService = card.effectType === "serviceBoostHint" && isServiceBoostHintWindow(playerIndex) && !isNextEffectCanceledFor(playerIndex);
   if (card.family === "Service" && !openingServiceBoost) return false;
   const colorBoost = satisfiesColorBoostCondition(card);
-  // Un contre-Boost répondant à un Boost adverse n'est autorisé que par la
-  // condition de couleur. Le Boost ignore alors la contrainte de placement.
+  // Un contre-Boost répondant à un Boost adverse est autorisé par la condition
+  // de couleur ou par l'EFFET booster gagné juste avant. Il ignore alors la
+  // contrainte de placement.
   const answersBoost = state.mandatoryPlacement && state.mandatoryPlacementReason === "boost";
   const boostWindow = answersBoost
-    ? colorBoost
+    ? colorBoost || player.freeBoostNext
     : state.boostAvailableFor === playerIndex || player.freeBoostNext || openingServiceBoost || boostAfterNonBoostedService || colorBoost;
   if (!boostWindow || !hasSacrifice) return false;
   if (!canAfford(player, card) || !satisfiesFamilyLimit(player, card)) return false;
@@ -11883,7 +11899,7 @@ function applySurfaceBonusAfterPlay(playerIndex, playedCard, costPaid) {
       addNextPlacementBonus(player, 2, playedCard.playedUid);
       state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} gagne +2 placement sur sa carte suivante.`);
     }
-    if (bonus.id === "clayForehandEndurance" && (playedCard.family === "Coup droit" || playedCard.id === "service-coup-droit")) {
+    if (bonus.id === "clayForehandEndurance" && cardHasFamily(playedCard, "Coup droit")) {
       player.endurance += 1;
       state.log.unshift(`${bonus.label} : ${displayPlayerName(player)} récupère 1 endurance.`);
     }
@@ -18100,6 +18116,7 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
         ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
         ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
       </div>
+      <div class="desktop-profile-bottom-spacer" aria-hidden="true"></div>
     </div>
   `;
 }
