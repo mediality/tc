@@ -1637,6 +1637,7 @@ const TUTORIAL_MODULES = {
 const TUTORIAL_ENGINE = window.TennisCourtsTutorialEngine;
 if (!TUTORIAL_ENGINE) throw new Error("Le moteur du tutoriel n'a pas été chargé.");
 TUTORIAL_ENGINE.assertValidModules(TUTORIAL_MODULES);
+const TUTORIALS_ENABLED = false;
 const TUTORIAL_PROGRESS_STORAGE_PREFIX = "tennisCourtsTutorialProgressV1";
 
 let tutorialAutoTimer = null;
@@ -1752,6 +1753,17 @@ async function clearActiveLocalMatchDatabaseRecord() {
   if (!database) return;
   const transaction = database.transaction(LOCAL_MATCH_DATABASE_STORE, "readwrite");
   transaction.objectStore(LOCAL_MATCH_DATABASE_STORE).delete(LOCAL_MATCH_DATABASE_ACTIVE_KEY);
+  transaction.oncomplete = () => database.close();
+  transaction.onerror = () => database.close();
+}
+
+async function deleteLocalMatchDatabaseRecord(matchId) {
+  const database = await openLocalMatchDatabase();
+  if (!database) return;
+  const transaction = database.transaction(LOCAL_MATCH_DATABASE_STORE, "readwrite");
+  const store = transaction.objectStore(LOCAL_MATCH_DATABASE_STORE);
+  if (matchId) store.delete(matchId);
+  store.delete(LOCAL_MATCH_DATABASE_ACTIVE_KEY);
   transaction.oncomplete = () => database.close();
   transaction.onerror = () => database.close();
 }
@@ -1896,10 +1908,9 @@ function expireLocalMobileMatchSessionAfterExit() {
   window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`);
 }
 
-function restoreLocalMobileMatchSession() {
-  // Certains navigateurs mobiles recréent la page sans conserver sa query string
-  // après une éviction mémoire. L'index local sert alors de filet de sécurité.
-  const matchId = localMobileMatchId() || rememberedActiveLocalMatchId();
+function restoreLocalMobileMatchSession(matchId = localMobileMatchId()) {
+  // V6.2: a clean site URL must always open the lobby. A remembered match is
+  // restored only after an explicit click on "Reprendre la partie".
   if (!matchId || SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return false;
   try {
     const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
@@ -1926,11 +1937,11 @@ function restoreLocalMobileMatchSession() {
   }
 }
 
-async function restoreLocalMatchSessionFromDatabase() {
+async function restoreLocalMatchSessionFromDatabase({ matchId = localMobileMatchId(), allowActiveFallback = false } = {}) {
   if (SERVER_SYNC.enabled || FRIENDLY_TOURNAMENT.enabled) return false;
-  const urlMatchId = localMobileMatchId();
-  const record = await readLocalMatchDatabaseRecord(urlMatchId)
-    || (urlMatchId ? await readLocalMatchDatabaseRecord() : null);
+  if (!matchId && !allowActiveFallback) return false;
+  const record = (matchId ? await readLocalMatchDatabaseRecord(matchId) : null)
+    || (allowActiveFallback ? await readLocalMatchDatabaseRecord() : null);
   if (!record?.snapshot || record.status === "completed"
     || (record.expiresAt && Number(record.expiresAt) <= Date.now())) return false;
   const currentUserId = authenticatedUserId() || null;
@@ -1944,6 +1955,68 @@ async function restoreLocalMatchSessionFromDatabase() {
   applySurfaceBackground(state.tournament?.competitionSurface);
   render();
   return true;
+}
+
+function localMatchRecordCanResume(record) {
+  if (!record?.snapshot || record.status === "completed") return false;
+  if (record.expiresAt && Number(record.expiresAt) <= Date.now()) return false;
+  const currentUserId = authenticatedUserId() || null;
+  return !(record.ownerUserId && currentUserId && record.ownerUserId !== currentUserId);
+}
+
+function rememberedLocalMatchRecord() {
+  const matchId = rememberedActiveLocalMatchId();
+  if (!matchId) return null;
+  try {
+    const record = JSON.parse(localStorage.getItem(localMobileMatchStorageKey(matchId)) || "null");
+    return localMatchRecordCanResume(record) ? record : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setLocalMatchResumePromptVisible(visible) {
+  els.localMatchResumePrompt?.classList.toggle("hidden", !visible);
+}
+
+async function refreshLocalMatchResumePrompt() {
+  if (localMobileMatchId()) {
+    setLocalMatchResumePromptVisible(false);
+    return;
+  }
+  const localRecord = rememberedLocalMatchRecord();
+  if (localRecord) {
+    setLocalMatchResumePromptVisible(true);
+    return;
+  }
+  const databaseRecord = await readLocalMatchDatabaseRecord();
+  setLocalMatchResumePromptVisible(localMatchRecordCanResume(databaseRecord));
+}
+
+async function resumeRememberedLocalMatch() {
+  const rememberedMatchId = rememberedActiveLocalMatchId();
+  if ((rememberedMatchId && restoreLocalMobileMatchSession(rememberedMatchId))
+    || await restoreLocalMatchSessionFromDatabase({ matchId: rememberedMatchId, allowActiveFallback: true })) {
+    setLocalMatchResumePromptVisible(false);
+    installBrowserNavigation();
+    return;
+  }
+  setLocalMatchResumePromptVisible(false);
+  rememberActiveLocalMatch(null);
+  await clearActiveLocalMatchDatabaseRecord();
+}
+
+async function discardRememberedLocalMatch() {
+  if (!window.confirm("Abandonner définitivement la partie sauvegardée sur cet appareil ?")) return;
+  const matchId = rememberedActiveLocalMatchId();
+  try {
+    if (matchId) localStorage.removeItem(localMobileMatchStorageKey(matchId));
+  } catch (error) {
+    // IndexedDB est nettoyé même si le stockage local est indisponible.
+  }
+  rememberActiveLocalMatch(null);
+  await deleteLocalMatchDatabaseRecord(matchId);
+  setLocalMatchResumePromptVisible(false);
 }
 
 const state = {
@@ -2050,6 +2123,9 @@ const els = {
   lobbySectionScreen: document.querySelector("#lobbySectionScreen"),
   lobbySectionPanels: document.querySelectorAll("[data-lobby-section-panel]"),
   lobbyModeCards: document.querySelectorAll("[data-open-lobby-section]"),
+  localMatchResumePrompt: document.querySelector("#localMatchResumePrompt"),
+  resumeLocalMatchButton: document.querySelector("#resumeLocalMatchButton"),
+  discardLocalMatchButton: document.querySelector("#discardLocalMatchButton"),
   backToHomeButton: document.querySelector("#backToHomeButton"),
   lobbyAccountPanel: document.querySelector("#lobbyAccountPanel"),
   lobbySettingsButton: document.querySelector("#lobbySettingsButton"),
@@ -2603,7 +2679,11 @@ function updateAccessControls() {
   const role = currentUserRole();
   document.querySelectorAll("[data-required-role='pro']").forEach((section) => {
     section.classList.toggle("locked", !hasProAccess);
-    if (section.matches("button, select") && !section.classList.contains("lobby-mode-card")) section.disabled = !hasProAccess;
+    if (section.matches("button, select")) section.disabled = !hasProAccess;
+    if (section.classList.contains("lobby-mode-card")) {
+      section.setAttribute("aria-disabled", String(!hasProAccess));
+      section.title = hasProAccess ? "" : (AUTH_STATE.user ? "Réservé aux comptes PRO" : "Connectez-vous avec un compte PRO");
+    }
     section.querySelectorAll("button, select").forEach((control) => {
       control.disabled = !hasProAccess;
     });
@@ -4985,7 +5065,7 @@ function showAcademyInfoScreen() {
 }
 
 function showTutorialModulesScreen() {
-  if (!canAccessAdminFeatures()) return;
+  if (!TUTORIALS_ENABLED || !canAccessAdminFeatures()) return;
   resetTutorialMode();
   els.menuScreen?.classList.add("hidden");
   hideLobbySectionScreen();
@@ -5235,6 +5315,7 @@ function resetTutorialMode() {
 }
 
 function startTutorial(moduleId = "basics") {
+  if (!TUTORIALS_ENABLED) return;
   clearTutorialAutoTimer();
   if (SERVER_SYNC.enabled) {
     leaveOnlineRoom();
@@ -10093,20 +10174,20 @@ function getCardStats(player, card, boosted) {
   let surfacePowerBonus = 0;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "grassPowerVolleySmash") && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "hardPrecisePower") && precision > 3) surfacePowerBonus += 1;
-  if (!isRemise(card) && playerHasSurfaceBonus(player, "clayGroundPower") && ["Coup droit", "Revers"].includes(card.family)) surfacePowerBonus += 1;
+  if (!isRemise(card) && playerHasSurfaceBonus(player, "clayGroundPower") && cardHasAnyFamily(card, ["Coup droit", "Revers"])) surfacePowerBonus += 1;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "clayBoostPower") && boosted) surfacePowerBonus += 2;
   let characterPowerBonus = 0;
   if (!isRemise(card)) {
     for (const bonus of player.exchangeFamilyPowerBonuses ?? []) {
       const families = bonus.families ?? [];
       const excludedFamilies = bonus.excludedFamilies ?? [];
-      if ((families.length && families.includes(card.family)) || (!families.length && !excludedFamilies.includes(card.family))) {
+      if ((families.length && cardHasAnyFamily(card, families)) || (!families.length && !cardHasAnyFamily(card, excludedFamilies))) {
         characterPowerBonus += bonus.value ?? 0;
       }
     }
     const previousShot = [...player.played].reverse().find((playedCard) => !playedCard.removed && isShot(playedCard));
     for (const bonus of player.exchangeAfterFamilyPlacementBonuses ?? []) {
-      if (previousShot?.family === bonus.afterFamily) placement += bonus.value ?? 0;
+      if (cardHasFamily(previousShot, bonus.afterFamily)) placement += bonus.value ?? 0;
     }
   }
   let power = (basePower + permanentPowerBonus + surfacePowerBonus + characterPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
@@ -10124,7 +10205,7 @@ function canAfford(player, card) {
 }
 
 function satisfiesFamilyLimit(player, card) {
-  if (player.limitedFamilies && !player.limitedFamilies.includes(card.family)) return false;
+  if (player.limitedFamilies && !cardHasAnyFamily(card, player.limitedFamilies)) return false;
   if (player.ultimateNoRepeatedFamily && !isRemise(card) && player.played.some((played) => isShot(played) && !played.removed && played.family === card.family)) return false;
   return true;
 }
@@ -10187,6 +10268,23 @@ function isNextEffectCanceledFor(playerIndex) {
 
 function isRemise(card) {
   return card.family === "Remise";
+}
+
+// Academy V6.1: the hybrid service is both a Service and a Coup droit.
+// Ultimate remains on its V5.35 family model.
+function cardFamilies(card) {
+  if (!card) return [];
+  const families = [card.family].filter(Boolean);
+  if (!ULTIMATE_MODE.active && card.id === "service-coup-droit") families.push("Coup droit", "Service");
+  return [...new Set(families)];
+}
+
+function cardHasFamily(card, family) {
+  return cardFamilies(card).includes(family);
+}
+
+function cardHasAnyFamily(card, families = []) {
+  return families.some((family) => cardHasFamily(card, family));
 }
 
 function totalTurnPlacement(playerIndex, card, boosted = false) {
@@ -20003,6 +20101,14 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     ? `<span class="winner-crown" aria-label="Vainqueur"><img src="${CROWN_IMAGE}" alt="Couronne" /></span>`
     : "";
   const showPassButton = Boolean(panel.showPassButton);
+  const actionRole = panel.desktopRole === "opponent" ? "opponent" : "local";
+  const academyTurnButtons = `
+    <div class="turn-buttons desktop-profile-actions desktop-profile-actions--${actionRole}">
+      ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
+      ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
+      ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
+    </div>
+  `;
   const statusBadges = [
     state.server === playerIndex ? '<span class="badge server">Serveur</span>' : "",
     state.activePlayer === playerIndex && !state.gameOver ? '<span class="badge active">À jouer</span>' : "",
@@ -20013,11 +20119,19 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
   const ultimateDiscard = ULTIMATE_MODE.active && playerIndex === mobileLocalPlayerIndex()
     ? `<button class="ultimate-profile-discard" type="button" data-open-ultimate-discard="${playerIndex}">▤ DÉFAUSSE <strong>${(state.ultimateDiscards[playerIndex] || []).length}</strong></button>`
     : "";
+  const portraitMarkup = ULTIMATE_MODE.active
+    ? `<button class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" type="button" data-ultimate-character-state="${playerIndex}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+        <img src="${imageUrl}" alt="${character.name}" />
+      </button>`
+    : `<div class="character-portrait-stage">
+        <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
+          <img src="${imageUrl}" alt="${character.name}" />
+        </div>
+        ${actionRole === "local" ? academyTurnButtons : ""}
+      </div>`;
   return `
     <div class="character-zone${ULTIMATE_MODE.active ? " ultimate-character-zone" : ""}">
-      <button class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" type="button" data-ultimate-character-state="${playerIndex}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
-        <img src="${imageUrl}" alt="${character.name}" />
-      </button>
+      ${portraitMarkup}
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
         <div>
@@ -20046,11 +20160,12 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
       </button>
       ${ultimateDiscard}
       ${statusBadges ? `<div class="desktop-player-status">${statusBadges}</div>` : ""}
-      <div class="turn-buttons">
+      ${ULTIMATE_MODE.active ? `<div class="turn-buttons">
         ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
         ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
         ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
-      </div>
+      </div>` : actionRole === "opponent" ? academyTurnButtons : ""}
+      ${ULTIMATE_MODE.active ? "" : '<div class="desktop-profile-bottom-spacer" aria-hidden="true"></div>'}
     </div>
   `;
 }
@@ -21406,6 +21521,7 @@ function renderPlayerPanel(playerIndex, root) {
   root.innerHTML = `
     <header class="player-header" aria-hidden="true"></header>
     ${renderCharacterCard(player, playerIndex, {
+      desktopRole: playerIndex === localPlayerIndex ? "local" : "opponent",
       rank,
       isAiPlayer,
       intelligenceLabel,
@@ -22158,6 +22274,8 @@ function initMenu() {
   els.lobbyModeCards?.forEach((card) => {
     card.addEventListener("click", () => showLobbySection(card.dataset.openLobbySection));
   });
+  els.resumeLocalMatchButton?.addEventListener("click", resumeRememberedLocalMatch);
+  els.discardLocalMatchButton?.addEventListener("click", discardRememberedLocalMatch);
   els.ultimateModeButton?.addEventListener("click", startUltimateGame);
   els.ultimatePlayerChoices?.querySelectorAll("[data-ultimate-player]").forEach((button) => {
     button.addEventListener("click", () => confirmUltimatePlayer(Number(button.dataset.ultimatePlayer)));
@@ -23305,11 +23423,18 @@ try {
 }
 initFriendlyTournament();
 initServerSync();
-const localMatchRestoredSynchronously = restoreLocalMobileMatchSession();
-if (localMatchRestoredSynchronously) {
+const explicitLocalMatchId = localMobileMatchId();
+const localMatchRestoredSynchronously = explicitLocalMatchId
+  ? restoreLocalMobileMatchSession(explicitLocalMatchId)
+  : false;
+if (!explicitLocalMatchId) {
+  // V6.2 invariant: the canonical URL always lands on the lobby.
+  showMenuScreen();
+  refreshLocalMatchResumePrompt().finally(installBrowserNavigation);
+} else if (localMatchRestoredSynchronously) {
   installBrowserNavigation();
 } else {
-  restoreLocalMatchSessionFromDatabase().finally(installBrowserNavigation);
+  restoreLocalMatchSessionFromDatabase({ matchId: explicitLocalMatchId }).finally(installBrowserNavigation);
 }
 window.clearInterval(PROFILE_ACTIVITY.timer);
 PROFILE_ACTIVITY.timer = window.setInterval(publishProfileActivity, 1200);

@@ -13,8 +13,9 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.25<\/span>/);
-assert.match(html, /ultimate-card-data\.js\?v=5\.25\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.2<\/span>/);
+assert.match(html, /Tennis Courts Ultimate<\/strong><small>V5\.35/);
+assert.match(html, /ultimate-card-data\.js\?v=5\.35\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);
 assert.match(html, /id="ultimatePlayerChoices"[\s\S]*ultimate\/conti\/lobby\.png[\s\S]*ultimate\/brentwood\/lobby\.png/);
 assert.match(html, /Draft 1 sur 3/);
@@ -43,7 +44,7 @@ assert.match(app, /ultimateCardBackForPlayer/);
 assert.match(app, /assets\/ultimate\/conti\/back\.png/);
 assert.match(app, /assets\/ultimate\/brentwood\/back\.png/);
 assert.match(app, /characterStarActive \? ultimateCharacter\.power : ultimateCharacter\.character/);
-assert.match(app, /visibleStars < 2/);
+assert.match(app, /availableStars\.length < 2/);
 assert.match(app, /beginUltimatePostExchange\(winner\)/);
 assert.match(app, /perdant de l’échange, récupère les.*premières cartes/);
 assert.match(app, /Draft du vainqueur/);

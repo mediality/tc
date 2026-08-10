@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#062b3d" />
     <title>Tennis Courts Academy</title>
-    <link rel="stylesheet" href="./styles.css?v=5.35.0" />
-    <link rel="stylesheet" href="./mobile-game.css?v=4.52.0" />
+    <link rel="stylesheet" href="./styles.css?v=6.2.0" />
+    <link rel="stylesheet" href="./mobile-game.css?v=6.2.0" />
   </head>
   <body>
     <aside id="globalPlayerDock" class="global-player-dock hidden" aria-label="Profil du joueur">
@@ -100,6 +100,18 @@
           </button>
         </nav>
 
+        <section id="localMatchResumePrompt" class="local-match-resume-prompt hidden" aria-live="polite">
+          <div>
+            <span>PARTIE SAUVEGARDÉE</span>
+            <strong>Une partie interrompue est disponible sur cet appareil.</strong>
+            <small>Le lobby reste toujours votre page d’accueil.</small>
+          </div>
+          <div class="local-match-resume-actions">
+            <button id="resumeLocalMatchButton" class="primary-button" type="button">Reprendre la partie</button>
+            <button id="discardLocalMatchButton" class="small-button" type="button">Abandonner la sauvegarde</button>
+          </div>
+        </section>
+
         <section class="home-news-section" aria-labelledby="homeNewsTitle">
           <div class="home-section-heading">
             <div>
@@ -132,7 +144,7 @@
         </section>
 
         <footer class="lobby-footer">
-          <strong>Tennis Courts Academy · <span>V5.35</span></strong>
+          <strong>Tennis Courts Academy · <span>V6.2</span></strong>
           <strong>Mediality Games</strong>
         </footer>
       </div>
@@ -187,9 +199,9 @@
                 <span><small>Guide du joueur</small><strong>Découvrir l'Academy</strong><em>Comprenez le deck partagé et les mécaniques essentielles.</em></span>
                 <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
               </button>
-              <button id="openTutorialModulesButton" class="training-action-card tutorial-menu-button hidden" type="button" data-open-tutorial-modules data-required-role="admin">
+              <button id="openTutorialModulesButton" class="training-action-card tutorial-menu-button hidden" type="button" disabled aria-disabled="true">
                 <span class="training-action-icon">T</span>
-                <span><small>Administration</small><strong>Tutoriel Academy</strong><em>Consultez et lancez les modules pédagogiques.</em></span>
+                <span><small>Refonte en cours</small><strong>Tutoriel Academy</strong><em>Temporairement indisponible.</em></span>
                 <img class="training-action-arrow" src="./assets/icons/next.svg" alt="" aria-hidden="true" />
               </button>
             </div>
@@ -1243,7 +1255,7 @@
 
     <script src="./tutorial-engine.js?v=3.86.0"></script>
     <script src="./ultimate-card-data.js?v=5.35.0"></script>
-    <script src="./app.js?v=5.35.0"></script>
-    <script src="./mobile-game.js?v=5.35.0"></script>
+    <script src="./app.js?v=6.2.0"></script>
+    <script src="./mobile-game.js?v=6.2.0"></script>
   </body>
 </html>

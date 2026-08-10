@@ -18,6 +18,6 @@ assert.match(app, /if \(!resetUltimate\) beginUltimateServiceReveal\(\)/);
 assert.match(app, /secureUltimateTurnContinuation\(null\);[\s\S]*maybeRunSoloAI\(\);/);
 assert.match(css, /\.ultimate-service-reveal-layer/);
 assert.match(css, /\.ultimate-service-reveal p[\s\S]*font-weight: 950/);
-assert.match(html, /Tennis Courts Academy · <span>V5\.27<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.2<\/span>/);
 
 console.log("V5.24 Ultimate service announcement checks passed.");
