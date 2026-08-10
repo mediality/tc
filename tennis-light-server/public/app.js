@@ -18084,6 +18084,11 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
     <div class="character-zone">
       <div class="character-card${state.gameOver && state.resultInfo?.winner === playerIndex ? " exchange-winner" : ""}${tutorialFocusClass("character", playerIndex)}" data-image-hover="${escapeHtml(imageUrl)}" data-image-label="${escapeHtml(`${character.name} - pouvoir`)}">
         <img src="${imageUrl}" alt="${character.name}" />
+        <div class="turn-buttons">
+          ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
+          ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
+          ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
+        </div>
       </div>
       <div class="desktop-player-identity${state.activePlayer === playerIndex && !state.gameOver ? " active-turn" : ""}">
         <strong>${escapeHtml(displayPlayerName(player))}</strong>
@@ -18111,11 +18116,6 @@ function renderCharacterCard(player, playerIndex, panel = {}) {
         ${panel.bonusCount}
       </button>
       ${statusBadges ? `<div class="desktop-player-status">${statusBadges}</div>` : ""}
-      <div class="turn-buttons">
-        ${showPassButton ? `<button class="pass-button ${panel.passResultClass || "pass-button--losing"}${tutorialFocusClass("pass", playerIndex)}" type="button" data-pass="${playerIndex}" title="${escapeHtml(panel.passProjectionLabel || "Passer")}" ${panel.passDisabled ? "disabled" : ""}>${tutorialButtonCue("pass", playerIndex)}Passer</button>` : ""}
-        ${canEndTurn(playerIndex) ? `<button class="small-button end-turn-button" type="button" data-end-turn="${playerIndex}">${tutorialButtonCue("endTurn", playerIndex)}Terminer le tour</button>` : ""}
-        ${canUndoTurn(playerIndex) ? `<button class="small-button undo-turn-button" type="button" data-undo-turn="${playerIndex}">Annuler le tour</button>` : ""}
-      </div>
       <div class="desktop-profile-bottom-spacer" aria-hidden="true"></div>
     </div>
   `;

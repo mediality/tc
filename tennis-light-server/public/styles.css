@@ -14552,11 +14552,15 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
   }
 }
 
-/* V4.53 desktop action trays around the player medallions. */
+/* V4.54 action trays anchored directly to the player portrait. */
 @media (min-width: 861px) {
-  body:not(.mobile-game-view) .player-panel .character-zone > .turn-buttons {
+  body:not(.mobile-game-view) .player-panel .character-card > .turn-buttons {
     position: absolute;
     z-index: 6;
+    top: auto;
+    right: auto;
+    bottom: calc(100% + 20px);
+    left: 50%;
     display: flex;
     justify-content: center;
     width: min(172px, calc(100vw - 16px));
@@ -14568,28 +14572,19 @@ body:not(:has(.game-app:not(.hidden))):not(:has(.mobile-game-app:not(.hidden))) 
     background: linear-gradient(145deg, rgba(7, 27, 43, .96), rgba(13, 50, 69, .94));
     box-shadow: 0 8px 20px rgba(0, 0, 0, .3);
     backdrop-filter: blur(8px);
+    transform: translateX(-50%);
   }
 
-  body:not(.mobile-game-view) .player-panel .character-zone > .turn-buttons:empty {
+  body:not(.mobile-game-view) .player-panel .character-card > .turn-buttons:empty {
     visibility: hidden;
   }
 
-  body:not(.mobile-game-view) .player-panel[data-desktop-role="local"] .character-zone > .turn-buttons {
-    right: auto;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .character-zone > .turn-buttons {
-    top: calc(100% + 10px);
-    right: auto;
+  body:not(.mobile-game-view) .player-panel[data-desktop-role="opponent"] .character-card > .turn-buttons {
+    top: calc(100% + 20px);
     bottom: auto;
-    left: 50%;
-    transform: translateX(-50%);
   }
 
-  body:not(.mobile-game-view) .player-panel .character-zone > .turn-buttons button {
+  body:not(.mobile-game-view) .player-panel .character-card > .turn-buttons button {
     min-width: 0;
     min-height: 28px;
     padding: 5px 7px;
