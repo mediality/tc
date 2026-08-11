@@ -32,6 +32,6 @@ assert.match(app, /dialog-card-preview/);
 assert.match(app, /contextmenu[\s\S]*preventDefault/);
 assert.match(css, /-webkit-touch-callout: none/);
 assert.match(html, /Cartes de la main en plein écran au clic/);
-assert.match(html, /Tennis Courts Academy · <span>V6\.9<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
 
 console.log("V5.25 Ultimate rules, reset, dialogs and iOS protection checks passed.");

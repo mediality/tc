@@ -75,6 +75,14 @@
       && (previewRequested || (hasTouchCapability() && hasMobilePlatformSignal()));
   }
 
+  function shouldUseVirtualDesktopViewport() {
+    const screenWidth = Math.min(
+      Number(window.screen?.width || window.innerWidth),
+      Number(window.screen?.height || window.innerHeight),
+    );
+    return screenWidth <= MOBILE_MAX_WIDTH && hasTouchCapability() && hasMobilePlatformSignal();
+  }
+
   function scoreMarkup(score) {
     return score.sets.map((set, index) => {
       const pending = set.player == null || set.opponent == null;
@@ -1243,7 +1251,7 @@
       || (!document.body.classList.contains("admin-forced-desktop-view") && isSmartphonePortrait());
     viewportMeta?.setAttribute(
       "content",
-      document.body.classList.contains("admin-forced-desktop-view")
+      document.body.classList.contains("admin-forced-desktop-view") && shouldUseVirtualDesktopViewport()
         ? desktopMatchViewportContent
         : mobileViewportContent,
     );
@@ -1262,7 +1270,7 @@
     document.body.classList.toggle("admin-forced-mobile-view", Boolean(forceMobile));
     viewportMeta?.setAttribute(
       "content",
-      forceDesktop && matchWasVisible
+      forceDesktop && matchWasVisible && shouldUseVirtualDesktopViewport()
         ? desktopMatchViewportContent
         : mobileViewportContent,
     );
