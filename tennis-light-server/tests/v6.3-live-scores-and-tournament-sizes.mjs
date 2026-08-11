@@ -31,16 +31,16 @@ assert.deepEqual(
   { 1: 1, 4: 4, 3: 5, 2: 8 },
 );
 
-assert.equal(packageJson.version, "6.3.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.3<\/span>/);
+assert.equal(packageJson.version, "6.4.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.4<\/span>/);
 assert.match(html, /data-ai-club-setting="tournamentSize" data-ai-club-value="8"/);
 assert.match(html, /data-ai-club-setting="tournamentSize" data-ai-club-value="16"/);
 assert.match(html, /data-ai-club-setting="tournamentSize" data-ai-club-value="32"/);
 assert.match(app, /advanceProgressiveTournamentScores\(\);/);
 assert.match(app, /progressiveLiveScores: true/);
 assert.match(app, /section\.removeAttribute\("title"\)/);
-assert.match(app, /winnerGames = dominance > 21 \? 3 : 2/);
-assert.match(app, /loserGames = winnerGames === 3 \? 0 : dominance < 10 \? 1 : 0/);
+assert.match(app, /progressiveTournamentExchangeScore\(hands\[winner\] - hands\[loser\]\)/);
+assert.match(app, /progressiveTournamentNextServer\(progress, next\)/);
 assert.match(app, /round32-column/);
 assert.match(css, /\.lobby-mode-card\.locked\s*\{[\s\S]*?opacity:\s*1/);
 assert.match(css, /\.lobby-mode-card\.locked::after\s*\{\s*content:\s*none/);

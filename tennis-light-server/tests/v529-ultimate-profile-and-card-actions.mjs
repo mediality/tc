@@ -6,7 +6,7 @@ const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf
 const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 const energyIcon = readFileSync(new URL("../public/assets/icons/ultimate-energy.svg", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.3<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.4<\/span>/);
 assert.match(app, /character-zone\$\{ULTIMATE_MODE\.active \? " ultimate-character-zone"/);
 assert.match(app, /assets\/icons\/ultimate-energy\.svg/);
 assert.match(app, /ULTIMATE_MODE\.active \? "" : "<strong>JOUER<\/strong>"/);

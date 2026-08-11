@@ -5,7 +5,7 @@ const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.3<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.4<\/span>/);
 assert.match(app, /boostedReplyRequired = Boolean\(state\.lastCard\?\.boosted/);
 assert.match(app, /placementRequired = state\.mandatoryPlacement \|\| boostedReplyRequired/);
 assert.match(app, /ultimateConsumedStarUids/);

@@ -9,7 +9,7 @@ const packageJson = JSON.parse(await readFile(new URL("../package.json", import.
 assert.match(app, /desktop-profile-actions desktop-profile-actions--\$\{actionRole\}/);
 assert.match(css, /V6\.1 Academy action trays[\s\S]*\.desktop-profile-actions\s*\{[\s\S]*z-index: 40;[\s\S]*left: 50%;[\s\S]*visibility: visible;[\s\S]*opacity: 1;[\s\S]*pointer-events: auto;/);
 
-assert.equal(packageJson.version, "6.3.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.3<\/span>/);
+assert.equal(packageJson.version, "6.4.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.4<\/span>/);
 
 console.log("V4.55 visible profile action tray checks passed.");
