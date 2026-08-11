@@ -18,8 +18,8 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(packageJson.version, "6.6.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.6<\/span>/);
+assert.equal(packageJson.version, "6.7.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.7<\/span>/);
 
 const league = functionSource(app, "startLeagueTournamentMode");
 const championship = functionSource(app, "startChampionshipMode");
@@ -32,7 +32,7 @@ assert.match(league, /progressiveLiveScores: true/);
 assert.match(championship, /progressiveLiveScores: true/);
 assert.match(master, /progressiveLiveScores: false/);
 assert.match(classic, /progressiveLiveScores: !onePointGame/);
-assert.match(simulation, /calibratedTournamentExchange\(playerA, playerB, progress\)/);
+assert.match(simulation, /simulateCalibratedOnePointMatch\(playerA, playerB, match\)/);
 assert.match(simulation, /advanceProgressiveTournamentMatch\(simulatedMatch, targetSets\)/);
 assert.doesNotMatch(simulation, /aiTournamentStrength/);
 assert.doesNotMatch(simulation, /Math\.random\(\) < 0\.2/);

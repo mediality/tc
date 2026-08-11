@@ -15831,7 +15831,7 @@ function championshipMatch(id, label, phase, day, group, playerA = null, playerB
     hiddenSetScores: null,
     revealedSetScores: [],
   };
-  if (match.simulated && !state.tournament?.progressiveLiveScores) ensureSimulatedTournamentMatchReady(match);
+  if (match.simulated && !state.tournament?.progressiveLiveScores && !state.tournament?.onePointMaster) ensureSimulatedTournamentMatchReady(match);
   return match;
 }
 
@@ -16106,6 +16106,7 @@ function refreshOnePointMasterSlots() {
     assignChampionshipMatch("master_playoff_3", ranked["3"][1]?.entry, ranked["4"][2]?.entry);
     assignChampionshipMatch("master_playoff_4", ranked["4"][1]?.entry, ranked["1"][2]?.entry);
     state.tournament.championshipGroupWinners = ONE_POINT_MASTER_GROUPS.map((group) => ranked[group][0]?.entry);
+    state.tournament.onePointMasterSecondPlaceEntries = ONE_POINT_MASTER_GROUPS.map((group) => ranked[group][1]?.entry);
   }
   const playoffs = championshipMatches(3);
   if (playoffs.length && playoffs.every((match) => match.winner)) {
@@ -17306,15 +17307,9 @@ function buildSimulatedTournamentMatch(id, label, playerA, playerB, targetSets, 
   };
 }
 
-function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2) {
+function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2, match = null) {
   if (state.tournament?.onePointGame) {
-    const progress = { momentum: [0, 0], server: Math.random() < 0.5 ? 0 : 1 };
-    const exchange = calibratedTournamentExchange(playerA, playerB, progress);
-    const setScores = [exchange.winner === 0
-      ? [exchange.winnerGames, exchange.loserGames]
-      : [exchange.loserGames, exchange.winnerGames]];
-    const winner = exchange.winner === 0 ? playerA : playerB;
-    return { winner, setScores, score: formatSetScores(setScores) };
+    return simulateCalibratedOnePointMatch(playerA, playerB, match);
   }
   const simulatedMatch = {
     simulated: true,
@@ -17474,6 +17469,109 @@ function progressiveTournamentNextServer(progress, nextScore) {
   return opponentOf(progress.server);
 }
 
+function onePointPreviousResultAdvantage(entry) {
+  const priority = Number(state.tournament?.previousWinScores?.[entry] || 0);
+  if (priority === 6) return 2;
+  if (priority === 5) return 1;
+  return 0;
+}
+
+function onePointSimulatedServer(playerA, playerB, match = null) {
+  if (state.tournament?.onePointMaster && match?.round === "quarter") {
+    const groupWinners = state.tournament.championshipGroupWinners || [];
+    if (groupWinners.includes(playerA)) return 0;
+    if (groupWinners.includes(playerB)) return 1;
+  }
+  const previousScores = state.tournament?.previousWinScores || {};
+  const scoreA = Number(previousScores[playerA] || 0);
+  const scoreB = Number(previousScores[playerB] || 0);
+  if (scoreA !== scoreB) return scoreA > scoreB ? 0 : 1;
+  return Math.random() < 0.5 ? 0 : 1;
+}
+
+function onePointMasterPositionAdvantages(match) {
+  const advantages = [0, 0];
+  if (!state.tournament?.onePointMaster || !match) return advantages;
+  if (match.championshipPhase === 1 && Number(match.day || 1) > 1 && match.group) {
+    const standings = onePointMasterStandings(match.group, Number(match.day) - 1);
+    const positionA = standings.findIndex((row) => row.entry === match.playerA);
+    const positionB = standings.findIndex((row) => row.entry === match.playerB);
+    const rowA = standings[positionA];
+    const rowB = standings[positionB];
+    const sportingTie = rowA && rowB
+      && rowA.points === rowB.points
+      && rowA.difference === rowB.difference
+      && rowA.boost === rowB.boost
+      && rowA.twoZero === rowB.twoZero;
+    if (!sportingTie && positionA >= 0 && positionB >= 0 && positionA !== positionB) advantages[positionA < positionB ? 0 : 1] = 1;
+  } else if (match.championshipPhase === 3) {
+    const secondPlaces = state.tournament.onePointMasterSecondPlaceEntries || [];
+    if (secondPlaces.includes(match.playerA)) advantages[0] = 1;
+    if (secondPlaces.includes(match.playerB)) advantages[1] = 1;
+  } else if (match.round === "quarter") {
+    const groupWinners = state.tournament.championshipGroupWinners || [];
+    if (groupWinners.includes(match.playerA)) advantages[0] = 1;
+    if (groupWinners.includes(match.playerB)) advantages[1] = 1;
+  }
+  return advantages;
+}
+
+function onePointWinChanceFromAdvantage(gap) {
+  const sign = Math.sign(gap);
+  const distance = Math.min(6, Math.abs(gap));
+  const steps = [0, 0.08, 0.16, 0.23, 0.29, 0.33, 0.35];
+  const lower = Math.floor(distance);
+  const upper = Math.ceil(distance);
+  const lift = steps[lower] + ((steps[upper] - steps[lower]) * (distance - lower));
+  return Math.max(0.15, Math.min(0.85, 0.5 + (sign * lift)));
+}
+
+function onePointScoreFromWinnerAdvantage(winnerAdvantage) {
+  const scoreWeights = winnerAdvantage < 0
+    ? [0.80, 0.17, 0.03]
+    : winnerAdvantage < 1
+      ? [0.60, 0.30, 0.10]
+      : winnerAdvantage < 2
+        ? [0.50, 0.35, 0.15]
+        : winnerAdvantage < 3
+          ? [0.38, 0.40, 0.22]
+          : winnerAdvantage < 4
+            ? [0.27, 0.40, 0.33]
+            : winnerAdvantage < 5
+              ? [0.18, 0.37, 0.45]
+              : [0.10, 0.30, 0.60];
+  const scores = [[2, 1], [2, 0], [3, 0]];
+  let roll = Math.random();
+  for (let index = 0; index < scoreWeights.length; index += 1) {
+    roll -= scoreWeights[index];
+    if (roll < 0) return scores[index];
+  }
+  return scores[0];
+}
+
+function simulateCalibratedOnePointMatch(playerA, playerB, match = null) {
+  const hands = [progressiveTournamentHandQuality(), progressiveTournamentHandQuality()];
+  const ranks = [tournamentRankIa(playerA), tournamentRankIa(playerB)];
+  const rankGap = Math.max(-2, Math.min(2, (ranks[1] - ranks[0]) / 12));
+  const rankAdvantages = [Math.max(0, rankGap), Math.max(0, -rankGap)];
+  const server = onePointSimulatedServer(playerA, playerB, match);
+  const positionAdvantages = onePointMasterPositionAdvantages(match);
+  const totals = [playerA, playerB].map((entry, index) => (
+    rankAdvantages[index]
+    + hands[index]
+    + onePointPreviousResultAdvantage(entry)
+    + (server === index ? 1 : 0)
+    + positionAdvantages[index]
+  ));
+  const gap = totals[0] - totals[1];
+  const winnerIndex = Math.random() < onePointWinChanceFromAdvantage(gap) ? 0 : 1;
+  const winnerAdvantage = winnerIndex === 0 ? gap : -gap;
+  const [winnerScore, loserScore] = onePointScoreFromWinnerAdvantage(winnerAdvantage);
+  const setScores = [winnerIndex === 0 ? [winnerScore, loserScore] : [loserScore, winnerScore]];
+  const winner = winnerIndex === 0 ? playerA : playerB;
+  return { winner, setScores, score: formatSetScores(setScores) };
+}
+
 function calibratedTournamentExchange(playerA, playerB, progress) {
   const hands = [progressiveTournamentHandQuality(), progressiveTournamentHandQuality()];
   const strengthA = progressiveTournamentRankRating(playerA) + (hands[0] * 0.75) + progress.momentum[0] + (progress.server === 0 ? 0.55 : 0);
@@ -17616,7 +17714,7 @@ function setMatchPlayers(match, playerA, playerB) {
     match.revealedSetScores = [];
     match.score = null;
     match.winner = null;
-    if (!state.tournament?.progressiveLiveScores) ensureSimulatedTournamentMatchReady(match);
+    if (!state.tournament?.progressiveLiveScores && !state.tournament?.onePointMaster) ensureSimulatedTournamentMatchReady(match);
   }
 }
 
@@ -18159,7 +18257,7 @@ function ensureSimulatedTournamentMatchReady(match) {
   if (!match?.simulated) return false;
   if (match.hiddenSetScores?.length && match.hiddenWinner) return true;
   if (!match.playerA || !match.playerB) return false;
-  const result = simulateAiTournamentMatch(match.playerA, match.playerB, state.tournament.targetSets ?? 2);
+  const result = simulateAiTournamentMatch(match.playerA, match.playerB, state.tournament.targetSets ?? 2, match);
   match.hiddenWinner = result.winner;
   match.hiddenSetScores = result.setScores;
   match.revealedSetScores = [];

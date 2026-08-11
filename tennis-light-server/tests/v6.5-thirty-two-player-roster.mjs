@@ -30,8 +30,8 @@ const context = vm.createContext({
 vm.runInContext(functionSource(app, "thirtyTwoPlayerTournamentAiEntries"), context);
 const entries = JSON.parse(JSON.stringify(vm.runInContext("thirtyTwoPlayerTournamentAiEntries()", context)));
 
-assert.equal(packageJson.version, "6.6.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.6<\/span>/);
+assert.equal(packageJson.version, "6.7.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.7<\/span>/);
 assert.equal(entries.length, 31);
 assert.deepEqual(entries.slice(0, 24), ranked);
 assert.deepEqual(entries.slice(24, 29), coaches);
