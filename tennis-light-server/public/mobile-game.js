@@ -6,6 +6,7 @@
   const desktopApp = document.querySelector(".game-app");
   const viewportMeta = document.querySelector('meta[name="viewport"]');
   const mobileViewportContent = viewportMeta?.getAttribute("content") || "width=device-width, initial-scale=1, viewport-fit=cover";
+  const desktopMatchViewportContent = "width=1440, initial-scale=0.25, minimum-scale=0.2, maximum-scale=1, viewport-fit=cover";
   let matchUsesMobileView = false;
   let resolutionSequence = null;
   let activeResolutionReceipt = null;
@@ -1240,6 +1241,12 @@
   function selectViewForMatch() {
     matchUsesMobileView = document.body.classList.contains("admin-forced-mobile-view")
       || (!document.body.classList.contains("admin-forced-desktop-view") && isSmartphonePortrait());
+    viewportMeta?.setAttribute(
+      "content",
+      document.body.classList.contains("admin-forced-desktop-view")
+        ? desktopMatchViewportContent
+        : mobileViewportContent,
+    );
     applySelectedView();
   }
 
@@ -1255,8 +1262,8 @@
     document.body.classList.toggle("admin-forced-mobile-view", Boolean(forceMobile));
     viewportMeta?.setAttribute(
       "content",
-      forceDesktop
-        ? "width=1440, initial-scale=0.25, minimum-scale=0.2, maximum-scale=1, viewport-fit=cover"
+      forceDesktop && matchWasVisible
+        ? desktopMatchViewportContent
         : mobileViewportContent,
     );
     matchUsesMobileView = forceMobile || (!forceDesktop && isSmartphonePortrait());
@@ -1281,6 +1288,7 @@
     matchUsesMobileView = false;
     if (scheduledMobileRender != null) window.cancelAnimationFrame(scheduledMobileRender);
     scheduledMobileRender = null;
+    viewportMeta?.setAttribute("content", mobileViewportContent);
     document.body.classList.remove("mobile-game-view");
     mobileApp?.classList.add("hidden");
   }
