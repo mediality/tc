@@ -15613,6 +15613,7 @@ function startLeagueTournamentMode(targetSets = 2, options = {}) {
     active: true,
     visible: true,
     league: true,
+    progressiveLiveScores: true,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
     aiIntelligenceLevels,
@@ -15733,7 +15734,7 @@ function buildLeagueTournamentMatches(groups, humanEntry, targetSets, seededEntr
       hiddenSetScores: null,
       revealedSetScores: [],
     };
-    if (item.simulated) {
+    if (item.simulated && !state.tournament?.progressiveLiveScores) {
       const result = simulateAiTournamentMatch(item.playerA, item.playerB, targetSets);
       item.hiddenWinner = result.winner;
       item.hiddenSetScores = result.setScores;
@@ -15830,7 +15831,7 @@ function championshipMatch(id, label, phase, day, group, playerA = null, playerB
     hiddenSetScores: null,
     revealedSetScores: [],
   };
-  if (match.simulated) ensureSimulatedTournamentMatchReady(match);
+  if (match.simulated && !state.tournament?.progressiveLiveScores) ensureSimulatedTournamentMatchReady(match);
   return match;
 }
 
@@ -15904,6 +15905,7 @@ function startChampionshipMode(targetSets = 2, options = {}) {
     active: true,
     visible: true,
     championship: true,
+    progressiveLiveScores: true,
     aiClubHouse: true,
     difficulty: SOLO_AI.difficulty,
     aiIntelligenceLevels: buildTournamentAiIntelligenceLevels(setup.ranked, SOLO_AI.difficulty, { humanLevel }),
@@ -16026,6 +16028,7 @@ function startOnePointMasterMode(options = {}) {
     championship: true,
     onePointMaster: true,
     onePointGame: true,
+    progressiveLiveScores: false,
     bracket16: false,
     aiClubHouse: true,
     difficulty: SOLO_AI.difficulty,
@@ -16637,7 +16640,7 @@ function startTournamentMode(targetSets = 2, options = {}) {
     visible: false,
     bracket16: true,
     bracketSize: positions.length - 1,
-    progressiveLiveScores: true,
+    progressiveLiveScores: !onePointGame,
     onePointGame,
     aiClubHouse,
     difficulty: SOLO_AI.difficulty,
@@ -17304,19 +17307,28 @@ function buildSimulatedTournamentMatch(id, label, playerA, playerB, targetSets, 
 }
 
 function simulateAiTournamentMatch(playerA, playerB, targetSets = state.tournament.targetSets ?? 2) {
-  const strengthA = aiTournamentStrength(playerA);
-  const strengthB = aiTournamentStrength(playerB);
-  const winChanceA = Math.max(0.1, Math.min(0.9, 1 / (1 + Math.exp(-(strengthA - strengthB) / 9))));
-  const winner = Math.random() < winChanceA ? playerA : playerB;
   if (state.tournament?.onePointGame) {
-    const winnerIndex = winner === playerA ? 0 : 1;
-    const winnerScore = Math.random() < 0.2 ? 3 : 2;
-    const loserScore = winnerScore === 3 ? 0 : Math.random() < 0.55 ? 0 : 1;
-    const setScores = [winnerIndex === 0 ? [winnerScore, loserScore] : [loserScore, winnerScore]];
+    const progress = { momentum: [0, 0], server: Math.random() < 0.5 ? 0 : 1 };
+    const exchange = calibratedTournamentExchange(playerA, playerB, progress);
+    const setScores = [exchange.winner === 0
+      ? [exchange.winnerGames, exchange.loserGames]
+      : [exchange.loserGames, exchange.winnerGames]];
+    const winner = exchange.winner === 0 ? playerA : playerB;
     return { winner, setScores, score: formatSetScores(setScores) };
   }
-  const setScores = randomMatchSetScoresForWinner(winner === playerA ? 0 : 1, targetSets);
-  return { winner, setScores, score: formatSetScores(setScores) };
+  const simulatedMatch = {
+    simulated: true,
+    playerA,
+    playerB,
+    winner: null,
+    score: null,
+    revealedSetScores: [],
+  };
+  for (let guard = 0; guard < 100 && !simulatedMatch.winner; guard += 1) {
+    advanceProgressiveTournamentMatch(simulatedMatch, targetSets);
+  }
+  const setScores = simulatedMatch.revealedSetScores || [];
+  return { winner: simulatedMatch.winner, setScores, score: formatSetScores(setScores) };
 }
 
 function onePointScorePriority(playerScore, opponentScore) {
@@ -17462,18 +17474,23 @@ function progressiveTournamentNextServer(progress, nextScore) {
   return opponentOf(progress.server);
 }
 
-function advanceProgressiveTournamentMatch(match) {
-  if (!match?.simulated || match.winner || !match.playerA || !match.playerB) return false;
-  const progress = match.liveProgress || {
-    score: [0, 0], completedScores: [], setsWon: [0, 0], momentum: [0, 0], server: Math.random() < .5 ? 0 : 1,
-  };
+function calibratedTournamentExchange(playerA, playerB, progress) {
   const hands = [progressiveTournamentHandQuality(), progressiveTournamentHandQuality()];
-  const strengthA = progressiveTournamentRankRating(match.playerA) + (hands[0] * 0.75) + progress.momentum[0] + (progress.server === 0 ? 0.55 : 0);
-  const strengthB = progressiveTournamentRankRating(match.playerB) + (hands[1] * 0.75) + progress.momentum[1] + (progress.server === 1 ? 0.55 : 0);
+  const strengthA = progressiveTournamentRankRating(playerA) + (hands[0] * 0.75) + progress.momentum[0] + (progress.server === 0 ? 0.55 : 0);
+  const strengthB = progressiveTournamentRankRating(playerB) + (hands[1] * 0.75) + progress.momentum[1] + (progress.server === 1 ? 0.55 : 0);
   const chanceA = Math.max(.18, Math.min(.82, 1 / (1 + Math.exp(-(strengthA - strengthB) / 3.8))));
   const winner = Math.random() < chanceA ? 0 : 1;
   const loser = opponentOf(winner);
   const [winnerGames, loserGames] = progressiveTournamentExchangeScore(hands[winner] - hands[loser]);
+  return { winner, loser, winnerGames, loserGames };
+}
+
+function advanceProgressiveTournamentMatch(match, targetSetsOverride = null) {
+  if (!match?.simulated || match.winner || !match.playerA || !match.playerB) return false;
+  const progress = match.liveProgress || {
+    score: [0, 0], completedScores: [], setsWon: [0, 0], momentum: [0, 0], server: Math.random() < .5 ? 0 : 1,
+  };
+  const { winner, loser, winnerGames, loserGames } = calibratedTournamentExchange(match.playerA, match.playerB, progress);
   const next = [...progress.score];
   next[winner] = computeWinnerSetGames(next[winner], next[loser], winnerGames);
   next[loser] = Math.min(7, next[loser] + loserGames);
@@ -17490,7 +17507,7 @@ function advanceProgressiveTournamentMatch(match) {
     progress.score = [0, 0];
     progress.momentum = [0, 0];
   }
-  const targetSets = Number(state.tournament.targetSets || 2);
+  const targetSets = Number(targetSetsOverride || state.tournament.targetSets || 2);
   const matchWinnerIndex = progress.setsWon.findIndex((sets) => sets >= targetSets);
   progress.matchOver = matchWinnerIndex >= 0;
   match.liveProgress = progress;
@@ -17508,8 +17525,18 @@ function advanceProgressiveTournamentMatch(match) {
 
 function advanceProgressiveTournamentScores(round = state.tournament?.stage) {
   if (!state.tournament?.progressiveLiveScores || !round) return;
-  for (const match of simulatedTournamentMatches(round)) advanceProgressiveTournamentMatch(match);
-  refreshWeeklyTournamentDerivedSlots();
+  const current = tournamentMatchById(state.tournament.currentMatch);
+  const matches = state.tournament.championship && current
+    ? state.tournament.matches.filter((match) => (
+      match.simulated
+      && match.championshipPhase === current.championshipPhase
+      && match.day === current.day
+    ))
+    : simulatedTournamentMatches(round);
+  for (const match of matches) advanceProgressiveTournamentMatch(match);
+  if (state.tournament.championship) refreshChampionshipSlots();
+  else if (state.tournament.league) refreshLeagueKnockoutSlots();
+  else refreshWeeklyTournamentDerivedSlots();
 }
 
 function ensureTournamentMatchHasWinningSetCount(match) {

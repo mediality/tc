@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.5<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.6<\/span>/);
 assert.match(app, /if \(action === "endurance"\) \{\s*player\.endurance \+= 2;/);
 assert.doesNotMatch(app, /data-energy-choice="endurance"[^>]*disabled/);
 assert.match(app, /minimumEnergyReserve/);

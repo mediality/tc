@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.5<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.6<\/span>/);
 assert.match(css, /\.image-zoom-backdrop\s*\{[^}]*z-index: 3000/s);
 assert.match(css, /ultimate-profile-energy[^}]*#ff2c2c/);
 assert.match(css, /ultimate-card-play-button[^}]*#274ab3/);
