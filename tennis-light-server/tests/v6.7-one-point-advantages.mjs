@@ -19,8 +19,8 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(packageJson.version, "6.8.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.8<\/span>/);
+assert.equal(packageJson.version, "6.9.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.9<\/span>/);
 
 const context = vm.createContext({ Math });
 vm.runInContext(functionSource(app, "onePointWinChanceFromAdvantage"), context);
@@ -48,4 +48,4 @@ assert.match(score, /\[0\.80, 0\.17, 0\.03\]/);
 assert.match(score, /\[0\.10, 0\.30, 0\.60\]/);
 assert.match(ready, /simulateAiTournamentMatch\(match\.playerA, match\.playerB,[\s\S]*match\)/);
 
-console.log("V6.8 One Point contextual advantages passed.");
+console.log("V6.9 One Point contextual advantages passed.");

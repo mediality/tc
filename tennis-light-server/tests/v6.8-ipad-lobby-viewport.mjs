@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 const mobile = readFileSync(new URL("../public/mobile-game.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.8<\/span>/);
-assert.match(html, /styles\.css\?v=6\.8\.0/);
-assert.match(html, /mobile-game\.js\?v=6\.8\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.9<\/span>/);
+assert.match(html, /styles\.css\?v=6\.9\.0/);
+assert.match(html, /mobile-game\.js\?v=6\.9\.0/);
 
 assert.match(
   mobile,
@@ -25,4 +25,4 @@ assert.match(
   /function clearSelectedView\(\)[\s\S]*?viewportMeta\?\.setAttribute\("content", mobileViewportContent\)/,
 );
 
-console.log("V6.8 iPad lobby viewport restoration checks passed.");
+console.log("V6.9 iPad lobby viewport restoration checks passed.");

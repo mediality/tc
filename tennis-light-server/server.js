@@ -227,6 +227,31 @@ function makeToken() {
   return crypto.randomBytes(18).toString("base64url");
 }
 
+function shuffledRivalryResults(wins, losses) {
+  const humanWins = Math.max(0, Number(wins || 0));
+  const humanLosses = Math.max(0, Number(losses || 0));
+  const total = humanWins + humanLosses;
+  if (!total) return "";
+  const length = Math.min(5, total);
+  let convertedWins = total > 5 ? Math.round((humanWins / total) * 5) : Math.min(length, humanWins);
+  if (humanLosses > 0) convertedWins = Math.min(convertedWins, length - 1);
+  convertedWins = Math.max(0, Math.min(length, convertedWins));
+  const results = [
+    ...Array(convertedWins).fill("V"),
+    ...Array(length - convertedWins).fill("D"),
+  ];
+  for (let index = results.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [results[index], results[swapIndex]] = [results[swapIndex], results[index]];
+  }
+  return results.join("");
+}
+
+function normalizedRivalryResults(value, wins = 0, losses = 0) {
+  const stored = String(value || "").toUpperCase().replace(/[^VD]/g, "").slice(0, 5);
+  return stored || shuffledRivalryResults(wins, losses);
+}
+
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
@@ -1657,9 +1682,19 @@ async function initAuthStorage() {
       ai_character_id TEXT NOT NULL,
       wins INTEGER NOT NULL DEFAULT 0,
       losses INTEGER NOT NULL DEFAULT 0,
+      recent_results TEXT NOT NULL DEFAULT '',
       PRIMARY KEY (user_id, ai_character_id)
     )
   `);
+  await db.query("ALTER TABLE circuit_ai_results ADD COLUMN IF NOT EXISTS recent_results TEXT NOT NULL DEFAULT ''");
+  await db.query("DELETE FROM circuit_ai_results WHERE ai_character_id = ANY($1::text[])", [[...COACH_IDS]]);
+  const legacyRivalries = await db.query("SELECT user_id, ai_character_id, wins, losses FROM circuit_ai_results WHERE recent_results = ''");
+  for (const row of legacyRivalries.rows) {
+    await db.query(
+      "UPDATE circuit_ai_results SET recent_results = $3 WHERE user_id = $1 AND ai_character_id = $2",
+      [row.user_id, row.ai_character_id, shuffledRivalryResults(row.wins, row.losses)],
+    );
+  }
   await db.query(`
     CREATE TABLE IF NOT EXISTS app_state (
       key TEXT PRIMARY KEY,
@@ -2244,20 +2279,27 @@ async function circuitWorldRankForUser(user) {
 async function registerCircuitAiResults(userId, results = []) {
   for (const item of Array.isArray(results) ? results : []) {
     const aiCharacterId = String(item.aiCharacterId || "").slice(0, 48);
-    if (!aiCharacterId) continue;
+    if (!aiCharacterId || COACH_IDS.has(aiCharacterId)) continue;
     const won = item.result === "win";
+    const latestResult = won ? "V" : "D";
     if (db) {
       await db.query(`
-        INSERT INTO circuit_ai_results (user_id, ai_character_id, wins, losses)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO circuit_ai_results (user_id, ai_character_id, wins, losses, recent_results)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (user_id, ai_character_id) DO UPDATE
           SET wins = circuit_ai_results.wins + EXCLUDED.wins,
-              losses = circuit_ai_results.losses + EXCLUDED.losses
-      `, [userId, aiCharacterId, won ? 1 : 0, won ? 0 : 1]);
+              losses = circuit_ai_results.losses + EXCLUDED.losses,
+              recent_results = EXCLUDED.recent_results || LEFT(circuit_ai_results.recent_results, 4)
+      `, [userId, aiCharacterId, won ? 1 : 0, won ? 0 : 1, latestResult]);
     } else {
       const key = `${userId}:${aiCharacterId}`;
-      const current = authMemory.aiResults.get(key) || { wins: 0, losses: 0 };
-      authMemory.aiResults.set(key, { wins: current.wins + (won ? 1 : 0), losses: current.losses + (won ? 0 : 1) });
+      const current = authMemory.aiResults.get(key) || { wins: 0, losses: 0, recentResults: "" };
+      const recentResults = `${latestResult}${normalizedRivalryResults(current.recentResults, current.wins, current.losses)}`.slice(0, 5);
+      authMemory.aiResults.set(key, {
+        wins: current.wins + (won ? 1 : 0),
+        losses: current.losses + (won ? 0 : 1),
+        recentResults,
+      });
     }
   }
 }
@@ -2266,7 +2308,7 @@ async function registerCircuitAiHumanWinBonuses(results = [], season, week) {
   const winsByAi = new Map();
   for (const item of Array.isArray(results) ? results : []) {
     const aiCharacterId = String(item.aiCharacterId || "").slice(0, 48);
-    if (!aiCharacterId || item.result !== "loss") continue;
+    if (!aiCharacterId || COACH_IDS.has(aiCharacterId) || item.result !== "loss") continue;
     winsByAi.set(aiCharacterId, (winsByAi.get(aiCharacterId) || 0) + 1);
   }
   if (!winsByAi.size) return;
@@ -2362,7 +2404,7 @@ async function profilePayload(user, viewer = user) {
       ORDER BY season_number DESC, week_number DESC, updated_at DESC
     `, [user.id]);
     results = resultRows.rows;
-    const aiRows = await db.query("SELECT ai_character_id, wins, losses FROM circuit_ai_results WHERE user_id = $1 ORDER BY ai_character_id", [user.id]);
+    const aiRows = await db.query("SELECT ai_character_id, wins, losses, recent_results FROM circuit_ai_results WHERE user_id = $1 AND NOT (ai_character_id = ANY($2::text[])) ORDER BY ai_character_id", [user.id, [...COACH_IDS]]);
     aiResults = aiRows.rows;
     const honorRows = await db.query(`
       SELECT honor_type, label, season_number, week_number, rank, points, created_at
@@ -2374,8 +2416,12 @@ async function profilePayload(user, viewer = user) {
   } else {
     results = authMemory.circuitResults.filter((row) => row.userId === user.id);
     aiResults = [...authMemory.aiResults.entries()]
-      .filter(([key]) => key.startsWith(`${user.id}:`))
-      .map(([key, value]) => ({ ai_character_id: key.split(":").pop(), ...value }));
+      .filter(([key]) => key.startsWith(`${user.id}:`) && !COACH_IDS.has(key.split(":").pop()))
+      .map(([key, value]) => ({
+        ai_character_id: key.split(":").pop(),
+        ...value,
+        recent_results: normalizedRivalryResults(value.recentResults, value.wins, value.losses),
+      }));
   }
   const fullRanking = await buildRanking(1, 100000, user);
   return {

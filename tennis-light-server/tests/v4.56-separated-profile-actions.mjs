@@ -14,7 +14,7 @@ assert.match(css, /data-desktop-role="local"[^}]*\.desktop-profile-actions--loca
 assert.match(css, /data-desktop-role="opponent"[^}]*> \.desktop-profile-actions--opponent\s*\{[\s\S]*top: calc\(100% \+ 40px\);/);
 assert.match(css, /\.character-portrait-stage\s*\{[\s\S]*overflow: visible;/);
 
-assert.equal(packageJson.version, "6.8.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.8<\/span>/);
+assert.equal(packageJson.version, "6.9.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.9<\/span>/);
 
 console.log("V4.56 separated local and opponent profile action checks passed.");

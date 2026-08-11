@@ -1676,13 +1676,23 @@ body.tutorial-running .boost-button strong {
 }
 
 .confrontation-intro-rivalry {
+  display: flex;
   width: fit-content;
+  align-items: center;
+  gap: 12px;
   margin: 16px auto 0;
   border-radius: 8px;
   padding: 8px 12px;
   color: #102a43;
   background: #e9ff70;
 }
+
+.confrontation-intro-rivalry > span:first-child,
+.confrontation-intro-rivalry > strong { font-weight: 1000; }
+
+.confrontation-intro-rivalry .confrontation-trend { min-width: 0; }
+.confrontation-intro-rivalry .confrontation-result.victory { color: #16a34a; }
+.confrontation-intro-rivalry .confrontation-result.defeat { color: #ef4444; }
 
 .confrontation-intro-rivalry.bete-noire,
 .confrontation-intro-rivalry.ascendant-negative {
@@ -2927,7 +2937,25 @@ body.spectator-mode .player-panel {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  margin-left: auto;
+  text-align: right;
 }
+
+.confrontation-trend {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 3px;
+  min-width: 76px;
+}
+
+.confrontation-result {
+  font-size: 0.88rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.confrontation-result.victory { color: #15803d; }
+.confrontation-result.defeat { color: #dc2626; }
 
 .confrontation-status {
   border: 1px solid currentColor;

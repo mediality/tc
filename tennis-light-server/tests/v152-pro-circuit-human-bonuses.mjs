@@ -20,10 +20,9 @@ function functionSource(name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.doesNotMatch(html, /<span>v169<\/span>/);
-assert.match(html, /class="lobby-footer"[\s\S]*v3\.61/);
-assert.match(html, /styles\.css\?v=170\.8/);
-assert.match(html, /app\.js\?v=170\.8/);
+assert.match(html, /class="lobby-footer"[\s\S]*V6\.9/);
+assert.match(html, /styles\.css\?v=6\.9\.0/);
+assert.match(html, /app\.js\?v=6\.9\.0/);
 
 const humanEntry = "__human__";
 const entries = Array(17).fill(null);
@@ -52,32 +51,11 @@ assert.equal(bonusContext.result.bonuses.P2.length, 3);
 assert.equal(bonusContext.result.bonuses.P3.length, 1);
 assert.equal(bonusContext.result.bonuses.P4.length, 1);
 
-const headToHeadSource = functionSource("tournamentHeadToHeadBonus");
-function headToHeadBonus(wins, losses, difficulty = "circuit") {
-  const context = {
-    AUTH_STATE: {
-      profileUserId: "user-1",
-      profile: { aiResults: [{ ai_character_id: "ai-1", wins, losses }] },
-    },
-    authenticatedUserId: () => "user-1",
-    state: { tournament: { difficulty } },
-  };
-  vm.runInNewContext(`${headToHeadSource}; result = tournamentHeadToHeadBonus("ai-1");`, context);
-  return context.result;
-}
-
-assert.equal(headToHeadBonus(9, 0), null);
-assert.equal(headToHeadBonus(10, 0)?.target, "human");
-assert.match(headToHeadBonus(10, 0)?.label || "", /Domination/);
-assert.equal(headToHeadBonus(6, 0), null);
-assert.match(headToHeadBonus(6, 0, "classic")?.label || "", /Ascendant/);
-assert.equal(headToHeadBonus(0, 10)?.target, "ai");
-
 const statusSource = functionSource("confrontationStatus");
 const statusContext = {};
-vm.runInNewContext(`${statusSource}; beforeTen = confrontationStatus(9, 0); atTen = confrontationStatus(10, 0);`, statusContext);
-assert.notEqual(statusContext.beforeTen?.className, "domination");
-assert.equal(statusContext.atTen?.className, "domination");
+vm.runInNewContext(`${statusSource}; lowLevel = confrontationStatus("VVVVV", 3); highLevel = confrontationStatus("DDDDD", 6);`, statusContext);
+assert.equal(statusContext.lowLevel?.bonusCount, 2);
+assert.equal(statusContext.highLevel?.bonusCount, 3);
 
 const matchSetupSource = functionSource("newGame");
 assert.match(matchSetupSource, /humanInProCircuit/);
@@ -85,4 +63,4 @@ assert.match(matchSetupSource, /!humanInProCircuit && state\.tournament\.surface
 assert.match(matchSetupSource, /!humanInProCircuit && state\.tournament\.permanentBonuses/);
 assert.match(functionSource("buildTournamentPermanentBonuses"), /worldLeader !== HUMAN_TOURNAMENT_ENTRY/);
 
-console.log("v152 bonus humains du circuit pro et seuil de domination: OK");
+console.log("v152 bonus du circuit pro et rivalités sur cinq matchs: OK");

@@ -34,7 +34,7 @@ for (const [player, values] of Object.entries(expected)) {
   assert.deepEqual(actual, values);
 }
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.8<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.9<\/span>/);
 assert.match(html, /Tennis Courts Ultimate<\/strong><small>V5\.35/);
 assert.match(app, /ULTIMATE_MATCH_LOG_STORAGE_KEY/);
 assert.match(app, /function startUltimateMatchLog/);

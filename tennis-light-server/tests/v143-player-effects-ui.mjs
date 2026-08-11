@@ -45,7 +45,7 @@ assert.match(confrontationIntroSource, /const sequenceDuration = 3_000/);
 assert.match(confrontationIntroSource, /Date\.now\(\) \+ 5_000/);
 assert.match(confrontationIntroSource, /data-start-confrontation/);
 assert.match(confrontationIntroSource, /data-confrontation-countdown-shell/);
-assert.doesNotMatch(confrontationIntroSource, /currentOpponentConfrontationStatus/);
+assert.match(confrontationIntroSource, /currentOpponentConfrontationStatus/);
 assert.match(app, /function confrontationEventTypeLabel\(\)/);
 assert.match(css, /\.confrontation-sequence-item\.revealed/);
 assert.match(css, /\.confrontation-countdown-shell\.revealed/);
