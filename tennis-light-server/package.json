@@ -1,10 +1,11 @@
 {
   "name": "tennis-courts-light-server",
-  "version": "6.10.0",
+  "version": "6.11.0",
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
     "test:v6.10": "node tests/v6.10-tablet-desktop-viewport.mjs",
+    "test:v6.11": "node tests/v6.11-next-gen-roster.mjs",
     "test:v6.9": "node tests/v6.9-five-match-rivalries.mjs",
     "test:v6.8": "node tests/v6.8-ipad-lobby-viewport.mjs",
     "test:v6.7": "node tests/v6.7-one-point-advantages.mjs",

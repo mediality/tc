@@ -39,7 +39,21 @@ const NEW_CHARACTER_IDS = [
   "renAoshima", "yasmineElMansouri", "daanVermeer", "lukasEberhardt", "milanVerhaegen", "rosaBenavente",
   "johnnyKowalski", "sakubaraGeki",
 ];
-const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS];
+const NEXT_GEN_CHARACTER_IDS = [
+  "nellAshcombe", "dylanWainforde", "dynastiaAbreu", "renataSolvera",
+  "viktorSerevin", "milaWierczek", "kostasMikolas", "edouardSaintVenant",
+];
+const NEXT_GEN_CIRCUIT_POINTS = {
+  nellAshcombe: 84,
+  dylanWainforde: 67,
+  dynastiaAbreu: 93,
+  renataSolvera: 58,
+  viktorSerevin: 76,
+  milaWierczek: 49,
+  kostasMikolas: 35,
+  edouardSaintVenant: 22,
+};
+const ALL_PROFILE_CHARACTER_IDS = [...COACH_CHARACTER_IDS, ...HISTORIC_CHARACTER_IDS, ...NEW_CHARACTER_IDS, ...NEXT_GEN_CHARACTER_IDS];
 const PRO_REWARD_CHARACTER_IDS = ["milanVerhaegen", "rosaBenavente"];
 const ROSA_BENAVENTE_AVAILABLE_AT = Date.parse("2026-07-21T18:00:00+02:00");
 const COACH_HANS_AVAILABLE_AT = Date.parse("2026-07-22T08:00:00+02:00");
@@ -106,6 +120,14 @@ const AI_CHARACTER_NAMES = {
   rosaBenavente: "Rosa Benavente",
   johnnyKowalski: "Johnny Kowalski",
   sakubaraGeki: "Sakubara Geki",
+  nellAshcombe: "Nell Ashcombe",
+  dylanWainforde: "Dylan Wainforde",
+  dynastiaAbreu: "Dynastia Abreu",
+  renataSolvera: "Renata Solvera",
+  viktorSerevin: "Viktor Serevin",
+  milaWierczek: "Mila Wierczek",
+  kostasMikolas: "Kostas Mikolas",
+  edouardSaintVenant: "Edouard Saint-Venant",
 };
 const AI_SURFACE_PREFERENCES = {
   theoBriancourt: "clay",
@@ -2136,6 +2158,18 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
       GROUP BY ai_character_id
     `, [refPeriodKeys, currentPeriodKey, nextRefPeriodKeys, previousPeriodKey, current.season]);
     const aiRowsById = new Map(aiResult.rows.map((row) => [row.ai_character_id, row]));
+    const nextGenRows = NEXT_GEN_CHARACTER_IDS.map((characterId) => ({
+      id: `ai:${characterId}`,
+      account_number: null,
+      nickname: aiCharacterName(characterId),
+      score_ref: NEXT_GEN_CIRCUIT_POINTS[characterId],
+      score_week: 0,
+      score_next_ref: NEXT_GEN_CIRCUIT_POINTS[characterId],
+      score_previous_week: 0,
+      score_total: NEXT_GEN_CIRCUIT_POINTS[characterId],
+      is_ai: true,
+      ranking_only: true,
+    }));
     const rows = [
       ...humanResult.rows,
       ...CIRCUIT_AI_CHARACTER_IDS.map((characterId) => {
@@ -2152,6 +2186,7 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
           is_ai: true,
         };
       }),
+      ...nextGenRows,
     ];
     [...rows]
       .sort((a, b) => Number(b.score_ref || 0) - Number(a.score_ref || 0)
@@ -2233,7 +2268,19 @@ async function buildRanking(page = 1, pageSize = 50, currentUser = null, sortBy 
       is_ai: true,
     };
   });
-  const rows = [...humanRows, ...aiRows];
+  const nextGenRows = NEXT_GEN_CHARACTER_IDS.map((characterId) => ({
+    id: `ai:${characterId}`,
+    account_number: null,
+    nickname: aiCharacterName(characterId),
+    score_ref: NEXT_GEN_CIRCUIT_POINTS[characterId],
+    score_week: 0,
+    score_next_ref: NEXT_GEN_CIRCUIT_POINTS[characterId],
+    score_previous_week: 0,
+    score_total: NEXT_GEN_CIRCUIT_POINTS[characterId],
+    is_ai: true,
+    ranking_only: true,
+  }));
+  const rows = [...humanRows, ...aiRows, ...nextGenRows];
   const memoryScoreOrder = rankingSort === "week"
     ? ["score_week", "score_ref", "score_total"]
     : rankingSort === "season"

@@ -21,9 +21,9 @@ function functionSource(name) {
   throw new Error(`${name} incomplet`);
 }
 
-assert.equal(packageJson.version, "6.10.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
-assert.match(html, /app\.js\?v=6\.10\.0/);
+assert.equal(packageJson.version, "6.11.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
+assert.match(html, /app\.js\?v=6\.11\.0/);
 
 const context = {};
 vm.runInNewContext(`${functionSource("confrontationStatus")}; results = [
@@ -44,4 +44,4 @@ assert.match(styles, /\.confrontation-result\.victory \{ color: #15803d; \}/);
 assert.match(styles, /\.confrontation-result\.defeat \{ color: #dc2626; \}/);
 assert.match(app, /margin-left: auto|confrontation-summary/);
 
-console.log("V6.10 five-match Circuit Pro rivalry checks passed.");
+console.log("V6.11 five-match Circuit Pro rivalry checks passed.");

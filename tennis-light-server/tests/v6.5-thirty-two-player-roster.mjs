@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import vm from "node:vm";
 import { readFile } from "node:fs/promises";
 
 const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
@@ -19,24 +18,11 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-const ranked = Array.from({ length: 24 }, (_, index) => `rankia-${index + 1}`);
-const coaches = ["coachJu", "coachMax", "coachCarla", "coachClem", "coachHans"];
-const context = vm.createContext({
-  TOURNAMENT_CHARACTER_POOL: [...ranked].reverse(),
-  COACH_OPTIONS: coaches,
-  rankedAiTournamentEntries: () => ranked,
-  shuffle: (entries) => [...entries].reverse(),
-});
-vm.runInContext(functionSource(app, "thirtyTwoPlayerTournamentAiEntries"), context);
-const entries = JSON.parse(JSON.stringify(vm.runInContext("thirtyTwoPlayerTournamentAiEntries()", context)));
+assert.equal(packageJson.version, "6.11.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
+const rosterSource = functionSource(app, "thirtyTwoPlayerTournamentAiEntries");
+assert.match(rosterSource, /uniqueTournamentAiEntries\(31/);
+assert.doesNotMatch(rosterSource, /COACH_OPTIONS|::duplicate:/);
+assert.match(app, /size === 32\s*\? thirtyTwoPlayerTournamentAiEntries\(options\.playerSelection, options\.humanCharacterId\)/);
 
-assert.equal(packageJson.version, "6.10.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
-assert.equal(entries.length, 31);
-assert.deepEqual(entries.slice(0, 24), ranked);
-assert.deepEqual(entries.slice(24, 29), coaches);
-assert.deepEqual(entries.slice(29), ["coachHans::duplicate:1", "coachClem::duplicate:2"]);
-assert.equal(new Set(entries.slice(29).map((entry) => entry.split("::")[0])).size, 2);
-assert.match(app, /size === 32\s*\? thirtyTwoPlayerTournamentAiEntries\(\)/);
-
-console.log("V6.5 32-player RankIA, human and coach roster passed.");
+console.log("V6.5 32-player human and coach-free NEXT GEN roster passed.");

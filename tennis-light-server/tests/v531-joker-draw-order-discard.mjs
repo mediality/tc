@@ -5,7 +5,7 @@ const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const css = readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
 assert.match(app, /placementRequired && !state\.turnIgnoresPlacement\[playerIndex\]/);
 assert.match(app, /state\.turnUndoLocked = true/);
 assert.match(app, /state\.turnDirty && !state\.turnUndoLocked/);

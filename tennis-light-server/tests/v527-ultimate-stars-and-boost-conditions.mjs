@@ -4,7 +4,7 @@ import fs from "node:fs";
 const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const html = fs.readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
 assert.match(app, /conti:\s*\{\s*stars: \[5, 6, 9, 12, 13, 17, 25, 28\]/);
 assert.match(app, /brentwood:\s*\{\s*stars: \[5, 8, 16, 17, 18, 20, 33, 36\]/);
 assert.match(app, /card\.star = printedRules\.stars\.includes\(printedNumber\)/);

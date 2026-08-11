@@ -13,7 +13,7 @@ const mobileCss = fs.readFileSync(path.join(root, "public/mobile-game.css"), "ut
 
 assert.match(html, /id="ultimateModeButton"[\s\S]*data-required-role="pro_plus"/);
 assert.match(html, /ultimate\/ultimate-home\.jpg/);
-assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
 assert.match(html, /Tennis Courts Ultimate<\/strong><small>V5\.35/);
 assert.match(html, /ultimate-card-data\.js\?v=5\.35\.0/);
 assert.match(html, /data-ultimate-ai="legend"/);

@@ -5,7 +5,7 @@ const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const mobile = readFileSync(new URL("../public/mobile-game.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.10<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
 assert.match(html, /Tennis Courts Ultimate<\/strong><small>V5\.35/);
 assert.match(html, /id="adminUltimateExportLogsButton"[^>]*>Exporter les logs TCU<\/button>/);
 assert.match(html, /id="adminGameViewToggle"[^>]*role="switch"/);

@@ -423,6 +423,14 @@ const PROFILE_CHARACTER_IMAGES = versionCardAsset({
   rosaBenavente: "assets/cards/TC-Rosa-Benavente-LOBBY.webp",
   johnnyKowalski: "assets/cards/TC-Johnny-Kowalski-LOBBY.webp",
   sakubaraGeki: "assets/cards/TC-Sakubara-Geki-LOBBY.webp",
+  nellAshcombe: "assets/cards/nextgen-25to32-_0004_nell-ashcombe-gb-lobby.webp",
+  dylanWainforde: "assets/cards/nextgen-25to32-_0009_dylan-wainforde-aus-lobby.webp",
+  dynastiaAbreu: "assets/cards/nextgen-25to32-_0014_dynastia-abreu-bra-lobby.webp",
+  renataSolvera: "assets/cards/nextgen-25to32-_0019_renata-solvera-mex-lobby.webp",
+  viktorSerevin: "assets/cards/nextgen-25to32-_0024_viktor-serevin-rtc-lobby.webp",
+  milaWierczek: "assets/cards/nextgen-25to32-_0029_mila-wierczek-pol-lobby.webp",
+  kostasMikolas: "assets/cards/nextgen-25to32-_0034_kostas-mikolas-gre-lobby.webp",
+  edouardSaintVenant: "assets/cards/nextgen-25to32-_0039_edouard-saint-venant-mon-lobby.webp",
 });
 const HISTORIC_TOURNAMENT_PLAYERS = [
   "theoBriancourt",
@@ -452,8 +460,12 @@ const NEW_TOURNAMENT_PLAYERS = [
   "johnnyKowalski",
   "sakubaraGeki",
 ];
-const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
-const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS];
+const NEXT_GEN_TOURNAMENT_PLAYERS = [
+  "nellAshcombe", "dylanWainforde", "dynastiaAbreu", "renataSolvera",
+  "viktorSerevin", "milaWierczek", "kostasMikolas", "edouardSaintVenant",
+];
+const TOURNAMENT_CHARACTER_POOL = [...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS, ...NEXT_GEN_TOURNAMENT_PLAYERS];
+const FULL_PROFILE_CHARACTER_OPTIONS = [...COACH_OPTIONS, ...HISTORIC_TOURNAMENT_PLAYERS, ...NEW_TOURNAMENT_PLAYERS, ...NEXT_GEN_TOURNAMENT_PLAYERS];
 const GAME_NEWS = [
   {
     id: "v359-new-competitions",
@@ -769,6 +781,62 @@ const CHARACTERS = {
       { side: "Rose", label: "Récupérez 1 endurance et gagnez 2 puissance", type: "gainEnduranceAndPower", endurance: 1, power: 2 },
     ],
   },
+  nellAshcombe: {
+    name: "Nell Ashcombe",
+    effects: [
+      { side: "Bleu", label: "Le Coup adverse précédent est ramené à 2 puissance", type: "reducePreviousOpponentPrintedPower", value: 2 },
+      { side: "Rose", label: "L'adversaire ne peut pas jouer de Smash, Volée ou Lob sur son prochain Coup", type: "opponentNextForbiddenFamilies", families: ["Smash", "Volée", "Lob"] },
+    ],
+  },
+  dylanWainforde: {
+    name: "Dylan Wainforde",
+    effects: [
+      { side: "Bleu", label: "Les Coups de puissance 4 ou 5 coûtent 1 endurance en moins jusqu'à la fin de l'échange", type: "exchangeHighPowerDiscount", value: 1, powers: [4, 5] },
+      { side: "Rose", label: "Récupérez 2 endurance", type: "gainEndurance", value: 2 },
+    ],
+  },
+  dynastiaAbreu: {
+    name: "Dynastia Abreu",
+    effects: [
+      { side: "Bleu", label: "Récupérez la carte de votre choix dans la pioche", type: "recoverUndealt" },
+      { side: "Rose", label: "Votre prochain Coup est doublé en puissance", type: "nextPowerMultiplier", value: 2 },
+    ],
+  },
+  renataSolvera: {
+    name: "Renata Solvera",
+    effects: [
+      { side: "Bleu", label: "Vos 3 prochains Coups gagnent 1 puissance", type: "nextShotsPowerBonus", value: 1, count: 3 },
+      { side: "Rose", label: "Récupérez 1 endurance et 1 carte déjà jouée de votre côté", type: "gainEnduranceAndRecoverPlayed", endurance: 1 },
+    ],
+  },
+  viktorSerevin: {
+    name: "Viktor Serevin",
+    effects: [
+      { side: "Bleu", label: "Le placement des Coups adverses est réduit de 2 jusqu'à la fin de l'échange", type: "opponentExchangePlacementPenalty", value: 2 },
+      { side: "Rose", label: "Supprimez les bonus de match et provisoires adverses jusqu'à la fin de l'échange", type: "suppressOpponentBonuses" },
+    ],
+  },
+  milaWierczek: {
+    name: "Mila Wierczek",
+    effects: [
+      { side: "Bleu", label: "Vous pouvez booster votre prochain Coup avec n'importe quelle carte Coup", type: "nextBoostAnyShot" },
+      { side: "Rose", label: "Tous vos Coups coûtent 1 endurance en moins jusqu'à la fin de l'échange", type: "exchangeShotDiscount", value: 1 },
+    ],
+  },
+  kostasMikolas: {
+    name: "Kostas Mikolas",
+    effects: [
+      { side: "Bleu", label: "Récupérez 1 endurance après un Coup de puissance 4 ou 5 jusqu'à la fin de l'échange", type: "exchangeHighPowerEndurance", value: 1, powers: [4, 5] },
+      { side: "Rose", label: "Jouez votre prochain Coup gratuitement", type: "nextDiscount", value: 99 },
+    ],
+  },
+  edouardSaintVenant: {
+    name: "Edouard Saint-Venant",
+    effects: [
+      { side: "Bleu", label: "Vos Revers gagnent 1 puissance jusqu'à la fin de l'échange", type: "exchangeFamilyPowerBonus", families: ["Revers"], value: 1 },
+      { side: "Rose", label: "Récupérez 1 endurance pour chaque Coup joué depuis le début de l'échange", type: "recoverEnduranceByShots" },
+    ],
+  },
 };
 
 const CHARACTER_IMAGES = versionCardAsset({
@@ -896,6 +964,14 @@ const CHARACTER_IMAGES = versionCardAsset({
     "assets/cards/TC-Sakubara-Geki.webp",
     "assets/cards/TC-Sakubara-Geki-VERSO.webp",
   ],
+  nellAshcombe: ["assets/cards/nextgen-25to32-_0001_nell-ashcombe-gb.webp", "assets/cards/nextgen-25to32-_0000_nell-ashcombe-gb-verso.webp"],
+  dylanWainforde: ["assets/cards/nextgen-25to32-_0006_dylan-wainforde-aus.webp", "assets/cards/nextgen-25to32-_0005_dylan-wainforde-aus-verso.webp"],
+  dynastiaAbreu: ["assets/cards/nextgen-25to32-_0011_dynastia-abreu-bre.webp", "assets/cards/nextgen-25to32-_0010_dynastia-abreu-bre-verso.webp"],
+  renataSolvera: ["assets/cards/nextgen-25to32-_0016_renata-solvera-mex.webp", "assets/cards/nextgen-25to32-_0015_renata-solvera-mex-verso.webp"],
+  viktorSerevin: ["assets/cards/nextgen-25to32-_0021_viktor-serevin-rtc.webp", "assets/cards/nextgen-25to32-_0020_viktor-serevin-rtc-verso.webp"],
+  milaWierczek: ["assets/cards/nextgen-25to32-_0026_mila-wierczek-pol.webp", "assets/cards/nextgen-25to32-_0025_mila-wierczek-pol-verso.webp"],
+  kostasMikolas: ["assets/cards/nextgen-25to32-_0031_kostas-mikolas-gre.webp", "assets/cards/nextgen-25to32-_0030_kostas-mikolas-gre-verso.webp"],
+  edouardSaintVenant: ["assets/cards/nextgen-25to32-_0036_edouard-saint-venant-mon.webp", "assets/cards/nextgen-25to32-_0035_edouard-saint-venant-mon-verso.webp"],
 });
 
 const MATCH_RESULT_IMAGES = versionCardAsset({
@@ -1015,6 +1091,14 @@ const MATCH_RESULT_IMAGES = versionCardAsset({
     win: "assets/cards/TC-Sakubara-Geki-WINS.webp",
     lose: "assets/cards/TC-Sakubara-Geki-LOSE.webp",
   },
+  nellAshcombe: { win: "assets/cards/nextgen-25to32-_0002_nell-ashcombe-gb-wins.webp", lose: "assets/cards/nextgen-25to32-_0003_nell-ashcombe-gb-lose.webp" },
+  dylanWainforde: { win: "assets/cards/nextgen-25to32-_0007_dylan-wainforde-aus-wins.webp", lose: "assets/cards/nextgen-25to32-_0008_dylan-wainforde-aus-lose.webp" },
+  dynastiaAbreu: { win: "assets/cards/nextgen-25to32-_0012_dynastia-abreu-bra-wins.webp", lose: "assets/cards/nextgen-25to32-_0013_dynastia-abreu-bra-lose.webp" },
+  renataSolvera: { win: "assets/cards/nextgen-25to32-_0017_renata-solvera-mex-wins.webp", lose: "assets/cards/nextgen-25to32-_0018_renata-solvera-mex-lose.webp" },
+  viktorSerevin: { win: "assets/cards/nextgen-25to32-_0022_viktor-serevin-rtc-wins.webp", lose: "assets/cards/nextgen-25to32-_0023_viktor-serevin-rtc-lose.webp" },
+  milaWierczek: { win: "assets/cards/nextgen-25to32-_0027_mila-wierczek-pol-wins.webp", lose: "assets/cards/nextgen-25to32-_0028_mila-wierczek-pol-lose.webp" },
+  kostasMikolas: { win: "assets/cards/nextgen-25to32-_0032_kostas-mikolas-gre-wins.webp", lose: "assets/cards/nextgen-25to32-_0033_kostas-mikolas-gre-lose.webp" },
+  edouardSaintVenant: { win: "assets/cards/nextgen-25to32-_0037_edouard-saint-venant-mon-wins.webp", lose: "assets/cards/nextgen-25to32-_0038_edouard-saint-venant-mon-lose.webp" },
 });
 
 const CARD_IMAGES = versionCardAsset({
@@ -16555,24 +16639,11 @@ function tournamentBaseEntry(entry) {
 }
 
 function uniqueTournamentAiEntries(count, selection = "random", humanCharacterId = selectedCharacterId()) {
-  const selected = selectAiClubHousePlayers(Math.min(count, TOURNAMENT_CHARACTER_POOL.length), selection, humanCharacterId);
-  const coaches = COACH_OPTIONS.filter((entry) => entry !== humanCharacterId);
-  let duplicateIndex = 1;
-  while (selected.length < count) {
-    const coach = coaches[(duplicateIndex - 1) % coaches.length] || COACH_OPTIONS[0];
-    selected.push(`${coach}::duplicate:${duplicateIndex}`);
-    duplicateIndex += 1;
-  }
-  return selected;
+  return selectAiClubHousePlayers(Math.min(count, TOURNAMENT_CHARACTER_POOL.length), selection, humanCharacterId);
 }
 
-function thirtyTwoPlayerTournamentAiEntries() {
-  const rankedPlayers = rankedAiTournamentEntries(TOURNAMENT_CHARACTER_POOL).slice(0, 24);
-  const coaches = [...COACH_OPTIONS];
-  const duplicateCoaches = shuffle(COACH_OPTIONS).slice(0, 2).map((coach, index) => (
-    `${coach}::duplicate:${index + 1}`
-  ));
-  return [...rankedPlayers, ...coaches, ...duplicateCoaches];
+function thirtyTwoPlayerTournamentAiEntries(selection = "random", humanCharacterId = null) {
+  return uniqueTournamentAiEntries(31, selection, humanCharacterId);
 }
 
 function seededTournamentSlotMap(size, seedCount) {
@@ -16585,7 +16656,7 @@ function seededTournamentSlotMap(size, seedCount) {
 function buildAiClubHouseClassicSetup(options = {}) {
   const size = [8, 16, 32].includes(Number(options.tournamentSize)) ? Number(options.tournamentSize) : 16;
   const selectedAi = size === 32
-    ? thirtyTwoPlayerTournamentAiEntries()
+    ? thirtyTwoPlayerTournamentAiEntries(options.playerSelection, options.humanCharacterId)
     : uniqueTournamentAiEntries(size - 1, options.playerSelection, options.humanCharacterId);
   const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
   const positions = Array(size + 1).fill(null);
