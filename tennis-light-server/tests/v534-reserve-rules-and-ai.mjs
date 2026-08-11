@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.4<\/span>/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.5<\/span>/);
 assert.match(app, /function restoreUltimateCardPrintedState\(card\)/);
 assert.match(app, /window\.ULTIMATE_CARD_DATA[\s\S]*shotNumber - 1/);
 assert.match(app, /player\.reserve\.push\(reserveCard\)/);

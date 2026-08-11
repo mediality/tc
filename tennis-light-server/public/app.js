@@ -16532,6 +16532,15 @@ function uniqueTournamentAiEntries(count, selection = "random", humanCharacterId
   return selected;
 }
 
+function thirtyTwoPlayerTournamentAiEntries() {
+  const rankedPlayers = rankedAiTournamentEntries(TOURNAMENT_CHARACTER_POOL).slice(0, 24);
+  const coaches = [...COACH_OPTIONS];
+  const duplicateCoaches = shuffle(COACH_OPTIONS).slice(0, 2).map((coach, index) => (
+    `${coach}::duplicate:${index + 1}`
+  ));
+  return [...rankedPlayers, ...coaches, ...duplicateCoaches];
+}
+
 function seededTournamentSlotMap(size, seedCount) {
   if (size === 8 && seedCount === 4) return { 1: 1, 4: 4, 3: 5, 2: 8 };
   const factor = size / 32;
@@ -16541,7 +16550,9 @@ function seededTournamentSlotMap(size, seedCount) {
 
 function buildAiClubHouseClassicSetup(options = {}) {
   const size = [8, 16, 32].includes(Number(options.tournamentSize)) ? Number(options.tournamentSize) : 16;
-  const selectedAi = uniqueTournamentAiEntries(size - 1, options.playerSelection, options.humanCharacterId);
+  const selectedAi = size === 32
+    ? thirtyTwoPlayerTournamentAiEntries()
+    : uniqueTournamentAiEntries(size - 1, options.playerSelection, options.humanCharacterId);
   const roster = [HUMAN_TOURNAMENT_ENTRY, ...selectedAi];
   const positions = Array(size + 1).fill(null);
   const rankedRoster = sortTournamentEntriesByWorldRank(roster);

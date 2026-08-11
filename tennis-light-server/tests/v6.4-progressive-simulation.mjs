@@ -19,8 +19,8 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(packageJson.version, "6.4.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.4<\/span>/);
+assert.equal(packageJson.version, "6.5.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.5<\/span>/);
 assert.match(app, /Math\.max\(\.18, Math\.min\(\.82,/);
 assert.match(app, /hands\[0\] \* 0\.75/);
 assert.match(app, /progress\.momentum\[winner\] = Math\.min\(1, progress\.momentum\[winner\] \+ 0\.2\)/);
