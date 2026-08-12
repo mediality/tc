@@ -24,13 +24,13 @@ assert.doesNotMatch(poolBlock, /COACH_OPTIONS/);
 assert.doesNotMatch(app.match(/function uniqueTournamentAiEntries[\s\S]*?\n}/)?.[0] || "", /COACH_OPTIONS|::duplicate:/);
 assert.doesNotMatch(app.match(/function thirtyTwoPlayerTournamentAiEntries[\s\S]*?\n}/)?.[0] || "", /COACH_OPTIONS|::duplicate:/);
 assert.match(server, /ALL_PROFILE_CHARACTER_IDS[^\n]+NEXT_GEN_CHARACTER_IDS/);
-assert.doesNotMatch(server.match(/const CIRCUIT_AI_CHARACTER_IDS =[^;]+;/)?.[0] || "", /NEXT_GEN/);
+assert.match(server.match(/const CIRCUIT_AI_CHARACTER_IDS =[^;]+;/)?.[0] || "", /NEXT_GEN/);
 
 const pointsBlock = server.match(/const NEXT_GEN_CIRCUIT_POINTS = \{([\s\S]*?)\n};/)?.[1] || "";
 const points = [...pointsBlock.matchAll(/:\s*(\d+)/g)].map((match) => Number(match[1]));
 assert.equal(points.length, 8);
 assert.ok(points.every((point) => point >= 1 && point <= 100));
-assert.match(server, /ranking_only: true/);
+assert.doesNotMatch(server, /ranking_only: true/);
 
 const cardDir = path.join(root, "public/assets/cards");
 const nextGenAssets = fs.readdirSync(cardDir).filter((name) => name.startsWith("nextgen-25to32-") && name.endsWith(".webp"));

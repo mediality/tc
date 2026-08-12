@@ -14944,6 +14944,16 @@ h1 {
 .local-match-resume-actions { display: flex; flex: 0 0 auto; gap: 9px; }
 .local-match-resume-actions .small-button { color: #fff; background: rgba(255, 255, 255, .1); }
 
+.admin-ai-report-summary { display: grid; gap: 6px; margin: 12px 0; color: #274154; font-size: .82rem; }
+.admin-ai-report-summary p { margin: 0; }
+.admin-ai-report-table { overflow-x: auto; border: 1px solid #d7e0e5; border-radius: 14px; background: #fff; }
+.admin-ai-report-row { display: grid; grid-template-columns: 38px minmax(145px, 1.5fr) 54px repeat(8, minmax(82px, 1fr)); min-width: 1050px; border-bottom: 1px solid #e5ebee; }
+.admin-ai-report-row:last-child { border-bottom: 0; }
+.admin-ai-report-row > span, .admin-ai-report-row > strong { padding: 9px 8px; text-align: right; font-size: .72rem; }
+.admin-ai-report-row > span:nth-child(2) { text-align: left; font-weight: 800; }
+.admin-ai-report-head { position: sticky; top: 0; z-index: 2; color: #fff; background: #16374a; }
+.admin-ai-report-head > span { font-weight: 900; }
+
 @media (max-width: 700px) {
   .local-match-resume-prompt { align-items: stretch; flex-direction: column; padding: 16px; }
   .local-match-resume-actions { display: grid; grid-template-columns: 1fr; }
