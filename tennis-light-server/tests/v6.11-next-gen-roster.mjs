@@ -12,7 +12,7 @@ const ids = [
   "viktorSerevin", "milaWierczek", "kostasMikolas", "edouardSaintVenant",
 ];
 
-assert.equal(packageJson.version, "6.11.0");
+assert.equal(packageJson.version, "6.13.0");
 for (const id of ids) {
   assert.match(app, new RegExp(`\\b${id}\\b`), `${id} must be integrated in the client`);
   assert.match(server, new RegExp(`\\b${id}\\b`), `${id} must be integrated in the server`);

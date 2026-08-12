@@ -18,8 +18,8 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(packageJson.version, "6.11.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
+assert.equal(packageJson.version, "6.13.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.13<\/span>/);
 
 const league = functionSource(app, "startLeagueTournamentMode");
 const championship = functionSource(app, "startChampionshipMode");

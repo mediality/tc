@@ -5,9 +5,9 @@ const mobile = readFileSync(new URL("../public/mobile-game.js", import.meta.url)
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
-assert.equal(packageJson.version, "6.11.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
-assert.match(html, /app\.js\?v=6\.11\.0/);
+assert.equal(packageJson.version, "6.13.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.13<\/span>/);
+assert.match(html, /app\.js\?v=6\.13\.0/);
 assert.match(mobile, /function shouldUseVirtualDesktopViewport\(\)/);
 assert.match(mobile, /window\.screen\?\.width/);
 assert.match(mobile, /screenWidth <= MOBILE_MAX_WIDTH && hasTouchCapability\(\) && hasMobilePlatformSignal\(\)/);

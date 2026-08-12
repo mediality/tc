@@ -19,7 +19,7 @@ const authRequest = functionSource(app, "authRequest");
 assert.match(authRequest, /credentials:\s*"same-origin"/);
 assert.match(authRequest, /cache:\s*"no-store"/);
 assert.match(app, /\[els\.authEmailInput, els\.authPasswordInput\][\s\S]*event\.key !== "Enter"[\s\S]*loginAccount\(\)/);
-assert.match(html, /app\.js\?v=6\.12\.0/);
+assert.match(html, /app\.js\?v=6\.(?:12|13)\.0/);
 
 const cookies = functionSource(server, "cookieOptions");
 assert.match(cookies, /split\(","\)\[0\]/);

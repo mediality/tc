@@ -2,7 +2,7 @@ const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const ULTIMATE_STARTING_ENERGY = 3;
 const ULTIMATE_DECK_SIZE = 48;
-const GAME_VERSION = "v3.86";
+const GAME_VERSION = "v6.13";
 const CARD_ASSET_VERSION = "170";
 
 const ULTIMATE_MODE = {
@@ -6292,6 +6292,7 @@ function randomAiCharacterId() {
 
 async function startSoloFromMenu(mode) {
   resetTutorialMode();
+  deactivateUltimateMode();
   const isCompetitionMode = mode.startsWith("tournament") || mode.startsWith("league");
   if (isCompetitionMode && !canAccessProFeatures()) {
     renderAuthState("Réservé aux joueurs Pro.");
@@ -9688,6 +9689,23 @@ function startUltimateGame() {
   els.ultimatePostExchangeDialog?.classList.add("hidden");
   showGameScreen();
   els.ultimatePlayerDialog?.classList.remove("hidden");
+}
+
+function deactivateUltimateMode() {
+  ULTIMATE_MODE.active = false;
+  ULTIMATE_MODE.postExchange = null;
+  ULTIMATE_MODE.markChoice = null;
+  ULTIMATE_MODE.draftChoices = [];
+  ULTIMATE_MODE.draftSelected = new Set();
+  window.clearTimeout(ULTIMATE_MODE.turnSafetyTimer);
+  window.clearTimeout(ULTIMATE_MODE.turnRecoveryTimer);
+  window.clearTimeout(ULTIMATE_MODE.dialogResumeTimer);
+  els.ultimatePlayerDialog?.classList.add("hidden");
+  els.ultimateDraftDialog?.classList.add("hidden");
+  els.ultimateRulesDialog?.classList.add("hidden");
+  els.ultimatePostExchangeDialog?.classList.add("hidden");
+  state.ultimateDecks = [[], []];
+  state.ultimateDiscards = [[], []];
 }
 
 function detachUltimateFromOnlineSession() {

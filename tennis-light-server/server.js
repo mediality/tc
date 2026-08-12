@@ -4249,9 +4249,13 @@ function serveStatic(req, res) {
       return;
     }
     const type = MIME_TYPES[path.extname(filePath)] || "application/octet-stream";
+    const mustRevalidate = type.includes("text/html")
+      || type.includes("javascript")
+      || type.includes("text/css");
     res.writeHead(200, {
       "content-type": type,
-      "cache-control": type.includes("text/html") ? "no-store" : "public, max-age=3600",
+      "cache-control": mustRevalidate ? "no-store, no-cache, must-revalidate" : "public, max-age=3600",
+      ...(mustRevalidate ? { pragma: "no-cache", expires: "0" } : {}),
     });
     res.end(data);
   });

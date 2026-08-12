@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 const mobile = readFileSync(new URL("../public/mobile-game.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-assert.match(html, /Tennis Courts Academy · <span>V6\.11<\/span>/);
-assert.match(html, /styles\.css\?v=6\.11\.0/);
-assert.match(html, /mobile-game\.js\?v=6\.11\.0/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.13<\/span>/);
+assert.match(html, /styles\.css\?v=6\.13\.0/);
+assert.match(html, /mobile-game\.js\?v=6\.13\.0/);
 
 assert.match(
   mobile,
