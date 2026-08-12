@@ -4832,6 +4832,7 @@ async function resumeWeeklyCompetition(competitionId) {
       renderCompetitions();
       return;
     }
+    deactivateUltimateMode();
     resetTutorialMode();
     showGameScreen();
     applySurfaceBackground(state.tournament?.competitionSurface);
@@ -4843,6 +4844,7 @@ async function resumeWeeklyCompetition(competitionId) {
 
 async function startWeeklyCompetition(competitionId) {
   resetTutorialMode();
+  deactivateUltimateMode();
   if (!canAccessProFeatures()) {
     renderAuthState("Le Tennis Courts Pro Circuit est réservé aux joueurs Pro.");
     return;
@@ -15754,6 +15756,7 @@ function onePointTournamentServer() {
 }
 
 function startLeagueTournamentMode(targetSets = 2, options = {}) {
+  deactivateUltimateMode();
   targetSets = Number(targetSets) === 3 ? 3 : 2;
   if (SERVER_SYNC.enabled) {
     state.log.unshift("LEAGUE est disponible hors partie en ligne.");
@@ -16762,6 +16765,7 @@ function startOnePointTournamentMode(options = {}) {
 }
 
 function startTournamentMode(targetSets = 2, options = {}) {
+  deactivateUltimateMode();
   if (SERVER_SYNC.enabled) {
     state.log.unshift("Le tournoi IA est disponible hors partie en ligne.");
     render();

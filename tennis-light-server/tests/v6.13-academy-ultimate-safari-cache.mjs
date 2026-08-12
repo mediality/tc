@@ -24,6 +24,12 @@ assert.match(html, /ultimate-card-data\.js\?v=5\.35\.0/);
 
 const academyLaunch = functionSource(app, "startSoloFromMenu");
 assert.match(academyLaunch, /deactivateUltimateMode\(\)/);
+const circuitLaunch = functionSource(app, "startWeeklyCompetition");
+assert.match(circuitLaunch, /deactivateUltimateMode\(\)/);
+const circuitResume = functionSource(app, "resumeWeeklyCompetition");
+assert.match(circuitResume, /restoreStateSnapshot\(saved\)[\s\S]*deactivateUltimateMode\(\)/);
+assert.match(functionSource(app, "startTournamentMode"), /deactivateUltimateMode\(\)/);
+assert.match(functionSource(app, "startLeagueTournamentMode"), /deactivateUltimateMode\(\)/);
 const deactivateUltimate = functionSource(app, "deactivateUltimateMode");
 assert.match(deactivateUltimate, /ULTIMATE_MODE\.active = false/);
 assert.match(deactivateUltimate, /state\.ultimateDecks = \[\[\], \[\]\]/);
