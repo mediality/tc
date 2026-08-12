@@ -1576,8 +1576,11 @@ function unpackSessionCookie(value) {
 }
 
 function cookieOptions(req, maxAgeMs = SESSION_TTL_MS) {
-  const proto = req.headers["x-forwarded-proto"] || "";
-  const secure = proto === "https" || process.env.NODE_ENV === "production";
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+  const secure = forwardedProto === "https" || Boolean(req.socket?.encrypted);
   return [
     "Path=/",
     "HttpOnly",

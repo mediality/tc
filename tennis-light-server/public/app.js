@@ -2828,6 +2828,8 @@ function renderAuthState(message = "") {
 
 async function authRequest(path, payload = null, requestOptions = {}) {
   const options = {
+    credentials: "same-origin",
+    cache: "no-store",
     ...requestOptions,
     headers: {
       ...(requestOptions.headers || {}),
@@ -17334,6 +17336,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     active: true,
     visible: false,
     bracket16: true,
+    progressiveLiveScores: true,
     difficulty: "circuit",
     aiIntelligenceLevels,
     weekly: true,
@@ -22787,6 +22790,11 @@ function initMenu() {
   els.backFromNewsArchiveButton?.addEventListener("click", showMenuScreen);
   els.loginButton?.addEventListener("click", loginAccount);
   els.registerButton?.addEventListener("click", registerAccount);
+  [els.authEmailInput, els.authPasswordInput].forEach((input) => input?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    loginAccount();
+  }));
   els.forgotPasswordButton?.addEventListener("click", requestPasswordReset);
   els.confirmResetPasswordButton?.addEventListener("click", confirmPasswordReset);
   els.backToLoginFromResetButton?.addEventListener("click", () => {
