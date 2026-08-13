@@ -4602,6 +4602,7 @@ function sanitizeFriendlySpectatorState(remoteState) {
 
 function publicFriendlyTournamentInfo(req, tournament, participant = null, spectator = null) {
   recordFriendlyOnePointResults(tournament);
+  advanceFriendlyAiLiveScores(tournament);
   const activeParticipants = activeFriendlyParticipants(tournament);
   const canWatchMatches = friendlyTournamentVisibility(tournament) === "public" || Boolean(participant?.selected);
   const masterControl = tournament.format === "onepointmaster" ? friendlyMasterControl(tournament) : null;
@@ -5152,9 +5153,53 @@ function simulateFriendlyAiOnlyMatches(tournament) {
       Number(tournament.targetSets || 2),
     ));
     match.revealedSetScores = [];
+    match.liveAiScore = [0, 0];
+    match.liveAiSetIndex = 0;
+    match.liveAiUpdatedAt = 0;
     match.winner = null;
     match.score = null;
   }
+}
+
+function advanceFriendlyAiLiveScores(tournament, now = Date.now()) {
+  if (!tournament || tournament.status !== "playing" || friendlyOnePointFormat(tournament)) return false;
+  let changed = false;
+  for (const match of tournament.matches || []) {
+    if (match.round !== tournament.round || match.winner || !friendlyAiOnlyMatch(match) || !match.hiddenSetScores?.length) continue;
+    if (now - Number(match.liveAiUpdatedAt || 0) < 1100) continue;
+    const setIndex = Math.max(0, Number(match.liveAiSetIndex || 0));
+    const target = match.hiddenSetScores[setIndex];
+    if (!target) continue;
+    const current = Array.isArray(match.liveAiScore) ? [...match.liveAiScore] : [0, 0];
+    const remaining = [Math.max(0, target[0] - current[0]), Math.max(0, target[1] - current[1])];
+    if (remaining[0] || remaining[1]) {
+      const total = remaining[0] + remaining[1];
+      const scorer = !remaining[1] ? 0 : !remaining[0] ? 1 : Math.random() < remaining[0] / total ? 0 : 1;
+      current[scorer] += 1;
+    }
+    match.liveAiUpdatedAt = now;
+    match.liveUpdatedAt = now;
+    match.liveAiScore = current;
+    const completed = (match.revealedSetScores || []).map((score) => [...score]);
+    if (current[0] >= target[0] && current[1] >= target[1]) {
+      completed.push([...target]);
+      match.revealedSetScores = completed;
+      match.liveAiSetIndex = setIndex + 1;
+      match.liveAiScore = [0, 0];
+      if (match.liveAiSetIndex >= match.hiddenSetScores.length) {
+        match.winner = match.hiddenWinner;
+        match.score = friendlySetScoresText(completed);
+        match.liveScore = match.score;
+      } else {
+        match.liveScore = `${friendlySetScoresText(completed)} · 0/0 · EN DIRECT`;
+      }
+    } else {
+      match.liveScore = `${completed.length ? `${friendlySetScoresText(completed)} · ` : ""}${current[0]}/${current[1]} · EN DIRECT`;
+    }
+    changed = true;
+  }
+  if (changed) tournament.updatedAt = now;
+  return changed;
 }
 
 function friendlyAiOnlyMatch(match) {
@@ -5206,7 +5251,6 @@ function noteFriendlyHumanSetProgress(tournament, match, remoteState = null, com
   const previousSets = Number(match.humanSetsObserved || 0);
   if (completedSets <= previousSets) return false;
   match.humanSetsObserved = completedSets;
-  for (let index = previousSets; index < completedSets; index += 1) revealNextFriendlyAiSet(tournament, match.round);
   tournament.updatedAt = Date.now();
   return true;
 }
