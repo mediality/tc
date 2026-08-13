@@ -2,7 +2,7 @@ const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const ULTIMATE_STARTING_ENERGY = 3;
 const ULTIMATE_DECK_SIZE = 48;
-const GAME_VERSION = "v6.14";
+const GAME_VERSION = "v6.15";
 const CARD_ASSET_VERSION = "170";
 
 const ULTIMATE_MODE = {
@@ -806,7 +806,7 @@ const CHARACTERS = {
   renataSolvera: {
     name: "Renata Solvera",
     effects: [
-      { side: "Bleu", label: "Vos 3 prochains Coups gagnent 1 puissance", type: "nextShotsPowerBonus", value: 1, count: 3 },
+      { side: "Bleu", label: "Après votre première étoile, tous vos Coups gagnent 1 puissance jusqu’à la fin de l’échange", type: "exchangeAllShotsPowerBonus", value: 1 },
       { side: "Rose", label: "Récupérez 1 endurance et 1 carte déjà jouée de votre côté", type: "gainEnduranceAndRecoverPlayed", endurance: 1 },
     ],
   },
@@ -8201,6 +8201,16 @@ function createPlayer(name, characterId, nickname = name) {
     exchangePlacementSources: [],
     exchangeShotDiscount: 0,
     exchangeShotDiscountSourceUid: null,
+    exchangeHighPowerDiscount: 0,
+    exchangeHighPowerDiscountPowers: [],
+    exchangeHighPowerDiscountSourceUid: null,
+    exchangeHighPowerEndurance: 0,
+    exchangeHighPowerEndurancePowers: [],
+    exchangeHighPowerEnduranceSourceUid: null,
+    exchangeAllShotsPowerBonus: 0,
+    exchangeAllShotsPowerBonusSourceUid: null,
+    exchangePlacementPenalty: 0,
+    exchangePlacementPenaltySourceUid: null,
     exchangeFamilyPowerBonuses: [],
     exchangeAfterFamilyPlacementBonuses: [],
     placementPerOpponentLowPowerCardBonuses: [],
@@ -10287,9 +10297,10 @@ function playerHasSurfaceBonus(player, bonusId) {
 function effectiveCost(player, card, boosted = false) {
   const remiseDiscount = isRemise(card) && playerHasSurfaceBonus(player, "grassCheapRemise") ? 1 : 0;
   if (ULTIMATE_MODE.active && !isRemise(card) && player.ultimateNextCostOne) return Math.max(1, 1 + (boosted && player.ultimateBoostExtraCost ? 1 : 0));
+  const highPowerDiscount = !isRemise(card) && (player.exchangeHighPowerDiscountPowers ?? []).includes(Number(boosted ? card.boostPower : card.power)) ? Number(player.exchangeHighPowerDiscount || 0) : 0;
   return isRemise(card)
     ? Math.max(0, card.cost - remiseDiscount)
-    : Math.max(0, card.cost - player.nextDiscount - (player.exchangeShotDiscount ?? 0) + (player.nextExtraCost ?? 0) + (boosted && player.ultimateBoostExtraCost ? 1 : 0));
+    : Math.max(0, card.cost - player.nextDiscount - (player.exchangeShotDiscount ?? 0) - highPowerDiscount + (player.nextExtraCost ?? 0) + (boosted && player.ultimateBoostExtraCost ? 1 : 0));
 }
 
 function addNextPrecisionBonus(player, value, sourceUid = null) {
@@ -10373,7 +10384,7 @@ function getCardStats(player, card, boosted) {
   }
   precision += permanentPrecisionBonus;
   const basePlacement = !isRemise(card) && player.nextShotBasePlacementZero ? 0 : card.placement;
-  let placement = basePlacement + (player.exchangePlacementBonus ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus;
+  let placement = Math.max(0, basePlacement + (player.exchangePlacementBonus ?? 0) - (player.exchangePlacementPenalty ?? 0) + player.nextPlacementBonus * shotBonus + (player.nextAnyPlacementBonus ?? 0) + permanentPlacementBonus);
   let surfacePowerBonus = 0;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "grassPowerVolleySmash") && ["Volée", "Smash"].includes(card.family)) surfacePowerBonus += 2;
   if (!isRemise(card) && playerHasSurfaceBonus(player, "hardPrecisePower") && precision > 3) surfacePowerBonus += 1;
@@ -10396,7 +10407,8 @@ function getCardStats(player, card, boosted) {
   const multiShotPowerBonus = !isRemise(card) && Number(player.nextShotsPowerBonusRemaining || 0) > 0
     ? Number(player.nextShotsPowerBonus || 0)
     : 0;
-  let power = (basePower + permanentPowerBonus + surfacePowerBonus + characterPowerBonus + multiShotPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
+  const exchangeAllShotsPowerBonus = !isRemise(card) ? Number(player.exchangeAllShotsPowerBonus || 0) : 0;
+  let power = (basePower + permanentPowerBonus + surfacePowerBonus + characterPowerBonus + multiShotPowerBonus + exchangeAllShotsPowerBonus) * (isRemise(card) ? 1 : (player.nextPowerMultiplier ?? 1));
   if (!isRemise(card) && player.ultimatePowerCapThree) power = Math.min(power, 3);
   if (!isRemise(card) && player.nextPowerCap != null) power = Math.min(power, Number(player.nextPowerCap));
   return {
@@ -13840,7 +13852,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   }
   const countsPlacement = !isRemise(card) || remiseMode === "placement";
   const appliesEffect = !isRemise(card) || remiseMode === "effect";
-  const cost = effectiveCost(player, card);
+  const cost = effectiveCost(player, card, boosted);
   const rawStats = getCardStats(player, card, boosted);
   const stats = {
     ...rawStats,
@@ -13938,6 +13950,10 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
   state.turnPlayedCards[playerIndex].push(playedCard);
   state.latestPlayedCard = { ...playedCard };
   player.power += stats.power;
+  if (endsTurn && player.exchangeHighPowerEndurance > 0 && (player.exchangeHighPowerEndurancePowers ?? []).includes(Number(stats.power))) {
+    player.endurance += player.exchangeHighPowerEndurance;
+    state.log.unshift(`${displayPlayerName(player)} récupère ${player.exchangeHighPowerEndurance} endurance grâce à Mikolas.`);
+  }
   if (ULTIMATE_MODE.active && consumesContiStarPower) {
     const energyBefore = player.energy;
     player.energy = Math.min(ULTIMATE_STARTING_ENERGY, player.energy + 1);
@@ -15079,6 +15095,37 @@ function applyCharacterEffect(playerIndex, playedCard) {
     addNextDiscount(player, value, effectSourceUid);
     state.log.unshift(`${character.name} (${effect.side}) : le prochain coup de ${displayPlayerName(player)} coûte ${value} endurance en moins.`);
     setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
+    return false;
+  }
+
+  if (effect.type === "exchangeAllShotsPowerBonus") {
+    player.exchangeAllShotsPowerBonus += Number(effect.value ?? 1);
+    player.exchangeAllShotsPowerBonusSourceUid = effectSourceUid;
+    return false;
+  }
+  if (effect.type === "opponentExchangePlacementPenalty") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    opponent.exchangePlacementPenalty += Number(effect.value ?? 2);
+    opponent.exchangePlacementPenaltySourceUid = effectSourceUid;
+    return false;
+  }
+  if (effect.type === "suppressOpponentBonuses") {
+    const opponent = state.players[opponentOf(playerIndex)];
+    const positive = (b) => ["power","precision","placement","endurance","value"].some((k) => Number(b?.[k] || 0) > 0);
+    opponent.permanentBonuses = (opponent.permanentBonuses ?? []).filter((b) => !positive(b));
+    opponent.temporaryBonuses = (opponent.temporaryBonuses ?? []).filter((b) => !positive(b));
+    return false;
+  }
+  if (effect.type === "exchangeHighPowerDiscount") {
+    player.exchangeHighPowerDiscount += Number(effect.value ?? 1);
+    player.exchangeHighPowerDiscountPowers = [...new Set([...(player.exchangeHighPowerDiscountPowers ?? []), ...(effect.powers ?? [4,5]).map(Number)])];
+    player.exchangeHighPowerDiscountSourceUid = effectSourceUid;
+    return false;
+  }
+  if (effect.type === "exchangeHighPowerEndurance") {
+    player.exchangeHighPowerEndurance += Number(effect.value ?? 1);
+    player.exchangeHighPowerEndurancePowers = [...new Set([...(player.exchangeHighPowerEndurancePowers ?? []), ...(effect.powers ?? [4,5]).map(Number)])];
+    player.exchangeHighPowerEnduranceSourceUid = effectSourceUid;
     return false;
   }
 
