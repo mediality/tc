@@ -2137,6 +2137,7 @@ const state = {
   pendingEffectChoice: null,
   pendingCoachChoice: null,
   pendingRemoveChoice: null,
+  pendingRecoverPlayedChoice: null,
   pendingEndTurnAfterChoice: null,
   effectNotice: null,
   resultInfo: null,
@@ -5622,6 +5623,7 @@ function resetTutorialExchange(players, hands, server = 0, activePlayer = server
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
   state.pendingRemoveChoice = null;
+  state.pendingRecoverPlayedChoice = null;
   state.pendingEndTurnAfterChoice = null;
   state.effectNotice = null;
   state.resultInfo = null;
@@ -9628,6 +9630,7 @@ function startNextUltimateExchange(completedExchangeNumber = Number(state.setMat
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
   state.pendingRemoveChoice = null;
+  state.pendingRecoverPlayedChoice = null;
   state.pendingEndTurnAfterChoice = null;
   state.effectNotice = null;
   state.resultInfo = null;
@@ -9901,6 +9904,7 @@ function newGame(options = {}) {
   state.pendingEffectChoice = null;
   state.pendingCoachChoice = null;
   state.pendingRemoveChoice = null;
+  state.pendingRecoverPlayedChoice = null;
   state.pendingEndTurnAfterChoice = null;
   state.effectNotice = null;
   state.resultInfo = null;
@@ -9989,6 +9993,7 @@ const SNAPSHOT_KEYS = [
   "pendingEffectChoice",
   "pendingCoachChoice",
   "pendingRemoveChoice",
+  "pendingRecoverPlayedChoice",
   "pendingEndTurnAfterChoice",
   "effectNotice",
   "resultInfo",
@@ -11665,6 +11670,12 @@ function resolveSoloPendingChoice(forceClose = false) {
     } else if (forceClose) {
       closeImpossibleEffectChoice(playerIndex);
     }
+    return true;
+  }
+  if (state.pendingRecoverPlayedChoice?.playerIndex === playerIndex) {
+    const choice = state.players[playerIndex].played.find((card) => card.playedUid !== state.pendingRecoverPlayedChoice.sourcePlayedUid && !card.removed);
+    if (choice) resolveRecoverPlayedChoice(choice.playedUid);
+    else if (forceClose) closeImpossibleRecoverPlayedChoice(playerIndex);
     return true;
   }
   if (state.pendingRemoveChoice?.playerIndex === playerIndex) {
@@ -14047,7 +14058,7 @@ function playCard(playerIndex, cardUid, boosted = false, sacrificeUid = null, re
 
   if (state.gameOver) return;
 
-  if (state.pendingEffectChoice || state.pendingRemoveChoice) {
+  if (state.pendingEffectChoice || state.pendingRemoveChoice || state.pendingRecoverPlayedChoice) {
     render();
     return;
   }
@@ -14585,6 +14596,43 @@ function removalTargetScore(card) {
 function bestRemovalTargetFor(playerIndex) {
   return removableOpponentCards(opponentOf(playerIndex), Boolean(state.pendingRemoveChoice?.shotsOnly))
     .sort((a, b) => removalTargetScore(b) - removalTargetScore(a))[0] ?? null;
+}
+
+function clearPersistentEffectsFromRecoveredCard(card) {
+  for (const player of state.players) {
+    const uid = card.playedUid;
+    removeSourcedNextBonus(player, "exchangePrecisionBonus", "exchangePrecisionSources", uid);
+    removeSourcedNextBonus(player, "exchangePlacementBonus", "exchangePlacementSources", uid);
+    player.exchangeFamilyPowerBonuses = (player.exchangeFamilyPowerBonuses ?? []).filter((b) => b.sourceUid !== uid);
+    player.exchangeAfterFamilyPlacementBonuses = (player.exchangeAfterFamilyPlacementBonuses ?? []).filter((b) => b.sourceUid !== uid);
+    player.placementPerOpponentLowPowerCardBonuses = (player.placementPerOpponentLowPowerCardBonuses ?? []).filter((b) => b.sourceUid !== uid);
+    player.endBonuses = (player.endBonuses ?? []).filter((b) => b.sourceUid !== uid);
+  }
+}
+function resolveRecoverPlayedChoice(targetPlayedUid) {
+  if (!state.pendingRecoverPlayedChoice) return;
+  const { playerIndex, sourcePlayedUid } = state.pendingRecoverPlayedChoice;
+  if (!canUseSeat(playerIndex)) return;
+  markLocalServerDirty(playerIndex);
+  const player = state.players[playerIndex];
+  const source = player.played.find((card) => card.playedUid === sourcePlayedUid);
+  const target = player.played.find((card) => card.playedUid === targetPlayedUid && card.playedUid !== sourcePlayedUid && !card.removed);
+  state.pendingRecoverPlayedChoice = null;
+  if (!source || !target) return render();
+  player.played = player.played.filter((card) => card.playedUid !== target.playedUid);
+  state.turnPlayedCards[playerIndex] = (state.turnPlayedCards[playerIndex] || []).filter((card) => card.playedUid !== target.playedUid);
+  clearPersistentEffectsFromRecoveredCard(target);
+  player.hand.push({ ...target, uid: `${target.id}-recovered-${crypto.randomUUID()}`, playedUid: undefined, desktopPlayOrder: undefined, removed: false, turnCompleted: false, sacrificedCard: null });
+  state.log.unshift(`${target.name} revient en main. Sa puissance et ses effets déjà résolus restent acquis.`);
+  completePlayedCardResolution(playerIndex, opponentOf(playerIndex), source, source, source.isServiceTurn, false, source.boosted, "effect", Boolean(source.answeredBoostConstraint));
+}
+function closeImpossibleRecoverPlayedChoice(playerIndex) {
+  if (!state.pendingRecoverPlayedChoice) return;
+  const uid = state.pendingRecoverPlayedChoice.sourcePlayedUid;
+  const source = state.players[playerIndex].played.find((card) => card.playedUid === uid);
+  state.pendingRecoverPlayedChoice = null;
+  if (source) completePlayedCardResolution(playerIndex, opponentOf(playerIndex), source, source, source.isServiceTurn, false, source.boosted, "effect", Boolean(source.answeredBoostConstraint));
+  else render();
 }
 
 function resolveRemoveChoice(targetPlayedUid) {
@@ -15143,18 +15191,14 @@ function applyCharacterEffect(playerIndex, playedCard) {
   if (effect.type === "gainEnduranceAndRecoverPlayed") {
     const endurance = Number(effect.endurance ?? 1);
     player.endurance += endurance;
-    const target = [...player.played].reverse().find((card) => card.playedUid !== playedCard.playedUid && !card.removed);
-    if (target) {
-      player.played = player.played.filter((card) => card.playedUid !== target.playedUid);
-      state.turnPlayedCards[playerIndex] = (state.turnPlayedCards[playerIndex] || []).filter((card) => card.playedUid !== target.playedUid);
-      player.power = Math.max(0, player.power - Number(target.cardPowerGained || target.powerGained || 0) - Number(target.effectPowerGained || 0));
-      player.hand.push({ ...target, uid: `${target.id}-recovered-${crypto.randomUUID()}`, playedUid: undefined, desktopPlayOrder: undefined, removed: false, turnCompleted: false });
-      state.log.unshift(`${character.name} (${effect.side}) : +${endurance} endurance et ${target.name} revient dans la main.`);
-    } else {
-      state.log.unshift(`${character.name} (${effect.side}) : +${endurance} endurance, mais aucune carte déjà jouée ne peut être récupérée.`);
+    const choices = player.played.filter((card) => card.playedUid !== playedCard.playedUid && !card.removed);
+    if (!choices.length) {
+      state.log.unshift(`${character.name} : +${endurance} endurance, mais aucune carte ne peut être récupérée.`);
+      return false;
     }
-    setEffectNotice("coach", { name: character.name }, `${effect.label}.`);
-    return false;
+    state.pendingRecoverPlayedChoice = { playerIndex, sourcePlayedUid: playedCard.playedUid };
+    state.log.unshift(`${character.name} : +${endurance} endurance. Choisissez une carte déjà jouée à remettre en main.`);
+    return true;
   }
 
   if (effect.type === "nextBoostAnyShot") {
@@ -19155,6 +19199,7 @@ function render() {
   runRenderStep("BOOST", renderBoostModal);
   runRenderStep("choix d’effet", renderEffectChoiceModal);
   runRenderStep("choix personnage", renderCoachChoiceModal);
+  runRenderStep("récupération Solvera", renderRecoverPlayedChoiceModal);
   runRenderStep("choix de suppression", renderRemoveChoiceModal);
   runRenderStep("salle d’attente", renderWaitingRoomModal);
   runRenderStep("zoom cartes", () => attachImageZoomHandlers(els.gameApp || document));
@@ -22706,6 +22751,19 @@ function renderCoachChoiceModal() {
   });
 }
 
+function renderRecoverPlayedChoiceModal() {
+  document.querySelector(".recover-played-choice-backdrop")?.remove();
+  if (!state.pendingRecoverPlayedChoice) return;
+  const { playerIndex, sourcePlayedUid } = state.pendingRecoverPlayedChoice;
+  if (SERVER_SYNC.enabled && playerIndex !== SERVER_SYNC.seat) return;
+  if (SOLO_AI.enabled && playerIndex === SOLO_AI.playerIndex) return;
+  const choices = state.players[playerIndex].played.filter((card) => card.playedUid !== sourcePlayedUid && !card.removed);
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop recover-played-choice-backdrop";
+  backdrop.innerHTML = `<section class="modal" role="dialog" aria-modal="true"><h2>Remettre une carte en main</h2><p>Choisis une carte déjà jouée. Sa puissance et ses effets résolus restent acquis.</p><div class="choice-grid">${choices.map((choice) => `<button class="choice-card" type="button" data-recover-played-choice="${choice.playedUid}">${renderChoiceCardVisual(choice)}</button>`).join("")}</div></section>`;
+  document.body.append(backdrop);
+  backdrop.querySelectorAll("[data-recover-played-choice]").forEach((button) => button.addEventListener("click", () => resolveRecoverPlayedChoice(button.dataset.recoverPlayedChoice)));
+}
 function renderRemoveChoiceModal() {
   document.querySelector(".remove-choice-backdrop")?.remove();
   if (!state.pendingRemoveChoice) return;
