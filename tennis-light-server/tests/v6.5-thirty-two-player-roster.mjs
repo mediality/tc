@@ -18,8 +18,8 @@ function functionSource(source, name) {
   throw new Error(`fonction incomplète: ${name}`);
 }
 
-assert.equal(packageJson.version, "6.13.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.13<\/span>/);
+assert.equal(packageJson.version, "6.17.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.17<\/span>/);
 const rosterSource = functionSource(app, "thirtyTwoPlayerTournamentAiEntries");
 assert.match(rosterSource, /uniqueTournamentAiEntries\(31/);
 assert.doesNotMatch(rosterSource, /COACH_OPTIONS|::duplicate:/);

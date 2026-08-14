@@ -2,7 +2,7 @@ const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const ULTIMATE_STARTING_ENERGY = 3;
 const ULTIMATE_DECK_SIZE = 48;
-const GAME_VERSION = "v6.16";
+const GAME_VERSION = "v6.17";
 const CARD_ASSET_VERSION = "170";
 
 const ULTIMATE_MODE = {
@@ -16508,6 +16508,11 @@ function championshipStandings(phase, group, throughDay = 3) {
 function revealChampionshipDay(phase, day) {
   for (const match of championshipMatches(phase, day)) {
     if (match.winner || !match.playerA || !match.playerB) continue;
+    if (state.tournament?.progressiveLiveScores && match.simulated) {
+      finalizeProgressiveTournamentMatch(match);
+      recordOnePointMatchOutcome(match);
+      continue;
+    }
     if (!ensureSimulatedTournamentMatchReady(match)) continue;
     match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
     match.score = formatSetScores(match.revealedSetScores);
@@ -16814,6 +16819,10 @@ function applyLeagueMatchStats(playerAStats, playerBStats, setScores = []) {
 function revealLeagueDay(day) {
   for (const match of state.tournament.matches.filter((item) => item.day === day)) {
     if (match.winner || match.score) continue;
+    if (state.tournament?.progressiveLiveScores && match.simulated) {
+      finalizeProgressiveTournamentMatch(match);
+      continue;
+    }
     if (!ensureSimulatedTournamentMatchReady(match)) continue;
     match.revealedSetScores = match.hiddenSetScores.map((score) => [...score]);
     match.score = formatSetScores(match.revealedSetScores);
@@ -17949,6 +17958,23 @@ function advanceProgressiveTournamentMatch(match, targetSetsOverride = null) {
   return true;
 }
 
+function finalizeProgressiveTournamentMatch(match, targetSetsOverride = null) {
+  if (!match?.simulated || match.winner || !match.playerA || !match.playerB) return Boolean(match?.winner);
+  for (let step = 0; step < 2000 && !match.winner; step += 1) {
+    advanceProgressiveTournamentMatch(match, targetSetsOverride);
+  }
+  if (!match.winner) {
+    const winnerIndex = progressiveTournamentRankRating(match.playerA) >= progressiveTournamentRankRating(match.playerB) ? 0 : 1;
+    const targetSets = Number(targetSetsOverride || state.tournament.targetSets || 2);
+    match.winner = winnerIndex === 0 ? match.playerA : match.playerB;
+    match.revealedSetScores = randomMatchSetScoresForWinner(winnerIndex, targetSets);
+    match.score = formatSetScores(match.revealedSetScores);
+    match.liveScore = null;
+    match.liveProgress = null;
+  }
+  return true;
+}
+
 function advanceProgressiveTournamentScores(round = state.tournament?.stage) {
   if (!state.tournament?.progressiveLiveScores || !round) return;
   const current = tournamentMatchById(state.tournament.currentMatch);
@@ -18561,7 +18587,7 @@ function revealNextTournamentAiSet() {
 function revealAllTournamentAiSets(round = null) {
   if (state.tournament?.progressiveLiveScores) {
     for (const match of simulatedTournamentMatches(round)) {
-      for (let guard = 0; guard < 80 && !match.winner; guard += 1) advanceProgressiveTournamentMatch(match);
+      finalizeProgressiveTournamentMatch(match);
     }
     refreshWeeklyTournamentDerivedSlots();
     return;

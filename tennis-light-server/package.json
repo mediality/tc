@@ -1,9 +1,10 @@
 {
   "name": "tennis-courts-light-server",
-  "version": "6.14.0",
+  "version": "6.17.0",
   "private": true,
   "description": "Prototype serveur pour Tennis Courts Light.",
   "scripts": {
+    "test:v6.17": "node tests/v6.17-final-live-scores.mjs",
     "test:v6.12": "node tests/v6.12-ai-weekly-simulation-report.mjs && node tests/v6.12-circuit-live-scores-chrome-auth.mjs",
     "test:v6.13": "node tests/v6.13-academy-ultimate-safari-cache.mjs",
     "test:v6.14": "node tests/v6.14-academy-powers-live-scores.mjs",

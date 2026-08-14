@@ -21,9 +21,9 @@ function functionSource(name) {
   throw new Error(`${name} incomplet`);
 }
 
-assert.equal(packageJson.version, "6.13.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.13<\/span>/);
-assert.match(html, /app\.js\?v=6\.13\.0/);
+assert.equal(packageJson.version, "6.17.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.17<\/span>/);
+assert.match(html, /app\.js\?v=6\.17\.0/);
 
 const context = {};
 vm.runInNewContext(`${functionSource("confrontationStatus")}; results = [
