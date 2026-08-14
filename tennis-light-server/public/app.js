@@ -2,7 +2,7 @@ const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const ULTIMATE_STARTING_ENERGY = 3;
 const ULTIMATE_DECK_SIZE = 48;
-const GAME_VERSION = "v6.15";
+const GAME_VERSION = "v6.16";
 const CARD_ASSET_VERSION = "170";
 
 const ULTIMATE_MODE = {
@@ -21838,17 +21838,25 @@ function activeEffectBadges(playerIndex) {
     if (bonus.type === "doubleLastShot") badges.push({ text: "Fin de l’échange : double la puissance de votre dernière carte Coup", type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
     if (bonus.type === "boostedBonus") badges.push({ text: `Fin de l’échange : +${bonus.value} puissance par carte jouée en BOOST`, type: "effect", category: "permanent", sourceUid: bonus.sourceUid });
   }
+  const temporaryBonuses = player.temporaryBonuses || [];
   const persistentBonuses = [
-    ...(player.surfaceBonuses || (player.surfaceBonus ? [player.surfaceBonus] : [])),
+    ...temporaryBonuses,
     ...(player.permanentBonuses || []),
-    ...(player.temporaryBonuses || []),
+    ...(player.surfaceBonuses || (player.surfaceBonus ? [player.surfaceBonus] : [])),
   ];
   const seenPersistentBonuses = new Set();
   for (const bonus of persistentBonuses) {
-    const identity = bonus?.sourceBonusId || bonus?.id || bonus?.label;
+    const normalizedLabel = withoutDurationSuffix(bonus?.baseLabel || bonus?.label || bonus?.reason || "")
+      .toLocaleLowerCase("fr")
+      .replace(/[\s·:;,.()]+/g, " ")
+      .trim();
+    const statSignature = ["power", "precision", "placement", "endurance"]
+      .map((key) => Number(bonus?.[key] || 0))
+      .join("|");
+    const identity = normalizedLabel ? `${normalizedLabel}|${statSignature}` : String(bonus?.sourceBonusId || bonus?.id || "");
     if (!identity || seenPersistentBonuses.has(identity)) continue;
     seenPersistentBonuses.add(identity);
-    const provisional = (player.temporaryBonuses || []).includes(bonus);
+    const provisional = temporaryBonuses.includes(bonus);
     const duration = bonus?.remainingExchanges
       ? `${bonus.remainingExchanges} échange${bonus.remainingExchanges > 1 ? "s" : ""}`
       : provisional ? "Provisoire" : "Match";
