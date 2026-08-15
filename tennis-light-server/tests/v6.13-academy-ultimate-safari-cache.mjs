@@ -13,11 +13,11 @@ function functionSource(source, name) {
   return source.slice(start, next === -1 ? source.length : next);
 }
 
-assert.equal(packageJson.version, "6.17.0");
-assert.match(app, /const GAME_VERSION = "v6\.17"/);
-assert.match(html, /Tennis Courts Academy · <span>V6\.17<\/span>/);
+assert.equal(packageJson.version, "6.18.0");
+assert.match(app, /const GAME_VERSION = "v6\.18"/);
+assert.match(html, /Tennis Courts Academy · <span>V6\.18<\/span>/);
 for (const asset of ["styles.css", "mobile-game.css", "app.js", "mobile-game.js"]) {
-  assert.match(html, new RegExp(`${asset.replace(".", "\\.")}\\?v=6\\.17\\.0`));
+  assert.match(html, new RegExp(`${asset.replace(".", "\\.")}\\?v=6\\.18\\.0`));
 }
 assert.match(html, /tutorial-engine\.js\?v=3\.86\.0/);
 assert.match(html, /ultimate-card-data\.js\?v=5\.35\.0/);

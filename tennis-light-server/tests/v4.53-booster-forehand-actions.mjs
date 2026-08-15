@@ -67,7 +67,7 @@ assert.match(css, /data-desktop-role="local"[^}]*\.desktop-profile-actions--loca
 assert.match(css, /data-desktop-role="opponent"[^}]*\.desktop-profile-actions--opponent[\s\S]*top: calc\(100% \+ 40px\)/);
 assert.match(css, /data-desktop-role="local"[^}]*\.desktop-profile-bottom-spacer[\s\S]*height: 38px/);
 
-assert.equal(packageJson.version, "6.17.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.17<\/span>/);
+assert.equal(packageJson.version, "6.18.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.18<\/span>/);
 
 console.log("V4.53 booster, Coup droit\/Service and desktop action tray checks passed.");
