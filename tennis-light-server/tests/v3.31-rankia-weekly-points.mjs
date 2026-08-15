@@ -75,7 +75,7 @@ assert.match(performanceSource, /5 \+ Math\.abs\(score\[0\] - score\[1\]\)/);
 assert.match(performanceSource, /if \(loserSets === 0\) points\.set\(winner, \(points\.get\(winner\) \|\| 0\) \+ 5\)/);
 
 const simulationSource = sourceOf(server, "simulateAiCircuitWeek");
-assert.match(simulationSource, /simulationIndex < 2/);
+assert.match(simulationSource, /simulationIndex < simulationCount/);
 assert.match(simulationSource, /runNonce = `\$\{simulationNonce\}:run:\$\{simulationIndex \+ 1\}`/);
 assert.match(simulationSource, /simulatedAiLeaguePoints/);
 assert.match(simulationSource, /simulatedAiTournamentPoints/);

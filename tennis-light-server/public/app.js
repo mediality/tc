@@ -3435,21 +3435,22 @@ function renderAdminAiReport() {
     [assignments.randomNegative, "Tirage négatif −2"],
   ].filter(([id]) => id).map(([id, label]) => `${escapeHtml(aiTournamentPlayerName(id))} : ${label}`);
   els.adminAiReportSummary.innerHTML = `
-    <p><strong>Saison ${Number(report.season || 1)} · Semaine ${Number(report.week || 1)}</strong> · ${Number(report.simulationCount || 2)} simulations</p>
-    <p>Plafond tournoi : ${Number(report.tournamentMax || 0).toLocaleString("fr-FR")} · Plafond scores : ${Number(report.performanceMax || 0).toLocaleString("fr-FR")} · Maximum total : ${Number(report.pointMax || 0).toLocaleString("fr-FR")}</p>
+    <p><strong>Saison ${Number(report.season || 1)} · Semaine ${Number(report.week || 1)}</strong> · 1 campagne de ${Number(report.simulationCount || 5)} simulations</p>
+    <p>Maximum théorique tournois : ${Number(report.tournamentMax || 0).toLocaleString("fr-FR")} · Scores : ${Number(report.performanceMax || 0).toLocaleString("fr-FR")} · Total : ${Number(report.pointMax || 0).toLocaleString("fr-FR")}</p>
     <p>${assignmentLabels.join(" · ")}</p>`;
   els.adminAiReportTable.innerHTML = `
-    <div class="admin-ai-report-row admin-ai-report-head"><span>#</span><span>IA</span><span>Mot.</span><span>Sim. 1</span><span>Sim. 2</span><span>Tournois bruts</span><span>Plafond</span><span>Tournois retenus</span><span>Scores bruts</span><span>50 % scores</span><span>Total</span></div>
+    <div class="admin-ai-report-row admin-ai-report-head"><span>#</span><span>IA</span><span>Mot.</span><span>Sim. 1</span><span>Sim. 2</span><span>Sim. 3</span><span>Sim. 4</span><span>Sim. 5</span><span>Tournois retenus</span><span>Scores retenus</span><span>Total retenu</span></div>
     ${(report.players || []).map((player) => {
       const run1 = report.runs?.[0]?.[player.characterId] || {};
       const run2 = report.runs?.[1]?.[player.characterId] || {};
+      const run3 = report.runs?.[2]?.[player.characterId] || {};
+      const run4 = report.runs?.[3]?.[player.characterId] || {};
+      const run5 = report.runs?.[4]?.[player.characterId] || {};
       const runTotal = (run) => Number(run.tournamentPoints || 0) + Number(run.performancePoints || 0);
       return `<div class="admin-ai-report-row">
         <span>${Number(player.weeklyRank || 0)}</span><span>${escapeHtml(player.name || player.characterId)}</span><span>${Number(player.motivation || 0).toLocaleString("fr-FR")}</span>
-        <span>${runTotal(run1).toLocaleString("fr-FR")}</span><span>${runTotal(run2).toLocaleString("fr-FR")}</span>
-        <span>${Number(player.rawTournamentPoints || 0).toLocaleString("fr-FR")}</span><span>${Number(player.tournamentCap || 0).toLocaleString("fr-FR")}</span>
-        <span>${Number(player.tournamentPoints || 0).toLocaleString("fr-FR")}</span><span>${Number(player.rawPerformancePoints || 0).toLocaleString("fr-FR")}</span>
-        <span>${Number(player.performancePoints || 0).toLocaleString("fr-FR")}</span><strong>${Number(player.points || 0).toLocaleString("fr-FR")}</strong>
+        <span>${runTotal(run1).toLocaleString("fr-FR")}</span><span>${runTotal(run2).toLocaleString("fr-FR")}</span><span>${runTotal(run3).toLocaleString("fr-FR")}</span><span>${runTotal(run4).toLocaleString("fr-FR")}</span><span>${runTotal(run5).toLocaleString("fr-FR")}</span>
+        <span>${Number(player.tournamentPoints || 0).toLocaleString("fr-FR")}</span><span>${Number(player.performancePoints || 0).toLocaleString("fr-FR")}</span><strong>${Number(player.points || 0).toLocaleString("fr-FR")}</strong>
       </div>`;
     }).join("")}`;
 }

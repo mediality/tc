@@ -691,21 +691,21 @@ function seededRandom(seed) {
 }
 
 function simulatedAiIntelligence(rankIa, seed = "") {
-  if (rankIa === 1) return "legend";
-  if (rankIa === 2) return "champion";
-  if (rankIa <= 4) return seededRandom(`${seed}:level`) < 0.5 ? "expert" : "champion";
-  if (rankIa <= 6) return "expert";
-  if (rankIa <= 10) return seededRandom(`${seed}:level`) < 0.5 ? "normal" : "expert";
-  if (rankIa <= 14) return "normal";
-  if (rankIa <= 18) return seededRandom(`${seed}:level`) < 0.5 ? "normal" : "amateur";
+  if (rankIa <= 2) return "legend";
+  if (rankIa <= 4) return "champion";
+  if (rankIa <= 6) return seededRandom(`${seed}:level`) < 0.5 ? "expert" : "champion";
+  if (rankIa <= 10) return "expert";
+  if (rankIa <= 14) return seededRandom(`${seed}:level`) < 0.5 ? "normal" : "expert";
+  if (rankIa <= 18) return "normal";
+  if (rankIa <= 24) return seededRandom(`${seed}:level`) < 0.5 ? "amateur" : "normal";
   return "amateur";
 }
 
 function aiMatchStrength(characterId, competition, season, week, slot, bonusTopIds = [], simulationNonce = "", rankingOrder = [], seedBonusCounts = {}, motivationById = {}) {
   const rankIa = Math.max(1, rankingOrder.indexOf(characterId) + 1 || CIRCUIT_AI_CHARACTER_IDS.length);
   const intelligence = simulatedAiIntelligence(rankIa, `${simulationNonce}:${competition.id}:${season}:${week}:${characterId}`);
-  const intelligenceBonus = { amateur: -5, normal: 0, expert: 5, champion: 10, legend: 15 }[intelligence] || 0;
-  const surfaceBonus = AI_SURFACE_PREFERENCES[characterId] === competition.surface ? 3 : 0;
+  const intelligenceBonus = { amateur: -15, normal: -5, expert: 0, champion: 10, legend: 20 }[intelligence] || 0;
+  const surfaceBonus = AI_SURFACE_PREFERENCES[characterId] === competition.surface ? 5 : 0;
   const protectedBonus = bonusTopIds.includes(characterId) ? 2 : 0;
   const tournamentBonus = Number(seedBonusCounts[characterId] || 0) * 4;
   const motivationBonus = Number(motivationById[characterId] || 0) * 5;
@@ -1068,33 +1068,24 @@ async function aiCircuitStandingsForBoost(season, week) {
   return { rows, worldOrderIds, boostedTopIds, previousWeekLeaderId };
 }
 
-function applyAiWeeklyCaps(tournamentTotals, performanceTotals, standings, tournamentMax) {
+function retainedAiWeeklyEntries(retainedByCharacter, standings) {
   const rankIaById = new Map((standings.worldOrderIds || []).map((characterId, index) => [characterId, index + 1]));
-  const weeklyOrder = [...tournamentTotals.entries()]
-    .sort(([characterA, pointsA], [characterB, pointsB]) => (
-      pointsB - pointsA
-      || (rankIaById.get(characterA) || 99999) - (rankIaById.get(characterB) || 99999)
-      || aiCharacterName(characterA).localeCompare(aiCharacterName(characterB), "fr")
-    ));
-  const rankCaps = [1, 0.85, 0.8, 0.75];
-  return weeklyOrder.map(([characterId, rawTournamentPoints], index) => {
-    const ratio = rankCaps[index] ?? 0.7;
-    const tournamentCap = Math.round(tournamentMax * ratio);
-    const tournamentPoints = Math.min(Number(rawTournamentPoints || 0), tournamentCap);
-    const rawPerformancePoints = Number(performanceTotals.get(characterId) || 0);
-    const performancePoints = Math.ceil(rawPerformancePoints / 2);
-    return {
-      characterId,
-      weeklyRank: index + 1,
-      rankIa: rankIaById.get(characterId) || CIRCUIT_AI_CHARACTER_IDS.length,
-      rawTournamentPoints: Number(rawTournamentPoints || 0),
-      tournamentCap,
-      tournamentPoints,
-      rawPerformancePoints,
-      performancePoints,
-      points: tournamentPoints + performancePoints,
-    };
-  });
+  return CIRCUIT_AI_CHARACTER_IDS
+    .map((characterId) => {
+      const retainedCompetitions = [...(retainedByCharacter.get(characterId)?.values() || [])];
+      const tournamentPoints = retainedCompetitions.reduce((sum, entry) => sum + entry.tournamentPoints, 0);
+      const performancePoints = retainedCompetitions.reduce((sum, entry) => sum + entry.performancePoints, 0);
+      return {
+        characterId,
+        rankIa: rankIaById.get(characterId) || CIRCUIT_AI_CHARACTER_IDS.length,
+        tournamentPoints,
+        performancePoints,
+        points: tournamentPoints + performancePoints,
+        retainedCompetitions,
+      };
+    })
+    .sort((a, b) => b.points - a.points || a.rankIa - b.rankIa || aiCharacterName(a.characterId).localeCompare(aiCharacterName(b.characterId), "fr"))
+    .map((entry, index) => ({ ...entry, weeklyRank: index + 1 }));
 }
 
 async function storeAiSimulationReport(season, week, report) {
@@ -1129,12 +1120,12 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
     simulationNonce = makeToken();
     await setAppStateValue("ai_simulation_nonce", simulationNonce);
   }
-  const tournamentTotals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
-  const performanceTotals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
+  const simulationCount = 5;
+  const retainedByCharacter = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, new Map()]));
   const standings = await aiCircuitStandingsForBoost(season, week);
   const motivation = await buildAiMotivationForWeek(season, week, standings, simulationNonce);
   const runs = [];
-  for (let simulationIndex = 0; simulationIndex < 2; simulationIndex += 1) {
+  for (let simulationIndex = 0; simulationIndex < simulationCount; simulationIndex += 1) {
     const runNonce = `${simulationNonce}:run:${simulationIndex + 1}`;
     const runTournamentTotals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
     const runPerformanceTotals = new Map(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, 0]));
@@ -1143,12 +1134,27 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
         ? simulatedAiLeaguePoints(competition, season, week, bonusTopIds, runNonce, standings.worldOrderIds, motivation.values)
         : simulatedAiTournamentPoints(competition, season, week, bonusTopIds, runNonce, standings.worldOrderIds, motivation.values);
       awards.tournamentPoints.forEach((points, characterId) => {
-        tournamentTotals.set(characterId, (tournamentTotals.get(characterId) || 0) + points);
         runTournamentTotals.set(characterId, (runTournamentTotals.get(characterId) || 0) + points);
       });
       awards.performancePoints.forEach((points, characterId) => {
-        performanceTotals.set(characterId, (performanceTotals.get(characterId) || 0) + points);
         runPerformanceTotals.set(characterId, (runPerformanceTotals.get(characterId) || 0) + points);
+      });
+      CIRCUIT_AI_CHARACTER_IDS.forEach((characterId) => {
+        const tournamentPoints = Number(awards.tournamentPoints.get(characterId) || 0);
+        const performancePoints = Number(awards.performancePoints.get(characterId) || 0);
+        const totalPoints = tournamentPoints + performancePoints;
+        const retained = retainedByCharacter.get(characterId);
+        const currentBest = retained.get(competition.id);
+        if (!currentBest || totalPoints > currentBest.totalPoints) {
+          retained.set(competition.id, {
+            competitionId: competition.id,
+            competitionName: competition.name,
+            simulation: simulationIndex + 1,
+            tournamentPoints,
+            performancePoints,
+            totalPoints,
+          });
+        }
       });
     });
     runs.push(Object.fromEntries(CIRCUIT_AI_CHARACTER_IDS.map((characterId) => [characterId, {
@@ -1157,10 +1163,11 @@ async function simulateAiCircuitWeek(season, week, options = {}) {
     }])));
   }
   const tournamentMax = maxWeeklyTournamentPoints(week);
-  const adjustedEntries = applyAiWeeklyCaps(tournamentTotals, performanceTotals, standings, tournamentMax);
+  const adjustedEntries = retainedAiWeeklyEntries(retainedByCharacter, standings);
   const pointMax = maxWeeklyAiPoints(week);
   const report = {
-    season, week, generatedAt: new Date().toISOString(), simulationCount: 2,
+    season, week, generatedAt: new Date().toISOString(), simulationCount,
+    campaignCount: 1, retentionRule: "best-result-per-tournament",
     tournamentMax, performanceMax: maxWeeklyPerformancePoints(week), pointMax,
     motivation, runs,
     players: adjustedEntries.map((entry) => ({ ...entry, name: aiCharacterName(entry.characterId), motivation: Number(motivation.values?.[entry.characterId] || 0) })),

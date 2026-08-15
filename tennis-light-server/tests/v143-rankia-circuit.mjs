@@ -145,7 +145,7 @@ assert.match(server, /function simulatedAiMatchPerformancePoints/);
 assert.match(server, /5 \+ Math\.abs\(score\[0\] - score\[1\]\)/);
 assert.match(server, /if \(loserSets === 0\).*\+ 5/);
 assert.match(sourceOf(server, "maxWeeklyTournamentPoints"), /reduce\([\s\S]*table\.winner[\s\S]*750/);
-assert.match(sourceOf(server, "simulateAiCircuitWeek"), /simulationIndex < 2/);
+assert.match(sourceOf(server, "simulateAiCircuitWeek"), /simulationIndex < simulationCount/);
 assert.match(sourceOf(server, "simulateAiCircuitWeek"), /runNonce = `\$\{simulationNonce\}:run:\$\{simulationIndex \+ 1\}`/);
 
 console.log("v143 RankIA, tirages Circuit Pro et points IA: OK");
