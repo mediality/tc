@@ -205,9 +205,9 @@ const POINT_TABLES = {
   800: { group4: 0, group3: 25, semi: 200, finalist: 400, winner: 800, matchWin: 10, weeklyPotential: 1100 },
   1000: { round32: 10, round16: 35, qualif: 35, quarter: 100, semi: 200, finalist: 500, winner: 1000 },
   1200: { group4: 0, group3: 40, semi: 300, finalist: 700, winner: 1200, matchWin: 20, weeklyPotential: 1500 },
-  1500: { round32: 15, round16: 50, qualif: 50, quarter: 150, semi: 350, finalist: 750, winner: 1500 },
-  2000: { round32: 20, round16: 70, qualif: 70, quarter: 200, semi: 500, finalist: 1200, winner: 2000 },
-  4000: { round32: 40, round16: 140, qualif: 140, quarter: 400, semi: 1000, finalist: 2400, winner: 4000 },
+  1500: { round32: 0, round16: 75, qualif: 75, quarter: 150, semi: 350, finalist: 750, winner: 1500 },
+  2000: { round32: 0, round16: 100, qualif: 100, quarter: 200, semi: 500, finalist: 1200, winner: 2000 },
+  4000: { round32: 0, round16: 200, qualif: 200, quarter: 400, semi: 1000, finalist: 2400, winner: 4000 },
 };
 const DIRECT_THRESHOLDS = { 400: 2000, 600: 2800, 1000: 4400, 1500: 6400, 2000: 8400, 4000: 12000 };
 const COMPETITION_DEFINITIONS = loadWorldTourDefinitions();

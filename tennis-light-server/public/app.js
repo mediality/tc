@@ -3500,6 +3500,8 @@ function renderCircuitDashboard() {
   const week = Number(competitions?.week || ranking?.week || 1);
 
   if (els.circuitHeroPeriod) els.circuitHeroPeriod.textContent = `Saison ${season} · Semaine ${week} · Tournois de la semaine`;
+  const weeklyTitle = document.querySelector("#circuitWeeklyTitle");
+  if (weeklyTitle) weeklyTitle.textContent = `Tournoi de la semaine ${week} (Saison ${season})`;
   const fixedWorldRank = Number(current?.points_rank || current?.rank || 0);
   if (els.circuitRankValue) els.circuitRankValue.textContent = circuitRankLabel(fixedWorldRank);
   setCircuitProjection(els.circuitRankProjection, fixedWorldRank, current?.projected_rank);
@@ -12767,13 +12769,18 @@ function opponentIsUnableToReply(playerIndex) {
   return !opponent.hand.some((card) => effectiveCost(opponent, card) === 0);
 }
 
-function certainWinImprovementPath(playerIndex) {
+function certainWinImprovementPath(playerIndex, passProjection = soloPassProjection(playerIndex)) {
   if (!opponentIsUnableToReply(playerIndex)) return null;
   const player = state.players[playerIndex];
   const opponentIndex = opponentOf(playerIndex);
+  const passScore = passProjection.exchangeScore || { winnerGames: 2, loserGames: 1 };
+  const improvesScore = (winnerGames, loserGames) => (
+    loserGames < passScore.loserGames
+    || (loserGames === passScore.loserGames && winnerGames > passScore.winnerGames)
+  );
   const boost = soloLegalActionInventory(playerIndex).boosts
     .sort((a, b) => soloBoostScore(playerIndex, b.card) - soloBoostScore(playerIndex, a.card))[0];
-  if (boost) {
+  if (boost && improvesScore(3, 0)) {
     return {
       type: "boost",
       cardUid: boost.card.uid,
@@ -12786,7 +12793,7 @@ function certainWinImprovementPath(playerIndex) {
   const smash = legalCoups
     .filter((card) => card.effectType === "smashThreat" && !isSoloCardEffectDormant(playerIndex, card))
     .sort((a, b) => soloCardScore(playerIndex, b) - soloCardScore(playerIndex, a))[0];
-  if (smash) {
+  if (smash && improvesScore(2, 0)) {
     return {
       type: "normal",
       cardUid: smash.uid,
@@ -12814,7 +12821,7 @@ function certainWinImprovementPath(playerIndex) {
     })
     .filter((option) => option.winner === playerIndex && option.score.loserGames === 0)
     .sort((a, b) => b.margin - a.margin || soloCardScore(playerIndex, b.card) - soloCardScore(playerIndex, a.card))[0];
-  return cleanWinner ? {
+  return cleanWinner && improvesScore(2, 0) ? {
     type: "normal",
     cardUid: cleanWinner.card.uid,
     cardName: cleanWinner.card.name,
@@ -12823,10 +12830,10 @@ function certainWinImprovementPath(playerIndex) {
 }
 
 function soloCertainWinDecision(playerIndex) {
-  if (state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
+  if (!aiIntelligenceAtLeast("expert") || state.mandatoryPlacement || hasPlayedThisTurn(playerIndex)) return null;
   const projection = soloPassProjection(playerIndex);
   if (projection.projectedWinner !== playerIndex) return null;
-  const path = certainWinImprovementPath(playerIndex);
+  const path = certainWinImprovementPath(playerIndex, projection);
   return path
     ? {
       action: "play",
@@ -17454,10 +17461,31 @@ function tournamentPositionMap(positions = []) {
     .filter(Boolean));
 }
 
-function buildTournamentRound16Positions(humanCharacterId, surface = "hard", points = currentRankingTotalPoints()) {
+function buildTournamentRound16Positions(humanCharacterId, surface = "hard", points = currentRankingTotalPoints(), tournamentSize = 16) {
   const humanLevel = circuitHumanLevel(points);
-  const positions = Array(17).fill(null);
   const rankedAi = rankedAiTournamentEntries(TOURNAMENT_CHARACTER_POOL);
+  if (tournamentSize === 32) {
+    const positions = Array(33).fill(null);
+    const roster = [HUMAN_TOURNAMENT_ENTRY, ...rankedAi.slice(0, 31)];
+    const rankedRoster = sortTournamentEntriesByWorldRank(roster);
+    const seedEntries = rankedRoster.slice(0, 8);
+    const seedSlots = seededTournamentSlotMap(32, 8);
+    seedEntries.forEach((entry, index) => { positions[seedSlots[index + 1]] = entry; });
+    const unseeded = shuffle(roster.filter((entry) => !seedEntries.includes(entry)));
+    for (let position = 1; position <= 32; position += 1) {
+      if (!positions[position]) positions[position] = unseeded.shift();
+    }
+    return {
+      positions,
+      seededHistorics: seedEntries.filter((entry) => entry !== HUMAN_TOURNAMENT_ENTRY),
+      seedEntries,
+      seedNumbers: Object.fromEntries(seedEntries.map((entry, index) => [entry, index + 1])),
+      positionByEntry: tournamentPositionMap(positions),
+      humanLevel,
+      humanCharacterId,
+    };
+  }
+  const positions = Array(17).fill(null);
 
   if (humanLevel === 1) {
     const roster = [HUMAN_TOURNAMENT_ENTRY, ...shuffle(rankedAi).slice(0, 15)];
@@ -17504,6 +17532,7 @@ function buildTournamentRound16Positions(humanCharacterId, surface = "hard", poi
 
 function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacterId) {
   const surface = weeklyCompetition.surface || "hard";
+  const tournamentSize = Number(weeklyCompetition.value || 0) >= 1500 ? 32 : 16;
   applySurfaceBackground(surface);
   const {
     positions,
@@ -17511,7 +17540,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     seedNumbers,
     positionByEntry,
     humanLevel,
-  } = buildTournamentRound16Positions(humanCharacterId, surface);
+  } = buildTournamentRound16Positions(humanCharacterId, surface, currentRankingTotalPoints(), tournamentSize);
   SOLO_AI.difficulty = "circuit";
   const circuitBonusSetup = buildWeeklyCircuitProBonuses(positions, seedEntries, surface, humanLevel);
   const surfaceBonuses = circuitBonusSetup.bonuses;
@@ -17522,6 +17551,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
     active: true,
     visible: false,
     bracket16: true,
+    bracketSize: tournamentSize,
     progressiveLiveScores: true,
     difficulty: "circuit",
     aiIntelligenceLevels,
@@ -17567,7 +17597,7 @@ function startWeeklyTournamentMode(targetSets, weeklyCompetition, humanCharacter
   startMatchMode(targetSets, { keepSoloOpponent: true });
   state.tournament.stage = firstHumanMatch?.round || "weekly";
   state.tournament.currentMatch = firstHumanMatch?.id || null;
-  state.log.unshift(`${weeklyCompetition.name} ${weeklyCompetition.surfaceLabel} : 8e de finale contre ${characterNameFromId(SOLO_AI.characterId)}.`);
+  state.log.unshift(`${weeklyCompetition.name} ${weeklyCompetition.surfaceLabel} : ${tournamentSize === 32 ? "16e" : "8e"} de finale contre ${characterNameFromId(SOLO_AI.characterId)}.`);
   render();
 }
 
@@ -18340,6 +18370,7 @@ function humanTournamentAchievement() {
     if (last.round === "semi") return "semi";
     if (last.round === "quarter") return "quarter";
     if (last.round === "round16" || last.round === "qualif") return "round16";
+    if (last.round === "round32") return "round32";
     return null;
   }
   const semiHuman = tournamentMatchById("semiHuman");

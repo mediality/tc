@@ -15025,3 +15025,38 @@ h1 {
   .local-match-resume-prompt { align-items: stretch; flex-direction: column; padding: 16px; }
   .local-match-resume-actions { display: grid; grid-template-columns: 1fr; }
 }
+
+/* V6.18 — contraste des surfaces sombres et libellés de boutons homogènes. */
+.game-context-strip > div > strong,
+.game-assist-panel :is(h2, h3, p, label, strong),
+.tournament-panel .tournament-header :is(h2, strong),
+.competition-summary-hero > :is(h1, h2, h3, p, strong),
+.competition-summary-winner > :is(h1, h2, h3, p, strong),
+.competition-summary-bracket > :is(h1, h2, h3, p, strong) {
+  color: #fff;
+}
+
+.game-assist-panel :is(small, span),
+.competition-summary-hero > :is(small, span),
+.competition-summary-winner > :is(small, span),
+.competition-summary-bracket > :is(small, span) {
+  color: #d8eff8;
+}
+
+:is(
+  .weekly-competition-actions,
+  .dialog-actions,
+  .result-actions,
+  .local-match-resume-actions,
+  .competition-dialog-scroll .tournament-header,
+  .competition-dialog-scroll .tournament-panel
+) :is(.primary-button, .small-button, .tournament-toggle-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding-block: 7px;
+  font-size: .82rem;
+  line-height: 1.15;
+  text-align: center;
+}
