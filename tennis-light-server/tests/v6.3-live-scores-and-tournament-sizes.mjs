@@ -31,8 +31,8 @@ assert.deepEqual(
   { 1: 1, 4: 4, 3: 5, 2: 8 },
 );
 
-assert.equal(packageJson.version, "6.18.0");
-assert.match(html, /Tennis Courts Academy · <span>V6\.18<\/span>/);
+assert.equal(packageJson.version, "6.19.0");
+assert.match(html, /Tennis Courts Academy · <span>V6\.19<\/span>/);
 assert.match(html, /data-ai-club-setting="tournamentSize" data-ai-club-value="8"/);
 assert.match(html, /data-ai-club-setting="tournamentSize" data-ai-club-value="16"/);
 assert.match(html, /data-ai-club-setting="tournamentSize" data-ai-club-value="32"/);

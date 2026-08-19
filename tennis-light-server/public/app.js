@@ -2,7 +2,7 @@ const STARTING_ENDURANCE = 7;
 const HAND_SIZE = 6;
 const ULTIMATE_STARTING_ENERGY = 3;
 const ULTIMATE_DECK_SIZE = 48;
-const GAME_VERSION = "v6.18";
+const GAME_VERSION = "v6.19";
 const CARD_ASSET_VERSION = "170";
 
 const ULTIMATE_MODE = {
@@ -21998,13 +21998,20 @@ function openDesktopBonusDialog(playerIndex) {
   const player = state.players[playerIndex];
   if (!player) return;
   const effectBadges = activeEffectBadges(playerIndex);
+  const bonusIdentity = (value) => String(value || "")
+    .replace(/\s*·\s*\d+\s+échanges?\s*$/i, "")
+    .toLocaleLowerCase("fr")
+    .replace(/[\s·:;,.()]+/g, " ")
+    .trim();
+  const displayedEffectBonusIds = new Set(effectBadges.map((badge) => bonusIdentity(badge.label)).filter(Boolean));
   const simpleBonuses = [
     ...surfaceBonusesForPlayer(player),
     ...(player.permanentBonuses ?? []),
   ]
-    .map((bonus) => String(bonus?.label || "").trim())
+    .filter((bonus) => !Number(bonus?.remainingExchanges || 0))
+    .map((bonus) => String(bonus?.baseLabel || bonus?.label || "").trim())
     .filter(Boolean)
-    .filter((label) => !effectBadges.some((badge) => badge.label === label));
+    .filter((label) => !displayedEffectBonusIds.has(bonusIdentity(label)));
   const entries = [
     ...effectBadges.map((badge) => ({
       type: badge.type,
@@ -22018,9 +22025,9 @@ function openDesktopBonusDialog(playerIndex) {
       label,
       description: `${label}.`,
     })),
-  ].filter((entry, index, values) => (
-    values.findIndex((candidate) => `${candidate.type}:${candidate.label}` === `${entry.type}:${entry.label}`) === index
-  ));
+  ].filter((entry, index, values) => values.findIndex((candidate) => (
+    `${candidate.type}:${bonusIdentity(candidate.label)}` === `${entry.type}:${bonusIdentity(entry.label)}`
+  )) === index);
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop desktop-bonus-backdrop";
   backdrop.innerHTML = `

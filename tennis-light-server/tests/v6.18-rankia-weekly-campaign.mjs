@@ -9,8 +9,8 @@ const app = fs.readFileSync(path.join(root, "public/app.js"), "utf8");
 const index = fs.readFileSync(path.join(root, "public/index.html"), "utf8");
 const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
 
-assert.equal(packageJson.version, "6.18.0");
-assert.match(index, /Tennis Courts Academy · <span>V6\.18<\/span>/);
+assert.equal(packageJson.version, "6.19.0");
+assert.match(index, /Tennis Courts Academy · <span>V6\.19<\/span>/);
 assert.match(server, /const simulationCount = 5/);
 assert.match(server, /campaignCount: 1, retentionRule: "best-result-per-tournament"/);
 assert.match(server, /if \(!currentBest \|\| totalPoints > currentBest\.totalPoints\)/);

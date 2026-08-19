@@ -6,10 +6,10 @@ const indexHtml = fs.readFileSync(new URL("../public/index.html", import.meta.ur
 const app = fs.readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../public/styles.css", import.meta.url), "utf8");
 
-assert.equal(packageJson.version, "6.18.0");
-assert.match(indexHtml, /styles\.css\?v=6\.18\.0/);
-assert.match(indexHtml, /app\.js\?v=6\.18\.0/);
-assert.match(indexHtml, /Tennis Courts Academy · <span>V6\.18<\/span>/);
+assert.equal(packageJson.version, "6.19.0");
+assert.match(indexHtml, /styles\.css\?v=6\.19\.0/);
+assert.match(indexHtml, /app\.js\?v=6\.19\.0/);
+assert.match(indexHtml, /Tennis Courts Academy · <span>V6\.19<\/span>/);
 
 const desktopScoreFunction = app.slice(
   app.indexOf("function renderDesktopMatchScore()"),
